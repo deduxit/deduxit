@@ -1142,7 +1142,8 @@ pub(crate) struct CheckArgs {
     #[arg(help_heading = LOGIC, long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
     pub(crate) system: Option<deduxit::modal::System>,
     /// With a Kripke model, the sequent of ordinary logic (--logic) or of
-    /// modal logic (--system) to check it against
+    /// modal logic (--system) to check it against; with --tableau, the
+    /// sequent the tableau must start from
     ///
     /// The model must be one of the logic: its worlds ordered by its
     /// arrows, with no arrows round, each world forcing what every world
@@ -1160,6 +1161,24 @@ pub(crate) struct CheckArgs {
     /// every world when absent
     #[arg(help_heading = INPUT, long, value_name = "N", requires = "sequent")]
     pub(crate) world: Option<u32>,
+    /// The file is a signed tableau of classical logic written by hand, as
+    /// text, to check step by step
+    ///
+    /// Each line is a number, T (true) or F (false), a formula, and at its
+    /// end the number of the line it expands, which a rule's name may
+    /// precede (T∧ 2 or ∧L 2). The first lines, which expand no line, are
+    /// the sequent's. A branch that closes ends with × and the two lines of
+    /// a formula true and false, one that stays open with `open`. A branch
+    /// starts with `-` (or ├─ and └─, as `prove --method tableau` prints a
+    /// tableau) under the lines it goes on from, its lines indented after
+    /// it. The check names the first step that breaks a rule, a branch
+    /// marked wrongly, or the first branch not finished. A tableau without
+    /// fault is checked again as a derivation in the built-in calculus
+    /// `tableau`; an open one's branch gives a checked countermodel. The
+    /// exit status is 0 for a tableau that is right and finished, closed or
+    /// open, and 1 for one with a fault or not finished.
+    #[arg(help_heading = INPUT, long, conflicts_with_all = ["logic", "system", "calculus", "world"])]
+    pub(crate) tableau: bool,
     /// With a derivation in a calculus given as data, the calculus to
     /// check it in: a rule file, or one built in (LK, LJ, LM, LL,
     /// tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM,

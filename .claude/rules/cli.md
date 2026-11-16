@@ -332,6 +332,20 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `calculus` (a derivation that names it) and `named` (`--calculus`).
   `workspace new|add --system` makes a `modal.sequent`
   (`protocol::statement("modal", …)`).
+- `tableau.rs`: `check --tableau [FILE] [--sequent SEQ]`, a signed
+  tableau written by hand as text (`ordinary::WrittenTableau`), reviewed
+  against the built-in rule file `tableau` (`calculus::named`) and,
+  with `--sequent`, against that ordinary sequent. It branches off at
+  the start of `check`, before the JSON documents are probed: the file
+  is text, so `read_document` never sees it. The verdict line is
+  `{closed|open|unfinished|wrong} tableau of SEQUENT: MESSAGE`, the
+  library's message, with `, so the sequent is (not) valid in classical
+  logic` and, for an open one, the checked countermodel's lines; JSON
+  is the library's review (level 14). Exit 0 for closed or open (right
+  and finished), 1 for wrong or unfinished, 3 at a limit (the line
+  names the flag), 2 for a text that is no tableau (`parse_error_in`,
+  "cannot parse the tableau"). Mode flags, a format other than text or
+  JSON, `--logic`, `--system`, `--calculus` and `--world` are refused.
 - `interact/rules.rs`: `interact --calculus CALCULUS SEQUENT
   [--assume SEQUENT…]`, a session over `rules::Interactive` (the
   calculus by `calculus::named`, the sequent the argument's text), or

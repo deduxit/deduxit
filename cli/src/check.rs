@@ -42,6 +42,9 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let show = Show::new(&args.output, &settings)?;
     let path = args.output.output.clone();
     exit_on_interrupt();
+    if args.tableau {
+        return crate::tableau::check(args, (&settings, &show), &deadline);
+    }
     // The file is read and parsed within the time limit, as `prove` reads
     // its sequent: a large proof file takes seconds to parse.
     let (source, limits) = (args.source(), settings.limits);

@@ -42,6 +42,8 @@ mod settings;
 mod show;
 /// The options of every output format, from a file and flags.
 mod style;
+/// `check --tableau`: a tableau written by hand, reviewed.
+mod tableau;
 /// `seq translate` and `interpolate`.
 mod transform;
 /// `workspace`: linked values kept in a file.
@@ -200,6 +202,12 @@ impl Explained {
 /// of several lines it says which line as well. It ends with what could
 /// have stood there, as the parser says.
 pub(crate) fn parse_error(input: &str, error: Error) -> anyhow::Error {
+    parse_error_in(input, error, "the sequent")
+}
+
+/// Returns [`parse_error`]'s error for an input that `what` names, such
+/// as "the tableau".
+pub(crate) fn parse_error_in(input: &str, error: Error, what: &str) -> anyhow::Error {
     let Error::Parse(parsed) = &error else {
         return error.into();
     };
@@ -210,7 +218,7 @@ pub(crate) fn parse_error(input: &str, error: Error) -> anyhow::Error {
             error,
         );
     }
-    let mut message = String::from("cannot parse the sequent");
+    let mut message = format!("cannot parse {what}");
     for e in errors {
         // The end of the input is shown after its last visible character,
         // and a place that is none of this input's as its nearest.
