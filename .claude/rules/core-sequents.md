@@ -478,7 +478,11 @@ same test file:
   a refutation file as 0.2.0 wrote them; a reader that comes to use the
   key reads `linlog` as its alias. `core/tests/wire/` keeps documents as
   the old versions wrote them, `linlog` key and all: never rename it
-  there.
+  there. `stability.rs`'s `again` writes a document back with this
+  build's version in the top-level `deduxit` key (`written_now`) and
+  compares the rest byte for byte, so the files of 0.4.0's levels 11 to
+  14 stay as 0.4.0 wrote them; the lock (`lock/json.txt`) and
+  `serialize.rs` name the current version and are blessed at each bump.
 - `Outcome` is written and read back (`OutcomeForm`, a `wire::Readable`
   of form `outcome`): the proof through `Proof`'s reader (`of_keys`, the
   outcome's mode recorded), the disproof through `DisproofForm`'s, the

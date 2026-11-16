@@ -41,10 +41,31 @@ fn read<T: Readable>(name: &str, json: &str) -> T {
 }
 
 /// Reads one document of the form `T` and asserts that it writes the same
-/// bytes again.
+/// bytes again, but for the version of deduxit that wrote it (an
+/// outcome's `deduxit`, which no reader reads): this build writes its own.
 fn again<T: Readable + serde::Serialize>(name: &str, json: &str) {
     let value: T = read(name, json);
-    assert_eq!(serde_json::to_string(&value).unwrap(), json, "{name}");
+    assert_eq!(
+        serde_json::to_string(&value).unwrap(),
+        written_now(json),
+        "{name}"
+    );
+}
+
+/// The document with its first `"deduxit"` key, the top level's, naming
+/// this build's version.
+fn written_now(json: &str) -> String {
+    const KEY: &str = r#""deduxit":""#;
+    let Some(start) = json.find(KEY).map(|at| at + KEY.len()) else {
+        return json.to_owned();
+    };
+    let end = start + json[start..].find('"').unwrap();
+    format!(
+        "{}{}{}",
+        &json[..start],
+        env!("CARGO_PKG_VERSION"),
+        &json[end..]
+    )
 }
 
 /// Every line of the first release's forms reads, and a form read back
