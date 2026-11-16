@@ -7466,3 +7466,17 @@ move (D26).
     fresh-reviewer (Opus) seven findings, none changing the answer, all fixed.
   - **68's prompt finished**: 68a (the tableau checker), 68b (the model editor), 68c (packs, the
     check view, the embed and print).
+- 2026-11-16, 20:55: **66c reviewed and pushed; step 66 complete.**
+  - **66c** (`utvppnwm` to `mltqooqo`): Rocq certificates of modal logic for `Deduxit.Modal`: a
+    valid sequent as `modal_soundness` (or `labelled_soundness` for a labelled root) with its
+    term read off the derivation's positions, a countermodel as `modal_refutation`, the system
+    as its closed record; from `prove --system --format rocq`, `check --format rocq` of an
+    outcome, `check --calculus G3… --format rocq` and a session's `proof --rocq`; the flake's
+    `rocq-deduxit` check compiles them (101 certificates, closed) and `check-certificate`
+    refuses forged ones. fresh-reviewer (Fable) compiled 285 certificates in all fifteen
+    systems; three findings fixed (a shared `let` hid exponential work in Rocq's checker, so
+    the derivation is written unfolded, departing from the design; a valid statement dropped
+    repeated formulas; an assumption refused as an open goal). Gate and `nix flake check`
+    passed.
+  - **For 0.6.0's release:** `rocq-deduxit` is released first (its `Deduxit.Modal` is in
+    `[Unreleased]` at 0.4.0), and `export::rocq::DEDUXIT` moves with the lock.
