@@ -283,11 +283,18 @@ in, the settings it `reads`, and its input values. The match is exact.
   under what each result holds, whoever reads it. Changing an edge's
   settings is an edit (`set_settings`): the card's "Try 40 units".
 - **Every run stays within a caller's limits.** A recipe's bounds come
-  from the caller that made the edge. A document from elsewhere is read
-  through `wire::upgrade` under the reader's `Limits`, and the reader
-  lowers each recipe's `limits.*` bound to its own; a record made under
-  a larger bound then no longer matches and is dropped. So a link
-  cannot ask a browser tab for a gibibyte.
+  from the caller that made the edge, or from the caller that took the
+  document over: `Workspace::rebound` gives every recipe the caller's
+  `limits.*` values and drops the records that then no longer match. A
+  caller that reads a document it did not write calls it before it
+  runs anything. The bindings' `workspace_read`, which reads a link or
+  an imported file, does, so a link cannot ask a browser tab for a
+  gibibyte and need not carry bounds at all. Reading alone changes no
+  recipe: the page's own document, read back from the browser's
+  storage or between two calls, keeps the bounds each edge was given.
+  (The first draft had the reader lower every bound to its own; the
+  reviewer's witness: a card tried again with twice the budget and
+  decided would be undecided again after a reload.)
 - **What is not in the key**, said as marimo's documentation says its
   own (section 17): the build (deduxit's version and the target's
   pointer width, on which the memory count depends) and the number of
@@ -298,9 +305,14 @@ in, the settings it `reads`, and its input values. The match is exact.
 ### 5.2 How a run ends
 
 - `done`: it ran to its end, whatever the verdict.
-- `{"limit": "limits.work", "value": 67108864}`: a bound ended it. The
-  name is the settings key that lifts it, from `Reason::setting()` and
-  `Refusal::setting()` [V, `search/mod.rs:3509`, `limits.rs:540`]. The
+- `{"limit": {"reason": "work_limit", "setting": "limits.work",
+  "value": 67108864}}`: a bound ended it. `reason` is the name the
+  library gives it (`Reason`'s, `Refusal`'s code) and is always there;
+  `setting` is the settings key that lifts it, from `Reason::setting()`
+  and `Refusal::setting()` [V, `search/mod.rs:3509`, `limits.rs:540`],
+  and is absent where no key does (an index space that is full, the
+  memory the machine has left): the card then names the limit and
+  offers no "Try". The
   output is still kept (an outcome with `"verdict": "unknown"`). The
   record matches its key like any other: the run is deterministic, so
   the same key gives the same unknown. Raising the bound is a change
@@ -338,8 +350,9 @@ in, the settings it `reads`, and its input values. The match is exact.
 
 ### 5.4 Which records stay
 
-A record stays while a node shows it or a log entry names it (section
-7). The others are the cache proper: kept for the next undo, redo or
+A record stays while a node shows it, a log entry names it (section
+7), or the check of a record that stays names it as a part. The others
+are the cache proper: kept for the next undo, redo or
 typed-back sequent, and dropped oldest first at the bounds (section 8).
 The order is by a counter of edits, so it is the same on every run.
 
@@ -360,8 +373,12 @@ that order):
 `out_of_date` has a cause (B): `input` with the nearest node whose
 value changed, `recipe` (its own parameters or settings changed),
 `version`, or `waits` with the node above that is not run or whose
-check failed. A `work` node is `current` while its inputs' values are
-those it was started from, else `out_of_date` with `input`.
+check failed. A `work` node is `current` while every input is `given`
+or `current` and holds the value the node was started from; else it is
+`out_of_date`, with `waits` where an input is not current and `input`
+where an input's value changed. So a proof made through an interpolant
+is out of date while the interpolant waits for its search, not only
+once the half has changed.
 
 A flag per node could disagree with the values; a function of them
 cannot (both; the survey's Blueprint "dirty" icon that sticks is the
@@ -396,7 +413,8 @@ The page's rule is section 13.5.
   node's value), `connect` (a node with its recipe), `set_parameters`,
   `set_settings`, `restart` (a `work` node started again from its
   inputs' values now), `detach` (a node keeps its value and loses its
-  recipe: it becomes given), `remove` (a node with all that follows
+  recipe: it becomes given; refused, `not_applicable`, for a node that
+  shows no value), `remove` (a node with all that follows
   it). One transaction per user action is how tldraw's marks and Vim's
   undo blocks group (section 17).
 - **Not edits**: running, settling and checking (records are a
@@ -693,7 +711,11 @@ pub enum Cause { Input(NodeId), Recipe, Version, Waits(NodeId) }
 
 /// How a run ended.
 #[non_exhaustive]
-pub enum End { Done, Limit { setting: &'static str, value: u64 }, Refused(Box<Error>) }
+pub enum End {
+    Done,
+    Limit { reason: &'static str, setting: Option<&'static str>, value: Option<u64> },
+    Refused(Box<Error>),
+}
 
 /// The result of a promise's check, with the records of its parts.
 #[non_exhaustive]
@@ -742,6 +764,9 @@ impl Workspace {
     pub fn run(&mut self, targets: &[NodeId], what: What, limits: &Limits,
                stop: impl FnMut(Progress) -> bool) -> Result<Vec<Ran>, Error>;
 
+    /// Gives every recipe these bounds and drops the records that no
+    /// longer match: for a document the caller did not write.
+    pub fn rebound(&mut self, limits: &Limits) -> Vec<NodeId>;
     /// The part a link or a file holds (section 14).
     pub fn pack(&self, nodes: &[NodeId], keep: Keep) -> Workspace;
 }
@@ -761,13 +786,8 @@ impl Edit<'_> {
     pub fn work(&mut self, node: NodeId, session: &str) -> Result<(), Error>;
 }
 
-/// A recipe run without a workspace: what a sheet shows before the user
-/// keeps it. `Workspace::accept` takes its result for a node made after.
-pub fn compute(operation: &str, inputs: &[(&str, &str)], parameters: &str, what: What,
-               settings: &Settings, stop: impl FnMut(Progress) -> bool) -> Result<Computed, Error>;
-
 impl Serialize for Workspace { /* the level computed from the content */ }
-impl wire::Readable for Workspace { /* "workspace"; clamps the recipes' bounds */ }
+impl wire::Readable for Workspace { /* "workspace"; changes no recipe */ }
 impl Serialize for Computed {}
 impl wire::Readable for Computed {}
 ```
@@ -804,11 +824,10 @@ workspace document and sends it.
 
 | call | does |
 |---|---|
-| `workspace_read(document, settings)` | reads a document from a link or a file under the tab's limits and answers it as the page holds it |
+| `workspace_read(document, settings)` | reads a document from a link or an imported file, gives its recipes the tab's bounds (`rebound`) and answers it as the page holds it |
 | `workspace_edit(workspace, action, work, settings)` | one macro action, `{"name", "edits": […]}`; answers the workspace |
 | `workspace_undo(workspace, work)`, `workspace_redo(…)` | answers the workspace, the entry's name and the sessions that came back |
 | `workspace_compute(workspace, node, what, work)` | one node's output or check: a `Computed` |
-| `workspace_try(operation, inputs, parameters, what, settings)` | the same for a recipe that is no node yet |
 | `workspace_accept(workspace, node, computed)` | puts it in; answers the workspace and whether its key still fitted |
 | `workspace_view(workspace, work, settings)` | the cards: per node its kind, summary, state with its cause, recipe's label, check, and what applies to it |
 | `workspace_pack(workspace, work, nodes, keep)` | the document for a link or a file |
@@ -820,6 +839,10 @@ nodes without their values. So a proof step sends nothing of the
 workspace and costs what it costs today. B's alternative, the page
 writing sessions into its copy of the document by hand, would have
 TypeScript give out value indices without the library's interning.
+
+Every call reads the document it is given within the tab's limits (the
+sizes, the workspace's bounds) and changes no recipe's bounds; only
+`workspace_read` rebounds.
 
 All calls go to the one module worker [V, D28]. A workspace edit asked
 for while a run is pending first stops the worker, as Stop does, then
@@ -836,6 +859,7 @@ deduxit workspace new FILE [SEQUENT] [--logic L | -i | --affine | …]   a file,
 deduxit workspace add FILE SEQUENT [--logic L | …]                    another given sequent
 deduxit workspace apply FILE NODE… OPERATION [--set KEY=VALUE]… [limits] [--no-run]
 deduxit workspace set FILE NODE (SEQUENT | --set KEY=VALUE… | limits)   a value, parameters or settings
+deduxit workspace set FILE --all limits                                every edge's bounds (`rebound`)
 deduxit workspace work FILE NODE SESSION                               a saved session into its node
 deduxit workspace run FILE [NODE…] [--checks] [--restart] [--timeout D]
 deduxit workspace remove FILE NODE
@@ -849,7 +873,9 @@ deduxit workspace operations [KIND]
   key is a parameter of the operation, a dotted one a settings key.
   The limit flags (`--work-limit`, `--memory-limit`, …) are the
   existing ones and set the edge's settings; `run` takes none of them,
-  since an edge runs under its own (section 5.1). `--timeout` is the
+  since an edge runs under its own (section 5.1). `set --all` gives
+  every edge the bounds named, which is what to do first with a file
+  from someone else. `--timeout` is the
   caller's stop and is never written.
 - `apply` makes a node and runs it and its check. `run` runs what is
   out of date or not run among the nodes named, or all; `--checks`
@@ -899,11 +925,13 @@ proposals' first-time paths. Where they disagreed it is said.
 
 ### 13.1 One sequent stays as it is
 
-While no tab is linked, the page is today's in every pixel, control,
-key, message, focus order, link and stored proof. It builds no
-workspace document, keeps no log, shows no button and makes no
-workspace call; the workspace's code is a lazy chunk loaded at the
-first link (B's rule, kept against A's "a node under every tab": with a
+While no tab is linked, the page is today's in every pixel, key,
+message, focus order, link and stored proof, and in every control but
+the one named below. It builds no workspace document, keeps no log,
+shows no button and makes no workspace call: the two sheets of the
+Logic popover call what they call today, under the settings they send
+today, so they answer as today. The workspace's code is a lazy chunk
+loaded at the first link (B's rule, kept against A's "a node under every tab": with a
 node per tab and `add` in the log, the panel's second Undo closes a tab
 the user opened before any link and never linked, B's witness).
 
@@ -1006,7 +1034,9 @@ element; it adds no colour and no font.
   as a sibling button, never inside (A's line was a button holding
   buttons, which axe fails [V, F]). On the line, not on the made tab
   (A and E, against B: on the tab it is a second verdict beside the
-  tab's own).
+  tab's own). While the tab below shows a proof of an earlier sequent,
+  the line is dashed and shows the operation's name alone: the check
+  is of the new sequent, which the tab does not show yet.
 
 | check | shape, words | action |
 |---|---|---|
@@ -1063,12 +1093,22 @@ what it was made from." No button to dismiss it (E).
   row has already said what it does and that Undo brings the proof
   back, the button's name is the act, and the status line after it
   names the way back: "Started again. Workspace has Undo restart."
-  **Remove** asks when it would take more than one tab.
+  It shows the tab it starts again. **Remove** asks when it would take
+  more than one tab.
+- **What is no row counts for the row below it.** A tab made through
+  an interpolant is out of date while the interpolant waits for its
+  search (section 6.1): its row says "Made from ⟨sequent⟩, which has
+  changed." with **Update**, which runs what stands between the two
+  tabs; only then does the row know whether its own sequent changed,
+  and a proof with steps then offers **Start again**.
 - The cause names the sequent (A's wording, which E judged specific
   where B's "the sequent it came from" was not).
 - The button's name says the state, "Workspace, 3 linked tabs, 1 out
-  of date", and the button takes the warn style; the panel's head then
-  shows "1 out of date" with **Update all**.
+  of date", and the button takes the warn style: the one sign in the
+  top band while the panel is closed. **Update all** stands in the
+  panel's head only while two or more rows wait for a run; it runs
+  every search and check that waits, in order, and starts no proof
+  again.
 - A change is announced once for all it touched, in the polite status
   region: "1 linked tab is out of date. Workspace has Undo sequent
   change." (E and F, from WCAG 4.1.3.) The second sentence is there
@@ -1081,8 +1121,10 @@ One rule, said to the user in Settings as one sentence: **what needs no
 search is made again by itself; a search waits for Update; a proof is
 started again only when you say so.**
 
-- An `instant` output is made again after every edit above it: a
-  translation's new sequent, a goal, a half, a drawing. A translation
+- An `instant` output of class `derived` is made again after every
+  edit above it: a translation's new sequent, an interpolant's half, a
+  drawing. (A goal opened in a new tab is a copy and is never made
+  again.) A translation
   shown beside a sequent it is no longer the translation of is the
   state a newcomer misreads (A), and it costs nothing.
 - A `search` waits, and a check that needs one says "Not checked yet"
@@ -1127,7 +1169,10 @@ coq-lsp do (section 17).
   removing a linked tab. **Closing a linked tab** closes that tab
   alone: the tabs made from it keep their sequents and proofs and lose
   their lines (`detach`), in one edit that Undo takes back whole (S:
-  today a closed tab takes nothing with it, and that must stay).
+  today a closed tab takes nothing with it, and that must stay). A tab
+  made from it whose sequent is not made yet (a search above it waits)
+  cannot be detached; it leaves the workspace in the same edit and
+  stays open as a tab that is not linked.
 
 ### 13.7 The graph, a second view
 
@@ -1176,8 +1221,8 @@ verdict, a countermodel and an unprovable tab at once (E).
 | 2 | Logic, "Translate into intuitionistic logic" | today's sheet: Glivenko, "Both valid", `⊢ ¬¬(a ∨ ¬a)` | | today's |
 | 3 | **Prove it in intuitionistic logic** | the new tab as today; the Workspace button; the panel docked with two rows and one line: "Glivenko's translation", "Both valid, so the verdicts agree." | a tab can come from another, and the line says how | in the panel: "These are your linked tabs. The line above a tab says what it was made from." Status: "⊢ ¬¬(a ∨ ¬a) was made from ⊢ a ∨ ¬a by Glivenko's translation." |
 | 4 | proves the translation | its row's line 2 becomes "Proved" | nothing to read | today's |
-| 5 | shows the first tab, changes its sequent to `⊢ a → b ∨ ¬b` | as today the first tab starts anew; the second row's line is dashed: "Out of date", "It is now ⊢ ¬¬(a → b ∨ ¬b). This proof is of the earlier one. Undo brings it back." | out of date | status: "1 linked tab is out of date. Workspace has Undo sequent change." |
-| 6 | **Start again** | the second tab holds the new sequent, not started; its line: "Both valid, so the verdicts agree." | Start again makes it anew | status: "Started again. Workspace has Undo restart." |
+| 5 | shows the first tab, changes its sequent to `⊢ a → b ∨ ¬b` | as today the first tab starts anew; the second row's line is dashed and names the translation alone; the row says "Out of date", "It is now ⊢ ¬¬(a → b ∨ ¬b). This proof is of the earlier one. Undo brings it back." with **Start again**; the Workspace button takes its warn style | out of date | status: "1 linked tab is out of date. Workspace has Undo sequent change." |
+| 6 | **Start again** | the second tab is shown with the new sequent, not started; its line is solid again: "Both valid, so the verdicts agree." | Start again makes it anew | status: "Started again. Workspace has Undo restart." |
 | 7 | presses the bottom band's Undo (the likely slip) | nothing changes in the proof | which undo is which | once: "This Undo takes back proof steps. Workspace has Undo restart." |
 | 8 | **Undo restart**, then **Undo sequent change** | the finished proof is back, out of date; then the first sequent and its proof, and nothing is out of date | the panel's Undo takes back changes to tabs | status: "Undone: sequent change." |
 
@@ -1187,12 +1232,16 @@ finds Start again and the workspace's Undo from the button and the
 status line alone is a question for the trial (section 16).
 
 E counted about eleven new elements at step 3 in each proposal, at the
-moment a double negation has just been read. Here there are: the
-button, the panel, two rows of things the user already knows (their
-tabs), one line with two short texts, one sentence, and "Undo
+moment a double negation has just been read. Here step 3 adds: the
+button, the panel with its title and its close, two rows of things the
+user already knows (their tabs, each with its menu), one line with two
+short texts, one sentence in the panel, one status sentence, and "Undo
 translation". Gone are the dismiss button, the chips, the canvas button
-(until three tabs), "Update all" (until something is out of date) and
-Redo (until something is undone). E would also hide the undo row until
+(until three tabs), "Update all" (until two rows wait for a run) and
+Redo (until something is undone). Step 5 adds the word "Out of date"
+with its reason and its one action, the dashed line, and the button's
+warn style: one fact, shown where the panel is open and where it is
+closed. E would also hide the undo row until
 a later edit; it stays, because the link just made is the edit most
 likely to be regretted and a row that appears later shifts the list.
 
@@ -1202,25 +1251,28 @@ A student who opens a teacher's link meets a workspace they did not
 build (E: neither proposal designed this). The page opens the shown
 tab as today, with its proof; the panel stays closed, also where it
 would dock; one line says "This link holds 3 linked tabs" with **Show
-workspace**. Opening the panel then makes what the link left out, in
-order, one at a time, with Stop, and says so once ("Making 3 linked
-tabs again"): the sender had them made, and nothing should first be
-seen as "Not run" (E). Nothing runs before the user opens the panel
-(A's objection to B: a link that runs five searches at load keeps the
-one worker busy before the visitor can act).
+workspace**. What needs no search is made at once, as section 13.5
+says, so every tab the link opens has its sequent. Opening the panel
+then runs the searches and checks the link left out, in order, one at
+a time, with Stop, and says so once ("Making 3 linked tabs again"):
+the sender had them made, and nothing should first be seen as "Not
+run" (E). No search runs before the user opens the panel (A's
+objection to B: a link that runs five searches at load keeps the one
+worker busy before the visitor can act).
 
 ### 13.10 The first edge, and today's links between tabs
 
 - **Prove it in ⟨logic⟩** becomes one edit, "translation": the source
   tab's sequent and proof join the workspace, `ordinary.translate` is
   connected with the sheet's translation and target, and
-  `ordinary.start` on its output. The tab opens as today. The sheet
-  asks for its answer through `workspace_try`, so what it shows is a
-  result the library made for exactly this recipe, and `accept` puts
-  it on the new node without a second run (A's objection to B's
-  "accept what the sheet holds": only a `Computed` whose key fits is
-  taken). If moving the sheet to that call is too large for 63g-c, the
-  check runs again at the press, within the budget.
+  `ordinary.start` on its output. The tab opens as today. The edge
+  takes the settings the sheet's own call ran under (the tab's, as
+  63t-b's sheets send them), and its check is made at the press, so
+  the line says what the sheet just said. That decides the two
+  sequents a second time; the sheet's answer is not taken over, since
+  a result the workspace did not compute must not be recorded as its
+  own (A's objection to B's "accept what the sheet holds"), and the
+  sheet must not call the workspace before any link (section 13.1).
 - **Find an interpolant**: the sheet as today, with **Prove the first
   part** and **Prove the second part**, each `ordinary.interpolate`,
   `ordinary.half` and `ordinary.start` in one edit. The interpolant is
@@ -1249,8 +1301,8 @@ one worker busy before the visitor can act).
   offline) opens that sequent and says the rest could not be restored,
   by its existing path [V, `link.ts`, `problem: "version"`] (both). `w`
   is `workspace_pack` of the shown tab's linked group: the given
-  values, the recipes and the sessions; no records, no log, no
-  renderings (B). It goes deflate-raw and base64url as `d` does. The
+  values, the recipes without their bounds and the sessions; no
+  records, no log, no renderings (B). It goes deflate-raw and base64url as `d` does. The
   shown node is in the document, so no further key is needed.
 - **Too long** (2000 characters [V]): first the sessions of the tabs
   not shown are left out, then every session; if the recipes alone do
@@ -1398,7 +1450,8 @@ listed for the author's review.
 6. **A statement's value holds its calculus**, a form of level 19
    around the library's sequent (section 3.2).
 7. **The settings an edge runs under are the edge's**, taken from the
-   caller when it is made; `workspace run` takes no limit flags
+   caller when it is made; `workspace run` takes no limit flags, and a
+   document from elsewhere is given the reader's bounds by `rebound`
    (sections 5.1, 12.2).
 8. **"Update linked tabs by themselves"** is off at first (section
    13.5).
