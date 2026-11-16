@@ -1,5 +1,270 @@
 # Step 68: tools for teachers
 
+## Session 68a: the tableau checker
+
+Opus 5.5 at `high` (a reused worker, its conversation cleared), in the
+workspace `../deduxit-wt-step-58b-8c0bbc`, from the brief
+`/tmp/linlog-handoff/start-68a.md` and `plan/68-teaching-tools.md`, on
+2026-11-16, cores 10 to 12.
+
+### Outcome
+
+A student's signed tableau of classical logic, written by hand as text,
+is checked step by step in the library, the command and the bindings:
+
+- `ordinary::WrittenTableau::parse_within(text, &limits)` reads it;
+  `review(&calculus, expected, &limits, stop)` answers a
+  `TableauReview`: `standing` (`Closed`, `Open`, `Unfinished`,
+  `Wrong`), the sequent its first lines give, the text line and the
+  tableau's line the message is about, the message in words, and an open
+  tableau's checked countermodel.
+- `deduxit check --tableau [FILE] [--sequent SEQ]`: the verdict line
+  `{closed|open|unfinished|wrong} tableau of SEQUENT: MESSAGE`, exit 0
+  for a right and finished tableau, 1 for a wrong or unfinished one, 2
+  for text that is no tableau (a caret under the place), 3 at a limit;
+  `--format json` the review.
+- The bindings' `ordinary_tableau_review(text, sequent, settings)`, with
+  its test under Node and natively, listed among the ordinary suite's
+  extras by `describe`.
+- The rule file `tableau` gained the textbooks' rules for `↔`, `T↔′`
+  and `F↔′` (by the sides' values), beside LK's two implications, and
+  `F→₁`, `F→₂` (one result of `F→` alone, Smullyan's rule A).
+
+The commits on `main@origin` (`ylwqwvpw`): `prrsputk` (the library),
+`rrwwzwvn` (the command), `qrlumlzs` (the behaviour lock), `lmzzzpkx`
+(the bindings), `qrrvkrwu` (the wire schema), `vuyymlzx` (the manual,
+the guide, the changelog, the status), `umswwqyz` (the review's
+fixes), `xnxxqxwr` and `zlwskqws` (what the flake's spelling and
+formatting checks asked), and this report's.
+
+### The written format, and its sources
+
+- **Signed**, `T` and `F`, as Smullyan's tableaux and the Open Logic
+  Project's (the research note's [3]) are, and as step 56's tableau and
+  its rule file are: a branch is a set of signed formulas, which is what
+  the rule file checks. The unsigned trees of forall x (UBC's Ichikawa-
+  Jenkins rules, Carnap's `TruthTree`) are not read: their `¬A` on a
+  branch is `T ¬A` here, and their rules (`¬(A ∧ B)` into `¬A | ¬B`)
+  take two signed steps; a second rule file and table would serve them
+  (a follow-up, below).
+- **The text `prove --method tableau` prints reads back**, as the
+  simplest thing to type and the one the student already sees: a line
+  is its number (`3` or `3.`), its sign, the formula in the ordinary
+  syntax (ASCII or Unicode), and at its end the number of the line it
+  expands, which a rule's name may precede in any of the spellings
+  textbooks use (`T∧`, `∧T` as Open Logic writes it, LK's `∧L` as
+  deduxit prints it, `T/\`), with an index `₁`/`₂` ignored. The first
+  lines that cite no line are the sequent's (Open Logic's "assumption"
+  lines).
+- **Branches**: the drawn tree (`├─`, `└─`, `│`), its ASCII form (`|-`,
+  `` `- ``, `+-`, `\-`, `|`) and a plain indented list (`-` at the
+  parent's column, the branch's lines after it) all read, because the
+  reader places a line by the column of its content and a branch by the
+  column of its marker. The list is what a person types: the course's
+  indented tree the brief names.
+- **Marks**: `×` (also `x`, `*`, Open Logic's `⊗`) with the two lines
+  of a formula true and false, the one line of `⊥` true or `⊤` false, or
+  none (the check then finds the pair, as Carnap's "mark branch as
+  contradiction" without rows); `open` for a finished open branch.
+- **Limits**: the formulas within `limits.occurrences` (the sequent
+  parser's own count), line numbers and branches within `u32`, the text
+  within the command's memory bound as every input is.
+
+### The check and its messages
+
+- **Two passes, the library's checker last.** The review's own matcher
+  walks the branches in text order and names the first fault in words;
+  only a tableau without fault is then written as a derivation in the
+  rule file `tableau` (a node per expansion, its branch's signed
+  formulas as the set zone, the principal by its position, a split's
+  premises in the rule's order whatever the branches' order on paper,
+  unmarked and open branches as open goals) and checked by step 60's
+  `Derivation::check` (all branches closed) or `check_open`. A refusal
+  there is `Wrong` with the rule file's reason. So `Closed` rests on the
+  rule file's checker and `Open` on that check plus
+  `Countermodel::found` of the open branch's true atoms: the matcher
+  decides what the student is told, never the verdict. No meter of
+  `rules/check.rs` was needed beyond the checker itself (the brief's
+  note on 67a): the walk is linear in the text, and the planned nodes,
+  which hold a branch each, are charged to `limits.memory_bytes`.
+- **The matcher's table is the rule file's**: `shapes` lists exactly
+  the rules of `tableau` that expand a signed formula, the partial ones
+  (`T∧₁`, `F∨₂`, `T↔₁` …) marked, and a run of lines citing one line
+  passes where it is within a result list (as a multiset) and the branch
+  with it holds the whole list, which is when the rule's node is an
+  instance in a set zone. A result written again where the branch has it
+  already passes, as the rule file's sets allow.
+- **The messages** (each pinned in `written/tests.rs` or the lock):
+  - `line 4: T∧ on line 1 (T p ∧ q) adds T p and T q, not T r`;
+  - `line 2: F→ on line 1 (F p → q) adds T p and F q, not T q`;
+  - `line 2: T∨ on line 1 (T p ∨ q) splits the branch in two, one that
+    starts with T p and one with T q`;
+  - a split of a rule that does not split, a split whose branch starts
+    with the wrong results (named at that branch's first line), a third
+    branch;
+  - a line that cites no line, a line not in the tableau, one after it
+    or off its branch, an atom, `⊤` true or `⊥` false expanded, a rule
+    name that does not fit the line it cites;
+  - `×` that names lines which do not close, or names none and nothing
+    closes; `open` on a branch that closes or has a line not expanded;
+  - unfinished: `the branch ending at line 2 is not finished: line 1
+    (T p ∨ q) is not expanded on it`, or `is not marked: it closes on
+    …, so mark it ×`, or `is finished and nothing closes it, so mark it
+    open`;
+  - the expected sequent: `the first lines give the sequent p ⊢ p, and
+    the tableau is to be of p ⊢ q`.
+- **"Finished"** is the Hintikka condition read off `shapes`: every
+  line has a whole result list of one of its rules (not a partial one)
+  on the branch. It decides the messages only; the open verdict rests on
+  the countermodel's check.
+- **Modal**: not done (see Departures).
+
+### The command and the bindings
+
+- **The command's shape**: a flag of `check`, `--tableau`, since
+  `check` is where a file a person or another tool made is judged, and
+  the file is text that no JSON probe could tell from anything else
+  (the command never guesses a kind from content, `cli.md`). `--sequent`
+  is the existing flag, its help extended: the sequent the tableau must
+  start from, as an exercise sets it. Mode flags, `--logic`, `--system`,
+  `--calculus`, `--world` and the drawn formats are refused.
+- **The bindings**: `ordinary_tableau_review(text, sequent, settings)`,
+  `sequent` `""` for none, the rule file read per call (nothing is kept
+  between calls, `web.md`); a text that is no tableau is the library's
+  parse failure with its place (`details.line`, `span_utf16`), which
+  68c's editor can underline.
+- **JSON** (written only, level 14, the tableau's): `{"version": 14,
+  "standing", "sequent", "text_line", "line", "message",
+  "countermodel"}`, in the manual's schema as `tableau_review`, with
+  three documents in the `wire-schema` check's set.
+- **Options (D15, D16)**: the review has no option a user would vary
+  beyond the input: the bounds are `Limits`' (`occurrences`,
+  `memory_bytes`, `work` through the checker) and the expected sequent
+  is an argument. The command sets the bounds by its usual flags, the
+  page by its settings.
+- **Where quantifiers go (D17)**: a line's formula would become a
+  first-order formula and `shapes` would gain the γ and δ rules with a
+  witness read from the line (the term written), the rule file's
+  `fresh` condition the δ rule's; the reader and the walk need nothing
+  else.
+
+### The checks
+
+- The library's tests of the review (`ordinary::written`, eleven: the
+  method's tableaux of 160 sequents read back in three layouts with
+  their verdicts, every expanding line of 40 of them changed to an atom
+  no line has and found at or before its line, each message, the
+  unfinished cases, the countermodel, the sequent given, the layout's
+  errors, the memory bound's refusal, the review's findings).
+- The rule-file tests (`core/tests/rules.rs`, the count now 25), the
+  behaviour lock (six new calls, `qrlumlzs`), README's, the manual's and
+  the guide's examples (`cli/tests/readme.rs`), the bindings' tests
+  natively (`web/tests/ordinary.rs`, `protocol.rs`).
+- The wire schema's documents with the debug build: 89 documents, the
+  three new `tableau_review` ones among them, 0 failures.
+- The rustdoc of the library with every feature, warnings denied: clean.
+- The gate (`nix develop -c gate`, cores 10 to 12) at `umswwqyz` rebased
+  onto `main@origin` `ylwqwvpw`: passed (clippy, every crate's tests, both
+  `cargo hack` runs, the ratchet). The ratchet noted cache misses moved
+  on `render-svg`, "not a failure"; this step changes no drawing.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`):
+  the first run failed `typos` (a variable `ba`, renamed in
+  `xnxxqxwr`) and the second `treefmt` (files edited from the shell,
+  formatted in `zlwskqws`); the third, at `zlwskqws` on `main@origin`
+  `ylwqwvpw`, passed, the bindings' tests under Node
+  (`web-wasm-tests`), `wire-schema` and both `cargo hack` runs among its
+  checks. Rebased since onto `ypwvprqu`, which adds only plan files
+  (68b's report and the step log).
+
+### The reviewer's findings
+
+`fresh-reviewer` once (Fable 5.2), on the six changes then made, judged
+on the brief's criteria. **No wrong tableau accepted** held: it read
+`Walk::plan` and `derivation` (branch sets, positions, the premises'
+order through the split's `order`) and ran about 720 single and double
+mutants of printed tableaux, every `closed` or `open` answer compared
+with `prove` on the sequent: no disagreement, no crash. About 400 random
+sequents went through `prove --method tableau` and back in every layout.
+Its seven findings, six fixed in `umswwqyz`:
+
+1. **A panic on a `×` line with a wide space** (U+3000): `words` counted
+   a separator as one byte. It now reads each word's offset off its
+   place in the text.
+2. **A panic with `--sequent` when the first line cites a line** (`1 T p
+   1`): the review indexed the empty list of the sequent's lines. It now
+   names the text's first line.
+3. **A right tableau refused: `¬R` or `~R` before a line number** read
+   as the rule F¬, cutting the formula. A word is now the rule's name
+   only where the formula reads without it; else it is the formula's.
+4. **A formula's parse error placed at the end of the text**: the parser
+   read only up to the formula's end, so its "end of input" pointed past
+   the text. `formula_in` now places it at the character after the
+   formula, in the whole text.
+5. **Smullyan's `F→` with one result refused** (rule A takes α₁ or α₂
+   alone, which `T∧₁` and `F∨₂` already allowed): `F→₁` and `F→₂` join
+   the rule file and the table. Every rule that does not split now has a
+   part per result, so the "is missing" message could no longer happen
+   and is gone.
+6. **A wrong `T↔` step described by a part of the rule** (`adds T p →
+   q`) where the tableau held one implication elsewhere: the message now
+   names the rule as a whole, the split by the sides' values.
+7. **The empty sequent's tableau** (`prove … ' |- '` prints `open`
+   alone) does not read back: not fixed. A tableau of no line is no
+   exercise, and the reader would need a branch without lines everywhere
+   it assumes one; the reader's error says the tableau starts with the
+   sequent's lines.
+
+Each fix has its test in `written/tests.rs`
+(`a_right_tableau_reads_as_written`,
+`faults_on_odd_input_are_said_not_panicked`), and the witness files
+answer as they should through the command. Its aside, `∧L1` with an ASCII
+index read into the formula, is taken too: an ASCII `1` or `2` after a
+rule's name is read as its index.
+
+### Departures and assumptions
+
+- **No modal tableau** (departs from the design): the brief asks for
+  the modal suite's labelled tableau "where the same reader serves".
+  The reader would serve (a prefix `w:` before the sign), but the check
+  would not: the modal suite's evidence is a derivation in the labelled
+  two-sided calculus G3K with relational atoms, so a prefixed tableau
+  needs its own table of rules (`T□` per accessible world, `F□` with a
+  new world, the frame conditions as rules on the relation) and a
+  conversion into that calculus's derivation, a second matcher of the
+  size of this one. Left for a later session (below).
+- **Signed only**: unsigned trees are not read (above).
+- **The rule file `tableau` gained four rules** (`T↔′`, `F↔′`, `F→₁`,
+  `F→₂`): the textbooks expand an equivalence by the values of its
+  sides, which LK's implication rules do not give, and Smullyan's rule A
+  takes one result of an α alone, which the file allowed for `∧` and
+  `∨` but not for `→`; without them a textbook tableau would be refused.
+  Nothing that read or wrote a derivation in the file changes
+  (`from_tableau` never writes them); the rule-file test counts 25
+  rules.
+- **The rule file is passed to `review`**: the library has `serde_json`
+  only under `protocol`, so it cannot read `rules::TABLEAU` itself; the
+  command and the bindings read it (two lines, the doc says how).
+
+### What the next sessions must know
+
+- **68c (the page's editor)**: call `ordinary_tableau_review(text,
+  sequent, settings)`; underline `text_line` (from 1) and show
+  `message`; `standing` `wrong` and `unfinished` are a student's to fix,
+  `closed` and `open` are right and finished (with `countermodel` for
+  `open`, 68b's editor can open it); a thrown failure of code `parse`
+  has `details.line`, `details.column` and `span_utf16` for a caret and
+  `details.hint` for the layout's mistakes. The text a student types is
+  the list form: `1 T p ∨ q`, `- 5 T p 1` with two spaces of indent
+  under it, `× 4, 5`, `open`. The tableau `ordinary_tableau` returns can
+  be offered as a model answer through its text (`Tableau`'s display),
+  which reads back.
+- **68b**: an open tableau's `countermodel` is the ordinary suite's
+  one-world model, `{"sequent", "model"}`, which the model editor opens
+  as it opens any countermodel.
+- **Later**: unsigned trees (a rule file and a `shapes` table of their
+  own, with `¬`-rules), prefixed modal tableaux (above), first-order
+  tableaux with γ and δ rules (D17 above).
+
 ## Session 68b: the model editor
 
 Opus 5.5 at `high` (the 66a to 66c worker, its conversation kept), from
