@@ -7323,3 +7323,6 @@ move (D26).
   - **The module's ceiling raised** from 3.3 MB to 3.9 MB at gzip in its own commit
     (`oppkoukm`, 3 670 553 bytes, +16 %): accepted for 0.5.0; what came in and a module per
     suite go to `later.md`.
+- 2026-11-16, about 15:20: **Step 63g complete**: the client's chain (`qtlzrsyv` to `xwvkwlsl`) and
+  its lock update (`koqworoq`) are on the client's `main` after its flake check passed. Every step
+  of 0.5.0 is in; 64 (the release, `local_b8490613`) prepares it.
