@@ -121,18 +121,26 @@ The design, with its reasons, alternatives and sources, is
   integers panel of 65b). The step and proof-node indices are `u32`:
   past them `full` is set and the next tick answers `IndexLimit`.
 - **Blocking only where the relation is transitive and neither
-  symmetric nor euclidean** (K4, KD4, S4): a world is blocked when a
-  proper ancestor's signature (its formulas, with every `□` true and `◇`
-  false at a world that sees it) includes its own. In those systems no
-  edge leads back to an older world, so when a world is tested (after
-  the agenda and every split) its ancestors' signatures and its own are
-  final. The open branch's model gives a blocked world that waits
-  (a demand without a witness, or a dead end in a serial system) its
-  blocker's arrows, closes those under transitivity by a worklist (the
+  symmetric nor euclidean** (K4, KD4, S4): a world is blocked by the
+  first earlier world that no world blocks and whose signature (its
+  formulas, with every `□` true and `◇` false at a world that sees it)
+  includes its own; signature and blocker are kept on the world once
+  found (`World::signature`, `World::blocked`), each blocker found
+  after every earlier world's. In those systems no edge leads back to
+  an older world and formulas reach only worlds made later, so when a
+  world is first tested (only where nothing is left but to make a
+  world) every existing world's signature is final, and stays so on
+  this branch and its clones. Ancestors only (the design's, from Garg,
+  Genovese and Negri) left siblings of equal content each expanding:
+  the counterexamples panel of 65b found a 14-node sequent of KD4 at
+  40 million units, now 105 000. The open branch's model gives a
+  serial system's dead end that no world blocks a loop first, then a
+  blocked world that waits (a demand without a witness, or a dead end)
+  its blocker's arrows as the model has them (so never none), closes
+  those under transitivity by a worklist (the
   branch's relation is closed already, and the blocking systems are
-  neither symmetric nor euclidean), each new pair charged, then gives a
-  dead end a loop in a serial system. A closure of the whole relation
-  by rounds built every 2-path, n³/6 pairs uncharged: 7 to 9 times the
+  neither symmetric nor euclidean), each new pair charged. A closure
+  of the whole relation by rounds built every 2-path, n³/6 pairs uncharged: 7 to 9 times the
   memory bound (the integers panel of 65b).
 - **A step is kept only where the proof above uses it** (`fold`,
   `join`): a closed part carries the members of its conclusion its

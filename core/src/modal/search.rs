@@ -19,11 +19,13 @@
 //! The search ends without a loop check where the modal depth falls from
 //! a world to the worlds it makes (K, D, T, KB, KDB, B), and in the
 //! euclidean systems, whose worlds but the first form one cluster that
-//! shares its witnesses. In K4, KD4 and S4 a world makes no world while a
-//! proper ancestor holds all it holds, the modal formulas true at every
-//! world that sees it counted (Garg, Genovese and Negri, "Countermodels
-//! from sequent calculi in multi-modal logics", LICS 2012). Whatever the
-//! argument, `limits.work` bounds the search.
+//! shares its witnesses. In K4, KD4 and S4 a world makes no world while
+//! an earlier world that no world blocks holds all it holds, the modal
+//! formulas true at every world that sees it counted: Garg, Genovese and
+//! Negri's blocking ("Countermodels from sequent calculi in multi-modal
+//! logics", LICS 2012), by any earlier world where they take an ancestor,
+//! as anywhere blocking does in description logics without inverse
+//! roles. Whatever the argument, `limits.work` bounds the search.
 //!
 //! Each step is one inference of the calculus on the branch's labelled
 //! sequent. A closed branch is a derivation, built from the steps it
@@ -105,8 +107,6 @@ pub(super) struct ProofNode {
 /// A world of a branch.
 #[derive(Clone, Debug)]
 struct World {
-    /// The world that made it, `None` for the first.
-    parent: Option<u32>,
     /// A bit per formula of the arena: true here.
     truth: Vec<u64>,
     /// A bit per formula of the arena: false here.
@@ -115,6 +115,22 @@ struct World {
     sees: Vec<u32>,
     /// The worlds that see it, sorted.
     seen_by: Vec<u32>,
+    /// What it holds for blocking, once asked: its formulas true and
+    /// false, with every `□` true and `◇` false at a world that sees it.
+    signature: Option<(Vec<u64>, Vec<u64>)>,
+    /// Whether an earlier world blocks it, once asked.
+    blocked: Blocked,
+}
+
+/// Whether a world is blocked, as far as the search asked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Blocked {
+    /// Not asked yet.
+    Unknown,
+    /// No earlier world blocks it.
+    No,
+    /// This earlier world blocks it.
+    By(u32),
 }
 
 /// One branch of the tableau.
@@ -314,7 +330,8 @@ impl<'a> Search<'a> {
 
     /// Returns the bytes a branch holds, saturating.
     fn bytes(&self, branch: &Branch) -> usize {
-        let world = self.words.saturating_mul(16).saturating_add(56);
+        // Two bit sets, and two more for a signature.
+        let world = self.words.saturating_mul(32).saturating_add(80);
         let edges: usize = branch.worlds.iter().map(|w| w.sees.len()).sum();
         branch
             .worlds
@@ -345,7 +362,7 @@ impl<'a> Search<'a> {
             demands: Vec::new(),
             segment: Vec::new(),
         };
-        self.world(&mut branch, None)?;
+        self.world(&mut branch)?;
         for (&id, right) in self
             .sequent
             .left()
@@ -367,7 +384,7 @@ impl<'a> Search<'a> {
         let mut frames: Vec<Frame> = Vec::new();
         loop {
             match self.saturate(&mut branch, stop)? {
-                Saturated::Open => return Ok(Found::Open(self.model(&branch, stop)?)),
+                Saturated::Open => return Ok(Found::Open(self.model(&mut branch, stop)?)),
                 Saturated::Split(step) => {
                     self.counts.splits += 1;
                     // The second premise starts a segment of its own.
@@ -577,16 +594,17 @@ impl<'a> Search<'a> {
         record.new[premise] = new;
     }
 
-    /// Adds a world made by `parent` and returns it.
-    fn world(&mut self, branch: &mut Branch, parent: Option<u32>) -> Result<u32, Reason> {
+    /// Adds a world and returns it.
+    fn world(&mut self, branch: &mut Branch) -> Result<u32, Reason> {
         let index = u32::try_from(branch.worlds.len()).map_err(|_| Reason::IndexLimit)?;
         self.account.charge(2 * self.words * 8 + 64);
         branch.worlds.push(World {
-            parent,
             truth: vec![0; self.words],
             falsity: vec![0; self.words],
             sees: Vec::new(),
             seen_by: Vec::new(),
+            signature: None,
+            blocked: Blocked::Unknown,
         });
         self.counts.worlds += 1;
         Ok(index)
@@ -956,7 +974,7 @@ impl<'a> Search<'a> {
                 | Node::Implies(..)
                 | Node::Iff(..) => unreachable!("a demand is a modal formula"),
             };
-            let y = self.world(branch, Some(x))?;
+            let y = self.world(branch)?;
             let rule = if right {
                 Rule::BoxRight
             } else {
@@ -980,7 +998,7 @@ impl<'a> Search<'a> {
                     w.truth[i] & self.boxes[i] != 0 || w.falsity[i] & self.diamonds[i] != 0
                 });
                 if w.sees.is_empty() && own && !self.blocked(branch, x, stop)? {
-                    let y = self.world(branch, Some(x))?;
+                    let y = self.world(branch)?;
                     self.linear(
                         branch,
                         Rule::Serial,
@@ -1021,10 +1039,25 @@ impl<'a> Search<'a> {
             .any(|&y| Self::holds(branch, formula(y, a, right)))
     }
 
-    /// Returns what a world holds for blocking: its formulas true and
-    /// false, with every `□` true and `◇` false at a world that sees it.
-    fn signature(&self, branch: &Branch, world: u32) -> (Vec<u64>, Vec<u64>) {
+    /// Makes a world's signature, unless it has one: its formulas true
+    /// and false, with every `□` true and `◇` false at a world that sees
+    /// it. In a system that blocks it is asked only where nothing is left
+    /// to do but make a world, when every world's formulas are final:
+    /// formulas reach only the worlds made later, which see no older
+    /// world.
+    fn signature(
+        &mut self,
+        branch: &mut Branch,
+        world: u32,
+        stop: &mut impl FnMut(Progress) -> bool,
+    ) -> Result<(), Reason> {
         let w = &branch.worlds[world as usize];
+        if w.signature.is_some() {
+            return Ok(());
+        }
+        let words = self.words as u64;
+        self.tick(words.saturating_mul(1 + w.seen_by.len() as u64), stop)?;
+        self.account.charge(self.words.saturating_mul(16));
         let (mut truth, mut falsity) = (w.truth.clone(), w.falsity.clone());
         for &v in &w.seen_by {
             let v = &branch.worlds[v as usize];
@@ -1033,44 +1066,64 @@ impl<'a> Search<'a> {
                 falsity[i] |= v.falsity[i] & self.diamonds[i];
             }
         }
-        (truth, falsity)
+        branch.worlds[world as usize].signature = Some((truth, falsity));
+        Ok(())
     }
 
-    /// Returns the proper ancestor that blocks a world, in a system that
-    /// blocks: one whose signature includes the world's.
+    /// Returns the world that blocks `world`, in a system that blocks:
+    /// the first earlier world that no world blocks and whose signature
+    /// includes `world`'s. Each world's blocker depends on earlier worlds'
+    /// alone and is kept once found, so every earlier world's is found
+    /// first, in order.
     fn blocker(
         &mut self,
-        branch: &Branch,
+        branch: &mut Branch,
         world: u32,
         stop: &mut impl FnMut(Progress) -> bool,
     ) -> Result<Option<u32>, Reason> {
         if !self.blocking {
             return Ok(None);
         }
-        // A signature costs a pass over the bit sets of the world and of
-        // each world that sees it.
-        let words = self.words as u64;
-        let cost =
-            |w: u32| words.saturating_mul(1 + branch.worlds[w as usize].seen_by.len() as u64);
-        self.tick(cost(world), stop)?;
-        let (truth, falsity) = self.signature(branch, world);
-        let mut ancestor = branch.worlds[world as usize].parent;
-        while let Some(a) = ancestor {
-            self.tick(cost(a), stop)?;
-            let (t, f) = self.signature(branch, a);
-            if (0..self.words).all(|i| truth[i] & !t[i] == 0 && falsity[i] & !f[i] == 0) {
-                return Ok(Some(a));
-            }
-            ancestor = branch.worlds[a as usize].parent;
+        match branch.worlds[world as usize].blocked {
+            Blocked::No => return Ok(None),
+            Blocked::By(v) => return Ok(Some(v)),
+            Blocked::Unknown => {}
         }
-        Ok(None)
+        for w in 0..=world {
+            if branch.worlds[w as usize].blocked != Blocked::Unknown {
+                continue;
+            }
+            self.signature(branch, w, stop)?;
+            let mut found = None;
+            for v in 0..w {
+                if branch.worlds[v as usize].blocked != Blocked::No {
+                    continue;
+                }
+                self.tick(self.words as u64, stop)?;
+                let (Some((t, f)), Some((tw, fw))) = (
+                    &branch.worlds[v as usize].signature,
+                    &branch.worlds[w as usize].signature,
+                ) else {
+                    unreachable!("an earlier world's signature is made first")
+                };
+                if (0..self.words).all(|i| tw[i] & !t[i] == 0 && fw[i] & !f[i] == 0) {
+                    found = Some(v);
+                    break;
+                }
+            }
+            branch.worlds[w as usize].blocked = found.map_or(Blocked::No, Blocked::By);
+        }
+        Ok(match branch.worlds[world as usize].blocked {
+            Blocked::By(v) => Some(v),
+            Blocked::No | Blocked::Unknown => None,
+        })
     }
 
     /// Returns whether a world is blocked, counting the tests that say
     /// so.
     fn blocked(
         &mut self,
-        branch: &Branch,
+        branch: &mut Branch,
         world: u32,
         stop: &mut impl FnMut(Progress) -> bool,
     ) -> Result<bool, Reason> {
@@ -1087,7 +1140,7 @@ impl<'a> Search<'a> {
     /// edge to itself.
     fn model(
         &mut self,
-        branch: &Branch,
+        branch: &mut Branch,
         stop: &mut impl FnMut(Progress) -> bool,
     ) -> Result<Model, Reason> {
         let n = branch.worlds.len();
@@ -1095,6 +1148,16 @@ impl<'a> Search<'a> {
         self.account.charge(edges.saturating_mul(8));
         self.tick(n as u64, stop)?;
         let mut sees: Vec<Vec<u32>> = branch.worlds.iter().map(|w| w.sees.clone()).collect();
+        // In a serial system a world without arrows that no world blocks
+        // sees itself: it has no `□` true or `◇` false of its own (else
+        // `Ser` would have made it a world), so what is true there stays.
+        if self.serial {
+            for x in 0..n as u32 {
+                if sees[x as usize].is_empty() && self.blocker(branch, x, stop)?.is_none() {
+                    sees[x as usize].push(x);
+                }
+            }
+        }
         // The branch's relation is closed under the system's frame rules
         // already. Only a blocked world's arrows from its blocker need
         // closing, and only under transitivity: the systems that block
@@ -1104,6 +1167,14 @@ impl<'a> Search<'a> {
             self.account.charge(edges.saturating_mul(8));
             let mut seen_by: Vec<Vec<u32>> =
                 branch.worlds.iter().map(|w| w.seen_by.clone()).collect();
+            for (x, seen) in sees.iter().enumerate() {
+                if seen.as_slice() == [x as u32] {
+                    let into = &mut seen_by[x];
+                    if let Err(at) = into.binary_search(&(x as u32)) {
+                        into.insert(at, x as u32);
+                    }
+                }
+            }
             let mut pending: Vec<(u32, u32)> = Vec::new();
             let add = |x: u32,
                        y: u32,
@@ -1132,7 +1203,9 @@ impl<'a> Search<'a> {
                     .owed
                     .saturating_add(branch.demands.len() as u64 + w.sees.len() as u64);
                 if waits && let Some(a) = self.blocker(branch, x, stop)? {
-                    let more = branch.worlds[a as usize].sees.clone();
+                    // The blocker's arrows as the model has them: with its
+                    // loop where it is a dead end of a serial system.
+                    let more = sees[a as usize].clone();
                     self.tick(more.len() as u64, stop)?;
                     for c in more {
                         if add(x, c, &mut sees, &mut seen_by, &mut pending) {
@@ -1153,13 +1226,6 @@ impl<'a> Search<'a> {
                     if add(w, y, &mut sees, &mut seen_by, &mut pending) {
                         self.account.charge(24);
                     }
-                }
-            }
-        }
-        if self.serial {
-            for (x, into) in sees.iter_mut().enumerate() {
-                if into.is_empty() {
-                    into.push(x as u32);
                 }
             }
         }
