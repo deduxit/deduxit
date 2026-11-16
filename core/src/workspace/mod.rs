@@ -1250,6 +1250,46 @@ impl Workspace {
         Ok(ran)
     }
 
+    /// Returns the part a link holds: the nodes `nodes` and every node they
+    /// are made from, with their values and recipes and the sessions, but
+    /// no record and no edit. Opening it makes the results again, so a
+    /// link cannot show a verdict deduxit did not compute where it opens.
+    #[must_use]
+    pub fn pack(&self, nodes: &[NodeId]) -> Self {
+        let mut kept: Vec<NodeId> = nodes.to_vec();
+        let mut at = 0;
+        while at < kept.len() {
+            if let Some(recipe) = self.node(kept[at]).and_then(Node::recipe) {
+                for &input in &recipe.from {
+                    if !kept.contains(&input) {
+                        kept.push(input);
+                    }
+                }
+            }
+            at += 1;
+        }
+        let mut packed = Self {
+            values: self.values.clone(),
+            interned: self.interned.clone(),
+            nodes: self
+                .nodes
+                .iter()
+                .filter(|node| kept.contains(&node.id))
+                .cloned()
+                .collect(),
+            next: self.next,
+            ..Self::default()
+        };
+        for node in &mut packed.nodes {
+            if let Body::Derived { record, .. } = &mut node.body {
+                *record = None;
+            }
+        }
+        packed
+            .collect(&Limits::default().with_workspace(crate::limits::WorkspaceLimits::UNBOUNDED));
+        packed
+    }
+
     /// Gives every recipe the `limits.*` values of `limits` for the keys it
     /// reads, so that a document from elsewhere runs within the caller's
     /// bounds; the records that then fit no node stay in the cache. Returns

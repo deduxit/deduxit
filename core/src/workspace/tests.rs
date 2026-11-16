@@ -498,3 +498,38 @@ fn rebound_gives_every_recipe_the_caller_s_bounds() {
         workspace.nodes().last().unwrap().settings
     );
 }
+
+#[test]
+fn a_link_holds_recipes_and_sessions_but_no_result() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let mut workspace = Workspace::new();
+    let (given, translated, session, decided) = workspace
+        .edit("translation", &limits, |edit| {
+            let given = edit.add("ordinary.sequent", &classical("|- a \\/ ~a"))?;
+            let translated = edit.connect(
+                "ordinary.translate",
+                &[given],
+                r#"{"translation": "glivenko"}"#,
+                &settings,
+            )?;
+            let decided = edit.connect("ordinary.decide", &[translated], "", &settings)?;
+            let session = edit.connect("ordinary.start", &[given], "", &settings)?;
+            Ok((given, translated, session, decided))
+        })
+        .unwrap();
+    workspace
+        .run(&[decided], What::Check, &limits, |_| false)
+        .unwrap();
+    let packed = workspace.pack(&[translated]);
+    let ids: Vec<NodeId> = packed.nodes().map(|node| node.id).collect();
+    assert_eq!(ids, vec![given, translated]);
+    assert_eq!(packed.state(translated), State::NotRun);
+    assert_eq!(packed.undoable(), None);
+    let packed = workspace.pack(&[session]);
+    assert_eq!(
+        packed.state(session),
+        State::Current,
+        "a session is in the link"
+    );
+}
