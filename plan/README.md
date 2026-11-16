@@ -7380,3 +7380,6 @@ move (D26).
     Gate and `nix flake check` passed (before the rebase onto the plan commits, which change
     `plan/` only).
   - **Next:** 65d (the modal suite on the page), then step 66.
+- 2026-11-16, about 17:15: **0.5.0 published.** The author approved the `crates-io` environment;
+  `cargo publish` succeeded; crates.io lists `deduxit` 0.5.0 and `deduxit-cli` 0.5.0. The
+  release's archives (macOS, Windows) were still building; docs.rs and Zenodo to be checked.
