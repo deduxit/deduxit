@@ -7228,3 +7228,15 @@ move (D26).
     One departure marked: the session is kept for the visit only, not in the shelf or the link.
     Gate, both flake checks (deduxit and the client against the chain) passed.
   - **Next:** 63a has the bindings now; 63b (Learn and Practice by suite) starts in 62d's slot.
+- 2026-11-16, about 13:40: **63b reviewed and pushed (both repositories); 63c next.**
+  - **63b** (deduxit `tmnpvxqp`, `wmxqolwm`; the client `ouymmlyq` to `vmtksloy`): the course
+    format is data with a schema per suite (`src/content/<suite>/`, JSON Schemas beside it); the
+    linear course moved under `src/content/linear/` unchanged (912 files held to their hashes);
+    the ordinary suite has a store of 62 problems (each law valid in the weakest logic that proves
+    it, not valid in the strongest where it fails), decided by the module and by the command in
+    the new `ordinary-problems` flake check; Practice and Learn follow the tab's suite; the
+    ordinary course's lesson 3 (LK) plays on the stage. fresh-reviewer (Fable) re-decided every
+    verdict in three logics and walked the page; four findings fixed, among them lesson 3's
+    wrong account of LK against LJ (the difference is how many formulas stand right of ⊢).
+    Departure marked: five of six ordinary lessons are "to come", for 63c. Auto-reverse is not
+    needed by the course as written (a later small step if wanted).
