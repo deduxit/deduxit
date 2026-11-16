@@ -22,7 +22,9 @@ The design, with its reasons, alternatives and sources, is
   code, `calculus::Rule`), `search.rs` (the tableau), `decide.rs`
   (`decide`, `decide_within`, `Options`, `Outcome`, `Verdict`,
   `Evidence`, `Statistics`, and the derivation read off a closed
-  tableau); `search_tests.rs` the search's tests. The JSON forms are
+  tableau), `rocq.rs` (behind `rocq` too: the certificates for the Rocq
+  library's `Deduxit.Modal`, `core-export.md`); `search_tests.rs` the
+  search's tests. The JSON forms are
   `core/src/serialize/modal.rs`: the sequent, the system and the
   outcome.
 - **A sequent is read at one world** (local consequence): `Γ ⊢ Δ` is

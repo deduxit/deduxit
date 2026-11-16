@@ -977,6 +977,35 @@ for NanoYalla. What the code relies on:
   `not_valid_kripke_lk.v`; the `rocq-deduxit` check compiles four the
   command writes (two by `prove`, one by `check` of an outcome, one of a
   model given) and refuses one with a valuation that shrinks.
+- **Modal certificates** (`rocq::write_labelled`, `write_modal_countermodel`,
+  `modal/rocq.rs`; features `rocq` and `serialize`), for the library's
+  `Deduxit.Modal` whatever the kernel option: the derivation is checked
+  in its system's calculus first (the system from the calculus's name,
+  `G3S4`; another calculus `Unsupported::Calculus`, an open goal or an
+  assumption `Unsupported::Open`), then stated as `valid (atom := string)
+  C [Γ] [Δ]` with `modal_soundness … C "x" term` where the root is every
+  formula at one label `x`, else `lvalid C [items] [items]` with
+  `labelled_soundness`; `C` is the record of `System::conditions()`
+  written out (convertible with the library's `System.S4`). The term has
+  one constructor per rule, its labels and the principal formula's
+  parts read from the node's positions (`shape`: which zone, or the first
+  premise's left zone for a new edge, each position points into, in the
+  rule compiler's order), every node in brackets (a leaf unbracketed ran
+  into its parent's arguments), the derivation unfolded into a tree: the
+  library's checker walks a shared node once per use, so a `let` hid
+  work exponential in the text (a chain of 20 shared `L∨` nodes took 42 s
+  in Rocq, the review of 66c), and unfolded the text's bound is the
+  check's. `write_modal_outcome` states a valid outcome as its sequent is
+  written (the root, a set, holds a repeated formula once; the review of
+  66c), after `Outcome::check`; an assumption is
+  `Unsupported::Assumption`. A countermodel is checked, then `modal_refutation String.eqb {|
+  arrows; atoms |} C w` with the arrows as the model holds them. Both
+  write into a text that refuses past `limits.derivation_bytes`
+  (`Bounded`), ask the stop per node and world, and walk formulas and
+  terms on `Stops` and a stack, never by recursion. The flake's
+  `rocq-deduxit` check compiles the snapshots `deduxit/modal_*.v` and
+  certificates the command writes; `Print Assumptions` is closed, the
+  library's models being those with stable forcing (no axiom).
 - **NanoYalla** (`export/rocq/mod.rs`): the kernel is NanoYalla `NANOYALLA`
   (Click & coLLecT's `nanoyalla/`: `nanoll.v` is the trusted `ll`
   inductive over list sequents, `macroll.v` the derived rules), and the

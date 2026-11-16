@@ -48,6 +48,9 @@ mod decide;
 mod model;
 #[cfg(feature = "parse")]
 mod parse;
+/// The certificates of deduxit's Rocq library, `Deduxit.Modal`.
+#[cfg(all(feature = "rocq", feature = "serialize"))]
+pub(crate) mod rocq;
 /// The labelled tableau that decides a sequent.
 #[cfg(feature = "serialize")]
 mod search;

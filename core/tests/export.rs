@@ -2261,6 +2261,131 @@ fn countermodel_certificates() {
 /// why the sequent fails, and the model's world is outlined in the
 /// highlight colour. A model that does not refute, and a drawing past
 /// the bound, are not drawn.
+/// A modal outcome has a certificate for deduxit's library, pinned as
+/// `deduxit/modal_*.v`, which the `rocq-deduxit` check compiles: a valid
+/// sequent for each frame rule (`Ref`, `Ser`, `Sym`, `Trans`, `Eucl`) and
+/// one of every connective, a node two premises share (under a `let`), a
+/// session's labelled root (`lvalid`), and a countermodel per kind of
+/// system. A derivation of another calculus, one the checker refuses and a
+/// text past the bound write nothing.
+#[test]
+fn modal_certificates() {
+    use deduxit::modal::{self, System};
+    use deduxit::rules::{Apply, Interactive as Session};
+    let options = rocq::Options::default().with_form(Form::Standalone);
+    let limits = Limits::default();
+    let decided = |text: &str, system: System| {
+        let sequent: modal::Sequent = text.parse().unwrap();
+        modal::decide(&sequent, &modal::Options::default().with_system(system)).unwrap()
+    };
+    let derivation = |text: &str, system: System| match decided(text, system).verdict {
+        modal::Verdict::Valid(modal::Evidence::Derivation(derivation)) => *derivation,
+        other => panic!("{text} in {system}: {other:?}"),
+    };
+    let labelled = |derivation: &deduxit::rules::Derivation, limits: &Limits| {
+        let mut out = String::new();
+        rocq::write_labelled(derivation, &options, limits, &mut out, |_| false).map(|()| out)
+    };
+    for (name, text, system) in [
+        ("reflexive", "[]p |- p", System::T),
+        ("serial", "[]p |- <>p", System::D),
+        ("symmetric", "p |- []<>p", System::B),
+        ("transitive", "[]p -> [][]p", System::S4),
+        ("euclidean", "<>p |- []<>p", System::K5),
+        (
+            "connectives",
+            "[](p <-> q), ~<>~r, true |- ([]p -> []q) /\\ (r \\/ false), []r",
+            System::K,
+        ),
+    ] {
+        let out = labelled(&derivation(text, system), &limits).unwrap();
+        snapshot(&format!("deduxit/modal_{name}.v"), &out);
+    }
+    // R∧ on p ∧ p: both premises are one node.
+    let mut document = serde_json::to_value(derivation("p |- p /\\ p", System::K)).unwrap();
+    let nodes = document["nodes"].as_array_mut().unwrap();
+    let root = nodes.len() - 1;
+    let first = nodes[root]["premises"][0].clone();
+    nodes[root]["premises"] = serde_json::json!([first, first]);
+    let shared: deduxit::rules::Derivation = deduxit::wire::upgrade(&document, &limits).unwrap();
+    // Written once per use, as the library's checker walks it.
+    let out = labelled(&shared, &limits).unwrap();
+    assert_eq!(out.matches("(Ax ").count(), 2, "{out}");
+    snapshot("deduxit/modal_shared.v", &out);
+    // An outcome is stated as its sequent is written, repeated formulas
+    // included, which the derivation's root holds once.
+    let mut out = String::new();
+    rocq::write_modal_outcome(
+        &decided("q, p, q |- p, r, p", System::K),
+        &options,
+        &limits,
+        &mut out,
+        |_| false,
+    )
+    .unwrap();
+    assert!(
+        out.contains(r#"[var "q"; var "p"; var "q"] [var "p"; var "r"; var "p"]"#),
+        "{out}"
+    );
+    snapshot("deduxit/modal_repeated.v", &out);
+    // A derivation that rests on an assumption has no certificate.
+    let calculus = modal::calculus(System::K, &limits).unwrap();
+    let mut assumed = Session::within(calculus, "|- w0 : p", &["|- w0 : p"], &limits).unwrap();
+    let goal = assumed.goals()[0];
+    assumed.assume(goal).unwrap();
+    assert!(matches!(
+        labelled(&assumed.finished(|_| false).unwrap(), &limits),
+        Err(Error::Unsupported(Unsupported::Assumption))
+    ));
+    // A labelled root: w0 sees w1, and □p at w0 gives p at w1.
+    let calculus = modal::calculus(System::K, &limits).unwrap();
+    let mut session =
+        Session::within(calculus, "w0 : []p, w0 R w1 |- w1 : p", &[], &limits).unwrap();
+    let opened = session
+        .apply(session.goals()[0], &Apply::new("L□").at(&[0, 1]))
+        .unwrap();
+    let ax = session
+        .rules(opened[0])
+        .unwrap()
+        .into_iter()
+        .find(|r| r.rule == "ax")
+        .unwrap();
+    session
+        .apply(opened[0], &Apply::new("ax").at(&ax.at))
+        .unwrap();
+    let out = labelled(&session.finished(|_| false).unwrap(), &limits).unwrap();
+    assert!(
+        out.contains("lvalid") && out.contains("labelled_soundness"),
+        "{out}"
+    );
+    snapshot("deduxit/modal_labelled.v", &out);
+    // Countermodels of the four kinds of system: none, reflexive,
+    // transitive and reflexive, euclidean.
+    for (name, text, system) in [
+        ("k", "[]p |- p", System::K),
+        ("t", "|- []p -> [][]p", System::T),
+        ("s4", "<>[]p |- []<>p", System::S4),
+        ("kd45", "[]p |- p", System::KD45),
+        ("s5", "<>p |- []p", System::S5),
+    ] {
+        let outcome = decided(text, system);
+        let countermodel = outcome.countermodel.as_ref().unwrap();
+        let mut out = String::new();
+        rocq::write_modal_countermodel(countermodel, &options, &limits, &mut out, |_| false)
+            .unwrap();
+        snapshot(&format!("deduxit/modal_countermodel_{name}.v"), &out);
+    }
+    // Another calculus, a refused derivation and a small bound.
+    let mut other = serde_json::to_value(derivation("[]p |- p", System::T)).unwrap();
+    other["calculus"] = serde_json::json!("G3K");
+    let other: deduxit::rules::Derivation = deduxit::wire::upgrade(&other, &limits).unwrap();
+    assert!(labelled(&other, &limits).is_err());
+    assert!(matches!(
+        labelled(&shared, &Limits::default().with_derivation_bytes(Some(64))),
+        Err(Error::Refused(Refusal::Output { .. }))
+    ));
+}
+
 #[test]
 fn countermodel_drawings() {
     use deduxit::kripke::{Model, World};

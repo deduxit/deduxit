@@ -336,6 +336,24 @@ From Deduxit.Intuitionistic Require Import KripkeCheck.
 Import ListNotations.
 Open Scope string_scope.";
 
+/// The prelude of a certificate of a valid modal sequent for deduxit's
+/// library: the import of its labelled calculus's checker and theorems
+/// (`Deduxit.Modal.Check`, which exports the formulas, the models and
+/// the labelled sequents), and of lists and strings, whose notations the
+/// lemma uses.
+pub const DEDUXIT_MODAL_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Modal Require Import Check.
+Import ListNotations.
+Open Scope string_scope.";
+
+/// The prelude of a certificate that a modal sequent is not valid, for
+/// deduxit's library: the import of its finite models' checker and
+/// theorem (`Deduxit.Modal.Countermodel`), and of lists and strings.
+pub const DEDUXIT_MODAL_COUNTERMODEL_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Modal Require Import Countermodel.
+Import ListNotations.
+Open Scope string_scope.";
+
 /// The prelude of a certificate for NanoYalla: the import of its
 /// `macroll` module, which brings the kernel's `ll`, its formulas and its
 /// derived rules into scope.
@@ -499,11 +517,18 @@ pub enum Unsupported {
     )]
     Basis,
     /// The derivation is in a calculus given as data, whose rules
-    /// neither kernel knows.
+    /// neither kernel knows: only the labelled calculi of modal logic
+    /// (`G3S4`) have certificates.
     #[error(
-        "the Rocq kernels know their own calculi, so a derivation in a calculus given as data has no certificate"
+        "the Rocq kernels know their own calculi and the labelled calculi of modal logic, so a derivation in another calculus given as data has no certificate"
     )]
     Calculus,
+    /// The derivation rests on an assumption, a hypothesis no rule
+    /// discharges, which the statement of a certificate has no place for.
+    #[error(
+        "the derivation rests on an assumption, which a certificate's statement has no place for"
+    )]
+    Assumption,
 }
 
 /// Rocq's keywords, which no atom and no lemma may take.
@@ -1170,6 +1195,108 @@ pub fn write_countermodel(
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
     crate::ordinary::rocq::countermodel(countermodel, logic, options, limits, out, stop)
+}
+
+/// Writes the certificate that a modal sequent is valid, from its
+/// derivation in the labelled calculus of a system (`G3S4`,
+/// [`modal::calculus`](crate::modal::calculus)), for deduxit's library,
+/// whatever kernel the options name.
+///
+/// The derivation is checked in that calculus first. The certificate is
+/// the lemma `options.lemma` that states Kripke semantics, never the
+/// calculus: for a root at one label without a relational atom, `x : Γ ⊢
+/// x : Δ`, that the sequent `Γ ⊢ Δ` is valid over the system's frames
+/// (`valid`), else that the labelled root is (`lvalid`). The system is
+/// the record of its frame conditions, those that follow from its axioms
+/// too. The proof applies `modal_soundness` or `labelled_soundness` to a
+/// term with a constructor per rule, the derivation unfolded into a tree
+/// (the library's checker walks a shared node once per use, so a `let`
+/// would hide work exponential in the text), and Rocq's `vm_compute` runs
+/// the checker on it. A standalone file starts with
+/// `options.prelude`, by default [`DEDUXIT_MODAL_PRELUDE`].
+///
+/// Needs the cargo features `rocq` and `serialize`.
+///
+/// # Errors
+///
+/// - [`Error::Unsupported`] with [`Unsupported::Calculus`] for a
+///   derivation of another calculus, [`Unsupported::Open`] for one with
+///   an open goal and [`Unsupported::Assumption`] for one that rests on
+///   an assumption.
+/// - The checker's errors, for a derivation it refuses.
+/// - [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+///   for a text past `limits.derivation_bytes`, before anything is
+///   written, and [`Refusal::Stopped`](crate::Refusal::Stopped) where
+///   `stop` asked.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+#[cfg(feature = "serialize")]
+pub fn write_labelled(
+    derivation: &crate::rules::Derivation,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::modal::rocq::derivation(derivation, options, limits, out, stop)
+}
+
+/// Writes the certificate of a modal outcome for deduxit's library: of a
+/// valid one as [`write_labelled`] does, its lemma stating the sequent the
+/// outcome decided as it is written, repeated formulas included (the
+/// derivation's root holds each once), and of one that is not valid as
+/// [`write_modal_countermodel`] does. The outcome is checked first
+/// ([`modal::Outcome::check`](crate::modal::Outcome::check)).
+///
+/// Needs the cargo features `rocq` and `serialize`.
+///
+/// # Errors
+///
+/// - The errors of [`write_labelled`] and [`write_modal_countermodel`],
+///   and those of the outcome's check.
+/// - [`Error::NotApplicable`] for an outcome without evidence: unknown,
+///   or not valid without a countermodel.
+#[cfg(feature = "serialize")]
+pub fn write_modal_outcome(
+    outcome: &crate::modal::Outcome,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::modal::rocq::outcome(outcome, options, limits, out, stop)
+}
+
+/// Writes the certificate that a modal sequent is not valid, from its
+/// countermodel, for deduxit's library whatever kernel the options name.
+///
+/// The countermodel is checked first. The certificate is the lemma
+/// `options.lemma` that the sequent is not valid over the system's frames
+/// (`~ valid`); its proof applies the library's `modal_refutation` to the
+/// model, each world with the worlds it sees as the model has them and
+/// the atoms it forces, at the model's world, and Rocq's `vm_compute`
+/// checks the frame conditions and the forcing. A standalone file starts
+/// with `options.prelude`, by default
+/// [`DEDUXIT_MODAL_COUNTERMODEL_PRELUDE`].
+///
+/// Needs the cargo features `rocq` and `serialize`.
+///
+/// # Errors
+///
+/// - The errors of [`modal::Countermodel::check`](crate::modal::Countermodel::check).
+/// - [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+///   for a text past `limits.derivation_bytes`, before anything is
+///   written, and [`Refusal::Stopped`](crate::Refusal::Stopped) where
+///   `stop` asked.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+#[cfg(feature = "serialize")]
+pub fn write_modal_countermodel(
+    countermodel: &crate::modal::Countermodel,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::modal::rocq::countermodel(countermodel, options, limits, out, stop)
 }
 
 /// Writes the certificate of a linear derivation for the kernel the
