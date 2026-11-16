@@ -7199,3 +7199,19 @@ move (D26).
     04:27, 63g-a at 03:14. Both started at 08:47 (62d in `local_fe155f72`, cores 10-12; 63g-a in
     `local_b8490613`, cores 7-9, on Fable 5.2). Recorded so that it does not recur: no model
     switch to a dearer model while the author is away.
+- 2026-11-16, about 10:50: **63g-a reviewed and pushed: the workspace graph designed.**
+  - **63g-a** (`wxuzwskv`, `xpsroztm`, report `mxkynvux`): `plan/notes/63g-design.md`, merged from
+    two independent proposals (Fable 5.2 and Opus 5.5, each then criticising the other), an
+    education critic with the five skills, a frontend-design critic against the client's code,
+    an inventory of the three suites and a survey of sources (build systems à la carte, Salsa,
+    marimo, Isabelle/PIDE, tldraw). Values immutable and named by content; a node holds a value
+    or a recipe; records of runs are the cache, matched exactly on operation, parameters,
+    settings read and input values; state computed, never stored; the log holds macro edits
+    only; a check apart from the run; wire level 19. On the page a workspace exists from the
+    first link, holds linked tabs only, as a list left of the stage under inference lines; the
+    graph view draws linked tabs, not every artifact. The Opus reviewer found nine faults, all
+    fixed. Four departures marked, nine decisions in the author's place (section 18 of the
+    note), reviewed here and kept: the key one, `serde_json` behind a default feature
+    `workspace` of the core crate, goes to 63g-b's dependency check.
+  - **Next:** 63a (the protocol) once 62d lands, taking the kinds and operations of the note's
+    section 3.
