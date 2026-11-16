@@ -7403,3 +7403,14 @@ move (D26).
 - 2026-11-16, 17:40: **0.5.0 complete**: the release run passed (17 assets on the GitHub release,
   both JSON Schemas among them), docs.rs built 0.5.0, Zenodo archived it as
   10.5281/zenodo.24285537.
+- 2026-11-16, 17:55: **65d reviewed; step 65 complete once the client's lock moves.**
+  - **65d** (deduxit `rprmqqkr`, `lwqyprpr`; the client `xtvupuwq`, `zotrsnkk`): the bindings'
+    `modal_*` calls, each the protocol's operation; the page's "Modal logic" button in the
+    calculus popover (nothing new before it is pressed), the system chosen (fifteen, K first),
+    the verdict, the labelled derivation or the countermodel drawn, a model the visitor changes
+    and checks (frame condition and its worlds named, the failing world and its witnesses); the
+    tab in the link and the shelf; a modal tab in the workspace. Module +14 878 bytes at gzip
+    (3 637 866, under 3 750 000). fresh-reviewer (Fable) five findings, fixed (a linked tab
+    switched to another suite stayed linked, an Undo opening a third tab, …). Departures
+    marked: a modal copy follows its original; no modal derivation in the Export menu; "Not
+    decided" not walked. Gate and both flake checks passed.
