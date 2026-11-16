@@ -63,7 +63,7 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 54x6	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 15:55	2026-11-16 17:20	the module size, wire docs, a busy Undo
 64	step	-	-	-	-	-	2026-11-16 16:50	complete: 0.5.0 tagged (the publish waits for the author)
 65d	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-16 17:00	2026-11-16 17:50	modal logic on the page
-66a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 17:30		the labelled calculus step by step
+66a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 17:30	2026-11-16 18:55	the labelled calculus step by step
 65	step	-	-	-	-	-	2026-11-16 18:05	complete: modal logics K to S5
 66b	design	fable-5-2	high	reviewer (opus)	local_fe155f72	2026-11-16 18:14	2026-11-16 18:45	the modal soundness proof in Rocq
 fix-band	client	opus-5-5	high	-	local_fe155f72	2026-11-16 18:55		the page's bottom band (the author's report)

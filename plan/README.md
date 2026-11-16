@@ -7433,3 +7433,15 @@ move (D26).
     refuse it. In `later.md`.
   - **fix-band** started (`local_fe155f72`, the author's report of a broken bottom band on the
     live page).
+- 2026-11-16, 19:05: **66a reviewed and pushed (the client's part with its lock after its check).**
+  - **66a** (`zqmrqlxq` to `qylwlwsz`; the client `pzvwxttr`): `[]` and `<>` read as `□` and `◇`
+    in a calculus's text; `rules::Interactive::extend` and the command's `derive` in a sequent
+    calculus: a one-premise rule that only adds hypotheses before ⊢ (`L∧`, `L□`, `L◇`, the frame
+    rules) taken forwards on the goal's members (departs: members, not 62b's lines, which a
+    sequent calculus lacks); every other rule refused forwards with its reason; random walks over
+    the fifteen calculi, every state replayed and checked; the manual's "Prove step by step"; the
+    certificate's design (`plan/notes/labelled-certificate.md`, which 66b matched, choosing a
+    stability hypothesis over `classic`); the page's "Prove it step by step" under a valid modal
+    derivation, starting the custom builder on the derivation's root. fresh-reviewer (Fable) two
+    rounds, nine findings, all answered (a panic on an unknown goal, `R¬` read forwards, …).
+    Gate and `nix flake check` passed; the client's flake check passed against the chain.
