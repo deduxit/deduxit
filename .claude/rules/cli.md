@@ -293,6 +293,42 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--net`, `--lambda`, a mode flag or `--logic` beside such a file is
   exit 2. `Checked` has `calculus` for it; `eliminate` refuses the
   flag.
+- `modal.rs`: modal logic under `--system SYSTEM` (`parse_system`,
+  `System::from_str`: the fifteen names and K or D followed by axiom
+  letters, any case), on `prove` and `check`, `conflicts_with = "logic"`.
+  No settings key holds the system: it names the logic of the input, as
+  `--logic` does, and a front end passes it with the sequent (the
+  protocol's `modal.sequent` carries `system`). `prove` hands over to
+  `modal::prove` right after `Deadline::start`; `flags` refuses the mode
+  flags, `--method`, `--translation`, `--linear`, `--net` and `--lambda`
+  (exit 2). The sequent is text or JSON (`sequent_in`, within
+  `--occurrence-limit`), decided by `modal::decide_within` on the large
+  stack under the deadline and Ctrl-C, with `Notice`. JSON is the
+  library's outcome; text is the verdict line (`verdict_line`: `valid
+  in S4: …, a checked derivation of N inferences in G3S4`, `not valid in
+  K: a checked countermodel of N worlds refutes … at world W`, or the
+  model too large to check, or `unknown in S4: ` and `prove::advice`),
+  then the evidence (`evidence`): a derivation through `calculus::shown`
+  (the node lines of `check --calculus`, a `rules::Drawing` in LaTeX,
+  Typst and SVG, PNG and PDF rendered, Rocq a left-out line), a
+  countermodel as `worlds_text` lines in text (`sees 1, 2`, `sees no
+  world`; the drawn formats `svg::modal_countermodel`, LaTeX and Typst
+  none); `--stats` a counter per line and `time: …` through
+  `Show::after`. `check` reads a modal outcome by its `system` key
+  (`read_document`, `Document::Modal`), refusing mode flags and
+  `--logic`, and checks it again (`check_outcome`: exit 0 when its
+  evidence holds, 1 when not, 3 at a limit or for an outcome with no
+  evidence); a Kripke model under `--system` with `--sequent`
+  (`check_model`) is checked first for the system's frame conditions on
+  its arrows as written (`Model::frame_fault`, exit 2 naming the
+  condition), then `Model::truth` at `--world` or every world: exit 0
+  holds, 1 fails with each compound subformula's value and the world
+  that shows a false `□` or a true `◇`. `Checked` has `system` and, for
+  a failing model, `failing`. `calculus.rs`'s `modal` reads a calculus
+  name `G3` and a system's name (any case) as `modal::calculus`, in
+  `calculus` (a derivation that names it) and `named` (`--calculus`).
+  `workspace new|add --system` makes a `modal.sequent`
+  (`protocol::statement("modal", …)`).
 - `interact/rules.rs`: `interact --calculus CALCULUS SEQUENT
   [--assume SEQUENT…]`, a session over `rules::Interactive` (the
   calculus by `calculus::named`, the sequent the argument's text), or

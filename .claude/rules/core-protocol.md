@@ -16,7 +16,7 @@ workspace graph builds on it.
   `Verdict`), the trait `Suite`, the registry (`suites`, `shared`,
   `operation`, `kind`), the front doors `read`, `summary`, `run`,
   `check`, the catalogue's JSON (`catalogue`), the promises and the
-  shared lists of settings keys; `linear.rs`, `ordinary.rs`, `rules.rs`
+  shared lists of settings keys; `linear.rs`, `ordinary.rs`, `rules.rs`, `modal.rs`
   one suite each; `shared.rs` the renderings no suite owns (`drawing`,
   `text`, `certificate`, `term`), never stored. The feature `protocol`
   needs `serialize`, `parse` and `interactive` and brings `serde_json`,
@@ -84,6 +84,25 @@ workspace graph builds on it.
   quantified formulas (members past the forest) is refused.
 - **A run is a function of its key only on one thread**
   (`Settings::deterministic`); the tests run under it.
+- **The modal suite** (`modal.rs`): a statement is the modal sequent's
+  document with `system` (and `text`), which `protocol::statement("modal",
+  text, system, …)` makes; `modal.decide` is `modal::decide_within`
+  (its `Limit` from the outcome's `Reason`), `modal.derivation` the valid
+  outcome's `rules::Derivation` (`NoDerivation` otherwise), checked in
+  `modal::calculus(system)` under `proves`; `modal.draw` the
+  countermodel's drawing or the derivation's tree, `modal.export` the
+  tree in LaTeX or Typst (no text format: the library writes no text of
+  a calculus given as data; the command's node lines are its own);
+  `modal.countermodel` the outcome's model as a `modal.model`
+  (`kripke_model`, `InvalidOption` key `inputs` where it has none);
+  `modal.evaluate` (a statement and a model, parameter `world`) the
+  protocol's own `modal_evaluation`, `frame` (condition and worlds) where
+  the arrows fail the system, else `holds`, `failing` and `values`;
+  `modal.calculus` the system's rule file, which step 66 starts sessions
+  from. The check of
+  `decides` is `Outcome::check` (`Recorded` for a not-valid outcome
+  whose model was too large to check, `None` for an unknown). Its
+  kinds' forms are the schema's `modal_statement` and `modal_outcome`.
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

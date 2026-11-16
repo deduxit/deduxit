@@ -930,6 +930,24 @@ for NanoYalla. What the code relies on:
   the `export` check renders. LaTeX and Typst draw no model: neither has
   a standard package that lays out such a graph without hand placement
   (TikZ needs coordinates, which would duplicate this layout in TeX).
+- **A modal model's drawing** (`svg::modal_countermodel`,
+  `kripke::draw` with `Arrows::Relation`; the ordinary drawing passes
+  `Arrows::Order`): a modal relation may have loops, cycles and arrows
+  both ways, so rows are distances from the model's world (breadth
+  first, the model's world on top), not Kahn's order, which needs no
+  cycle. A loop is a cubic curl on the box's right; an arrow within a
+  row a quadratic curve above (to the right) or below (to the left); an
+  arrow between rows straight, set aside by a sixth of the box's width
+  where two worlds see each other, and bowed by `reach` past a row; the
+  layout adds a line height above and below the rows and a box's
+  height of width for the curls. The description says "sees" ("it sees
+  itself, world 1 and world 2"). Snapshot `kripke_modal.svg`, an S5
+  model of three worlds that all see each other. `□` and `◇` are
+  `Notation::necessary` and `possible` (LaTeX `\Box `, `\Diamond `;
+  Typst and SVG the characters, whose advances are in `font.rs` from
+  each font file) and label symbols (`style::symbol`), so `L□` is
+  `\mathrm{L}\Box` in LaTeX; snapshot `modal.*`, a derivation of
+  G3S4, compiled by the `export` check.
 - **A Kripke countermodel** (`rocq::write_countermodel`,
   `ordinary::rocq::countermodel`) is checked first
   (`Countermodel::check` under the caller's `&Limits` and stop), then
