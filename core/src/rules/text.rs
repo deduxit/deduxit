@@ -14,8 +14,10 @@ use crate::limits::{Limits, Refusal};
 
 /// ASCII spellings of common symbols, each read as its symbol where the
 /// calculus declares the symbol and not the spelling itself.
-const ASCII: [(&str, &str); 14] = [
+const ASCII: [(&str, &str); 16] = [
     ("|-", "⊢"),
+    ("[]", "□"),
+    ("<>", "◇"),
     ("->", "→"),
     ("<->", "↔"),
     ("/\\", "∧"),
@@ -439,8 +441,8 @@ impl Calculus {
     /// Reads a term of the sort named `sort` from `text`, written as
     /// [`show`](Self::show) writes one, into `terms`. Connectives are read
     /// by their names and symbols, a few by an ASCII spelling (`->` for
-    /// `→`, `/\` for `∧`, `|-` for `⊢`) where the calculus declares the
-    /// symbol; any other word is an atom.
+    /// `→`, `/\` for `∧`, `[]` for `□`, `<>` for `◇`, `|-` for `⊢`) where
+    /// the calculus declares the symbol; any other word is an atom.
     ///
     /// # Errors
     ///
