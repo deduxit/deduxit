@@ -7290,3 +7290,19 @@ move (D26).
     proof and the countermodel, with the panel.
 - 2026-11-16, about 13:20: **The author: "Yes, all fifteen"** modal systems in 0.6.0 (65a's question
   1, decided before on its recommendation; now the author's).
+- 2026-11-16, 13:45: **63g-b reviewed and pushed: the workspace in the library and the command;
+  63g-c started.**
+  - **63g-b** (`nkwxvukn` to `rsowyykl`): `deduxit::workspace` (behind the feature `protocol`):
+    values interned, nodes given, derived, a session or a copy, records as an exact cache keyed
+    by operation, parameters, the settings read and input values, states computed, the edit log
+    with undo and redo pinning what was shown, `Limits::workspace` with refusals
+    (`workspace_limit`, `not_applicable`, `not_given`), wire level 19; `deduxit workspace
+    new|add|apply|set|run|remove|undo|redo|log|show|check|operations`; the manual's chapter, the
+    guide, the changelog, four calls in the behaviour lock. The reference test (twelve seeds of
+    forty random moves: every current node equals its recipe run afresh; undo and redo exact).
+    fresh-reviewer (Fable) broke every criterion with eight witnesses (a stopped run kept as
+    current, a foreign record made current, undo not restoring a moved node, a 313-byte file
+    allocating 16 GB, an unvalidated log, …); all fixed with a test each. Departures marked: no
+    feature `workspace` of its own; signature changes from the design's sketch; reading runs
+    instant records again (stricter). Gate and `nix flake check` passed.
+  - **63g-c** (the bindings and the page) started in the same worker.
