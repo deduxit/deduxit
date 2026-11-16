@@ -7414,3 +7414,5 @@ move (D26).
     switched to another suite stayed linked, an Undo opening a third tab, …). Departures
     marked: a modal copy follows its original; no modal derivation in the Export menu; "Not
     decided" not walked. Gate and both flake checks passed.
+- 2026-11-16, about 18:05: **Step 65 complete**: 65d's client chain and its lock update (`qtwlokpn`)
+  are on the client's `main` after its flake check passed.
