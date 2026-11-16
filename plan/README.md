@@ -7383,3 +7383,17 @@ move (D26).
 - 2026-11-16, about 17:15: **0.5.0 published.** The author approved the `crates-io` environment;
   `cargo publish` succeeded; crates.io lists `deduxit` 0.5.0 and `deduxit-cli` 0.5.0. The
   release's archives (macOS, Windows) were still building; docs.rs and Zenodo to be checked.
+- 2026-11-16, 17:25: **54x6 reviewed and pushed.**
+  - **54x6** (deduxit `yrvrponq` to `vmsvsttt`; the client `tokunpkt`): the module measured by
+    twiggy: the workspace's calls linked the protocol's dispatch and every kind's reader and
+    writer (+1.15 MB raw in deduxit, +0.5 MB of serde in `core`); trimmed copies of functions
+    that differed only in the stop closure's type (eight bodies now take `&mut dyn FnMut`, no
+    public signature changed), 129 216 bytes at gzip; the ceiling lowered to 3 750 000 (the
+    package 3 622 968 with the modal suite). Not trimmed, with reasons: the focused engine's
+    front door (needs the target set), and the protocol's reach (an API change for the author:
+    letting the bindings name the operations a workspace may run). A module per suite would gain
+    little; a module of its own for the PNG and PDF renderers (27 % of the module, loaded at the
+    first such export) is the larger gain, in `later.md`. The wire docs made true (the net
+    elimination's record, a first-order session's `instances`, `countermodel.model`, `written`);
+    the workspace panel's Undo shows "Undoing NAME…". fresh-reviewer (Fable) three findings,
+    fixed. Gate and both flake checks passed.
