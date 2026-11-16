@@ -6,8 +6,8 @@
 //! the flags given on the command line, each the spelling of one key.
 
 use crate::argument_parsing::{
-    CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, SearchArgs,
-    TransformArgs, WorkspaceArgs,
+    CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, RunArgs,
+    SearchArgs, TransformArgs, WorkspaceArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -420,6 +420,26 @@ impl WorkspaceArgs {
     }
 }
 
+impl RunArgs {
+    /// Returns the settings `workspace run` and `workspace check` run
+    /// under: the time limit and the workspace's bounds.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = read(self.settings.as_deref())?;
+        let apply = Apply {
+            file: self.settings.is_some(),
+            given,
+        };
+        if apply.set("timeout") {
+            settings.clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        Ok(settings)
+    }
+}
+
 impl LambdaArgs {
     /// Sets how a lambda-term is printed.
     fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
@@ -662,10 +682,8 @@ mod tests {
     ) -> Settings {
         use crate::argument_parsing::WorkspaceCommand::{Apply, Check, Run, Set};
         match command {
-            Apply { common, .. }
-            | Set { common, .. }
-            | Run { common, .. }
-            | Check { common, .. } => common.settings(given).unwrap(),
+            Apply { common, .. } | Set { common, .. } => common.settings(given).unwrap(),
+            Run { common, .. } | Check { common, .. } => common.settings(given).unwrap(),
             _ => unreachable!("the other workspace commands read no settings"),
         }
     }
@@ -874,6 +892,14 @@ mod tests {
             &["deduxit", "seq", "print", "A |- A"],
             &["deduxit", "seq", "translate", "a"],
             &["deduxit", "interpolate", "a |- a"],
+            &[
+                "deduxit",
+                "workspace",
+                "apply",
+                "w.json",
+                "0",
+                "ordinary.decide",
+            ],
             &["deduxit", "workspace", "run", "w.json"],
         ] {
             ASKED.with_borrow_mut(Vec::clear);

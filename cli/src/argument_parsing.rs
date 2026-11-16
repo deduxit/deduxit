@@ -332,7 +332,7 @@ pub(crate) enum WorkspaceCommand {
         /// Make the node without running it
         #[arg(long)]
         no_run: bool,
-        /// The limits and the output.
+        /// The limits the node keeps, and the time limit.
         #[command(flatten)]
         common: WorkspaceArgs,
     },
@@ -347,7 +347,7 @@ pub(crate) enum WorkspaceCommand {
         /// A parameter of the node's operation, as KEY=VALUE
         #[arg(long = "set", value_name = "KEY=VALUE")]
         set: Vec<String>,
-        /// The limits and the output.
+        /// The limits the node keeps, and the time limit.
         #[command(flatten)]
         common: WorkspaceArgs,
     },
@@ -361,9 +361,9 @@ pub(crate) enum WorkspaceCommand {
         /// Also make each node's check of what its operation promises
         #[arg(long)]
         checks: bool,
-        /// The limits and the output.
+        /// The time limit and the workspace's bounds.
         #[command(flatten)]
-        common: WorkspaceArgs,
+        common: RunArgs,
     },
     /// Remove a node and every node made from it
     Remove {
@@ -405,9 +405,9 @@ pub(crate) enum WorkspaceCommand {
     Check {
         /// The workspace file
         file: PathBuf,
-        /// The limits and the output.
+        /// The time limit and the workspace's bounds.
         #[command(flatten)]
-        common: WorkspaceArgs,
+        common: RunArgs,
     },
     /// List the operations, or those that take a value of one kind
     Operations {
@@ -434,8 +434,8 @@ pub(crate) struct StatementArgs {
     pub(crate) mode: String,
 }
 
-/// What the workspace's commands that run share: the limits a node keeps
-/// and the time limit of the run.
+/// What `workspace apply` and `workspace set` read: the limits a node
+/// keeps and the time limit of the run.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct WorkspaceArgs {
     /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
@@ -459,6 +459,27 @@ pub(crate) struct WorkspaceArgs {
     /// reads, such as `{"limits": {"work": 100000}}`; the bounds of the
     /// workspace itself are `limits.workspace`. A field left out keeps the
     /// command's default, and a misspelt one is an error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
+}
+
+/// What `workspace run` and `workspace check` read: the time limit of
+/// the run and the workspace's bounds. Each node runs under the limits it
+/// keeps, so these commands take no other limit.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct RunArgs {
+    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
+    /// (clock.time_limit_ms); the nodes run before it stay
+    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
+    pub(crate) timeout: Time,
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each node runs under the limits it
+    /// keeps, so only the time limit and the workspace's own bounds,
+    /// `limits.workspace`, are read here; `workspace set` changes a node's
+    /// limits. A misspelt field is an error.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
 }
