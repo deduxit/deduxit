@@ -7641,3 +7641,15 @@ move (D26).
     found wraps past 2³¹ atoms and unbounded DIMACS headers (fixed); fresh-reviewer (Fable) three
     findings, fixed. Module +31 KB (3 721 760, 28 KB under the ceiling). `nix flake check` passed.
   - **70c** (the page: normal forms and resolution, the graph view) started in the same worker.
+- 2026-11-20, 14:10: **70c reviewed; its client chain waits for its lock and check.**
+  - **70c** (deduxit `omwlqkqk` to `mzqulrwr`; the client `ynqvywmw`, `ponxukxv`, `nxxlqsyv`): the
+    Logic popover of a started classical proof offers "Rewrite into a normal form" (the check's
+    verdict first, then a stepper, one law at a time) and "Refute by resolution" (search, DPLL in
+    words, or by hand: choose two clauses, "Resolve on p", deduxit adds and checks the resolvent);
+    the refutation listed and drawn as a graph in step, keyboard-operable; nothing new for a visitor
+    who does not ask. Bindings `ordinary_normalize`, `ordinary_resolve`, `ordinary_clauses`,
+    `ordinary_resolve_step`, `ordinary_refutation_check`; `Refutation::check_steps`. Module
+    3 741 399 bytes (8.6 KB under the ceiling: the next binding raises it). fresh-reviewer (Fable)
+    four findings, fixed ("You derived □" for a set already holding □; the PG law overclaimed;
+    overflow; focus). Departures marked (CNF only on the page; sheets in the popover; the graph
+    scrolls). Both flake checks passed.
