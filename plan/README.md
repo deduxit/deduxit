@@ -7706,3 +7706,5 @@ move (D26).
   session is unattended (a switch to Fable would block it on the author's prompt); marked as a
   departure. 54x9 runs the lambda and modal fuzz targets long. (73's report says the prompts of 74
   to 79 were written: only 74's is; 75 to 79 are written at the reviews their rows name.)
+- 2026-11-20, about 19:00: **The author: "Tag 0.7.0"**: the planning session tags `v0.7.0` (deduxit
+  alone; rocq-deduxit 0.6.0 stays) once CI is green at the release commit `1fb4ee2b`.
