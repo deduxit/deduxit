@@ -382,6 +382,17 @@ and Python with matplotlib; no check builds it.
   own forms have no command that writes them; `web/tests/protocol.rs`
   holds every kind's form to the schema by name (the `web-tests` part
   keeps the schema for it).
+- **`dataset.nix`: the check `dataset`.** The dataset under `dataset/`
+  (`problems.jsonl`, made by `dataset/build.py build`, which the check
+  never runs: the families come from the harness and the stores from the
+  web client's repository) is checked against `SHA256SUMS`, and `build.py
+  verify` decides every tenth problem again with the `deduxit-cli`
+  package (`prove --deterministic --work-limit`, the bound the build
+  used, so the verdict is the machine's no more than the file's) and
+  grades its stored answer with `grade`, which must say `correct`. Its
+  source is `dataset/` alone, so editing it rebuilds no Rust; a change of
+  the command's verdicts or of `grade` fails it until the dataset is
+  built again and its version raised.
 - **`budget.nix`: the check `budget`.** Cargo.lock's packages and the web
   module's bytes at `gzip -9`, each under a ceiling written in the file
   with the figure it was set at; a change that passes one raises it

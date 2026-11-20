@@ -80,3 +80,14 @@ the first line that failed.
 $ echo 'not an answer' | deduxit grade --format json "A |- A"
 {"version":1,"verdict":"incorrect","answer":"script","message":"the script's 1 command leaves the proof unfinished; the first that failed: unknown command \"not\"; `help` lists them","line":1}
 ```
+
+## Problems with verified answers
+
+deduxit's repository holds a dataset of problems for evaluating models,
+[`dataset/`](https://github.com/deduxit/deduxit/tree/main/dataset): sequents of
+linear, ordinary and modal logic, each with the verdict deduxit
+verified and the answer it checked, one JSON object per line in the
+fields evaluation harnesses read (`id`, `input`, `target`, `metadata`).
+Each problem's `metadata.flags` and `metadata.sequent` are what `grade`
+takes. Its card, `dataset/README.md`, says how it was made and how to
+use it.

@@ -20,6 +20,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   data. The answer must be about the problem's sequent, in its logic.
   The exit status is 0 for correct, 1 for incorrect, 3 for unknown;
   `--format json` writes the verdict as one object.
+- A dataset of problems with verified answers for evaluating models,
+  `dataset/problems.jsonl.gz`: 843 sequents of linear, ordinary and
+  modal logic, each with the verdict deduxit decided and the answer
+  `grade` checked, in the fields evaluation harnesses read (`id`,
+  `input`, `target`, `metadata`), with its card, Croissant metadata and
+  the script that builds it. `deduxit-bench instances` prints the
+  generated families' instances it reads.
 
 ## [0.6.0] - 2026-11-20
 
