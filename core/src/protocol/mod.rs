@@ -485,6 +485,10 @@ const OPERATIONS: &[&str] = &[
     "lambda.check",
     "lambda.inhabit",
     "lambda.enumerate",
+    #[cfg(feature = "svg")]
+    "lambda.draw",
+    #[cfg(any(feature = "latex", feature = "typst"))]
+    "lambda.export",
     "lambda.duplicate",
 ];
 

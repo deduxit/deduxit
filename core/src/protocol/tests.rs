@@ -583,6 +583,20 @@ fn a_term_is_checked_and_a_type_s_terms_found_and_counted() {
         checked("lambda.enumerate", &[&pick], "", &listed).status,
         Status::Held
     );
+    // A checked term's typing derivation is drawn and exported.
+    #[cfg(feature = "svg")]
+    {
+        let drawing = ran("lambda.draw", &[&typed], "");
+        assert!(drawing.contains("by →I from"), "{drawing}");
+    }
+    #[cfg(feature = "latex")]
+    {
+        let exported = ran("lambda.export", &[&typed], "");
+        assert!(
+            exported.contains(r"\\infer2[$\\to\\mathrm{E}$]"),
+            "{exported}"
+        );
+    }
     let classical = ordinary("|- a -> a", crate::ordinary::Logic::Classical);
     assert!(matches!(
         run("lambda.enumerate", &[&classical], "", &settings(), |_| {

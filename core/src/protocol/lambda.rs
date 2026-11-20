@@ -7,6 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::ordinary::checked;
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+use super::promises::RENDERS;
 use super::promises::{DECIDES, EXACT, WELL_TYPED};
 use super::{
     Call, Check, Class, Cost, Kind, Operation, Parameter, Part, Produced, Role, Status, Suite,
@@ -78,6 +80,21 @@ static INHABIT_READS: [&str; 5] = [
     "limits.terms",
 ];
 
+/// The settings keys a drawing or an export of a typing derivation
+/// reads: the check's bounds, the drawing's, how a judgement is written,
+/// and the formats' styles.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+static DRAW_READS: [&str; 8] = [
+    "limits.memory_bytes",
+    "limits.occurrences",
+    "limits.derivation_bytes",
+    "limits.work",
+    "lambda",
+    "styles.svg",
+    "styles.latex",
+    "styles.typst",
+];
+
 /// Its operations.
 static OPERATIONS: &[Operation] = &[
     Operation {
@@ -126,6 +143,35 @@ static OPERATIONS: &[Operation] = &[
         reads: &INHABIT_READS,
         promise: &WELL_TYPED,
         label: "The type's terms, listed and counted",
+    },
+    #[cfg(feature = "svg")]
+    Operation {
+        name: "lambda.draw",
+        from: &[&["lambda.typing"]],
+        to: "drawing",
+        class: Class::Derived,
+        cost: Cost::Instant,
+        parameters: &[],
+        reads: &DRAW_READS,
+        promise: &RENDERS,
+        label: "The typing derivation drawn",
+    },
+    #[cfg(any(feature = "latex", feature = "typst"))]
+    Operation {
+        name: "lambda.export",
+        from: &[&["lambda.typing"]],
+        to: "text",
+        class: Class::Derived,
+        cost: Cost::Instant,
+        parameters: &[Parameter {
+            name: "format",
+            values: &["latex", "typst"],
+            default: Some("latex"),
+            description: "The format",
+        }],
+        reads: &DRAW_READS,
+        promise: &RENDERS,
+        label: "The typing derivation in a format",
     },
     Operation {
         name: "lambda.duplicate",
@@ -209,6 +255,27 @@ struct CountForm {
     /// The number, where there is one.
     #[serde(default)]
     count: Option<u64>,
+}
+
+/// The parameters of `lambda.export`.
+#[cfg(any(feature = "latex", feature = "typst"))]
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct Format {
+    /// The format, `latex` by default.
+    format: Option<String>,
+}
+
+/// Returns the typing derivation of a checked term's value, laid out
+/// for the exports.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+fn drawing_of(
+    value: &str,
+    settings: &crate::Settings,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<lambda::Drawing, Error> {
+    let term: Term = document(value, &settings.limits)?;
+    lambda::Drawing::new(&term, &settings.lambda, &settings.limits, stop)
 }
 
 /// The parameters of `lambda.enumerate`.
@@ -369,6 +436,49 @@ impl Suite for Lambda {
                     .with_max_terms(bounds.max_terms.unwrap_or(defaults.max_terms));
                 let found = lambda::enumerate(&sequent, &options, limits, &mut *stop)?;
                 written(&found)?
+            }
+            #[cfg(feature = "svg")]
+            "lambda.draw" => {
+                let drawing = drawing_of(call.input(0), settings, &mut *stop)?;
+                let mut svg = String::new();
+                crate::export::svg::write(&drawing, &settings.styles.svg, &mut svg, &mut *stop)?;
+                written(&super::shared::Drawing { svg })?
+            }
+            #[cfg(any(feature = "latex", feature = "typst"))]
+            "lambda.export" => {
+                let drawing = drawing_of(call.input(0), settings, &mut *stop)?;
+                let p: Format = parameters(call)?;
+                let format = p.format.unwrap_or_else(|| "latex".to_owned());
+                let styles = &settings.styles;
+                let mut text = String::new();
+                match format.as_str() {
+                    #[cfg(feature = "latex")]
+                    "latex" => {
+                        crate::export::latex::write(
+                            &drawing,
+                            &styles.latex,
+                            &mut text,
+                            &mut *stop,
+                        )?;
+                    }
+                    #[cfg(feature = "typst")]
+                    "typst" => {
+                        crate::export::typst::write(
+                            &drawing,
+                            &styles.typst,
+                            &mut text,
+                            &mut *stop,
+                        )?;
+                    }
+                    other => {
+                        return Err(Error::UnknownName {
+                            what: "format",
+                            name: other.into(),
+                            known: &["latex", "typst"],
+                        });
+                    }
+                }
+                written(&super::shared::Text { format, text })?
             }
             // The copy: the input as it was given.
             _ => {

@@ -65,6 +65,10 @@ text, quick to make again.
 | `modal.outcome` | a sequent decided, with a derivation or a countermodel | the outcome's JSON |
 | `modal.model` | a Kripke model, each world's arrows the worlds it sees | the model's JSON |
 | `modal.evaluation` | a model checked against a sequent | `{"system", "world", "frame", "holds", "failing", "values"}` |
+| `lambda.term` | a lambda-term with its free variables' types | the term's JSON, with `text` as typed |
+| `lambda.typing` | a lambda-term checked | the term's JSON with `typing` and `judgement` |
+| `lambda.inhabitation` | whether a type has a term | `{"verdict", …}`, with the term where it has one |
+| `lambda.inhabitants` | a type's terms, listed and counted | `{"terms", "count"}` |
 | `drawing` | a drawing | `{"svg"}` |
 | `text` | a text in a format | `{"format", "text"}` |
 | `certificate` | a certificate for Rocq | `{"text"}` |
@@ -126,6 +130,12 @@ promises something of its output and says what checking that costs.
 | `modal.draw` | `modal.outcome` | `drawing` | renders |
 | `modal.export` | `modal.outcome` | `text` | renders |
 | `modal.duplicate` | `modal.sequent` | `modal.sequent` | exact |
+| `lambda.check` | `lambda.term` | `lambda.typing` | well typed |
+| `lambda.inhabit` | `ordinary.sequent` | `lambda.inhabitation` | decides |
+| `lambda.enumerate` | `ordinary.sequent` | `lambda.inhabitants` | well typed |
+| `lambda.draw` | `lambda.typing` | `drawing` | renders |
+| `lambda.export` | `lambda.typing` | `text` | renders |
+| `lambda.duplicate` | `lambda.term` | `lambda.term` | exact |
 
 The catalogue gives each operation's parameters with their values and
 defaults, its plain name, how its output relates to its inputs once made
@@ -143,6 +153,7 @@ defaults, its plain name, how its output relates to its inputs once made
 | interpolates | the interpolant's atoms occur in both parts, and both halves are valid | two searches |
 | equivalent | each formula of the output is equivalent to the input's in its place | one search |
 | equisatisfiable | the output's clauses can be satisfied exactly when the input can be false | two searches |
+| well typed | each term is well typed, of the type asked | instant |
 | renders | the drawing or text shows its input | nothing to check |
 | certifies | Rocq accepts the certificate | Rocq checks it |
 
