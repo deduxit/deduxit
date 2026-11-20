@@ -271,6 +271,103 @@ pub(crate) const SVG: Spelling = Spelling {
     ..UNICODE
 };
 
+/// Writes a variable's name, the digits at its end as an index. A name
+/// of digits alone has none.
+pub(crate) fn write_name(out: &mut impl Write, name: &str, index: Index) -> std::fmt::Result {
+    let stem = name.trim_end_matches(|c: char| c.is_ascii_digit());
+    let (stem, digits) = if stem.is_empty() {
+        (name, "")
+    } else {
+        name.split_at(stem.len())
+    };
+    out.write_str(stem)?;
+    if digits.is_empty() {
+        return Ok(());
+    }
+    match index {
+        Index::Digits => out.write_str(digits),
+        #[cfg(any(feature = "latex", feature = "typst"))]
+        Index::Marked(open, close) => write!(out, "{open}{digits}{close}"),
+        Index::Subscript => digits.chars().try_for_each(|digit| {
+            let d = digit.to_digit(10).unwrap_or(0);
+            out.write_char(char::from_u32(0x2080 + d).unwrap_or(digit))
+        }),
+    }
+}
+
+/// Writes a type of an arena in a calculus's connectives, in brackets if
+/// it is binary and `bracket` is set, every binary operand in brackets,
+/// with a stack of its own.
+pub(crate) fn write_type(
+    out: &mut impl Write,
+    types: &[Type],
+    atoms: &[Box<str>],
+    connectives: &Connectives,
+    atom: Atoms,
+    ty: TypeId,
+    bracket: bool,
+) -> std::fmt::Result {
+    /// A step of the type's walk.
+    enum Step {
+        /// A type, bracketed if binary and the flag says so.
+        Type(TypeId, bool),
+        /// Text.
+        Text(&'static str),
+    }
+    let c = connectives;
+    let mut stack = vec![Step::Type(ty, bracket)];
+    while let Some(step) = stack.pop() {
+        let (t, bracket) = match step {
+            Step::Text(s) => {
+                out.write_str(s)?;
+                continue;
+            }
+            Step::Type(t, bracket) => (t, bracket),
+        };
+        let binary = |stack: &mut Vec<Step>, l: TypeId, op: &'static str, r: TypeId| {
+            if bracket {
+                stack.push(Step::Text(")"));
+            }
+            stack.push(Step::Type(r, true));
+            stack.push(Step::Text(op));
+            stack.push(Step::Type(l, true));
+            if bracket {
+                stack.push(Step::Text("("));
+            }
+        };
+        match types[t.index()] {
+            Type::Atom { atom: a } => atom.write(out, &atoms[a as usize])?,
+            Type::One => out.write_str(c.one)?,
+            Type::Top => out.write_str(c.top)?,
+            Type::Zero => out.write_str(c.zero)?,
+            Type::Bang { of } => {
+                out.write_str(c.bang)?;
+                stack.push(Step::Type(of, true));
+            }
+            Type::Tensor { left, right } => binary(&mut stack, left, c.tensor, right),
+            Type::With { left, right } => binary(&mut stack, left, c.with, right),
+            Type::Plus { left, right } => binary(&mut stack, left, c.plus, right),
+            Type::Lollipop { from, to } => binary(&mut stack, from, c.lollipop, to),
+        }
+    }
+    Ok(())
+}
+
+impl Spelling {
+    /// Returns the type connectives of a calculus.
+    pub(crate) const fn connectives(&self, calculus: Calculus) -> &Connectives {
+        match calculus {
+            Calculus::Linear | Calculus::Affine => &self.linear,
+            Calculus::Simple => &self.simple,
+        }
+    }
+
+    /// Returns how the spelling writes an atom's name.
+    pub(crate) const fn atom(&self) -> Atoms {
+        self.atom
+    }
+}
+
 impl Notation {
     /// Returns the spelling of the notation.
     pub(crate) const fn spelling(self) -> &'static Spelling {
@@ -394,83 +491,30 @@ impl<'t> Printer<'t> {
 
     /// Returns the type connectives of the term's calculus.
     const fn connectives(&self) -> &Connectives {
-        match self.term.calculus {
-            Calculus::Linear | Calculus::Affine => &self.spelling.linear,
-            Calculus::Simple => &self.spelling.simple,
-        }
+        self.spelling.connectives(self.term.calculus)
     }
 
     /// Writes a variable's name.
     fn var(&self, out: &mut impl Write, v: VarId) -> std::fmt::Result {
-        let variable = &self.term.variables[v.index()];
-        out.write_char(variable.letter)?;
-        if variable.index == 0 {
-            return Ok(());
-        }
-        match self.spelling.index {
-            Index::Digits => write!(out, "{}", variable.index),
-            #[cfg(any(feature = "latex", feature = "typst"))]
-            Index::Marked(open, close) => write!(out, "{open}{}{close}", variable.index),
-            Index::Subscript => {
-                for digit in variable.index.to_string().chars() {
-                    let d = digit.to_digit(10).unwrap_or(0);
-                    out.write_char(char::from_u32(0x2080 + d).unwrap_or(digit))?;
-                }
-                Ok(())
-            }
-        }
+        write_name(
+            out,
+            &self.term.variables[v.index()].name,
+            self.spelling.index,
+        )
     }
 
     /// Writes a type, in brackets if it is binary and `bracket` is set,
-    /// every binary operand in brackets, with a stack of its own.
+    /// every binary operand in brackets.
     fn ty(&self, out: &mut impl Write, ty: TypeId, bracket: bool) -> std::fmt::Result {
-        /// A step of the type's walk.
-        enum Step {
-            /// A type, bracketed if binary and the flag says so.
-            Type(TypeId, bool),
-            /// Text.
-            Text(&'static str),
-        }
-        let c = self.connectives();
-        let mut stack = vec![Step::Type(ty, bracket)];
-        while let Some(step) = stack.pop() {
-            let (t, bracket) = match step {
-                Step::Text(s) => {
-                    out.write_str(s)?;
-                    continue;
-                }
-                Step::Type(t, bracket) => (t, bracket),
-            };
-            let binary = |stack: &mut Vec<Step>, l: TypeId, op: &'static str, r: TypeId| {
-                if bracket {
-                    stack.push(Step::Text(")"));
-                }
-                stack.push(Step::Type(r, true));
-                stack.push(Step::Text(op));
-                stack.push(Step::Type(l, true));
-                if bracket {
-                    stack.push(Step::Text("("));
-                }
-            };
-            match self.term.types[t.index()] {
-                Type::Atom { atom } => self
-                    .spelling
-                    .atom
-                    .write(out, &self.term.atoms[atom as usize])?,
-                Type::One => out.write_str(c.one)?,
-                Type::Top => out.write_str(c.top)?,
-                Type::Zero => out.write_str(c.zero)?,
-                Type::Bang { of } => {
-                    out.write_str(c.bang)?;
-                    stack.push(Step::Type(of, true));
-                }
-                Type::Tensor { left, right } => binary(&mut stack, left, c.tensor, right),
-                Type::With { left, right } => binary(&mut stack, left, c.with, right),
-                Type::Plus { left, right } => binary(&mut stack, left, c.plus, right),
-                Type::Lollipop { from, to } => binary(&mut stack, from, c.lollipop, to),
-            }
-        }
-        Ok(())
+        write_type(
+            out,
+            &self.term.types,
+            &self.term.atoms,
+            self.connectives(),
+            self.spelling.atom,
+            ty,
+            bracket,
+        )
     }
 
     /// Returns the pieces of one node, in the order written.
@@ -501,6 +545,26 @@ impl<'t> Printer<'t> {
         };
         let call = |keyword: &'static str, term: TermId| {
             vec![Keyword(keyword), Text("("), T(term, Place::Free), Text(")")]
+        };
+        // A keyword with the type it gives as a subscript, where types
+        // are shown. A spelling that closes its subscript with nothing
+        // brackets a type that is no atom or constant, so that the text
+        // reads back.
+        let subscripted = |keyword: &'static str, ty: TypeId| {
+            let mut pieces = vec![Keyword(keyword)];
+            if self.types {
+                pieces.extend([
+                    Text(s.subscript.0),
+                    Piece::Type(ty, s.subscript.1.is_empty()),
+                    Text(s.subscript.1),
+                ]);
+            }
+            pieces
+        };
+        let injection = |keyword: &'static str, term: TermId, sum: TypeId| {
+            let mut pieces = subscripted(keyword, sum);
+            pieces.extend([Text("("), T(term, Place::Free), Text(")")]);
+            pieces
         };
         match node {
             Node::Var { variable } => vec![Var(*variable)],
@@ -563,8 +627,8 @@ impl<'t> Printer<'t> {
             ],
             Node::First { term } => call("fst", *term),
             Node::Second { term } => call("snd", *term),
-            Node::Left { term, .. } => call("inl", *term),
-            Node::Right { term, .. } => call("inr", *term),
+            Node::Left { term, sum } => injection("inl", *term, *sum),
+            Node::Right { term, sum } => injection("inr", *term, *sum),
             Node::Case {
                 term,
                 left,
@@ -599,31 +663,13 @@ impl<'t> Printer<'t> {
                 pieces.push(Text(")"));
                 pieces
             }
-            Node::False { term, goal, .. } if !linear => {
-                let mut pieces = vec![Keyword("abort")];
-                if self.types {
-                    pieces.extend([
-                        Text(s.subscript.0),
-                        Piece::Type(*goal, false),
-                        Text(s.subscript.1),
-                    ]);
-                }
-                pieces.extend([Text("("), T(*term, Place::Free), Text(")")]);
-                pieces
-            }
+            Node::False { term, goal, .. } if !linear => injection("abort", *term, *goal),
             Node::False {
                 context,
                 term,
                 goal,
             } => {
-                let mut pieces = vec![Keyword("false")];
-                if self.types {
-                    pieces.extend([
-                        Text(s.subscript.0),
-                        Piece::Type(*goal, false),
-                        Text(s.subscript.1),
-                    ]);
-                }
+                let mut pieces = subscripted("false", *goal);
                 pieces.push(Text("("));
                 pieces.extend(list(context));
                 pieces.extend([Text("; "), T(*term, Place::Free), Text(")")]);

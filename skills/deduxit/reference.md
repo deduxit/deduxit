@@ -341,11 +341,12 @@ judgement, on a line after the derivation.
   gets `no lambda-term:` and the reason.
 
 `--lambda-notation ascii` writes the term in ASCII, and `--lambda-types`
-types every binder (`lambda.notation`, `lambda.types`). `check --lambda`
+types every binder, and `inl`, `inr`, `false` and `abort` by a subscript
+(`lambda.notation`, `lambda.types`). `check --lambda`
 and the session command `lambda` print the same. LaTeX, Typst, SVG, PNG
 and PDF write the judgement under the conclusion. JSON adds the key
-`lambda`: the term's nodes, types and variables with `text` and
-`judgement`, or `error`.
+`lambda`: the term's document (wire level 23: its nodes, types and
+variables) with `text` and `judgement`, or `error`.
 
 ```console
 $ deduxit prove -i --lambda --tree never "|- a -o b -o a * b"
@@ -1662,6 +1663,14 @@ occurrences by id, and `describe(&forest)` names them by formula.
   name that a later version writes reads as `Engine::Unknown`.
 - A `lambda::Term` prints with `Display`, in the default notation and
   within the default limits, so `term.to_string()` is its text.
+- `lambda::Term::parse(text, calculus, &limits)` reads a term from the
+  text that `--lambda-types` prints (`\x:a. x`, `x : a |- f x : b`;
+  every `λ` with its variable's type, since no type is inferred), and
+  `term.check(&limits, |_| false)` type-checks it in its calculus
+  (`Calculus::Simple`, `Linear` or `Affine`) and returns the type of
+  every subterm. An ill-typed term is `Error::IllTyped` (code
+  `ill_typed`) with the reason. A term is also a JSON document (wire
+  level 23) that `wire::upgrade::<lambda::Term, _>` reads.
 - `export::latex::to_string(&derivation, &options)` returns a derivation
   as LaTeX in one string, with no stop to write: the text is linear in
   the derivation, which was made within its limits. `typst::to_string`,

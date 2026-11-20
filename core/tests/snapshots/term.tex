@@ -19,6 +19,6 @@
 \infer2[$\oplus\mathrm{L}$]{\oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
 \infer1[$\mathbf{1}\mathrm{L}$]{\mathbf{1}, \oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
 \infer1[$\otimes\mathrm{L}$]{\mathbf{1} \otimes \oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
-\infer[no rule]1{x : \mathbf{1} \otimes \oc (a \multimap b), y : a \oplus c \vdash \mathsf{let}\ x\ \mathsf{be}\ z \otimes u\ \mathsf{in}\ \mathsf{let}\ z\ \mathsf{be}\ \ast\ \mathsf{in}\ \mathsf{case}\ y\ \mathsf{of}\ \mathsf{inl}(v) \to \langle \mathsf{inl}(\mathsf{derelict}(u)\ v), \mathsf{true}(u, v)\rangle \parallel \mathsf{inr}(w) \to \mathsf{discard}\ u\ \mathsf{in}\ \langle \mathsf{inr}(w), \mathsf{true}(w)\rangle : (b \oplus c) \with \top}
+\infer[no rule]1{x : \mathbf{1} \otimes \oc (a \multimap b), y : a \oplus c \vdash \mathsf{let}\ x\ \mathsf{be}\ z \otimes u\ \mathsf{in}\ \mathsf{let}\ z\ \mathsf{be}\ \ast\ \mathsf{in}\ \mathsf{case}\ y\ \mathsf{of}\ \mathsf{inl}(v) \to \langle \mathsf{inl}_{b \oplus c}(\mathsf{derelict}(u)\ v), \mathsf{true}(u, v)\rangle \parallel \mathsf{inr}(w) \to \mathsf{discard}\ u\ \mathsf{in}\ \langle \mathsf{inr}_{b \oplus c}(w), \mathsf{true}(w)\rangle : (b \oplus c) \with \top}
 \end{prooftree}
 \end{document}

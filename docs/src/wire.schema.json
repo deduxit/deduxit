@@ -129,8 +129,140 @@
       ]
     },
     "lambda": {
-      "description": "The proof's lambda-term, which the command adds under `--lambda`: the term's own form with its `text` and its `judgement`, or `{\"error\": …}` with why the proof has none. Its inner form is not described here.",
+      "description": "The proof's lambda-term, which the command adds under `--lambda`: the term's document (`typed_term`) with its `text` and its `judgement`, or `{\"error\": …}` with why the proof has none.",
       "type": "object"
+    },
+    "typed_term": {
+      "description": "A lambda-term (level 23): a term of the linear, the affine or the simply typed lambda calculus with the variables of its hypotheses and its type. A type and a node name what they are built from by index, and each comes after what it names. The library reads it and checks its typing.",
+      "type": "object",
+      "required": [
+        "calculus",
+        "atoms",
+        "types",
+        "variables",
+        "context",
+        "goal",
+        "nodes",
+        "root"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 23
+        },
+        "calculus": {
+          "enum": [
+            "linear",
+            "affine",
+            "simple"
+          ]
+        },
+        "atoms": {
+          "description": "The names of the atoms the types name.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "types": {
+          "description": "The types, each after its operands: `atom` (`atom`), `one`, `top`, `zero`, `tensor`, `with` and `plus` (`left`, `right`), `lollipop` (`from`, `to`) and `bang` (`of`). In the simple calculus `with` is the conjunction, `plus` the disjunction, `lollipop` the implication, `top` true and `zero` false.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "atom",
+                  "one",
+                  "top",
+                  "zero",
+                  "tensor",
+                  "with",
+                  "plus",
+                  "lollipop",
+                  "bang"
+                ]
+              }
+            }
+          }
+        },
+        "variables": {
+          "description": "The variables, each with its type and the name it is printed with. A node names a variable by its index, so two variables may have one name.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "name"
+            ],
+            "properties": {
+              "type": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "context": {
+          "description": "The variables of the hypotheses, in the order written.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "goal": {
+          "description": "The term's type.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "nodes": {
+          "description": "The nodes, each after the nodes it names: `var`, `lambda`, `apply`, `tensor`, `let_tensor`, `unit`, `let_unit`, `pair`, `first`, `second`, `left`, `right`, `case`, `true`, `false`, `promote`, `derelict`, `discard` and `copy`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "var",
+                  "lambda",
+                  "apply",
+                  "tensor",
+                  "let_tensor",
+                  "unit",
+                  "let_unit",
+                  "pair",
+                  "first",
+                  "second",
+                  "left",
+                  "right",
+                  "case",
+                  "true",
+                  "false",
+                  "promote",
+                  "derelict",
+                  "discard",
+                  "copy"
+                ]
+              }
+            }
+          }
+        },
+        "root": {
+          "description": "The node that is the whole term.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     },
     "error": {
       "description": "An error of the library, written and never read: `code` is what a program branches on, one of `deduxit::Error::CODES`; `kind` is what sort of failure it is; `message` is the English text; `setting` is the settings key of the bound that refused the call, present only where a bound did; `details` holds the fields of the error's variant, or the wrapped error's (a parse error's span, a check's node, rule, fault and premises, a refusal's `kind`). A client reads a code it does not know by its `kind`.",

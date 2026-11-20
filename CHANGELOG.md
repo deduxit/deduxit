@@ -10,7 +10,36 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** a variable of a `lambda::Term` has a name, an
+  identifier, where it had a letter and an index:
+  `lambda::Variable::name` replaces `letter` and `index`, `Variable` is
+  no longer `Copy`, and in JSON a variable is `{"type": 0, "name": "x"}`
+  where it was `{"type": 0, "letter": "x", "index": 0}`. Digits at a
+  name's end still print as an index (`x1` is `x₁`).
+- With `--lambda-types` (`lambda.types`), `inl` and `inr` now show the
+  sum type they give, as `false` and `abort` show theirs, and a
+  subscript that is no atom or constant is in brackets:
+  `inl_(a ⊕ b)(x)`, `abort_(a → b)(z)`. A term printed so reads back.
+- The value `--lambda` adds to an outcome in JSON has the key `version`
+  (23), as the term's own document.
+
 ### Added
+
+- The library type-checks lambda-terms. `lambda::Term::parse` reads a
+  term of the simply typed, the linear or the affine lambda calculus
+  from text, in Church's style (every `λ` with its variable's type), as
+  a term, a term with its type or a whole judgement `x : a ⊢ M : b`.
+  `lambda::Term::check` checks it and returns the type of every subterm
+  (`lambda::Typing`): the types fit, every variable is used as the
+  calculus allows, and the term has the type claimed. A term that is
+  not well typed is refused with `Error::IllTyped` (code `ill_typed`),
+  which says why and where. The terms read back from proofs are checked
+  the same way.
+- A lambda-term is a JSON document of its own, at wire level 23, which
+  `wire::upgrade` reads.
+- `lambda::Calculus` has its names (`ALL`, `NAMES`, `name`, `FromStr`).
 
 - `deduxit grade SEQUENT` grades an answer to a problem, read from
   standard input or `--answer FILE`, by its shape: a session script that

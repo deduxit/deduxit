@@ -82,6 +82,8 @@ mod ill;
 mod interactive;
 /// Serde for `kripke::Model`: the worlds, their atoms and arrows.
 mod kripke;
+/// Serde for a lambda-term: its document and the reader of its parts.
+mod lambda;
 /// Serde for modal logic: the sequent and the system.
 mod modal;
 /// Serde for `ProofStructure` and `MellStructure`: the sequent and the

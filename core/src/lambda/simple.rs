@@ -331,7 +331,7 @@ impl ReadBack<'_> {
             WeakenRight => {
                 // A term of `⊥` is its own `abort` into `⊥`.
                 let goal = self.goal(id);
-                if self.builder.types[goal.index()] != Type::Zero {
+                if self.builder.types.get(goal) != Type::Zero {
                     tasks.push(Task::Make(Make::Abort(goal)));
                 }
                 tasks.push(Task::Enter(premises[0]));
@@ -344,7 +344,7 @@ impl ReadBack<'_> {
             }
             FalseLeft => {
                 let goal = self.goal(id);
-                let t = if self.builder.types[goal.index()] == Type::Zero {
+                let t = if self.builder.types.get(goal) == Type::Zero {
                     z()
                 } else {
                     self.builder.node(Node::False {

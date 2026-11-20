@@ -38,6 +38,7 @@
 //! | 20 | the forms of modal logic: a sequent with the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic, and the outcome of deciding one | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is); every modal outcome |
 //! | 21 | a classical sequent's normal form with its steps and the claims of its promise decided, each outcome nested without `version` and `deduxit`; written only | a normal form |
 //! | 22 | resolution: a set of clauses with the resolvents of a refutation, and a set decided by saturation or DPLL with its evidence and DPLL's trace (written only) | a refutation of [`ordinary::resolution`](crate::ordinary::resolution), a clause set decided |
+//! | 23 | the lambda-term: its calculus, its atoms, types and variables, and its nodes, `{"calculus": "simple", "atoms": […], "types": […], "variables": [{"type": 0, "name": "x"}], "context": […], "goal": 1, "nodes": […], "root": 1}` | a term of [`lambda`](crate::lambda) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -260,6 +261,15 @@
 //!   "resolvents", "trace": [{"event": "unit", "literal": -1, "clause":
 //!   1}, …], "statistics"}`; see
 //!   [`ordinary::resolution::Resolution`](crate::ordinary::resolution::Resolution).
+//! - **Lambda-term**: `{"version": 23, "calculus": "simple", "atoms":
+//!   ["a"], "types": [{"kind": "atom", "atom": 0}, {"kind": "lollipop",
+//!   "from": 0, "to": 0}], "variables": [{"type": 0, "name": "x"}],
+//!   "context": [], "goal": 1, "nodes": [{"kind": "var", "variable": 0},
+//!   {"kind": "lambda", "variable": 0, "body": 0}], "root": 1}` for
+//!   `λx:a. x`: the types and the nodes each after what they name, a
+//!   type and a node tagged by `kind`; reading one checks its indices,
+//!   and [`Term::check`](crate::lambda::Term::check) its typing; see
+//!   [`lambda::Term`](crate::lambda::Term).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -286,7 +296,10 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 22;
+pub const LEVEL: u32 = 23;
+
+/// The level of a lambda-term.
+pub(crate) const LAMBDA: u32 = 23;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.

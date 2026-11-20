@@ -132,4 +132,4 @@
       }
     }
   })
-}), align(center, $x : bold(1) ⊗ !(a ⊸ b), y : a ⊕ c ⊢ "let" space x space "be" space z ⊗ u space "in" space "let" space z space "be" space ∗ space "in" space "case" space y space "of" space "inl"(v) → ⟨"inl"("derelict"(u) space v), "true"(u, v)⟩ ‖ "inr"(w) → "discard" space u space "in" space ⟨"inr"(w), "true"(w)⟩ : (b ⊕ c) \& ⊤$))
+}), align(center, $x : bold(1) ⊗ !(a ⊸ b), y : a ⊕ c ⊢ "let" space x space "be" space z ⊗ u space "in" space "let" space z space "be" space ∗ space "in" space "case" space y space "of" space "inl"(v) → ⟨"inl"_(b ⊕ c)("derelict"(u) space v), "true"(u, v)⟩ ‖ "inr"(w) → "discard" space u space "in" space ⟨"inr"_(b ⊕ c)(w), "true"(w)⟩ : (b ⊕ c) \& ⊤$))

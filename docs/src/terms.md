@@ -27,7 +27,8 @@ lambda calculus, and a derivation of LJ (`--logic intuitionistic` or
 `minimal`) a term of the simply typed lambda calculus. deduxit reads
 every intuitionistic proof it finds or checks back as its term. The term
 is computed from the proof the checker accepted, one construction per
-rule. It is shown, not trusted: the proof stays the certificate.
+rule. The proof stays the certificate. The library also checks a term
+on its own: [a term as data](#a-term-as-data) says how.
 
 ## The linear lambda calculus
 
@@ -181,9 +182,9 @@ no lambda-term: quantifiers over first-order terms are not quantifiers over type
 deduxit's own: `\x. M` for `λx. M`, `M * N` for `M ⊗ N`, `()` for `∗`,
 `<M, N>` for `⟨M, N⟩`, `->` and `|` in a case, and the types as the parser
 reads them. `--lambda-types` gives every binder its variable's type,
-`λx:A. M`, and `false` and `abort` their goal's, as the calculus writes
-them. The
-settings keys are `lambda.notation` and `lambda.types`:
+`λx:A. M`, and `inl`, `inr`, `false` and `abort` the type they give as
+a subscript, `inl_(a ⊕ b)(x)`. The settings keys are `lambda.notation`
+and `lambda.types`:
 
 ```console
 $ deduxit prove -i --lambda --lambda-notation ascii --lambda-types --tree never '|- a -o b -o a * b'
@@ -194,7 +195,7 @@ lambda-term: |- \x:a. \y:b. x * y : a -o (b -o (a * b))
 In a program that uses the library, a `lambda::Term` prints with
 `Display` (`term.to_string()` is the term alone, in the default
 notation), and `Term::write` and `Term::write_judgement` take the
-options.
+options. With the types shown, `Term::parse` reads the text back.
 
 `check --lambda` prints the term of a proof read from a file, and the
 session command `lambda` of `interact` that of the finished proof or
@@ -221,18 +222,57 @@ $ deduxit prove -i --lambda --format latex 'a, a -o b |- b'
 \end{prooftree}
 ```
 
-In JSON the outcome gains the key `lambda`: the term as data (its
-calculus, atoms, types, variables, the hypotheses' variables as
-`context`, its type as `goal`, and its nodes, each after the nodes it
-names, `root` the whole term), with its `text` and its `judgement` as
-printed, or `{"error": …}` where there is none:
+In JSON the outcome gains the key `lambda`: the term's document (its
+wire level as `version`, its calculus, atoms, types, variables, the
+hypotheses' variables as `context`, its type as `goal`, and its nodes,
+each after the nodes it names, `root` the whole term), with its `text`
+and its `judgement` as printed, or `{"error": …}` where there is none:
 
 ```console
 $ deduxit prove -i --format json --lambda 'a |- a'
-{"checked":true,"deduxit":"0.6.0","engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"index":0,"letter":"x","type":0}]},"mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
+{"checked":true,"deduxit":"0.6.0","engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"name":"x","type":0}],"version":23},"mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
 ```
 
 A term repeats a left rule's term wherever its hypothesis goes, in both
 components of a pair, so its text can be longer than the derivation by
 any factor. A term whose text would pass `--derivation-limit` is not
 written, and the line says so.
+
+## A term as data
+
+The value under `lambda` is a document of its own, at wire level 23. A
+type and a node are objects tagged by `kind`, and name what they are
+built from by index:
+
+```json
+{"version": 23, "calculus": "simple", "atoms": ["a"],
+ "types": [{"kind": "atom", "atom": 0},
+           {"kind": "lollipop", "from": 0, "to": 0}],
+ "variables": [{"type": 0, "name": "x"}],
+ "context": [], "goal": 1,
+ "nodes": [{"kind": "var", "variable": 0},
+           {"kind": "lambda", "variable": 0, "body": 0}],
+ "root": 1}
+```
+
+This is `λx:a. x` of type `a → a`. A variable is an entry of
+`variables` with its type, and a binder and every use name that entry,
+so two variables may have one name.
+
+The library reads the document back (`wire::upgrade`), reads a term
+from text (`lambda::Term::parse`), and checks either
+(`lambda::Term::check`):
+
+- every node has a type by its rule;
+- every variable is used as its calculus allows: exactly once in the
+  linear calculus, at most once in the affine one, any number of times
+  in the simple one;
+- the whole term has the type `goal`, and its free variables are those
+  of `context`.
+
+The text the library reads is what `--lambda-types` prints. Every `λ`
+says its variable's type, and `inl`, `inr`, `abort` and `false` say the
+type they give as a subscript, `inl_(a ∨ b)(x)`: the calculus is typed
+in Church's style, and deduxit infers no types. The
+[API documentation](https://deduxit.github.io/deduxit/) has the whole
+syntax under `lambda::Term::parse`.

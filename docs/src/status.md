@@ -243,6 +243,10 @@ in use.
   `prove`, `check` and `interact`, in JSON, and under the conclusion in
   LaTeX, Typst, SVG, PNG and PDF. What has no term is refused with the
   reason. In the library `lambda::Term` has `Display`.
+- In the library, a term of the simply typed, the linear or the affine
+  lambda calculus is read from text (`lambda::Term::parse`) or from JSON
+  and type-checked (`lambda::Term::check`); the command does not offer
+  this yet.
 
 ## Outputs and certificates
 

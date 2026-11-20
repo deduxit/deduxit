@@ -158,6 +158,9 @@ impl Serialize for Details<'_> {
             Rejected(e) | Reduction(e) => e.serialize(s),
             NoCut { node } => entries!(s; "node" => node),
             NoTerm { reason } => entries!(s; "reason" => reason),
+            IllTyped { reason, node, span } => {
+                entries!(s; "reason" => reason; "node" => node; "span" => span)
+            }
             ReadBack { calculus, reason } => {
                 entries!(s; "calculus" => calculus; "reason" => reason)
             }

@@ -28,7 +28,7 @@ it; only what holds for the whole crate goes here.
 | `core-export.md` | `export/`, `proofs/style.rs`, the export test and snapshots | the options values, the one signature, rule labels, notations, the packages' limits, Typst's own layout, fonts, SVG, PNG, PDF, Rocq |
 | `core-batch.md` | `search/batch.rs` | many sequents in one call: the order of results, the workers and the stream, how the batch's memory bound is shared |
 | `core-inputs.md` | `lltp.rs`, `mist.rs`, `families.rs` | the LLTP reader, the `.spec` reader of coverability problems and the generated families |
-| `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
+| `core-lambda.md` | `lambda/` | lambda-terms: the calculus and its source, the term's data (a variable is its id), matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the type checker (one rule per node, the uses counted over the DAG, capture by name), the text syntax and the JSON reader |
 | `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 | `core-modal.md` | `modal/`, `serialize/modal.rs` | modal logic: the arena and its syntax, the systems from K to S5 as closed sets of frame conditions, the JSON level read from the content, the model check, the labelled calculus, the tableau with its blocking and its bounds, the derivation emitted, the outcome and its check |
@@ -92,7 +92,9 @@ walk over a derivation in `notation`, and `latex`, `typst`, `svg` with
 `font`, `tree` and `net`, `png`, `pdf` and `rocq` behind the features
 of those names),
 `lambda` (the term's data in `mod.rs`, the read-backs `linear` and
-`simple`, the printer `print`),
+`simple`, the printer `print`, the type checker `check`, the reader of
+text `parse` behind that feature and of a document's parts `read`
+behind `serialize`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, the normal forms `normal`, resolution and DPLL `resolution`, `derivation` with the read-back and
 its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` and its invertible rules `invert` behind that
@@ -168,8 +170,11 @@ Each entry point is described in the file of its module:
   `Derivation::from_ordinary` (`core-rules.md`);
 - `lambda`: `Derivation::term(&limits, stop)` and
   `ordinary::Derivation::term` to a `lambda::Term`,
-  `Term::write`/`write_judgement` under `lambda::Options`, and
-  `Error::NoTerm` with a `lambda::NoTerm` (`core-lambda.md`).
+  `Term::parse(text, calculus, &limits)`, `wire::upgrade::<Term, _>`,
+  `Term::check(&limits, stop)` to a `lambda::Typing` or
+  `Error::IllTyped`, `Term::write`/`write_judgement` under
+  `lambda::Options`, and `Error::NoTerm` with a `lambda::NoTerm`
+  (`core-lambda.md`).
 
 ## Crate-wide rules
 

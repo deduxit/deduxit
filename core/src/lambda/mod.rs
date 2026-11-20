@@ -48,8 +48,35 @@
 //! option is set ([`export`](crate::export)).
 //!
 //! The term is built from a derivation the checker accepted, one
-//! construction per rule. It is shown, not trusted: nothing checks the
-//! term, and the proof stays the certificate.
+//! construction per rule, and the proof stays the certificate.
+//!
+//! # Write and check a term
+//!
+//! [`Term::parse`] reads a term from text, and [`Term::check`] checks
+//! that it is well typed in its [`Calculus`]:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::Limits;
+//! use deduxit::lambda::{Calculus, Term, Type};
+//!
+//! let limits = Limits::default();
+//! let term = Term::parse(r"\f:a -> b. \x:a. f x", Calculus::Simple, &limits)?;
+//! let typing = term.check(&limits, |_| false)?;
+//!
+//! // The whole term is a function, from `a -> b`.
+//! let Type::Lollipop { from, .. } = typing.types()[typing.ty(term.root()).index()] else {
+//!     panic!("a function");
+//! };
+//! assert!(matches!(typing.types()[from.index()], Type::Lollipop { .. }));
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! The terms are typed in Church's style: every `λ` says its variable's
+//! type, so a term has one type at most, and nothing is inferred. A
+//! term read back from a proof is checked the same way, and so is one
+//! read from JSON ([`wire::upgrade`](crate::wire::upgrade), with the
+//! feature `serialize`).
 //!
 //! # What has no term
 //!
@@ -99,8 +126,9 @@
 //! which the book does not name, is `⟨⟩`. `¬A` is the type `A → ⊥`, and
 //! `A ↔ B` the pair of both implications.
 //!
-//! The cut's redex, the affine reading, `⟨⟩` and the ASCII notation are
-//! deduxit's own; every other form is the sources'.
+//! The cut's redex, the affine reading, `⟨⟩`, the ASCII notation and the
+//! subscript that gives `inl` and `inr` their type are deduxit's own;
+//! every other form is the sources'.
 //!
 //! # The term's data
 //!
@@ -113,18 +141,29 @@
 // fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+mod check;
 pub(crate) mod linear;
+#[cfg(feature = "parse")]
+mod parse;
 pub(crate) mod print;
+#[cfg(feature = "serialize")]
+pub(crate) mod read;
 pub(crate) mod simple;
 #[cfg(all(test, feature = "parse"))]
 mod tests;
+
+pub use check::Typing;
 
 use crate::hash::HashMap;
 use crate::limits::Refusal;
 
 /// The index of a node in a [`Term`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize), serde(transparent))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
 pub struct TermId(u32);
 
 impl TermId {
@@ -136,7 +175,11 @@ impl TermId {
 
 /// The index of a variable in a [`Term`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize), serde(transparent))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
 pub struct VarId(u32);
 
 impl VarId {
@@ -148,7 +191,11 @@ impl VarId {
 
 /// The index of a type in a [`Term`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize), serde(transparent))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
 pub struct TypeId(u32);
 
 impl TypeId {
@@ -166,7 +213,7 @@ impl TypeId {
 /// With the feature `serialize`, `"linear"`, `"affine"` or `"simple"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Calculus {
     /// The linear lambda calculus: every variable is used exactly once.
@@ -181,6 +228,40 @@ pub enum Calculus {
     /// The simply typed lambda calculus: a variable may be used any number
     /// of times.
     Simple,
+}
+
+impl Calculus {
+    /// Every calculus, in the order of their names.
+    pub const ALL: &'static [Self] = &[Self::Linear, Self::Affine, Self::Simple];
+
+    /// The names, as the JSON form and the command write them.
+    pub const NAMES: &'static [&'static str] = &["linear", "affine", "simple"];
+
+    /// Returns the calculus's name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Linear => "linear",
+            Self::Affine => "affine",
+            Self::Simple => "simple",
+        }
+    }
+}
+
+impl std::str::FromStr for Calculus {
+    type Err = crate::Error;
+
+    /// Reads a calculus by its name.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|c| c.name() == s)
+            .ok_or_else(|| crate::Error::UnknownName {
+                what: "lambda calculus",
+                name: s.into(),
+                known: Self::NAMES,
+            })
+    }
 }
 
 /// A type of a term.
@@ -200,7 +281,7 @@ pub enum Calculus {
 /// case, its operands by their index: `{"kind": "lollipop", "from": 0,
 /// "to": 1}`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "kind", rename_all = "snake_case"))]
 pub enum Type {
     /// An atom, by its index among the term's atoms.
@@ -251,20 +332,26 @@ pub enum Type {
 
 /// A variable of a term: its type and the name it is printed with.
 ///
-/// A name is a letter and an index, written after the letter unless it is
-/// 0. A variable of a function type takes `f`, `g`, `h`, any other `x`,
-/// `y`, `z`, `u`, `v`, `w`, in the order the variables are made; once the
-/// letters run out, they start again with the next index (`x₁`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A term names a variable by its [`VarId`], so two variables may have
+/// one name. The name is an identifier, and digits at its end are
+/// printed as an index: `x1` is `x₁` in Unicode.
+///
+/// A term read back from a proof names its variables itself: a variable
+/// of a function type takes `f`, `g`, `h`, any other `x`, `y`, `z`, `u`,
+/// `v`, `w`, in the order the variables are made; once the letters run
+/// out, they start again with the next index (`x1`).
+///
+/// # JSON
+///
+/// With the feature `serialize`, `{"type": 0, "name": "x"}`.
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Variable {
     /// The type.
     #[cfg_attr(feature = "serialize", serde(rename = "type"))]
     ty: TypeId,
-    /// The letter of the name.
-    letter: char,
-    /// The index after the letter, none for 0.
-    index: u32,
+    /// The name.
+    name: Box<str>,
 }
 
 impl Variable {
@@ -273,14 +360,9 @@ impl Variable {
         self.ty
     }
 
-    /// Returns the letter of the variable's name.
-    pub const fn letter(&self) -> char {
-        self.letter
-    }
-
-    /// Returns the index the name carries after its letter, 0 for none.
-    pub const fn index(&self) -> u32 {
-        self.index
+    /// Returns the variable's name, an index as digits at its end.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 
@@ -299,7 +381,7 @@ impl Variable {
 /// case with the fields below: `{"kind": "lambda", "variable": 0,
 /// "body": 1}`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(tag = "kind", rename_all = "snake_case"))]
 pub enum Node {
     /// A variable.
@@ -443,13 +525,16 @@ pub enum Node {
     },
 }
 
-/// A lambda-term read back from a derivation, with its typing judgement.
+/// A lambda-term with its typing judgement: the variables it may use
+/// freely, and its type.
 ///
 /// [`Derivation::term`](crate::linear::Derivation::term) and
-/// [`ordinary::Derivation::term`](crate::ordinary::Derivation::term) make
-/// one. Print it with `Display` (`term.to_string()`), [`write`](Self::write)
-/// or [`write_judgement`](Self::write_judgement); the module docs have an
-/// example.
+/// [`ordinary::Derivation::term`](crate::ordinary::Derivation::term) read
+/// one back from a proof, and [`parse`](Self::parse) reads one from text.
+/// [`check`](Self::check) says whether it is well typed. Print it with
+/// `Display` (`term.to_string()`), [`write`](Self::write) or
+/// [`write_judgement`](Self::write_judgement); the module docs have
+/// examples.
 ///
 /// A term holds:
 /// - the variables of its hypotheses, in the order the sequent writes
@@ -465,12 +550,16 @@ pub enum Node {
 ///
 /// # JSON
 ///
-/// With the feature `serialize`, written only: `{"calculus": "linear",
-/// "atoms": ["a"], "types": [{"kind": "atom", "atom": 0}], "variables":
-/// [{"type": 0, "letter": "x", "index": 0}], "context": [0], "goal": 0,
-/// "nodes": [{"kind": "var", "variable": 0}], "root": 0}`.
+/// With the feature `serialize`, a document at wire level 23:
+/// `{"version": 23, "calculus": "linear", "atoms": ["a"], "types":
+/// [{"kind": "atom", "atom": 0}], "variables": [{"type": 0, "name":
+/// "x"}], "context": [0], "goal": 0, "nodes": [{"kind": "var",
+/// "variable": 0}], "root": 0}`.
+/// [`wire::upgrade`](crate::wire::upgrade) reads one and checks its
+/// shape: every index names what it should, and a type or a node comes
+/// after what it names. [`check`](Self::check) then says whether the
+/// term is well typed.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Term {
     /// The calculus.
     calculus: Calculus,
@@ -583,9 +672,10 @@ pub struct Options {
     /// The symbols, Unicode by default ([`DEFAULT_NOTATION`](Self::DEFAULT_NOTATION)).
     pub notation: Notation,
     /// Whether every `λ` shows its variable's type (`λx:A. M`), and
-    /// `false` and `abort` the type they give (`false_A`), as the calculus
-    /// writes them. Off by default ([`DEFAULT_TYPES`](Self::DEFAULT_TYPES)),
-    /// since the sequent beside the term shows the types.
+    /// `inl`, `inr`, `false` and `abort` the type they give (`false_A`).
+    /// Off by default ([`DEFAULT_TYPES`](Self::DEFAULT_TYPES)), since the
+    /// sequent beside the term shows the types. A term written with it
+    /// reads back ([`Term::parse`]).
     pub types: bool,
 }
 
@@ -721,9 +811,82 @@ impl std::fmt::Display for NoTerm {
     }
 }
 
-/// What both read-backs fill while they build a term: the atoms, the
-/// types (two equal types are one id), the variables with their names,
-/// and the nodes.
+/// The words that no variable is named by: the keywords of the terms'
+/// syntax.
+#[cfg(any(feature = "parse", feature = "serialize"))]
+const KEYWORDS: [&str; 18] = [
+    "let", "be", "in", "case", "of", "inl", "inr", "fst", "snd", "true", "false", "abort",
+    "promote", "for", "derelict", "discard", "copy", "as",
+];
+
+/// The keywords that take the type they give as a subscript, `inl_A`:
+/// a word that starts with one and `_` is no variable's name either.
+#[cfg(any(feature = "parse", feature = "serialize"))]
+const SUBSCRIPTED: [&str; 4] = ["inl", "inr", "abort", "false"];
+
+/// Returns whether `word` can name a variable, so that the printed term
+/// reads back: an identifier that is no keyword, starts with no `λ` and
+/// is no keyword with a subscript.
+#[cfg(any(feature = "parse", feature = "serialize"))]
+fn names_variable(word: &str) -> bool {
+    crate::linear::sequents::name::is_identifier(word)
+        && !KEYWORDS.contains(&word)
+        && !word.starts_with('λ')
+        && !SUBSCRIPTED
+            .iter()
+            .any(|k| word.strip_prefix(k).is_some_and(|w| w.starts_with('_')))
+}
+
+/// An arena of types in which two equal types are one id, so that types
+/// are compared as numbers.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Types {
+    /// The types, operands first.
+    list: Vec<Type>,
+    /// The id of every type.
+    ids: HashMap<Type, TypeId>,
+}
+
+impl Types {
+    /// Returns the arena of a term's types, which holds no type twice.
+    fn of(types: &[Type]) -> Self {
+        Self {
+            list: types.to_vec(),
+            ids: types
+                .iter()
+                // A term's types are fewer than 2³²: its ids are `u32`.
+                .enumerate()
+                .map(|(i, &ty)| (ty, TypeId(i as u32)))
+                .collect(),
+        }
+    }
+
+    /// Returns the id of a type, added if new.
+    pub(crate) fn add(&mut self, ty: Type) -> TypeId {
+        if let Some(&id) = self.ids.get(&ty) {
+            return id;
+        }
+        // A read-back adds one type per occurrence or ordinary formula at
+        // most, three in the simple calculus; a reader counts what it
+        // adds against its limit, which a `u32` holds; the checker adds
+        // one type per node of a term whose nodes a `u32` numbers, to
+        // types a `u32` numbers. A sum past 2³² would need both tables
+        // near their ends, which the reader's limit keeps them from.
+        let id = TypeId(self.list.len() as u32);
+        self.list.push(ty);
+        self.ids.insert(ty, id);
+        id
+    }
+
+    /// Returns the type at `id`.
+    pub(crate) fn get(&self, id: TypeId) -> Type {
+        self.list[id.index()]
+    }
+}
+
+/// What the read-backs and the readers fill while they build a term: the
+/// atoms, the types (two equal types are one id), the variables with
+/// their names, and the nodes.
 #[derive(Debug)]
 struct Builder {
     /// The atoms' names and their indices.
@@ -731,9 +894,7 @@ struct Builder {
     /// The index of every atom's name.
     atom_ids: HashMap<Box<str>, u32>,
     /// The types.
-    types: Vec<Type>,
-    /// The id of every type.
-    type_ids: HashMap<Type, TypeId>,
+    types: Types,
     /// The variables.
     variables: Vec<Variable>,
     /// How many variables of functions and of other types were named.
@@ -751,8 +912,7 @@ impl Builder {
         Self {
             atoms: Vec::new(),
             atom_ids: HashMap::default(),
-            types: Vec::new(),
-            type_ids: HashMap::default(),
+            types: Types::default(),
             variables: Vec::new(),
             named: [0; 2],
             nodes: Vec::new(),
@@ -773,34 +933,36 @@ impl Builder {
 
     /// Returns the id of a type, added if new.
     fn ty(&mut self, ty: Type) -> TypeId {
-        if let Some(&id) = self.type_ids.get(&ty) {
-            return id;
-        }
-        // One type per occurrence or ordinary formula at most, each fewer
-        // than 2³²; the simple calculus adds at most three per formula.
-        let id = TypeId(self.types.len() as u32);
-        self.types.push(ty);
-        self.type_ids.insert(ty, id);
-        id
+        self.types.add(ty)
     }
 
     /// Returns a new variable of type `ty` and the node that uses it,
     /// named by the next letter for a function or for any other type.
     fn variable(&mut self, ty: TypeId) -> (VarId, TermId) {
-        let class = usize::from(!matches!(self.types[ty.index()], Type::Lollipop { .. }));
+        let class = usize::from(!matches!(self.types.get(ty), Type::Lollipop { .. }));
         let letters = LETTERS[class];
         let n = self.named[class];
         self.named[class] = n.saturating_add(1);
         let letters_len = letters.len() as u32;
-        // Each variable stands for a hypothesis of a sequent of the
-        // derivation, at most two for one (a contraction's copies), so
-        // this truncates only for a derivation of more than 2³¹
-        // hypotheses.
+        let letter = letters[(n % letters_len) as usize];
+        let name = match n / letters_len {
+            0 => letter.to_string(),
+            index => format!("{letter}{index}"),
+        };
+        self.named_variable(ty, &name)
+    }
+
+    /// Returns a new variable of type `ty` named `name`, and the node
+    /// that uses it.
+    fn named_variable(&mut self, ty: TypeId, name: &str) -> (VarId, TermId) {
+        // A read-back makes a variable per hypothesis of a sequent of
+        // the derivation, at most two for one (a contraction's copies),
+        // so this truncates only for a derivation of more than 2³¹
+        // hypotheses; a reader counts its variables against its limit.
         let id = VarId(self.variables.len() as u32);
         self.variables.push(Variable {
             ty,
-            letter: letters[(n % letters_len) as usize],
-            index: n / letters_len,
+            name: name.into(),
         });
         (id, self.node(Node::Var { variable: id }))
     }
@@ -839,7 +1001,7 @@ impl Builder {
         Term {
             calculus,
             atoms: self.atoms,
-            types: self.types,
+            types: self.types.list,
             variables: self.variables,
             context,
             goal,

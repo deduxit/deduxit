@@ -9,6 +9,7 @@
 //! which the small terms here allow.
 
 use super::*;
+use crate::Error;
 use crate::limits::{Limits, Progress};
 use crate::linear::occurrences::Member;
 use crate::linear::proofs::Proof;
@@ -399,7 +400,38 @@ fn round_trip(proof: &Proof) -> Term {
         );
     }
     Checker { term: &term }.check(&context, &goal.unwrap());
+    agrees(&term);
     term
+}
+
+/// Checks a term the tests' checker accepted with the crate's own, and
+/// that it reads back from what the printer writes with types shown, in
+/// both notations, and from its JSON form.
+fn agrees(term: &Term) {
+    let limits = Limits::default();
+    let typing = term.check(&limits, never).unwrap();
+    assert_eq!(typing.ty(term.root), term.goal);
+    for notation in [Notation::Unicode, Notation::Ascii] {
+        let options = Options::default().with_notation(notation).with_types(true);
+        let mut written = String::new();
+        term.write_judgement(&mut written, &options, &limits, never)
+            .unwrap();
+        let read = Term::parse(&written, term.calculus, &limits)
+            .unwrap_or_else(|error| panic!("{written}: {error}"));
+        read.check(&limits, never)
+            .unwrap_or_else(|error| panic!("{written}: {error}"));
+        let mut again = String::new();
+        read.write_judgement(&mut again, &options, &limits, never)
+            .unwrap();
+        assert_eq!(again, written);
+    }
+    #[cfg(feature = "serialize")]
+    {
+        let json = serde_json::to_string(term).unwrap();
+        let mut document = serde_json::Deserializer::from_str(&json);
+        let read: Term = crate::wire::upgrade(&mut document, &limits).unwrap();
+        assert_eq!(&read, term, "{json}");
+    }
 }
 
 /// Returns the proof the search finds of a sequent in a mode.
@@ -805,9 +837,11 @@ fn simple(text: &str, logic: Logic) -> Term {
     let context: Vec<T> = left.iter().map(|&h| of_ordinary(f, h)).collect();
     let goal = right.first().map_or(T::Zero, |&c| of_ordinary(f, c));
     Checker { term: &term }.check(&context, &goal);
+    agrees(&term);
     let shown = derivation.shown(crate::linear::proofs::Structural::Admissible);
     let admissible = shown.term(&Limits::default(), never).unwrap();
     Checker { term: &admissible }.check(&context, &goal);
+    agrees(&admissible);
     term
 }
 
@@ -1050,4 +1084,340 @@ fn a_term_displays_as_written() {
     let long = builder.finish(Calculus::Linear, vec![x], a, root);
     let shown = long.to_string();
     assert!(shown.starts_with("<the term is estimated at "), "{shown}");
+}
+
+/// Returns the error of reading and then checking a text in a calculus.
+fn refused(text: &str, calculus: Calculus) -> Error {
+    let limits = Limits::default();
+    match Term::parse(text, calculus, &limits) {
+        Ok(term) => term
+            .check(&limits, never)
+            .expect_err("the term is ill typed"),
+        Err(error) => error,
+    }
+}
+
+/// A term whose types do not fit is refused with the reason, where it
+/// is read with the place and where it is checked with the node.
+#[test]
+fn an_ill_typed_term_is_refused_with_its_reason() {
+    use Calculus::{Affine, Linear, Simple};
+    for (text, calculus, reason) in [
+        (
+            r"\x:a. x x",
+            Simple,
+            "the function of an application has type a, which is not a function type",
+        ),
+        (
+            r"\f:a -> b. \x:c. f x",
+            Simple,
+            "the function takes an argument of type a, and its argument has type c",
+        ),
+        (r"x : a |- x : b", Simple, "the term has type a, not b"),
+        (
+            r"\x:a. inl_(b \/ a)(x)",
+            Simple,
+            "an injection into b ∨ a takes a term of type b here, and its term has type a",
+        ),
+        (
+            r"\x:a \/ b. case x of inl(y) -> y | inr(z) -> z",
+            Simple,
+            "the branches of a `case` have the types a and b, which differ",
+        ),
+        (
+            r"\x:a. x * x",
+            Simple,
+            "a pair `M ⊗ N` is no part of the simply typed lambda calculus",
+        ),
+        (
+            r"\x:a. x * x",
+            Linear,
+            "the variable x is used more than once, and the linear lambda calculus uses every variable exactly once",
+        ),
+        (
+            r"\x:a. \y:b. x",
+            Linear,
+            "the variable y is not used, and the linear lambda calculus uses every variable exactly once",
+        ),
+        (
+            r"\x:a. x * x",
+            Affine,
+            "the variable x is used more than once, and the affine lambda calculus uses every variable at most once",
+        ),
+        (
+            r"x : a, y : b |- <x, y>",
+            Linear,
+            "the variable x is used in one component of a pair",
+        ),
+        (
+            r"y : !a, z : b |- promote y for x in x * z",
+            Linear,
+            "the body of a `promote` uses the variable z, which is none of its own",
+        ),
+        (
+            r"x : a |- let x be y * z in y",
+            Linear,
+            "the term a `let` takes apart has type a, which is not a pair type A ⊗ B",
+        ),
+    ] {
+        let Error::IllTyped {
+            reason: found,
+            node,
+            span,
+        } = refused(text, calculus)
+        else {
+            panic!("{text} is ill typed");
+        };
+        assert!(found.starts_with(reason), "{text}: {found}");
+        assert!(
+            node.is_some() != span.is_some(),
+            "{text}: a node or a place"
+        );
+    }
+    // The types fit and the affine calculus allows what the linear one
+    // does not.
+    let limits = Limits::default();
+    for text in [r"\x:a. \y:b. x", r"x : a, y : b |- <x, y>"] {
+        let term = Term::parse(text, Affine, &limits).unwrap();
+        term.check(&limits, never).unwrap();
+    }
+    // A place in the text: the application.
+    let Error::IllTyped { span, .. } = refused(r"\x:a. x x", Simple) else {
+        panic!("ill typed");
+    };
+    assert_eq!(span, Some(6..9));
+}
+
+/// Text that is no term is refused at its place, with what to write
+/// where the calculus needs a type.
+#[test]
+fn text_that_is_no_term_is_refused_at_its_place() {
+    for (text, at, expected) in [
+        (r"\x. x", 2, "`:` and the variable's type"),
+        (
+            r"\x:a. y",
+            6,
+            "a variable that a binder or the context declares",
+        ),
+        (r"\x:a. inl(x)", 9, "`_` and the type the term has"),
+        (r"\x:a. (x", 8, "`)`"),
+        (r"\let:a. x", 1, "a variable"),
+        (r"\x:a -> . x", 8, "a type"),
+        (r"\x:a. x )", 8, "the end"),
+    ] {
+        let Error::Parse(error) = refused(text, Calculus::Simple) else {
+            panic!("{text} is no term");
+        };
+        assert_eq!(error.span.start, at, "{text}: {error}");
+        assert_eq!(error.expected, [expected], "{text}");
+    }
+}
+
+/// The syntax reads as documented: application to the left, a binder's
+/// body to the right, the types' connectives by their strength, a name's
+/// innermost binder, and an index as subscripts or digits.
+#[test]
+fn the_syntax_reads_as_documented() {
+    let limits = Limits::default();
+    let options = Options::default().with_types(true);
+    for (text, calculus, written) in [
+        (
+            "λf:a → b → c. λx:a. λy:b. f x y",
+            Calculus::Simple,
+            "⊢ λf:(a → (b → c)). λx:a. λy:b. f x y : (a → (b → c)) → (a → (b → c))",
+        ),
+        (
+            r"\x:a /\ b \/ ~c. x",
+            Calculus::Simple,
+            "⊢ λx:((a ∧ b) ∨ (c → ⊥)). x : ((a ∧ b) ∨ (c → ⊥)) → ((a ∧ b) ∨ (c → ⊥))",
+        ),
+        (
+            r"\x:a <-> b. fst(x)",
+            Calculus::Simple,
+            "⊢ λx:((a → b) ∧ (b → a)). fst(x) : ((a → b) ∧ (b → a)) → (a → b)",
+        ),
+        (
+            "λx:a. λx:b. x",
+            Calculus::Simple,
+            "⊢ λx:a. λx:b. x : a → (b → b)",
+        ),
+        (
+            "x₁ : a, x2 : b ⊢ ⟨x1, x₂⟩",
+            Calculus::Simple,
+            "x₁ : a, x₂ : b ⊢ ⟨x₁, x₂⟩ : a ∧ b",
+        ),
+        (
+            "z : ⊥ ⊢ abort_(a → b)(z)",
+            Calculus::Simple,
+            "z : ⊥ ⊢ abort_(a → b)(z) : a → b",
+        ),
+        (
+            r"\x:!a * b -o c & 1. x",
+            Calculus::Linear,
+            "⊢ λx:((!a ⊗ b) ⊸ (c & 1)). x : ((!a ⊗ b) ⊸ (c & 1)) ⊸ ((!a ⊗ b) ⊸ (c & 1))",
+        ),
+        (
+            "x : a, y : b, z : c ⊢ x ⊗ y ⊗ z",
+            Calculus::Linear,
+            "x : a, y : b, z : c ⊢ (x ⊗ y) ⊗ z : (a ⊗ b) ⊗ c",
+        ),
+        (
+            "z : 0, x : a ⊢ false_!b(x; z)",
+            Calculus::Linear,
+            "z : 0, x : a ⊢ false_!b(x; z) : !b",
+        ),
+    ] {
+        let term = Term::parse(text, calculus, &limits).unwrap_or_else(|e| panic!("{text}: {e}"));
+        term.check(&limits, never)
+            .unwrap_or_else(|e| panic!("{text}: {e}"));
+        let mut judgement = String::new();
+        term.write_judgement(&mut judgement, &options, &limits, never)
+            .unwrap();
+        assert_eq!(judgement, written, "{text}");
+    }
+}
+
+/// A document whose parts are no term is refused as it is read, and a
+/// term whose names would print as another term when it is checked.
+#[cfg(feature = "serialize")]
+#[test]
+fn a_document_that_is_no_term_is_refused() {
+    let limits = Limits::default();
+    let read = |json: &str| {
+        let mut document = serde_json::Deserializer::from_str(json);
+        crate::wire::upgrade::<Term, _>(&mut document, &limits)
+    };
+    let document = |variables: &str, nodes: &str, root: u32| {
+        format!(
+            r#"{{"version":23,"calculus":"simple","atoms":["a","b"],"types":[{{"kind":"atom","atom":0}},{{"kind":"atom","atom":1}},{{"kind":"lollipop","from":1,"to":0}},{{"kind":"lollipop","from":0,"to":2}}],"variables":{variables},"context":[],"goal":3,"nodes":{nodes},"root":{root}}}"#
+        )
+    };
+    let variables = r#"[{"type":0,"name":"x"},{"type":1,"name":"y"}]"#;
+    let nodes = r#"[{"kind":"var","variable":0},{"kind":"lambda","variable":1,"body":0},{"kind":"lambda","variable":0,"body":1}]"#;
+    // `λx:a. λy:b. x`, and the same with a type written twice.
+    let term = read(&document(variables, nodes, 2)).unwrap();
+    assert_eq!(text(&term, true), "⊢ λx. λy. x : a → (b → a)");
+    term.check(&limits, never).unwrap();
+    // The inner binder's variable has the outer one's name: the text
+    // `λx:a. λx:b. x` would name the inner.
+    let twins = r#"[{"type":0,"name":"x"},{"type":1,"name":"x"}]"#;
+    let term = read(&document(twins, nodes, 2)).unwrap();
+    let Err(Error::IllTyped { reason, .. }) = term.check(&limits, never) else {
+        panic!("the names capture");
+    };
+    assert!(
+        reason.starts_with("the variable x is used under a binder of another variable named x"),
+        "{reason}"
+    );
+    for (json, message) in [
+        (
+            document(variables, nodes, 3),
+            "`root` names a node past the list",
+        ),
+        (
+            document(
+                variables,
+                r#"[{"kind":"lambda","variable":0,"body":1},{"kind":"var","variable":0}]"#,
+                0,
+            ),
+            "node 0 names a node that does not come before it",
+        ),
+        (
+            document(r#"[{"type":9,"name":"x"}]"#, nodes, 2),
+            "a variable names a type past the list",
+        ),
+        (
+            document(
+                r#"[{"type":0,"name":"in"},{"type":1,"name":"y"}]"#,
+                nodes,
+                2,
+            ),
+            "variable 0 is named \"in\", which is a keyword or no identifier",
+        ),
+    ] {
+        let Err(Error::Json {
+            form,
+            message: found,
+        }) = read(&json)
+        else {
+            panic!("{json} is no term");
+        };
+        assert_eq!(form, "lambda-term");
+        assert!(found.starts_with(message), "{found}");
+    }
+    let later = document(variables, nodes, 2).replace(r#""version":23"#, r#""version":24"#);
+    assert!(matches!(
+        read(&later),
+        Err(Error::Version { found: 24, .. })
+    ));
+    let small = Limits::default().with_occurrences(Some(5));
+    let json = document(variables, nodes, 2);
+    let mut reader = serde_json::Deserializer::from_str(&json);
+    assert!(matches!(
+        crate::wire::upgrade::<Term, _>(&mut reader, &small),
+        Err(Error::Refused(Refusal::Occurrences { .. }))
+    ));
+}
+
+/// The bounds refuse: a text past the bound on occurrences, a check past
+/// its work, and a stop.
+#[test]
+fn the_reader_and_the_checker_keep_their_bounds() {
+    let text = r"\f:a -> a. \x:a. f (f (f (f x)))";
+    let small = Limits::default().with_occurrences(Some(8));
+    assert!(matches!(
+        Term::parse(text, Calculus::Simple, &small),
+        Err(Error::Refused(Refusal::Occurrences { limit: 8, .. }))
+    ));
+    let term = Term::parse(text, Calculus::Simple, &Limits::default()).unwrap();
+    let work = Limits::default().with_work(Some(3));
+    assert!(matches!(
+        term.check(&work, never),
+        Err(Error::Refused(Refusal::Work { limit: 3 }))
+    ));
+    let memory = Limits::default().with_memory_bytes(Some(64));
+    assert!(matches!(
+        term.check(&memory, never),
+        Err(Error::Refused(Refusal::Memory { .. }))
+    ));
+    // A term past a thousand units of work asks the stop.
+    let long = format!(r"\x:a. {}x", r"(\y:a. y) (".repeat(400)) + &")".repeat(400);
+    let term = Term::parse(&long, Calculus::Simple, &Limits::default()).unwrap();
+    assert!(matches!(
+        term.check(&Limits::default(), |_| true),
+        Err(Error::Refused(Refusal::Stopped {
+            phase: crate::limits::Phase::Check
+        }))
+    ));
+}
+
+/// A text nested any depth is read, checked and written on a small
+/// stack.
+#[test]
+fn any_depth_is_read_and_checked_on_a_small_stack() {
+    let run = || {
+        let limits = Limits::default();
+        let depth = 50_000;
+        // Binders, brackets, a type nested to the right, and arguments
+        // nested to the right.
+        let ty = format!("{}a{}", "(a -> ".repeat(depth), ")".repeat(depth));
+        let text = format!(
+            r"{}\f:a -> a. \z:{ty}. {}f x{}",
+            r"\x:a. ".repeat(depth),
+            "f (".repeat(depth),
+            ")".repeat(depth)
+        );
+        let term = Term::parse(&text, Calculus::Simple, &limits).unwrap();
+        term.check(&limits, never).unwrap();
+        let mut written = String::new();
+        term.write(&mut written, &Options::default(), &limits, never)
+            .unwrap();
+        assert!(written.contains("f (f (f x)))"));
+    };
+    std::thread::Builder::new()
+        .stack_size(256 * 1024)
+        .spawn(run)
+        .unwrap()
+        .join()
+        .unwrap();
 }

@@ -3,22 +3,79 @@ paths:
   - "core/src/lambda/**"
 ---
 
-# deduxit core: proofs read back as lambda-terms
+# deduxit core: lambda-terms, read back from proofs, read from text, checked
 
 Loaded, beside `core.md`, when a file of `core/src/lambda/` is read or
 changed: the read-back of a two-sided ILL derivation as a term of the
 linear lambda calculus and of an LJ derivation as a simply typed term,
-the term's data, its printer, and the tests' own type checker.
+the term's data, its printer, its reader and its type checker. The
+design, with its sources and the alternatives weighed, is
+`plan/notes/typed-lambda-design.md`.
 
 - **Layout.** `mod.rs`: the data (`Term`, `Node`, `Type`, `Variable`,
   the ids), `Calculus`, the print `Options` and `Notation`, `NoTerm`,
-  and the crate-private `Builder` both read-backs fill; `linear.rs`:
+  the crate-private `Types` (the hash-consed arena) and `Builder` that
+  the read-backs and the parser fill, and `names_variable`; `linear.rs`:
   `read` from a `proofs::Derivation` (`Derivation::term`); `simple.rs`:
   `read` from an `ordinary::Derivation` (`ordinary::Derivation::term`);
   `print.rs`: the `Spelling` tables (Unicode, ASCII, and LaTeX, Typst
   and SVG behind their features) and the one printer (`Term::write`,
-  `write_judgement`, the crate-private `write_in` the exports call);
+  `write_judgement`, the crate-private `write_in` the exports call,
+  `write_type` and `write_name` for the checker's messages);
+  `check.rs`: `Term::check`, `Typing`, the one rule per node (`rule`),
+  `Fault` and its words (`describe`); `parse.rs` (feature `parse`):
+  `Term::parse`; `read.rs` (feature `serialize`): `Term::from_parts`,
+  the shape check of a document's parts, whose serde forms are
+  `core/src/serialize/lambda.rs` (wire level 23, `wire::LAMBDA`);
   `tests.rs`: the round trips against a checker of the tests' own.
+- **A variable is its `VarId`, with its type** (Church's own typing):
+  a binder and every use name one entry of `Term::variables`, so a
+  node's type depends on the node alone and a shared node is typed
+  once. The name is for printing and reading only. Do not key anything
+  on names.
+- **A term's types hold no type twice** (`Types`, the `Builder`, and
+  `from_parts`, which interns what a document writes): the rules compare
+  types as ids. A term made any other way must keep this, or `check`
+  refuses equal types as different.
+- **The rules are written once** (`check::rule`): the checker calls it
+  for every node and the parser for each node it closes, because a
+  pattern's variables (`let`, `case`, `copy`, `promote`) take their
+  types from the term taken apart, which the parser must know before it
+  reads the body. A change of a typing rule is made there and nowhere
+  else; the parser's own tests of a scrutinee's shape (`misshapen`) only
+  say the same fault earlier, with the scrutinee's place.
+- **The uses are counted over the DAG** (`check::Pass`): a node's map
+  of free variables to counts is moved to its last user and copied for
+  the others (`waiting`), so a tree costs what small-to-large merging
+  costs and a shared node costs a copy per extra user, each copy ticked
+  against `limits.work` and the maps kept held against
+  `limits.memory_bytes`. Counts saturate; `Uses`' doc says why that
+  accepts nothing.
+- **`check` also refuses a capture by name** (`Fault::Captured`): where
+  a variable is bound, no other variable of its name is free in the
+  body. Without it a document could hold `λx:a. λx:b. x` with the outer
+  `x` meant, well typed as `a → b → a`, and print a text that reads as
+  another term. Only variables whose name another has (`twin`) pay for
+  the scan.
+- **The simple calculus has fewer nodes and types** (`Fault::Foreign`):
+  no `⊗`, `1`, `!`, no `let`, `promote`, `derelict`, `discard`, `copy`,
+  and `true` and `false` without arguments. The linear and the affine
+  calculus take every node.
+- **The text the parser reads is what the printer writes with `types`
+  on**, in both notations (`agrees` in `tests.rs` holds every read-back
+  term to it). A change of a spelling or of a bracket is made in both.
+  `inl`, `inr`, `abort` and `false` take their type after `_`; a word
+  that starts with one of them and `_` is therefore no variable's name
+  (`SUBSCRIPTED`), in the parser and in the JSON reader alike.
+- **Types are parsed here, not by the sequents' parsers** (one cursor,
+  exact places), with their tokens and strengths copied from
+  `ordinary/parse.rs` and the manual's "Syntax"; a change there is made
+  here too.
+- **No rule file for STLC**: step 60's `fresh` reads any occurrence in
+  the conclusion and a connective cannot bind, so the abstraction's side
+  condition cannot be said (the design note, section 6). The typing
+  derivation is the checked term (`Typing`); a view that draws it is to
+  implement `linear::proofs::style::Drawn`.
 - **The calculus is fixed and sourced** (the manual's "Proofs as
   programs" chapter, `docs/src/terms.md`, says it to users): Bierman's
   thesis (UCAM-CL-TR-346, ch. 3, fig. 3.2), the BBdPH calculus (TLCA
@@ -28,14 +85,13 @@ the term's data, its printer, and the tests' own type checker.
   A change of a rule's term is a change of the calculus: change the
   manual's table, the module docs' table and the reviewer's criteria
   with it.
-- **The term is printed, never trusted.** It is made from a derivation
-  the checker accepted and checks nothing itself; `tests.rs`'s
-  `Checker` (test-only, recursive over small terms) infers its type and
-  counts every variable's uses (linear: exactly once, an additive pair's
-  and a case's branches sharing; affine: at most once; simple: any) and
-  compares the hypotheses' types with the reading's own printer
-  (`round_trip`) and with an ordinary converter written apart
-  (`of_ordinary`). Step 71's checker is the one meant to replace it.
+- **Two checkers agree on every read-back** (`tests.rs`): the tests'
+  `Checker` (recursive over small terms, written before `check.rs` and
+  kept as its reference) infers a term's type and counts every
+  variable's uses, and compares the hypotheses' types with the
+  reading's own printer (`round_trip`) and with an ordinary converter
+  written apart (`of_ordinary`); `agrees` then runs `Term::check` and
+  both round trips (text in two notations, JSON) on the same term.
 - **Matching premises by member is sound because equal members are one
   formula** (`linear.rs`): a premise's hypotheses take the conclusion's
   terms by member from a pool, the rule's new members first; a split

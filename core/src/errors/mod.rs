@@ -586,6 +586,21 @@ pub enum Error {
         /// Why.
         reason: crate::lambda::NoTerm,
     },
+    /// A lambda-term is not well typed in its calculus
+    /// ([`Term::check`](crate::lambda::Term::check)), or a text's term is
+    /// not ([`Term::parse`](crate::lambda::Term::parse)).
+    #[error("the term is not well typed: {reason}")]
+    #[non_exhaustive]
+    IllTyped {
+        /// Why, with the types written out.
+        reason: String,
+        /// The node of the term that is ill typed, where a term was
+        /// checked.
+        node: Option<u32>,
+        /// The byte range of the text that is ill typed, where a text
+        /// was read.
+        span: Option<std::ops::Range<u32>>,
+    },
     /// A sequent is valid by a clausal proof or its truth table, where a
     /// derivation is needed: to draw or export it, or to read it as a
     /// lambda-term
@@ -861,6 +876,7 @@ impl Error {
         "step_needs",
         "not_fitch",
         "no_term",
+        "ill_typed",
         "no_derivation",
         "not_built",
         "no_cut",
@@ -947,6 +963,7 @@ impl Error {
             | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
             Self::NoTerm { .. } | Self::NoDerivation { .. } => Unsupported,
+            Self::IllTyped { .. } => Invalid,
             Self::NotBuilt => Limit,
         }
     }
@@ -1043,6 +1060,7 @@ impl Error {
             Self::NotFitch { .. } => "not_fitch",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
+            Self::IllTyped { .. } => "ill_typed",
             Self::NoDerivation { .. } => "no_derivation",
             Self::NotBuilt => "not_built",
             Self::Reduction(_) => "reduction_rejected",
@@ -1392,6 +1410,11 @@ mod tests {
                 reason: crate::lambda::NoTerm::Classical,
             },
             Error::NoDerivation { evidence: "x" },
+            Error::IllTyped {
+                reason: message(),
+                node: Some(0),
+                span: None,
+            },
             Error::NotBuilt,
             Error::ReadBack {
                 calculus: "LK",
@@ -1634,6 +1657,7 @@ mod tests {
             | Error::NotFitch { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
+            | Error::IllTyped { .. }
             | Error::NoDerivation { .. }
             | Error::NotBuilt
             | Error::Reduction(_) => {}
