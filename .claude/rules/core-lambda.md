@@ -219,10 +219,12 @@ design, with its sources and the alternatives weighed, is
 - **A cut list keeps the shortest terms**: the search fills a list in
   the order it meets terms, the first candidate's (the outermost
   variable's) deepest first, so where the count passes `max_terms`
-  `enumerate` runs again at smaller depths (`Search::reset`, the
-  engines' decisions kept) and lists every term of the deepest depth
-  whose terms all fit, then the full run's others. The count is the
-  full run's.
+  `enumerate` finds the deepest depth whose terms all fit by halving
+  (a shallower search meets fewer terms; `Search::reset` keeps the
+  engines' decisions), so a depth of `u32::MAX` costs some 32 searches,
+  and lists its terms, then the full run's others. A loop down from the
+  depth took one search a step, 25 minutes at `u32::MAX`. The count is
+  the full run's.
 - **`inhabit` holds its term to the sequent** by `has_type` in a
   `debug_assert!` (the read-back keeps hypotheses and goal); the
   protocol's checks of `lambda.inhabit` and `lambda.enumerate` hold it

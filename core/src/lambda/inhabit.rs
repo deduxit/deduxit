@@ -126,7 +126,9 @@ pub enum Inhabitation {
 ///
 /// With the feature `serialize`, tagged by `kind`: `{"kind": "exactly",
 /// "count": 2}`, `{"kind": "infinite"}`, `{"kind": "at_least", "count":
-/// 5}`.
+/// 5}`. The form is written only, so a count may pass 2⁵³, which a
+/// JavaScript reader rounds; a saturated count is "at least"
+/// 18446744073709551615.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
@@ -343,22 +345,29 @@ fn enumerate_dyn(
         // the terms, deep ones first: list every term of the deepest
         // depth whose terms all fit instead, then the rest as met.
         let most = u64::from(options.max_terms);
-        for depth in (0..options.depth).rev() {
+        // A shallower search meets fewer terms, so the depth is found by
+        // halving: `fits` is a depth whose terms all fit, `cut` one whose
+        // terms do not. Depth 0 meets none, and the full depth cut.
+        let (mut fits, mut cut) = (0u32, options.depth);
+        let mut best = Vec::new();
+        while cut - fits > 1 {
+            let depth = fits + (cut - fits) / 2;
             search.reset();
             let shallow = search.run(depth)?;
             if !shallow.overflow
                 && shallow.count <= most
                 && shallow.terms.len() as u64 == shallow.count
             {
-                let mut first = search.terms(&shallow.terms)?;
-                let rest: Vec<(u64, Term)> =
-                    terms.into_iter().filter(|t| !first.contains(t)).collect();
-                first.extend(rest);
-                first.truncate(options.max_terms as usize);
-                terms = first;
-                break;
+                fits = depth;
+                best = search.terms(&shallow.terms)?;
+            } else {
+                cut = depth;
             }
         }
+        let rest: Vec<(u64, Term)> = terms.into_iter().filter(|t| !best.contains(t)).collect();
+        best.extend(rest);
+        best.truncate(options.max_terms as usize);
+        terms = best;
     }
     terms.sort_by_key(|(size, _)| *size);
     let terms = terms.into_iter().map(|(_, term)| term).collect();
@@ -1299,6 +1308,16 @@ mod tests {
         assert_eq!(terms.len(), 5);
         assert_eq!(terms[0], "λf. λx. x");
         assert_eq!(terms[1], "λf. λx. f x x");
+    }
+
+    #[test]
+    fn a_cut_list_at_the_largest_depth_costs_a_few_searches() {
+        let deepest = InhabitOptions::default()
+            .with_depth(u32::MAX)
+            .with_max_terms(1);
+        let (count, terms) = listed("|- a -> a -> a", &deepest);
+        assert_eq!(count, Count::Exactly { count: 2 });
+        assert_eq!(terms, ["λx. λy. x"]);
     }
 
     #[test]
