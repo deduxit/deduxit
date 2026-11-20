@@ -29,6 +29,14 @@ fn a_refutation_by_hand_is_checked() {
     assert_eq!(r.clauses().text(r.clause(b).unwrap()).to_string(), "x2");
     assert!(r.clause(empty).unwrap().is_empty() && r.is_finished());
     r.check(&Limits::default(), |_| false).unwrap();
+    // In progress, before `□`, the steps check but the refutation does not.
+    let mut started = Refutation::new(four());
+    started.resolve(1, 0, 0).unwrap();
+    started.check_steps(&Limits::default(), |_| false).unwrap();
+    assert!(matches!(
+        started.check(&Limits::default(), |_| false),
+        Err(Error::InvalidRefutation { step: None, .. })
+    ));
     // The first clause of a step holds the atom: `resolve` puts it first.
     assert_eq!((r.resolvents()[0].first, r.resolvents()[0].second), (0, 1));
     let json = serde_json::to_string(&r).unwrap();

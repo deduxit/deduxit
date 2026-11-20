@@ -186,8 +186,30 @@ impl Refutation {
     /// [`Error::InvalidRefutation`] for the first resolvent that fails,
     /// or no empty clause; [`Refusal::Work`] past `limits.work`;
     /// [`Refusal::Stopped`] where the stop fires.
-    pub fn check(
+    pub fn check(&self, limits: &Limits, stop: impl FnMut(Progress) -> bool) -> Result<(), Error> {
+        self.checked(true, limits, stop)
+    }
+
+    /// Checks every resolvent as [`check`](Self::check) does, the empty
+    /// clause not asked for and every resolvent checked, after one that is
+    /// empty too: a refutation in progress, built by hand.
+    ///
+    /// # Errors
+    ///
+    /// As [`check`](Self::check), but for the empty clause.
+    pub fn check_steps(
         &self,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        self.checked(false, limits, stop)
+    }
+
+    /// Checks the resolvents, and where `finished` stops at the first
+    /// empty clause and fails without one.
+    fn checked(
+        &self,
+        finished: bool,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
@@ -197,7 +219,7 @@ impl Refutation {
             step: Some(step as u64 + 1),
             reason,
         };
-        if self.clauses.clauses().iter().any(Clause::is_empty) {
+        if finished && self.clauses.clauses().iter().any(Clause::is_empty) {
             return Ok(());
         }
         for (k, r) in self.resolvents.iter().enumerate() {
@@ -245,9 +267,12 @@ impl Refutation {
             {
                 return Err(wrong(k, "its clause names no atom of the set".to_owned()));
             }
-            if r.clause.is_empty() {
+            if finished && r.clause.is_empty() {
                 return Ok(());
             }
+        }
+        if !finished {
+            return Ok(());
         }
         Err(Error::InvalidRefutation {
             step: None,
