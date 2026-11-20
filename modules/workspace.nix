@@ -265,8 +265,8 @@
           }
         );
 
-        # The site the Docs workflow publishes, which the `doc' check also
-        # builds: the rustdoc of both crates, `deduxit' and `deduxit_cli', in
+        # The site CI publishes to GitHub Pages, the `doc' check, which it
+        # builds once: the rustdoc of both crates, `deduxit' and `deduxit_cli', in
         # one tree, and the manual under `manual/' (`manual.nix'), put
         # together after both are built, so that a change of either leaves
         # the other's build as it was.

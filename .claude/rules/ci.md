@@ -7,17 +7,19 @@ paths:
 
 Loaded when a file under `.github/` is read or changed.
 
-GitHub Actions runs `.github/workflows/ci.yml` on every push to `main`, on
-every pull request and weekly: `nix flake check`, and the online
+GitHub Actions runs `.github/workflows/ci.yml` on every push to `main` or
+to a branch `ci/NAME`, on every pull request and weekly: the flake's
+checks as a matrix of groups (`checks.yml`, below), the online
 `cargo deny check advisories` in the devshell, against `Cargo.lock` and
 the fuzz workspace's `fuzz/Cargo.lock` (whose crates the root's check
 never reads; the root's `deny.toml` serves both, and the ignores it lists
-for the renderers match nothing there, which cargo-deny only notes). The
+for the renderers match nothing there, which cargo-deny only notes), and
+on `main`, once every check passed, the deployment of the site to GitHub
+Pages. The
 weekly run is the advisory check between `update-deps` runs; what an
 advisory asks of a session is that skill's "When". A workflow installs nothing
 but Nix, so CI checks with exactly the tools flake.lock pins.
-`.github/workflows/docs.yml` publishes the flake's `doc` package, the rustdoc
-of `main` with the manual under `manual/`, to GitHub Pages on every push to `main`. `.github/workflows/release.yml`
+`.github/workflows/release.yml`
 releases a version tag `vX.Y.Z` (below). `.github/workflows/kani.yml`
 runs Kani's harnesses, which `nix flake check` leaves out (below).
 
@@ -48,6 +50,33 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
 - `install-nix-action` gets `github_access_token: ${{ github.token }}`: without
   it, fetching the flake's `github:` inputs from shared runners hits the
   anonymous rate limit.
+- **The checks run as a matrix** (`checks.yml`, a reusable workflow
+  that `ci.yml` and `release.yml` call). Its job `matrix` reads
+  `nix eval --json .#githubActions.matrix` (`modules/ci.nix`), and one
+  job per group runs `nix build --keep-going` of the group's
+  `checks.x86_64-linux.NAME`, `fail-fast: false`, so one run reports
+  every failure; the job `evaluate` runs `nix flake check --no-build`
+  beside them, which evaluates every other output (the packages no check
+  builds, the assertions at evaluation) as the full check does. Together
+  they are exactly `nix flake check`. On one runner it took 40 to 60
+  minutes when the core crate changed, four builds sharing four cores
+  (`plan/reports/ci-speed.md` has the times). A group holds the checks that build one package (the command and what
+  runs it, the harness, the web module, the site), so that no two
+  runners build one derivation, or one heavy check alone; `ci.nix`
+  puts every check it does not name into the group `rest` and fails
+  evaluation on a name that is no check or is named twice. A new heavy
+  check gets a group there; a light one needs nothing. The groups share
+  only the dependencies' builds, through the cache: on a lock or
+  toolchain bump each runner that needs them builds them itself, in
+  parallel. The output's name and entry shape (`name`, `system`, `os`)
+  are nix-community/nix-github-actions' (`nix flake check` warns of an
+  unknown output `githubActions`, which is expected), written in
+  `ci.nix` without that input: its library makes one job per check, and
+  the grouping is the point.
+- **A branch `ci/NAME`** is checked as `main` is and uploads to the
+  cache, so the planning session checks a chain on GitHub's runners
+  instead of the machine, and `main`'s run after `main` moves to it
+  fetches every result. Pages deploys from `main` alone.
 - **No workflow runs locally.** `nix flake check` runs actionlint, with
   shellcheck on the `run:` scripts, over `.github/workflows/`: it catches
   syntax, unknown runner labels, bad expressions and shell mistakes, not
@@ -62,8 +91,9 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   cache can be renamed). `cachix/cachix-action` follows `install-nix-action`
   in every job of every workflow that installs Nix, with the
   repository secret `CACHIX_AUTH_TOKEN` (a write token) and `skipPush`
-  unless the ref is `main` (`release.yml` only reads it): pushes to `main`, the weekly run and a dispatch on `main`
-  upload, a pull request only downloads. A pull request from a fork gets
+  for a pull request (`release.yml` only reads it, `checks.yml`'s input
+  `push` says which): pushes to `main` and to `ci/` branches, the weekly
+  run and a dispatch upload, a pull request only downloads. A pull request from a fork gets
   no secret, and the action then only says that pushing is disabled. It
   pushes in daemon mode what the job realised and no upstream cache
   (cache.nixos.org) holds: the toolchain, the dependencies' builds, the
@@ -83,14 +113,21 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   push of code adds about the last; a lock or toolchain bump adds a new
   set of the others, and Cachix evicts the least recently used paths
   past the plan's storage.
-- **Docs** deploys `result/share/doc` of `nix build .#doc` with GitHub's own
-  Pages actions. The repository's Pages source must be "GitHub Actions".
+- **Docs**: the matrix group that holds the check `doc` uploads its
+  `share/doc` as the Pages artifact (`checks.yml`'s input `pages`, on
+  `main`), and `ci.yml`'s job `pages` deploys it with GitHub's own Pages
+  actions once every group passed, the only job with `pages: write`,
+  so the site is built once and only a checked `main` is published. A
+  newer push cancels the
+  run, a deployment under way included (Pages keeps the site it had);
+  the newer run deploys. The repository's Pages source must be "GitHub
+  Actions".
   The site is `main`'s alone: `deploy-pages` replaces it whole at every
   deployment, so a released version's manual is the `docs/` of its tag
   (and its API docs.rs), not a directory of the site; keeping one per
   release would mean building every tag's manual at every push. The
-  manual's links are checked by the flake check `manual-links`, not by
-  this workflow, which only builds.
+  manual's links are checked by the flake check `manual-links`, one of
+  the checks the deployment waits for.
 - **Kani** (`kani.yml`): `nix build .#kani-harnesses`, the checker's
   integer harnesses one at a time, weekly (Monday 07:17 UTC), by
   dispatch, and on pushes to `main` and pull requests that touch
@@ -148,10 +185,13 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   a push) the chapter's downloads from the latest release, skipped while
   it carries no `SHA256SUMS`. A chapter's command that changes changes
   this workflow in the same commit.
-- **Release** (`release.yml`, on a tag `vX.Y.Z` only), four jobs. `check`:
+- **Release** (`release.yml`, on a tag `vX.Y.Z` only), five jobs. `tag`:
   the tag equals `[workspace.package]`'s version, CITATION.cff states it,
   and CHANGELOG.md has a dated section `## [X.Y.Z] - YYYY-MM-DD` (a
-  section headed `- unreleased` fails it), then `nix flake check`.
+  section headed `- unreleased` fails it). `checks`: `checks.yml`, which
+  on a tag of `main`'s commit fetches every result `main`'s CI uploaded,
+  and builds only what a tag pushed before that run ended finds missing.
+  `packages` runs beside `checks`: it publishes nothing.
   `publish` (skipped for `v0.1.0`, which the author published by hand,
   since crates.io's Trusted Publishing works only for a crate that
   exists): in the environment `crates-io`, which the trusted publishers

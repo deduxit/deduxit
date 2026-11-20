@@ -397,3 +397,17 @@ and Python with matplotlib; no check builds it.
   module's bytes at `gzip -9`, each under a ceiling written in the file
   with the figure it was set at; a change that passes one raises it
   there, in a commit that says what earned the room.
+- **`ci.nix`: the checks as CI runs them.** The output
+  `githubActions.matrix` is one entry per group of x86_64-linux checks,
+  which `.github/workflows/checks.yml` runs as one job each (`ci.md`).
+  A group holds the checks that build one package, so that two runners
+  never build the same derivation (the command's `build`, `export`,
+  `rocq`, `rocq-deduxit`, `wire-schema`, `check-certificate`; the
+  harness's `bench` and `ratchet`; the web module's `web-package`,
+  `web-features`, `budget`; the site's `doc` and `manual-links`), or one
+  check that fills a runner alone (`features`, `test-core`,
+  `test-debug-assertions-core`). Every check no group names goes to the
+  group `rest`, and an assertion fails the evaluation when a group names
+  a check that does not exist or one twice, so a renamed check cannot
+  drop out of CI. A check that takes minutes gets a group of its own or
+  joins the group of the package it builds.

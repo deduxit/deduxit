@@ -1,7 +1,8 @@
 # deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# A tag `vX.Y.Z` releases version X.Y.Z: the flake's checks again, the
+# A tag `vX.Y.Z` releases version X.Y.Z: the flake's checks (checks.yml,
+# which fetches from the cache what `main`'s CI built), the
 # crates published to crates.io in their order, and a GitHub release
 # with the changelog's section, the crates' packages, the command's
 # archives and Linux packages for every system (`packages.yml`), their
@@ -23,8 +24,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  check:
-    name: tag, changelog and nix flake check
+  tag:
+    name: tag, manifests and changelog
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,19 +50,18 @@ jobs:
             echo "CITATION.cff does not state version $version" >&2
             exit 1
           fi
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
-        with:
-          github_access_token: ${{ github.token }}
-      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
-        with:
-          name: linlog-prover
-          # A tag's builds are `main`'s, which uploaded them already.
-          skipPush: true
-      - run: nix flake check --print-build-logs --keep-going
+
+  # The tag's commit is `main`'s, whose CI pushed every check's result to
+  # the cache, so this only fetches them; a tag pushed before that run
+  # ended builds what is missing. Nothing is uploaded from a tag.
+  checks:
+    name: checks
+    needs: tag
+    uses: ./.github/workflows/checks.yml
 
   publish:
     name: cargo publish
-    needs: check
+    needs: [tag, checks]
     if: github.ref_name != 'v0.1.0'
     runs-on: ubuntu-latest
     # crates.io's trusted publisher names this environment, whose
@@ -148,17 +148,18 @@ jobs:
             nix develop --command cargo publish --locked --package "$crate"
           done
 
+  # Beside the checks: it publishes nothing, and the release waits for both.
   packages:
     name: archives and packages
-    needs: check
+    needs: tag
     uses: ./.github/workflows/packages.yml
 
   release:
     name: GitHub release
-    needs: [check, publish, packages]
+    needs: [tag, checks, publish, packages]
     # After the publication, or without it for the version published by
     # hand.
-    if: ${{ !cancelled() && needs.check.result == 'success' && needs.packages.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.tag.result == 'success' && needs.checks.result == 'success' && needs.packages.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
