@@ -41,3 +41,38 @@ refutation read and checked; in the command and as a method on the page.
 Three to four sessions on Opus 5.5 at `high`; the panel for the
 refutation checker. Deliverables: the commits, the client's commits,
 `plan/reports/70-resolution.md`.
+
+## What steps 63 to 69 left you (the review of 69, 2026-11-20)
+
+- **The normal forms are this step's too** (the author, 2026-11-15, in
+  the step table's row): NNF, CNF and DNF by distribution, each
+  equivalent to its input under a size bound that refuses, and CNF by
+  Tseitin's and Plaisted and Greenbaum's encodings, equisatisfiable;
+  every rewrite shown, the result checked (equivalence by the SAT
+  engine `ordinary::sat`, equisatisfiability through the definitions),
+  in the library, the command and on the page.
+- **The protocol and the workspace** (63a, 63g): each transformation is
+  an operation of the ordinary suite with its promise (`equivalent`,
+  `equisatisfiable`) and the check that holds it, so the workspace
+  graph takes it as an edge without work of its own; 63t's translations
+  are the pattern (`ordinary::negative`, `interpolant`).
+- **The SAT engine and its LRAT checker** (54s) are the classical
+  default; reuse the checker for the proofs of outside solvers.
+- **No kernel crate** (67): the ordinary arena is where the clauses'
+  formulas live; step 74 later gives it quantifiers.
+- **The web module's ceiling** is 3 750 000 bytes at gzip; it was
+  3 637 866 after 65d; say what your calls add.
+- **Wire levels**: 20 is the last (modal, 0.6.0); take the next free.
+
+## The sessions (planned at this review)
+
+- **70a, the normal forms** (library and command): NNF, CNF, DNF,
+  Tseitin and Plaisted–Greenbaum, every rewrite shown, the checks, the
+  protocol's operations; the panel's argument member (Fable) on the
+  promises and their checks.
+- **70b, resolution and DPLL** (library and command): a refutation
+  built by hand or found within a bound, DPLL traced, the refutation
+  checker, DIMACS in, an outside RUP/DRAT/LRAT proof through 54s's
+  checker; the panel on the checker.
+- **70c, the page**: the normal forms and resolution as methods of the
+  ordinary tab, the graph view (web-front-end-6).

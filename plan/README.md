@@ -7554,3 +7554,12 @@ move (D26).
     `nix flake check` passed.
   - **Later:** the page's switch for ordinary auto-reverse; `theories/Modal/Calculus.v`'s header
     comment in rocq-deduxit still says deduxit's `Ser` allows `y` itself.
+- 2026-11-20, 09:50: **69 reviewed: 0.6.0 prepared and pushed (`tllxurrs` to `xuptrvts`).** Version
+  0.6.0, dated 2026-11-20; `breaks 0.5.0` none (619 lines added); the lock at rocq-deduxit 0.6.0
+  (`03f0af20`, tagged) with `DEDUXIT` 0.6.0; status, README, CITATION and the crates'
+  descriptions naming modal logic; the changelog's 0.6.0 section with 54x7 folded in; the
+  behaviour lock and `level-20.txt` blessed by the version alone (departs: level 20's file now
+  says 0.6.0, the first release to write it); the workflow's dry run and `cargo package` passed.
+  fresh-reviewer (Fable) three findings, fixed. Gate and `nix flake check` passed. The tag
+  follows CI at `b3d33553`.
+  - **70's prompt finished**; **70a** (the normal forms) started in 69's slot.
