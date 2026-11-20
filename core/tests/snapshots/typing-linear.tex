@@ -1,0 +1,16 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{x : a \otimes \oc b &\vdash x : a \otimes \oc b}
+\infer0[$\mathrm{ax}$]{f : b \multimap c &\vdash f : b \multimap c}
+\infer0[$\mathrm{ax}$]{z : \oc b &\vdash z : \oc b}
+\infer1[$\oc\mathrm{E}$]{z : \oc b &\vdash \mathsf{derelict}(z) : b}
+\infer2[$\multimap\mathrm{E}$]{f : b \multimap c, z : \oc b &\vdash f\ \mathsf{derelict}(z) : c}
+\infer0[$\mathrm{ax}$]{y : a &\vdash y : a}
+\infer2[$\otimes\mathrm{I}$]{f : b \multimap c, y : a, z : \oc b &\vdash f\ \mathsf{derelict}(z) \otimes y : c \otimes a}
+\infer2[$\otimes\mathrm{E}$]{x : a \otimes \oc b, f : b \multimap c &\vdash \mathsf{let}\ x\ \mathsf{be}\ y \otimes z\ \mathsf{in}\ f\ \mathsf{derelict}(z) \otimes y : c \otimes a}
+\end{prooftree}
+\end{document}

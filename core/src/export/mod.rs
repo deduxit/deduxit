@@ -57,7 +57,9 @@
 //!   `serialize`, and [`Styles`] holds the options of every format in one
 //!   value.
 //! - The formats take anything [`Drawable`]: a derivation of linear logic,
-//!   the two-sided view of a classical one, or a derivation of LK or LJ.
+//!   the two-sided view of a classical one, a derivation of LK or LJ, one
+//!   in a calculus given as data, or the typing derivation of a
+//!   lambda-term.
 //! - LaTeX, Typst and Rocq write a fragment to paste into your document, or
 //!   a document that compiles on its own ([`Form`]). SVG always writes a
 //!   whole document.
@@ -176,8 +178,10 @@ pub(crate) fn math(
 }
 
 /// Returns the typing judgement of a derivation's lambda-term in a
-/// target's spelling, or `None` where `term` asks for none. The term is
-/// read back and written within the default limits, asking `stop`.
+/// target's spelling, or `None` where `term` asks for none or the
+/// derivation is a typing derivation, whose last judgement is the
+/// term's. The term is read back and written within the default limits,
+/// asking `stop`.
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 pub(crate) fn judgement(
     drawable: Drawable<'_>,
@@ -203,6 +207,7 @@ pub(crate) fn judgement(
                 reason: crate::lambda::NoTerm::Calculus,
             });
         }
+        Drawable::Lambda(_) => return Ok(None),
     };
     let mut out = String::new();
     term.write_in(spelling, options.types, true, &mut out, &limits, stop)?;
@@ -219,7 +224,9 @@ pub(crate) fn judgement(
 ///   sequent's image;
 /// - a derivation in a calculus given as data, as a tree
 ///   ([`rules::Drawing`](crate::rules::Drawing)) or as a Fitch proof
-///   ([`rules::Fitch`](crate::rules::Fitch)).
+///   ([`rules::Fitch`](crate::rules::Fitch));
+/// - the typing derivation of a lambda-term
+///   ([`lambda::Drawing`](crate::lambda::Drawing)).
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
 pub enum Drawable<'a> {
@@ -240,6 +247,15 @@ pub enum Drawable<'a> {
     /// Needs the cargo feature `serialize`.
     #[cfg(feature = "serialize")]
     Fitch(&'a crate::rules::Fitch<'a>),
+    /// The typing derivation of a lambda-term.
+    Lambda(&'a crate::lambda::Drawing),
+}
+
+impl<'a> From<&'a crate::lambda::Drawing> for Drawable<'a> {
+    /// Draws the typing derivation of a lambda-term.
+    fn from(drawing: &'a crate::lambda::Drawing) -> Self {
+        Self::Lambda(drawing)
+    }
 }
 
 #[cfg(feature = "serialize")]

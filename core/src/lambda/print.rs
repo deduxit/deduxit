@@ -92,7 +92,7 @@ pub(crate) enum Index {
     /// As digits, `x1`.
     Digits,
     /// Between the marks given, `x_{1}`.
-    #[cfg(any(feature = "latex", feature = "typst"))]
+    #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
     Marked(&'static str, &'static str),
 }
 
@@ -264,10 +264,14 @@ pub(crate) const TYPST: Spelling = Spelling {
 };
 
 /// The SVG spelling: Unicode text, atoms in mathematical italic as the
-/// drawing's formulas have them.
+/// drawing's formulas have them, and an index and a subscript lowered
+/// between the drawing's marks, since the math fonts have no subscript
+/// digits.
 #[cfg(feature = "svg")]
 pub(crate) const SVG: Spelling = Spelling {
     atom: Atoms::Italic,
+    subscript: ("\u{4}", "\u{5}"),
+    index: Index::Marked("\u{4}", "\u{5}"),
     ..UNICODE
 };
 
@@ -286,7 +290,7 @@ pub(crate) fn write_name(out: &mut impl Write, name: &str, index: Index) -> std:
     }
     match index {
         Index::Digits => out.write_str(digits),
-        #[cfg(any(feature = "latex", feature = "typst"))]
+        #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
         Index::Marked(open, close) => write!(out, "{open}{digits}{close}"),
         Index::Subscript => digits.chars().try_for_each(|digit| {
             let d = digit.to_digit(10).unwrap_or(0);
@@ -487,6 +491,17 @@ impl<'t> Printer<'t> {
         }
         printer.type_lengths = lengths;
         printer
+    }
+
+    /// Returns the printer of a term in a spelling, without the bounds of
+    /// its types' lengths: for writing alone, not for an estimate.
+    const fn unmeasured(term: &'t Term, spelling: &'t Spelling, types: bool) -> Self {
+        Self {
+            term,
+            spelling,
+            types,
+            type_lengths: Vec::new(),
+        }
     }
 
     /// Returns the type connectives of the term's calculus.
@@ -809,7 +824,7 @@ impl<'t> Printer<'t> {
                 estimate = estimate.saturating_add(self.length(*piece));
             }
         }
-        let mut stack: Vec<Piece> = written.into_iter().rev().collect();
+        let stack: Vec<Piece> = written.into_iter().rev().collect();
         if let Some(limit) = limits.derivation_bytes
             && estimate > limit
         {
@@ -821,6 +836,18 @@ impl<'t> Printer<'t> {
             }));
         }
         let mut stop = crate::limits::counting(stop, Phase::Write);
+        self.emit(out, stack, &mut stop)
+    }
+
+    /// Writes the pieces of `stack`, the last first, unfolding every
+    /// subterm in place, and asks `stop` before each.
+    fn emit(
+        &self,
+        out: &mut impl Write,
+        mut stack: Vec<Piece>,
+        stop: &mut dyn FnMut() -> bool,
+    ) -> Result<(), Error> {
+        let (term, s) = (self.term, self.spelling);
         while let Some(piece) = stack.pop() {
             match piece {
                 Piece::Text(t) => out.write_str(t)?,
@@ -851,6 +878,79 @@ impl<'t> Printer<'t> {
         }
         Ok(())
     }
+}
+
+/// Returns upper bounds of the text of every node and of every type of a
+/// term in a spelling, each node's or type's once over the arenas, every
+/// sum saturating: the lengths an estimate of a drawing adds up.
+pub(crate) fn lengths(term: &Term, spelling: &Spelling, types: bool) -> (Vec<u64>, Vec<u64>) {
+    let printer = Printer::new(term, spelling, types);
+    let nodes = printer.lengths();
+    (nodes, printer.type_lengths)
+}
+
+/// How a judgement of a subterm is written besides its spelling: the
+/// marks around each of its parts, what aligns its turnstile, and
+/// whether `λ` shows its variable's type.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Framing {
+    /// Whether `λ`, `inl`, `inr`, `false` and `abort` show types.
+    pub(crate) types: bool,
+    /// What stands before and after each declaration of the context and
+    /// the typed term, empty for nothing.
+    pub(crate) marks: (&'static str, &'static str),
+    /// What stands before the turnstile, empty for nothing.
+    pub(crate) align: &'static str,
+}
+
+/// Writes the judgement `Γ ⊢ M : A` of the subterm at `node` of a term,
+/// `Γ` the variables of `context` with their types and `A` the type
+/// `goal` of the term's arena. The text is not bounded here: the caller
+/// estimated it.
+pub(crate) fn write_judgement_at(
+    out: &mut impl Write,
+    term: &Term,
+    spelling: &Spelling,
+    context: &[VarId],
+    node: TermId,
+    goal: TypeId,
+    framing: Framing,
+) -> std::fmt::Result {
+    let printer = Printer::unmeasured(term, spelling, framing.types);
+    let (open, close) = framing.marks;
+    let mut written = Vec::with_capacity(context.len() * 6 + 8);
+    for (i, &v) in context.iter().enumerate() {
+        if i > 0 {
+            written.push(Piece::Text(", "));
+        }
+        written.extend([
+            Piece::Text(open),
+            Piece::Var(v),
+            Piece::Text(spelling.has_type),
+            Piece::Type(term.variables[v.index()].ty, false),
+            Piece::Text(close),
+        ]);
+    }
+    // The alignment stands right before the turnstile, after the space
+    // that separates it from the context.
+    let turnstile = spelling.turnstile.trim_start();
+    if !context.is_empty() {
+        written.push(Piece::Text(
+            &spelling.turnstile[..spelling.turnstile.len() - turnstile.len()],
+        ));
+    }
+    written.extend([Piece::Text(framing.align), Piece::Text(turnstile)]);
+    written.extend([
+        Piece::Text(open),
+        Piece::Term(node, Place::Free),
+        Piece::Text(spelling.has_type),
+        Piece::Type(goal, false),
+        Piece::Text(close),
+    ]);
+    written.reverse();
+    printer
+        .emit(out, written, &mut || false)
+        .map_err(|_| std::fmt::Error)
 }
 
 impl Term {

@@ -2975,3 +2975,61 @@ fn a_line_cited_twice_is_one_fitch_line() {
     let shared = drawing.nodes().filter(|node| node.index() == 4).count();
     assert_eq!((drawing.nodes().len(), shared), (12, 2));
 }
+
+/// A lambda-term's typing derivation is drawn in every format, its
+/// judgements `Γ ⊢ M : A` by the rules of natural deduction; in the
+/// linear calculus each premise's context holds the variables it uses.
+/// It has no Rocq certificate, and a tree past its bound is refused.
+#[test]
+fn typing_derivations() {
+    use deduxit::lambda::{Calculus, Drawing, Options as LambdaOptions, Term};
+    let limits = Limits::default();
+    let drawing = |text: &str, calculus| {
+        let term = Term::parse(text, calculus, &limits).unwrap();
+        Drawing::new(&term, &LambdaOptions::default(), &limits, |_| false).unwrap()
+    };
+    let simple = drawing(
+        r"\f:a -> b. \x:a \/ c. case x of inl(y) -> inl_(b \/ c)(f y) | inr(z) -> inr_(b \/ c)(z)",
+        Calculus::Simple,
+    );
+    pin("typing", &simple);
+    let svg = svg::to_string(&simple, &Style::default()).unwrap();
+    assert!(
+        svg.contains("<title>⊢ λf. λx. case x of inl(y) → inl(f y) ‖ inr(z) → inr(z) : (a → b) → ((a ∨ c) → (b ∨ c))</title>"),
+        "{svg}"
+    );
+    // The application's premises have its whole context.
+    assert!(
+        svg.contains("4. f : a → b, x : a ∨ c, y : a ⊢ f y : b, by →E from 2 and 3."),
+        "{svg}"
+    );
+    let linear = drawing(
+        r"x : a * !b, f : b -o c |- let x be y * z in (f derelict(z)) * y",
+        Calculus::Linear,
+    );
+    pin("typing-linear", &linear);
+    let tex = latex::to_string(&linear, &latex::Options::default()).unwrap();
+    // `f` goes to the function, `z` to the argument, `y` to the right of
+    // `⊗`, and `x` to the term `let` takes apart.
+    for judgement in [
+        r"f : b \multimap c &\vdash f : b \multimap c",
+        r"z : \oc b &\vdash \mathsf{derelict}(z) : b",
+        r"y : a &\vdash y : a",
+        r"x : a \otimes \oc b &\vdash x : a \otimes \oc b",
+    ] {
+        assert!(tex.contains(judgement), "{judgement} in {tex}");
+    }
+    assert!(matches!(
+        rocq::to_string(&linear, &rocq::Options::default()),
+        Err(Error::Unsupported(Unsupported::Typing))
+    ));
+    let term = Term::parse(r"\x:a. x", Calculus::Simple, &limits).unwrap();
+    let small = Limits::default().with_derivation_bytes(Some(100));
+    assert!(matches!(
+        Drawing::new(&term, &LambdaOptions::default(), &small, |_| false),
+        Err(Error::Refused(Refusal::Output {
+            what: "typing derivation",
+            ..
+        }))
+    ));
+}

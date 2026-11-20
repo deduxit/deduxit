@@ -530,6 +530,13 @@ pub enum Unsupported {
         "the derivation rests on an assumption, which a certificate's statement has no place for"
     )]
     Assumption,
+    /// The derivation is the typing derivation of a lambda-term, for
+    /// which neither kernel has a calculus: the term is checked by
+    /// [`lambda::Term::check`](crate::lambda::Term::check).
+    #[error(
+        "the Rocq kernels have no typing rules of the lambda calculus, so a typing derivation has no certificate"
+    )]
+    Typing,
 }
 
 /// Rocq's keywords, which no atom and no lemma may take.
@@ -1000,6 +1007,7 @@ pub fn write<'a>(
         Drawable::Classical(view) => linear(view.derivation(), options, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Rules(_) | Drawable::Fitch(_) => Err(Unsupported::Calculus.into()),
+        Drawable::Lambda(_) => Err(Unsupported::Typing.into()),
     }
 }
 

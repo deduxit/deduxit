@@ -1486,6 +1486,7 @@ fn drawn(
         Drawable::Rules(drawing) => tree::draw(drawing, style, judgement, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Fitch(proof) => fitch::draw(proof, style, out, stop),
+        Drawable::Lambda(drawing) => tree::draw(drawing, style, judgement, out, stop),
     }
 }
 

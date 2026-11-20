@@ -1701,6 +1701,11 @@ occurrences by id, and `describe(&forest)` names them by formula.
   every subterm. An ill-typed term is `Error::IllTyped` (code
   `ill_typed`) with the reason. A term is also a JSON document (wire
   level 23) that `wire::upgrade::<lambda::Term, _>` reads.
+- `lambda::Drawing::new(&term, &lambda::Options::default(), &limits,
+  |_| false)` checks a term and lays out its typing derivation, which
+  `export::latex::to_string`, `typst::to_string` and `svg::to_string`
+  draw as a proof tree of judgements `Γ ⊢ M : A` under the rules of
+  natural deduction (`→I`, `→E`, `ax`, …).
 - `export::latex::to_string(&derivation, &options)` returns a derivation
   as LaTeX in one string, with no stop to write: the text is linear in
   the derivation, which was made within its limits. `typst::to_string`,

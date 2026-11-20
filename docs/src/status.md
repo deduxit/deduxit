@@ -252,8 +252,10 @@ in use.
   [its terms are counted](terms.md#count-a-types-terms) up to
   βη-equality (`term enumerate`): exactly, infinitely many, or at least
   as many as a bounded search met, for types without `∨` and `⊥`.
-- Planned: a typing derivation drawn as a tree and built step by step
-  on the web page.
+- [A well-typed term's typing derivation is drawn](terms.md#a-typing-derivation-drawn)
+  in LaTeX, Typst, SVG, PNG and PDF by the rules of natural deduction
+  (`lambda::Drawing`), its contexts split as linear logic splits them in
+  the linear calculi.
 
 ## Outputs and certificates
 

@@ -1,0 +1,18 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{f : a \to b, x : a \lor c &\vdash x : a \lor c}
+\infer0[$\mathrm{ax}$]{f : a \to b, x : a \lor c, y : a &\vdash f : a \to b}
+\infer0[$\mathrm{ax}$]{f : a \to b, x : a \lor c, y : a &\vdash y : a}
+\infer2[$\to\mathrm{E}$]{f : a \to b, x : a \lor c, y : a &\vdash f\ y : b}
+\infer1[$\lor\mathrm{I}_1$]{f : a \to b, x : a \lor c, y : a &\vdash \mathsf{inl}(f\ y) : b \lor c}
+\infer0[$\mathrm{ax}$]{f : a \to b, x : a \lor c, z : c &\vdash z : c}
+\infer1[$\lor\mathrm{I}_2$]{f : a \to b, x : a \lor c, z : c &\vdash \mathsf{inr}(z) : b \lor c}
+\infer3[$\lor\mathrm{E}$]{f : a \to b, x : a \lor c &\vdash \mathsf{case}\ x\ \mathsf{of}\ \mathsf{inl}(y) \to \mathsf{inl}(f\ y) \parallel \mathsf{inr}(z) \to \mathsf{inr}(z) : b \lor c}
+\infer1[$\to\mathrm{I}$]{f : a \to b &\vdash \lambda x.\,\mathsf{case}\ x\ \mathsf{of}\ \mathsf{inl}(y) \to \mathsf{inl}(f\ y) \parallel \mathsf{inr}(z) \to \mathsf{inr}(z) : (a \lor c) \to (b \lor c)}
+\infer1[$\to\mathrm{I}$]{&\vdash \lambda f.\,\lambda x.\,\mathsf{case}\ x\ \mathsf{of}\ \mathsf{inl}(y) \to \mathsf{inl}(f\ y) \parallel \mathsf{inr}(z) \to \mathsf{inr}(z) : (a \to b) \to ((a \lor c) \to (b \lor c))}
+\end{prooftree}
+\end{document}

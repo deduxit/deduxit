@@ -142,6 +142,7 @@
 #![deny(clippy::wildcard_enum_match_arm)]
 
 mod check;
+mod draw;
 mod inhabit;
 pub(crate) mod linear;
 #[cfg(feature = "parse")]
@@ -154,6 +155,7 @@ pub(crate) mod simple;
 mod tests;
 
 pub use check::Typing;
+pub use draw::Drawing;
 #[cfg(feature = "protocol")]
 pub(crate) use inhabit::has_type;
 pub use inhabit::{Count, InhabitOptions, Inhabitants, Inhabitation, enumerate, inhabit};

@@ -22,6 +22,8 @@ design, with its sources and the alternatives weighed, is
   and SVG behind their features) and the one printer (`Term::write`,
   `write_judgement`, the crate-private `write_in` the exports call,
   `write_type` and `write_name` for the checker's messages);
+  `draw.rs`: `Drawing`, the typing derivation laid out for the exports
+  (`core-export.md` has its rules);
   `check.rs`: `Term::check`, `Typing`, the one rule per node (`rule`),
   `Fault` and its words (`describe`); `parse.rs` (feature `parse`):
   `Term::parse`; `read.rs` (feature `serialize`): `Term::from_parts`,

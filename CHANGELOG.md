@@ -22,6 +22,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   sum type they give, as `false` and `abort` show theirs, and a
   subscript that is no atom or constant is in brackets:
   `inl_(a ⊕ b)(x)`, `abort_(a → b)(z)`. A term printed so reads back.
+  In SVG a subscript and a variable's index are set lowered, where
+  `_` and subscript digits, which the math fonts lack, were written.
 - The value `--lambda` adds to an outcome in JSON has the key `version`
   (23), as the term's own document.
 
@@ -59,6 +61,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   every term) and `lambda.duplicate`; `protocol::statement("lambda", …)`
   makes a term's statement from its text.
 - `lambda::Calculus` has its names (`ALL`, `NAMES`, `name`, `FromStr`).
+- A well-typed lambda-term's typing derivation is drawn in every export:
+  `lambda::Drawing::new` checks the term and lays its derivation out,
+  each inference a judgement `Γ ⊢ M : A` under the rule of natural
+  deduction its term stands for, and LaTeX, Typst and SVG take it as
+  they take a proof (`export::Drawable::Lambda`). In the linear calculi
+  each premise's context holds the variables it uses. Rocq refuses it
+  with `rocq::Unsupported::Typing`.
 
 - `deduxit grade SEQUENT` grades an answer to a problem, read from
   standard input or `--answer FILE`, by its shape: a session script that

@@ -635,6 +635,7 @@ pub fn write<'a>(
         Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Fitch(proof) => fitch(proof, options, out, stop),
+        Drawable::Lambda(drawing) => tree(drawing, options, judgement, out, stop),
     }
 }
 

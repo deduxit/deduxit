@@ -97,7 +97,8 @@ for NanoYalla. What the code relies on:
 - **Every emitter is generic over the crate-private trait
   `proofs::style::Drawn`**, implemented by `proofs::Derivation` (in
   `style.rs`), `TwoSided`, `ordinary::Derivation` (in
-  `ordinary/derivation.rs`) and `rules::Drawing` (in `rules/draw.rs`):
+  `ordinary/derivation.rs`), `rules::Drawing` (in `rules/draw.rs`) and
+  `lambda::Drawing` (in `lambda/draw.rs`):
   the root, the premises, a rule as a number below `rules()` (`open()`
   the open goal's, `bare()` the one drawn as its sequent alone, a
   hypothesis of natural deduction: `\hypo{…}` in LaTeX, a bare
@@ -350,6 +351,36 @@ for NanoYalla. What the code relies on:
   (`NoTerm::Calculus`). Snapshots `rules.*` (LJ), `rules-tableau.*`
   (the tableau's signs set upright) and `natural.*` (NJ's `∨E` and `→I`
   with their marks), which the `export` check compiles.
+- **A typing derivation** (`lambda::Drawing`, `Drawable::Lambda`, no
+  feature of its own): `Drawing::new(&term, &options, &limits, stop)`
+  checks the term and unfolds its DAG from the root, a shared subterm
+  drawn once per place, one inference per node, premises in the order
+  the term writes them (`draw::premises`). Its rules are a fixed table
+  of natural deduction's names (`LABELS`, `NAMES`, one column for the
+  linear calculi and one for the simple; `Rule::of` per kind of node),
+  so `markup` takes no `Labels::Table` and `open()` and `bare()` are
+  `None`. A judgement is written by the term printer
+  (`lambda::print::write_judgement_at`, the spelling chosen from the
+  `Notation`'s `Atoms`: `Plain` Unicode, `Latex`, `Typst`, `Italic` the
+  SVG's), with `Framing`'s marks around each declaration and the typed
+  term (so `positions` is the context's length plus one) and the
+  alignment before the turnstile. Contexts: the simple calculus passes
+  the whole context and adds the binders; the linear ones split it by
+  the premises' free variables (`split`: a variable in the group of the
+  first premise that uses it, else the last group; a pair's components
+  and a case's branches one group; a `promote`'s body only its own
+  variables), which in the linear calculus is exactly each premise's
+  free variables, since `check` holds every use to one. The estimate
+  (`INFERENCE` per inference and `PER_BYTE` per byte of the Unicode
+  judgement, from `print::lengths`) is checked once over the DAG's
+  reachable nodes before the free variables are made (their sizes are
+  below the texts), then as the tree unfolds, each judgement writing its
+  whole subterm and context, so the text is quadratic in the term's
+  depth; `Refusal::Output { what: "typing derivation" }`. The exports'
+  `lambda` option writes nothing under it (`judgement` answers `None`:
+  the root is the term's judgement); Rocq refuses it
+  (`Unsupported::Typing`). Snapshots `typing.*` (the simple calculus,
+  `→`, `∨`) and `typing-linear.*` (a `let`, `⊗`, `!`, the split).
 - **A Fitch proof** (`rules::Fitch`, `Drawable::Fitch`, feature
   `serialize`; `core-rules.md` has the order of its lines): written by
   each target's own function, not through `Drawn`, since it is a list.

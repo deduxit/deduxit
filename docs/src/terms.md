@@ -368,3 +368,38 @@ tell apart (G. Scherer and D. Rémy, "Which simple types have a unique
 inhabitant?", ICFP 2015), and the command refuses the type. `term
 inhabit` takes every type.
 
+
+## A typing derivation drawn
+
+A well-typed term has one typing derivation, and the library draws it
+as a proof tree in LaTeX, Typst and SVG, and so in PNG and PDF
+(`lambda::Drawing`, which every export takes as it takes a proof). Each
+inference concludes the judgement `Γ ⊢ M : A` of a subterm `M`, and its
+rule is the rule of natural deduction the term's last construction
+stands for: `ax` for a variable, `→I` for `λ`, `→E` for an application,
+`∧I`, `∧E₁`, `∨I₁`, `∨E` and so on, with `⊸`, `⊗`, `&`, `⊕` and the
+rules of `!` in the linear calculi.
+
+In the simple calculus every premise has its conclusion's context, with
+the variables the rule binds added. In the linear calculus the context
+is split as the rules of linear logic split it: each variable goes to
+the premise that uses it, and the two components of a pair and the two
+branches of a `case` share theirs. These are the steps of the
+derivation of `let x be y ⊗ z in f derelict(z) ⊗ y`, as an SVG
+drawing's description reads them:
+
+```text
+1. x : a ⊗ !b ⊢ x : a ⊗ !b, by ax.
+2. f : b ⊸ c ⊢ f : b ⊸ c, by ax.
+3. z : !b ⊢ z : !b, by ax.
+4. z : !b ⊢ derelict(z) : b, by !E from 3.
+5. f : b ⊸ c, z : !b ⊢ f derelict(z) : c, by ⊸E from 2 and 4.
+6. y : a ⊢ y : a, by ax.
+7. f : b ⊸ c, y : a, z : !b ⊢ f derelict(z) ⊗ y : c ⊗ a, by ⊗I from 5 and 6.
+8. x : a ⊗ !b, f : b ⊸ c ⊢ let x be y ⊗ z in f derelict(z) ⊗ y : c ⊗ a, by ⊗E from 1 and 7.
+```
+
+Each judgement writes its whole subterm, so the drawing grows with the
+term's size times its depth; a drawing past `--derivation-limit`'s
+bound (`limits.derivation_bytes`) is refused before anything is laid
+out. Rocq has no certificate of a typing derivation.
