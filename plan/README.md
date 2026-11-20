@@ -7569,3 +7569,7 @@ move (D26).
   past the automatic steps; a race of the tableau editor fixed (departs: not in the brief, found by
   the sandbox); Calculus.v's comment says deduxit's `Ser` asks `x ≠ y` from 0.6.0. The client's
   flake check passed (704 unit, 342 e2e).
+- 2026-11-20, about 10:55: **deduxit 0.6.0 tagged**: CI, Install and Docs green at the release commit
+  `b3d33553` (`xuptrvts`); the signed tag object `136b2ea2` (verified "true valid") and
+  `refs/tags/v0.6.0`, on the author's yes. The release workflow runs; its `cargo publish` waits for
+  the author's approval.
