@@ -581,3 +581,54 @@ fn independent_splits_do_not_multiply() {
     );
     assert!(outcome.statistics.inferences <= 4);
 }
+
+/// Returns what a search of `text` in `system` counted, within [`WORK`].
+fn counted(text: &str, system: System) -> search::Counts {
+    let sequent: Sequent = text.parse().unwrap();
+    let limits = Limits::default().with_work(Some(WORK));
+    let mut search = search::Search::new(&sequent, system, &limits);
+    search.run(|_| false).unwrap();
+    search.counts
+}
+
+/// A world whose key a finished world of the same search had is not
+/// expanded: its part of the model is the finished world's. Here the
+/// second `◇` of the root makes a world (one that `t` keeps from being
+/// blocked by the root in S4) that makes a world for `q ∧ ◇r` again under
+/// the same `□s`; the countermodel built with the cache's worlds passes
+/// the model check.
+#[test]
+fn a_finished_world_stands_for_a_world_with_its_key() {
+    let text = "[]s, <>(q /\\ <>r), <>(t /\\ <>(q /\\ <>r)) |-";
+    for system in [System::K4, System::KD4, System::S4] {
+        assert!(!valid(text, system), "{system}");
+        assert!(counted(text, system).cached > 0, "{system}");
+    }
+}
+
+/// A world whose key closed a branch before closes the next branch where
+/// it is made again; the proof that rests on it has no derivation, so
+/// the search runs again without such keys, and the derivation of that
+/// run passes the checker.
+#[test]
+fn a_key_that_closed_once_closes_again_and_the_proof_is_made_anew() {
+    let text = "a \\/ b, a -> <>q, b -> <>q, []~q |-";
+    for system in [System::K4, System::KD4, System::S4] {
+        assert!(valid(text, system), "{system}");
+        assert!(counted(text, system).refuted > 0, "{system}");
+    }
+}
+
+/// The panel's sequent of KD4, not valid, took 20.5 million units before
+/// the cache: its worlds repeat a few dozen keys.
+#[test]
+fn kd4_decides_the_panels_sequent_by_the_cache() {
+    let text = "|- <>((q -> (<>T <-> F)) -> [][](p -> q)), \
+                (<>~<>(s <-> q) -> T) -> <>(((p <-> [][]s) /\\ <>(<>s <-> <>q)) <-> s)";
+    let sequent: Sequent = text.parse().unwrap();
+    let limits = Limits::default().with_work(Some(1 << 20));
+    let options = Options::default().with_system(System::KD4);
+    let outcome = decide_within(&sequent, &options, &limits, |_| false).unwrap();
+    assert!(matches!(outcome.verdict, Verdict::NotValid));
+    assert!(outcome.countermodel.is_some());
+}

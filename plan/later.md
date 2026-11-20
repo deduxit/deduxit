@@ -2756,17 +2756,6 @@ busy state on the workspace panel's Undo is in the client. What is left, for the
 - **`linear::search::prove_goal`** is still compiled per stop type (four copies, 23 KB raw); its
   change would be the focused engine's front door, which runs the target set.
 
-## KD4's cost: a cache of world signatures across branches (65b, 2026-11-16)
-
-The modal search decides all fifteen systems; in KD4 alone the panel found sequents of a few
-dozen nodes that are not valid and take tens of millions of units or more memory than the default
-bound (S4 and KD45 decide them at once): `⊢ ◇((q → (◇⊤ ↔ ⊥)) → □□(p → q)), (◇¬◇(s ↔ q) → ⊤) →
-◇(((p ↔ □□s) ∧ ◇(◇s ↔ ◇q)) ↔ s)` in 20.5 million units. Termination and soundness hold; the
-cost is the branching where a system has neither reflexivity nor a cluster and `Ser` makes a
-world at every dead end. The answer is a cache of the verdicts of world signatures across
-branches ("global caching", Goré and Nguyen's tableaux for K4-like logics, not yet read), for
-when a user meets it. KD4 is offered with the rest (the author's yes to all fifteen).
-
 ## The kernel crate: ended at the gate (67a, 2026-11-16)
 
 Step 67 ended at its gate: not yet a crate (`notes/kernel-boundary.md`, the inventory, the

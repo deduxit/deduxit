@@ -27,6 +27,23 @@
 //! as anywhere blocking does in description logics without inverse
 //! roles. Whatever the argument, `limits.work` bounds the search.
 //!
+//! In K4, KD4 and S4 the worlds are made in depth: a new world acts
+//! before the world that made it acts again. A world's part of the
+//! branch (the world and the worlds made after it, until it is
+//! finished) depends only on its key: the formula it was made for and
+//! the `□` true and `◇` false at the worlds that see it. So the search
+//! keeps a cache of keys across branches, as Goré and Nguyen's tableaux
+//! with global caching do ("EXPTIME tableaux with global caching for
+//! description logics with transitive roles, inverse roles and role
+//! hierarchies", TABLEAUX 2007), with two sides. A key whose part was
+//! finished with a model of its own (no world of it waits on a world
+//! outside it) keeps that model, and a later world with the key is not
+//! expanded: the countermodel takes the kept worlds, and the model check
+//! decides it as any other. A key whose world closed its branch by a
+//! proof that uses nothing outside the key closes the branch of a later
+//! world with the key; such a branch has no derivation, so where the
+//! proof rests on one the search runs again without those keys.
+//!
 //! Each step is one inference of the calculus on the branch's labelled
 //! sequent. A closed branch is a derivation, built from the steps it
 //! needs only: a step whose additions nothing above it uses is left out,
@@ -41,12 +58,13 @@
 
 use super::calculus::Rule;
 use super::{Condition, Node, NodeId, Sequent, System};
-use crate::hash::HashSet;
+use crate::hash::{HashMap, HashSet};
 use crate::kripke::{Model, World as ModelWorld};
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::Reason;
 use crate::linear::search::memory::Account;
 use std::collections::VecDeque;
+use std::rc::Rc;
 
 /// The units of work between two asks of the stop.
 pub(super) const POLL: u64 = 1 << 8;
@@ -93,6 +111,13 @@ pub(super) struct Step {
     pub(super) located: Option<Member>,
     /// Per premise, those of its members that were new on the branch.
     new: Vec<Vec<Member>>,
+    /// For a step that makes a world in a system that blocks, the world's
+    /// key ([`Search::keyed`]).
+    key: Option<Rc<[u64]>>,
+    /// Whether it closes a branch because the cache holds its last
+    /// world's key as one no model satisfies ([`Search::refuted`]): no
+    /// rule of the calculus, so a derivation never holds it.
+    cached: bool,
 }
 
 /// A node of a closed tableau: a step and the nodes of its premises.
@@ -120,6 +145,9 @@ struct World {
     signature: Option<(Vec<u64>, Vec<u64>)>,
     /// Whether an earlier world blocks it, once asked.
     blocked: Blocked,
+    /// What decides its part of the branch, in a system that blocks: see
+    /// [`Search::key`]. `None` for the first world and in other systems.
+    key: Option<Rc<[u64]>>,
 }
 
 /// Whether a world is blocked, as far as the search asked.
@@ -131,6 +159,30 @@ enum Blocked {
     No,
     /// This earlier world blocks it.
     By(u32),
+    /// A world of another branch with the same key had a finished part of
+    /// its own that a model satisfies, kept as this entry of the cache:
+    /// the world is not expanded, and the model takes the entry's worlds.
+    Cached(u32),
+}
+
+/// A world's finished part of a branch, kept for every later world with
+/// the same key: its worlds as a model, the first the world itself.
+#[derive(Debug)]
+struct Entry {
+    /// The worlds; arrows are indices of this list.
+    worlds: Vec<Piece>,
+}
+
+/// A world of an [`Entry`].
+#[derive(Debug)]
+struct Piece {
+    /// The atoms true there, as indices of the arena.
+    atoms: Vec<u32>,
+    /// The worlds it sees, indices of the entry's worlds.
+    arrows: Vec<u32>,
+    /// The entry whose worlds stand in for this one, for a world that was
+    /// itself taken from the cache.
+    graft: Option<u32>,
 }
 
 /// One branch of the tableau.
@@ -146,6 +198,12 @@ struct Branch {
     demands: Vec<(u32, NodeId, bool)>,
     /// The steps since the last split, in order.
     segment: Vec<u32>,
+    /// In a system that blocks, the worlds whose part of the branch is
+    /// not finished yet, oldest first: each the one that made the next.
+    open: Vec<u32>,
+    /// A world just made, and the world that made it, whose key the cache
+    /// holds as one no model satisfies: the branch closes.
+    refuted: Option<(u32, u32)>,
 }
 
 /// A split waiting for its premises.
@@ -194,6 +252,10 @@ pub(super) struct Counts {
     pub(super) splits: u64,
     /// The tests that found a world blocked.
     pub(super) blocked: u64,
+    /// The worlds taken from the cache.
+    pub(super) cached: u64,
+    /// The branches closed by the cache.
+    pub(super) refuted: u64,
     /// The units of work.
     pub(super) work: u64,
 }
@@ -208,6 +270,8 @@ pub(super) struct Search<'a> {
     boxes: Vec<u64>,
     /// A bit per formula: whether it is a `◇`.
     diamonds: Vec<u64>,
+    /// A bit per formula: whether it is an atom.
+    atoms: Vec<u64>,
     /// Whether the relation is reflexive.
     reflexive: bool,
     /// Whether it is serial without being reflexive: `Ser` makes worlds.
@@ -240,6 +304,19 @@ pub(super) struct Search<'a> {
     full: bool,
     /// What the search counted.
     pub(super) counts: Counts,
+    /// In a system that blocks, the entry of each key whose world's part
+    /// of a branch was finished with a model, on any branch.
+    cache: HashMap<Rc<[u64]>, u32>,
+    /// The entries of the cache.
+    entries: Vec<Entry>,
+    /// The bytes the entries hold.
+    cache_bytes: usize,
+    /// In a system that blocks, the keys whose world no model satisfies,
+    /// found on any branch ([`Search::fold`]).
+    unsat: HashSet<Rc<[u64]>>,
+    /// Whether a world whose key is in `unsat` closes its branch: until a
+    /// proof rests on one, after which the search runs again without.
+    refute: bool,
 }
 
 /// The bytes of a step besides its members.
@@ -260,12 +337,13 @@ impl<'a> Search<'a> {
         let words = width.div_ceil(64);
         let mut boxes = vec![0u64; words];
         let mut diamonds = vec![0u64; words];
+        let mut atoms = vec![0u64; words];
         for i in 0..width {
             match sequent.formulas().node(NodeId(i as u32)) {
                 Node::Box(_) => boxes[i / 64] |= 1 << (i % 64),
                 Node::Diamond(_) => diamonds[i / 64] |= 1 << (i % 64),
-                Node::Atom(_)
-                | Node::True
+                Node::Atom(_) => atoms[i / 64] |= 1 << (i % 64),
+                Node::True
                 | Node::False
                 | Node::Not(_)
                 | Node::And(..)
@@ -280,6 +358,7 @@ impl<'a> Search<'a> {
             words,
             boxes,
             diamonds,
+            atoms,
             reflexive: has(Condition::Reflexive),
             serial: has(Condition::Serial) && !has(Condition::Reflexive),
             symmetric: has(Condition::Symmetric),
@@ -296,6 +375,13 @@ impl<'a> Search<'a> {
             owed: 0,
             full: false,
             counts: Counts::default(),
+            cache: HashMap::default(),
+            entries: Vec::new(),
+            cache_bytes: 0,
+            unsat: HashSet::default(),
+            refute: has(Condition::Transitive)
+                && !has(Condition::Symmetric)
+                && !has(Condition::Euclidean),
         }
     }
 
@@ -330,8 +416,8 @@ impl<'a> Search<'a> {
 
     /// Returns the bytes a branch holds, saturating.
     fn bytes(&self, branch: &Branch) -> usize {
-        // Two bit sets, and two more for a signature.
-        let world = self.words.saturating_mul(32).saturating_add(80);
+        // Two bit sets, two more for a signature and two for a key.
+        let world = self.words.saturating_mul(48).saturating_add(104);
         let edges: usize = branch.worlds.iter().map(|w| w.sees.len()).sum();
         branch
             .worlds
@@ -340,7 +426,7 @@ impl<'a> Search<'a> {
             .saturating_add(edges.saturating_mul(8))
             .saturating_add(branch.agenda.len().saturating_mul(MEMBER_BYTES))
             .saturating_add((branch.betas.len() + branch.demands.len()).saturating_mul(12))
-            .saturating_add(branch.segment.len().saturating_mul(4))
+            .saturating_add((branch.segment.len() + branch.open.len()).saturating_mul(4))
     }
 
     /// Returns a `u32` index of a vector of this length, noting where it
@@ -352,17 +438,66 @@ impl<'a> Search<'a> {
         })
     }
 
-    /// Runs the search to its end.
+    /// Runs the search to its end. Where the proof found rests on a key
+    /// the cache holds as one no model satisfies, it has no derivation
+    /// there: the search runs again without those keys, and its proof is
+    /// made of the calculus's rules alone. Both runs count their work.
     pub(super) fn run(&mut self, mut stop: impl FnMut(Progress) -> bool) -> Result<Found, Reason> {
         let stop = &mut stop;
+        loop {
+            match self.tableau(stop)? {
+                Found::Closed(root) if self.refute && self.rests_on_cache(root, stop)? => {
+                    self.steps = Vec::new();
+                    self.proofs = Vec::new();
+                    self.unsat = HashSet::default();
+                    self.refute = false;
+                    // What the first run held but the entries of the cache
+                    // is given back.
+                    self.account.rewind(self.cache_bytes as u64);
+                }
+                found @ (Found::Closed(_) | Found::Open(_)) => return Ok(found),
+            }
+        }
+    }
+
+    /// Returns whether the proof whose root node is `root` holds a step
+    /// that closes by the cache.
+    fn rests_on_cache(
+        &mut self,
+        root: u32,
+        stop: &mut impl FnMut(Progress) -> bool,
+    ) -> Result<bool, Reason> {
+        let mut stack = vec![root];
+        let mut seen = 0u64;
+        let mut found = false;
+        while let Some(node) = stack.pop() {
+            seen += 1;
+            let proof = &self.proofs[node as usize];
+            if self.steps[proof.step as usize].cached {
+                found = true;
+                break;
+            }
+            stack.extend_from_slice(&proof.premises);
+        }
+        self.tick(seen, stop)?;
+        Ok(found)
+    }
+
+    /// Searches the tableau to its end.
+    fn tableau(&mut self, stop: &mut impl FnMut(Progress) -> bool) -> Result<Found, Reason> {
         let mut branch = Branch {
             worlds: Vec::new(),
             agenda: VecDeque::new(),
             betas: Vec::new(),
             demands: Vec::new(),
             segment: Vec::new(),
+            open: Vec::new(),
+            refuted: None,
         };
         self.world(&mut branch)?;
+        if self.blocking {
+            branch.open.push(0);
+        }
         for (&id, right) in self
             .sequent
             .left()
@@ -491,6 +626,11 @@ impl<'a> Search<'a> {
             if !self.uses(step, 0, &closed.1) {
                 continue;
             }
+            if self.refute
+                && let Some(key) = self.steps[step as usize].key.clone()
+            {
+                self.learn(step, key, &closed.1);
+            }
             let record = &self.steps[step as usize];
             let (premise, written) = (record.premises[0].clone(), record.written.clone());
             for m in &premise {
@@ -500,6 +640,122 @@ impl<'a> Search<'a> {
             closed.0 = self.node(step, vec![closed.0]);
         }
         closed
+    }
+
+    /// Keeps the key of the world that `step` makes as one no model
+    /// satisfies, where the proof above the step uses (`needed`) only the
+    /// world's own formula, the edge to it, edges between older worlds,
+    /// and `□` true and `◇` false at older worlds that the key holds.
+    ///
+    /// Why that is enough: older worlds get no members after the step
+    /// (formulas reach only the worlds made later), so the proof uses them
+    /// only to send a `□` true or `◇` false along an edge into a new world,
+    /// or in `Trans` towards one. Read every older world as one label `o`:
+    /// the proof stays one (a `Trans` whose premise is now its conclusion
+    /// drops out), of `o R y`, `y`'s own formula, and those `□` and `◇` at
+    /// `o`. A world `y'` of another branch with the same key, true at a
+    /// point `m` of a model, would satisfy that: `o` is `m` itself in S4,
+    /// and in K4 and KD4 a new point that sees `m` and every point `m`
+    /// sees, where every such `□B` has `B` true since a world that sees
+    /// `y'` holds it. The run that ends with a proof resting on such a
+    /// key runs again without them ([`Search::run`]), so no verdict rests
+    /// on this argument alone.
+    fn learn(&mut self, step: u32, key: Rc<[u64]>, needed: &HashSet<Member>) {
+        let words = self.words;
+        let Some(Member::Edge(x, y)) = self.steps[step as usize].located else {
+            return;
+        };
+        let own = key[2 * words];
+        self.owed = self.owed.saturating_add(needed.len() as u64);
+        let holds = |set: &[u64], i: u32| bit(set, i as usize);
+        let fits = needed.iter().all(|&m| match m {
+            Member::Formula { world, node, right } if world == y => {
+                own != 0 && own == (u64::from(node) + 1) << 1 | u64::from(right)
+            }
+            Member::Formula { world, node, right } => {
+                world < y
+                    && if right {
+                        holds(&self.diamonds, node) && holds(&key[words..], node)
+                    } else {
+                        holds(&self.boxes, node) && holds(&key[..words], node)
+                    }
+            }
+            Member::Edge(a, b) => (a, b) == (x, y) || (a < y && b < y),
+        });
+        if fits && !self.unsat.contains(&key) {
+            let bytes = key.len() * 8 + 48;
+            if self.account.spares(bytes) {
+                self.account.charge(bytes);
+                self.unsat.insert(key);
+            }
+        }
+    }
+
+    /// Returns the step that closes a branch whose last world `y`, made by
+    /// `x`, has a key no model satisfies. It writes out what a proof of
+    /// that would use at most: the edge `x R y`, `y`'s own formula, and at
+    /// `x` and the worlds that see it their `□` true, `◇` false and the
+    /// edges between them.
+    fn refuted(&mut self, branch: &Branch, x: u32, y: u32) -> u32 {
+        let words = self.words;
+        let mut written = vec![Member::Edge(x, y)];
+        let own = branch.worlds[y as usize]
+            .key
+            .as_ref()
+            .map_or(0, |key| key[2 * words]);
+        if own != 0 {
+            written.push(Member::Formula {
+                world: y,
+                node: (own >> 1) as u32 - 1,
+                right: own & 1 == 1,
+            });
+        }
+        let from = &branch.worlds[x as usize];
+        let mut older: Vec<u32> = from.seen_by.clone();
+        if let Err(at) = older.binary_search(&x) {
+            older.insert(at, x);
+        }
+        for &w in &older {
+            let world = &branch.worlds[w as usize];
+            self.owed = self.owed.saturating_add((words + world.sees.len()) as u64);
+            for i in 0..words {
+                let mut boxes = world.truth[i] & self.boxes[i];
+                while boxes != 0 {
+                    let node = (i * 64) as u32 + boxes.trailing_zeros();
+                    boxes &= boxes - 1;
+                    written.push(Member::Formula {
+                        world: w,
+                        node,
+                        right: false,
+                    });
+                }
+                let mut diamonds = world.falsity[i] & self.diamonds[i];
+                while diamonds != 0 {
+                    let node = (i * 64) as u32 + diamonds.trailing_zeros();
+                    diamonds &= diamonds - 1;
+                    written.push(Member::Formula {
+                        world: w,
+                        node,
+                        right: true,
+                    });
+                }
+            }
+            for &v in &world.sees {
+                if older.binary_search(&v).is_ok() {
+                    written.push(Member::Edge(w, v));
+                }
+            }
+        }
+        self.counts.refuted += 1;
+        self.record(Step {
+            rule: Rule::Axiom,
+            written,
+            premises: Vec::new(),
+            located: None,
+            new: Vec::new(),
+            key: None,
+            cached: true,
+        })
     }
 
     /// Adds a member to the branch, unless it holds it, and returns
@@ -534,6 +790,11 @@ impl<'a> Search<'a> {
         new
     }
 
+    /// Returns whether a world was taken from the cache.
+    fn cached(branch: &Branch, world: u32) -> bool {
+        matches!(branch.worlds[world as usize].blocked, Blocked::Cached(_))
+    }
+
     /// Returns whether the branch holds a member.
     fn holds(branch: &Branch, member: Member) -> bool {
         match member {
@@ -566,6 +827,8 @@ impl<'a> Search<'a> {
             premises: vec![premise],
             located,
             new: Vec::new(),
+            key: None,
+            cached: false,
         });
         self.premise(branch, step, 0);
         branch.segment.push(step);
@@ -605,6 +868,7 @@ impl<'a> Search<'a> {
             seen_by: Vec::new(),
             signature: None,
             blocked: Blocked::Unknown,
+            key: None,
         });
         self.counts.worlds += 1;
         Ok(index)
@@ -630,6 +894,9 @@ impl<'a> Search<'a> {
             }
             if !self.witness(branch, stop)? {
                 return Ok(Saturated::Open);
+            }
+            if let Some((x, y)) = branch.refuted.take() {
+                return Ok(Saturated::Closed(self.refuted(branch, x, y)));
             }
         }
     }
@@ -703,10 +970,16 @@ impl<'a> Search<'a> {
                             false,
                         );
                     }
+                    // A world taken from the cache is not expanded: its
+                    // entry's model stands for it.
                     (Node::And(..), true)
                     | (Node::Or(..), false)
                     | (Node::Implies(..), false)
-                    | (Node::Iff(..), _) => branch.betas.push((world, id, right)),
+                    | (Node::Iff(..), _) => {
+                        if !Self::cached(branch, world) {
+                            branch.betas.push((world, id, right));
+                        }
+                    }
                     (Node::Box(a), false) => {
                         let sees = branch.worlds[world as usize].sees.clone();
                         self.owed = self.owed.saturating_add(sees.len() as u64);
@@ -734,7 +1007,9 @@ impl<'a> Search<'a> {
                         }
                     }
                     (Node::Box(_), true) | (Node::Diamond(_), false) => {
-                        branch.demands.push((world, id, right));
+                        if !Self::cached(branch, world) {
+                            branch.demands.push((world, id, right));
+                        }
                     }
                 }
                 None
@@ -754,6 +1029,8 @@ impl<'a> Search<'a> {
             premises: Vec::new(),
             located: None,
             new: Vec::new(),
+            key: None,
+            cached: false,
         })
     }
 
@@ -892,6 +1169,8 @@ impl<'a> Search<'a> {
             premises: vec![first, second],
             located: None,
             new: Vec::new(),
+            key: None,
+            cached: false,
         });
         Ok(Some(step))
     }
@@ -936,8 +1215,9 @@ impl<'a> Search<'a> {
     }
 
     /// Makes a world for the first `□` false or `◇` true without a
-    /// witness at a world that is not blocked, the oldest world first, or
-    /// by `Ser`; returns whether it made one.
+    /// witness at a world that is not blocked, the oldest world first (the
+    /// newest in a system that blocks, [`Search::deepest`]), or by `Ser`;
+    /// returns whether it made one.
     fn witness(
         &mut self,
         branch: &mut Branch,
@@ -952,6 +1232,9 @@ impl<'a> Search<'a> {
         let mut demands = std::mem::take(&mut branch.demands);
         demands.retain(|&(world, id, right)| !self.realised(branch, world, id, right));
         branch.demands = demands;
+        if self.blocking {
+            return self.deepest(branch, stop);
+        }
         let mut order: Vec<usize> = (0..branch.demands.len()).collect();
         order.sort_by_key(|&i| branch.demands[i].0);
         let mut best = None;
@@ -1012,6 +1295,220 @@ impl<'a> Search<'a> {
             }
         }
         Ok(false)
+    }
+
+    /// In a system that blocks, makes the next world of a walk in depth
+    /// over the worlds, or returns that none is left to make. The world
+    /// made last that is not finished makes a world for its first `□`
+    /// false or `◇` true without a witness, or by `Ser` where it applies,
+    /// unless it is blocked, and the new world is the next to act; a world
+    /// that makes none is finished, and so is its part of the branch: it
+    /// and the worlds made after it, which the cache keeps where it is a
+    /// model of its own ([`Search::keep`]). A new world is taken from the
+    /// cache where its key has an entry ([`Search::keyed`]).
+    fn deepest(
+        &mut self,
+        branch: &mut Branch,
+        stop: &mut impl FnMut(Progress) -> bool,
+    ) -> Result<bool, Reason> {
+        while let Some(&x) = branch.open.last() {
+            let demand = branch.demands.iter().position(|&(w, ..)| w == x);
+            self.owed = self.owed.saturating_add(branch.demands.len() as u64);
+            let w = &branch.worlds[x as usize];
+            let serial = demand.is_none()
+                && self.serial
+                && !Self::cached(branch, x)
+                && w.sees.is_empty()
+                && (0..self.words).any(|i| {
+                    w.truth[i] & self.boxes[i] != 0 || w.falsity[i] & self.diamonds[i] != 0
+                });
+            if (demand.is_some() || serial) && !self.blocked(branch, x, stop)? {
+                let y = self.make(branch, x, demand)?;
+                branch.open.push(y);
+                return Ok(true);
+            }
+            branch.open.pop();
+            self.keep(branch, x);
+        }
+        Ok(false)
+    }
+
+    /// Makes a world from `x`, for the demand of that index or by `Ser`,
+    /// and returns it.
+    fn make(&mut self, branch: &mut Branch, x: u32, demand: Option<usize>) -> Result<u32, Reason> {
+        let y = self.world(branch)?;
+        match demand {
+            Some(index) => {
+                let (x, id, right) = branch.demands.remove(index);
+                let (Node::Box(a) | Node::Diamond(a)) = self.sequent.formulas().node(id) else {
+                    unreachable!("a demand is a modal formula")
+                };
+                let key = self.keyed(branch, x, y, (u64::from(a.0) + 1) << 1 | u64::from(right));
+                let rule = if right {
+                    Rule::BoxRight
+                } else {
+                    Rule::DiamondLeft
+                };
+                self.linear(
+                    branch,
+                    rule,
+                    vec![formula(x, id, right)],
+                    vec![Member::Edge(x, y), formula(y, a, right)],
+                    true,
+                );
+                if let Some(step) = self.steps.last_mut() {
+                    step.key = Some(key);
+                }
+            }
+            None => {
+                let key = self.keyed(branch, x, y, 0);
+                self.linear(
+                    branch,
+                    Rule::Serial,
+                    Vec::new(),
+                    vec![Member::Edge(x, y)],
+                    true,
+                );
+                if let Some(step) = self.steps.last_mut() {
+                    step.key = Some(key);
+                }
+            }
+        }
+        self.made(branch, y);
+        Ok(y)
+    }
+
+    /// Gives the world `y` that `x` makes its key, and takes it from the
+    /// cache where the key has an entry. The key is what decides the part
+    /// of the branch the new world starts, in a system that blocks: the
+    /// formula it is made for (`own`: the operand's index and its side,
+    /// or 0 for `Ser`), and every `□` true and `◇` false at a world that
+    /// will see it, `x` and the worlds that see `x`. Formulas reach only
+    /// the worlds made later, so nothing else reaches that part, and two
+    /// worlds with one key start the same search.
+    fn keyed(&mut self, branch: &mut Branch, x: u32, y: u32, own: u64) -> Rc<[u64]> {
+        let words = self.words;
+        let mut key = vec![0u64; 2 * words + 1];
+        key[2 * words] = own;
+        let from = &branch.worlds[x as usize];
+        self.owed = self
+            .owed
+            .saturating_add((words * (2 + from.seen_by.len())) as u64);
+        for v in std::iter::once(x).chain(from.seen_by.iter().copied()) {
+            let v = &branch.worlds[v as usize];
+            for i in 0..words {
+                key[i] |= v.truth[i] & self.boxes[i];
+                key[words + i] |= v.falsity[i] & self.diamonds[i];
+            }
+        }
+        let key: Rc<[u64]> = key.into();
+        self.account.charge(16 * words + 24);
+        let world = &mut branch.worlds[y as usize];
+        if let Some(&entry) = self.cache.get(&key) {
+            world.blocked = Blocked::Cached(entry);
+            self.counts.cached += 1;
+        } else if self.refute && self.unsat.contains(&key) {
+            branch.refuted = Some((x, y));
+        }
+        world.key = Some(key.clone());
+        key
+    }
+
+    /// Keeps the part of the branch that the world `k` started, now
+    /// finished, as the entry of `k`'s key, unless the key has one or the
+    /// part is no model of its own: a world of it that waits (a demand
+    /// without a witness, or a dead end where `Ser` applies) must be
+    /// blocked by a world of the part, whose arrows it then takes, so
+    /// that the part's model needs no world outside it. A dead end where
+    /// `Ser` does not apply sees itself, as in [`Search::model`]. The
+    /// entry is taken only where the memory bound spares it, as the linear
+    /// search's memo is.
+    fn keep(&mut self, branch: &Branch, k: u32) {
+        let Some(key) = branch.worlds[k as usize].key.clone() else {
+            return;
+        };
+        if Self::cached(branch, k) || self.cache.contains_key(&key) {
+            return;
+        }
+        // The part: `k` and the worlds made after it, numbered from `k`.
+        let part = |y: u32| y.checked_sub(k);
+        let worlds = k..branch.worlds.len() as u32;
+        let size = branch.worlds.len() - k as usize;
+        let mut waits = vec![false; size];
+        self.owed = self
+            .owed
+            .saturating_add((branch.demands.len() + size) as u64);
+        // Every demand left has no witness.
+        for &(d, ..) in &branch.demands {
+            if let Some(i) = part(d) {
+                waits[i as usize] = true;
+            }
+        }
+        let mut pieces: Vec<Piece> = Vec::with_capacity(size);
+        let mut bytes = key.len() * 16 + 64;
+        for (i, x) in worlds.enumerate() {
+            let w = &branch.worlds[x as usize];
+            self.owed = self.owed.saturating_add((self.words + w.sees.len()) as u64);
+            let graft = match w.blocked {
+                Blocked::Cached(entry) => Some(entry),
+                Blocked::Unknown | Blocked::No | Blocked::By(_) => None,
+            };
+            let dead = self.serial && w.sees.is_empty() && graft.is_none();
+            let own = (0..self.words)
+                .any(|j| w.truth[j] & self.boxes[j] != 0 || w.falsity[j] & self.diamonds[j] != 0);
+            let mut arrows = Vec::with_capacity(w.sees.len() + 1);
+            for &y in &w.sees {
+                let Some(y) = part(y) else {
+                    return;
+                };
+                arrows.push(y);
+            }
+            arrows.sort_unstable();
+            if waits[i] || (dead && own) {
+                let Blocked::By(v) = w.blocked else {
+                    return;
+                };
+                let Some(v) = part(v) else {
+                    return;
+                };
+                // The blocker's arrows as the model has them: it does not
+                // wait, so they are final.
+                let more = pieces[v as usize].arrows.clone();
+                for c in more {
+                    if let Err(at) = arrows.binary_search(&c) {
+                        arrows.insert(at, c);
+                    }
+                }
+            } else if dead {
+                arrows.push(i as u32);
+            }
+            let atoms: Vec<u32> = (0..self.words)
+                .flat_map(|j| {
+                    let mut bits = w.truth[j] & self.atoms[j];
+                    std::iter::from_fn(move || {
+                        (bits != 0).then(|| {
+                            let b = bits.trailing_zeros();
+                            bits &= bits - 1;
+                            (j * 64) as u32 + b
+                        })
+                    })
+                })
+                .collect();
+            bytes = bytes.saturating_add(4 * (atoms.len() + arrows.len()) + 64);
+            pieces.push(Piece {
+                atoms,
+                arrows,
+                graft,
+            });
+        }
+        if !self.account.spares(bytes) {
+            return;
+        }
+        self.account.charge(bytes);
+        self.cache_bytes = self.cache_bytes.saturating_add(bytes);
+        let entry = self.index(self.entries.len());
+        self.entries.push(Entry { worlds: pieces });
+        self.cache.insert(key, entry);
     }
 
     /// Gives a new world its reflexive edge.
@@ -1085,7 +1582,7 @@ impl<'a> Search<'a> {
             return Ok(None);
         }
         match branch.worlds[world as usize].blocked {
-            Blocked::No => return Ok(None),
+            Blocked::No | Blocked::Cached(_) => return Ok(None),
             Blocked::By(v) => return Ok(Some(v)),
             Blocked::Unknown => {}
         }
@@ -1115,7 +1612,7 @@ impl<'a> Search<'a> {
         }
         Ok(match branch.worlds[world as usize].blocked {
             Blocked::By(v) => Some(v),
-            Blocked::No | Blocked::Unknown => None,
+            Blocked::No | Blocked::Unknown | Blocked::Cached(_) => None,
         })
     }
 
@@ -1134,8 +1631,9 @@ impl<'a> Search<'a> {
         Ok(blocked)
     }
 
-    /// Returns an open branch's worlds as a model: its relation, a blocked
-    /// world given its blocker's edges, closed under the system's frame
+    /// Returns an open branch's worlds as a model: its relation, a world
+    /// taken from the cache given its entry's worlds, a blocked world
+    /// given its blocker's edges, closed under the system's frame
     /// conditions, and a world without edges in a serial system given an
     /// edge to itself.
     fn model(
@@ -1148,21 +1646,46 @@ impl<'a> Search<'a> {
         self.account.charge(edges.saturating_mul(8));
         self.tick(n as u64, stop)?;
         let mut sees: Vec<Vec<u32>> = branch.worlds.iter().map(|w| w.sees.clone()).collect();
+        // The atoms true at each world, by index of the arena: the
+        // branch's, and an entry's for a world taken from the cache and
+        // for the worlds its entry adds.
+        let mut atoms: Vec<Vec<u32>> = Vec::with_capacity(n);
+        for w in &branch.worlds {
+            self.owed = self.owed.saturating_add(self.words as u64);
+            atoms.push(
+                (0..self.words)
+                    .flat_map(|j| {
+                        let mut bits = w.truth[j] & self.atoms[j];
+                        std::iter::from_fn(move || {
+                            (bits != 0).then(|| {
+                                let b = bits.trailing_zeros();
+                                bits &= bits - 1;
+                                (j * 64) as u32 + b
+                            })
+                        })
+                    })
+                    .collect(),
+            );
+        }
         // In a serial system a world without arrows that no world blocks
         // sees itself: it has no `□` true or `◇` false of its own (else
         // `Ser` would have made it a world), so what is true there stays.
+        // A world taken from the cache has its entry's arrows instead.
         if self.serial {
             for x in 0..n as u32 {
-                if sees[x as usize].is_empty() && self.blocker(branch, x, stop)?.is_none() {
+                if sees[x as usize].is_empty()
+                    && !Self::cached(branch, x)
+                    && self.blocker(branch, x, stop)?.is_none()
+                {
                     sees[x as usize].push(x);
                 }
             }
         }
         // The branch's relation is closed under the system's frame rules
-        // already. Only a blocked world's arrows from its blocker need
-        // closing, and only under transitivity: the systems that block
-        // are neither symmetric nor euclidean. Each new pair is charged
-        // and acted on once.
+        // already. Only a blocked world's arrows from its blocker, and the
+        // arrows of the worlds an entry adds, need closing, and only under
+        // transitivity: the systems that block are neither symmetric nor
+        // euclidean. Each new pair is charged and acted on once.
         if self.blocking {
             self.account.charge(edges.saturating_mul(8));
             let mut seen_by: Vec<Vec<u32>> =
@@ -1192,6 +1715,75 @@ impl<'a> Search<'a> {
                     false
                 }
             };
+            // Each world taken from the cache becomes its entry's first
+            // world, and the entry's other worlds are added once, an entry
+            // within an entry in turn: a second world with the entry sees
+            // the same worlds, which satisfy what both need, since what
+            // reaches them from the worlds that see either is the key's.
+            let mut grafts: Vec<(u32, u32)> = (0..n as u32)
+                .filter_map(|x| match branch.worlds[x as usize].blocked {
+                    Blocked::Cached(entry) => Some((x, entry)),
+                    Blocked::Unknown | Blocked::No | Blocked::By(_) => None,
+                })
+                .collect();
+            let mut added: HashMap<u32, usize> = HashMap::default();
+            while let Some((root, entry)) = grafts.pop() {
+                if let Some(&base) = added.get(&entry) {
+                    let first = &self.entries[entry as usize].worlds[0];
+                    atoms[root as usize].clone_from(&first.atoms);
+                    let arrows = first.arrows.clone();
+                    self.tick(1 + arrows.len() as u64, stop)?;
+                    for y in arrows {
+                        let y = if y == 0 {
+                            root
+                        } else {
+                            (base + y as usize - 1) as u32
+                        };
+                        if add(root, y, &mut sees, &mut seen_by, &mut pending) {
+                            self.account.charge(24);
+                        }
+                    }
+                    continue;
+                }
+                added.insert(entry, sees.len());
+                let (count, held) = {
+                    let pieces = &self.entries[entry as usize].worlds;
+                    let held: usize = pieces
+                        .iter()
+                        .map(|p| 4 * (p.atoms.len() + p.arrows.len()) + 64)
+                        .sum();
+                    (pieces.len(), held)
+                };
+                self.account.charge(held);
+                self.tick(count as u64, stop)?;
+                let pieces = &self.entries[entry as usize].worlds;
+                let base = sees.len();
+                let at = |i: u32| {
+                    if i == 0 {
+                        root
+                    } else {
+                        (base + i as usize - 1) as u32
+                    }
+                };
+                for _ in 1..count {
+                    sees.push(Vec::new());
+                    seen_by.push(Vec::new());
+                    atoms.push(Vec::new());
+                }
+                for (i, piece) in pieces.iter().enumerate() {
+                    let x = at(i as u32);
+                    atoms[x as usize].clone_from(&piece.atoms);
+                    if let Some(inner) = piece.graft {
+                        grafts.push((x, inner));
+                    }
+                    self.owed = self.owed.saturating_add(piece.arrows.len() as u64);
+                    for &y in &piece.arrows {
+                        if add(x, at(y), &mut sees, &mut seen_by, &mut pending) {
+                            self.account.charge(24);
+                        }
+                    }
+                }
+            }
             for x in 0..n as u32 {
                 let w = &branch.worlds[x as usize];
                 let waits = branch
@@ -1230,14 +1822,13 @@ impl<'a> Search<'a> {
             }
         }
         let formulas = self.sequent.formulas();
-        let worlds = branch
-            .worlds
-            .iter()
+        let worlds = atoms
+            .into_iter()
             .zip(sees)
-            .map(|(w, arrows)| {
-                let atoms = (0..formulas.len())
-                    .filter(|&i| bit(&w.truth, i))
-                    .filter_map(|i| match formulas.node(NodeId(i as u32)) {
+            .map(|(atoms, arrows)| {
+                let atoms = atoms
+                    .into_iter()
+                    .filter_map(|i| match formulas.node(NodeId(i)) {
                         Node::Atom(a) => Some(formulas.atom_name(a).to_owned()),
                         Node::True
                         | Node::False

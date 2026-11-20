@@ -117,8 +117,8 @@ The design, with its reasons, alternatives and sources, is
   step), so a box reaches a world by `L□` along a derived edge. Order:
   the agenda to a fixpoint (closures first, then one-premise rules and
   propagation), then a split (the oldest world), then a witness (the
-  oldest world not blocked), then `Ser` in a serial system without
-  reflexivity. A split clones the branch for the second premise. The
+  oldest world not blocked; in K4, KD4 and S4 the walk in depth below),
+  then `Ser` in a serial system without reflexivity. A split clones the branch for the second premise. The
   pending formulas keep their order (`remove`, never `swap_remove`): a
   swap once put the last diamond first and changed which world was made
   next.
@@ -151,6 +151,58 @@ The design, with its reasons, alternatives and sources, is
   neither symmetric nor euclidean), each new pair charged. A closure
   of the whole relation by rounds built every 2-path, n³/6 pairs uncharged: 7 to 9 times the
   memory bound (the integers panel of 65b).
+- **In K4, KD4 and S4 the worlds are made in depth** (`Search::deepest`,
+  `Branch::open`, a stack): the newest unfinished world makes a world
+  for its first demand, or by `Ser`, unless it is blocked, and the new
+  world acts next; a world that makes none is popped, finished, and its
+  part of the branch is it and every world made after it. A walk that
+  made all of a world's witnesses before entering any of them did worse
+  on the measured sets (fixup-10's report). The other twelve systems
+  keep the oldest-first order unchanged, and no cache: their verdicts,
+  units and counters are as before.
+- **A world's key** (`Search::keyed`): its own formula (operand and
+  side, or 0 for `Ser`) and every `□` true and `◇` false at its maker
+  `x` and the worlds that see `x`, computed when the world is made. In
+  these systems formulas reach only worlds made later, so the key alone
+  decides the world's part of the branch. Keys are matched exactly (a
+  hash map), never by inclusion.
+- **The sat side of the cache** (`Search::keep`, `Entry`, `Piece`):
+  when a world is popped and its key has no entry, its part is kept as
+  an entry where every world of it that waits (a demand without a
+  witness, or a dead end where `Ser` applies) is blocked by a world of
+  the part; a dead end where `Ser` does not apply gets a loop, a waiting
+  world its blocker's arrows (as `model` does). A world made later with
+  that key is `Blocked::Cached`: never expanded (no betas, no demands,
+  no `Ser`), never a blocker, and `model` makes it the entry's first
+  world and adds the entry's other worlds once (an entry within an entry
+  in turn; a second world with the same entry sees the same added
+  worlds, which satisfy both since what reaches them is the key's), then
+  closes the arrows by the worklist. An entry is taken only where
+  `Account::spares` allows it (an eighth of the bound left), charged and
+  never released; losing one costs only time.
+- **The unsat side** (`Search::learn`, called in `fold` at a used step
+  that makes a world): the key goes into `unsat` where the proof above
+  the step uses only the world's own formula, the edge `x R y`, edges
+  between older worlds, and `□` true and `◇` false at older worlds that
+  the key holds. The argument is on `learn`: read every older world as
+  one label `o`; the proof stays one of `o R y`, the own formula and
+  those modal formulas; a world of another branch with the key gives
+  `o` as itself (S4) or as a new point that sees it and all it sees
+  (K4, KD4). A world made with an `unsat` key closes its branch by a
+  step marked `cached` (`Search::refuted`), whose written members are
+  what such a proof could use at most, so backjumping stays correct.
+- **No derivation rests on the unsat side**: `run` checks the proof
+  found (`rests_on_cache`) and, where it holds a `cached` step, empties
+  steps, proofs and `unsat`, rewinds the account to the entries' bytes
+  and runs the tableau again with `refute` off; both runs count their
+  work. A wrong unsat entry could therefore only cost time: a "valid"
+  comes from the second run's checked derivation, and an open branch is
+  never made by the unsat side.
+- **Its measured cost** (fixup-10): the panel's KD4 sequent from 20.5
+  million units to about 58 000. On generated sets every verdict is the
+  same and the blocking systems' totals fall, but single rows got
+  slower, up to 29 times on small ones (a deep part searched before a
+  sibling that closes at once, or a rerun); the report has the rows.
 - **A step is kept only where the proof above uses it** (`fold`,
   `join`): a closed part carries the members of its conclusion its
   proof uses; a step whose *new* members (those not on the branch

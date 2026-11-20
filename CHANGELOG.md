@@ -29,6 +29,16 @@ second number (0.1.x to 0.2.0), anything else the third.
   Kripke model's check, the goal state, the certificate over `Prop`, the
   lambda-term) refuses a first-order sequent by name.
 
+### Changed
+
+- The modal search in K4, KD4 and S4 makes its worlds in depth and keeps
+  what it learns about a world across branches: a world made again under
+  the same conditions reuses the earlier world's part of the model, or
+  closes its branch at once where the earlier one could not be satisfied.
+  A sequent of KD4 that took 20.5 million units of work now takes about
+  58 000. Every "valid" still comes with a checked derivation, every
+  countermodel is checked as before.
+
 ### Wire forms
 
 - **Level 25**: a first-order ordinary sequent or derivation, its
