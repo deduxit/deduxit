@@ -67,7 +67,11 @@
 //! - Check a signed tableau written by hand, step by step:
 //!   `ordinary::WrittenTableau` (features `parse`, `serialize` and
 //!   `interactive`).
-//! - Read a proof as a lambda-term: [`lambda`].
+//! - Rewrite a classical sequent into a normal form, each step checked,
+//!   and refute its clauses by resolution or DPLL with a checked
+//!   refutation: `ordinary::normal` and `ordinary::resolution`.
+//! - Read a proof as a lambda-term, check a term you write, and find and
+//!   count a simple type's terms: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule
 //!   file, natural deduction among the built-in ones, as a tree or as a
 //!   Fitch proof: `rules` (feature `serialize`).

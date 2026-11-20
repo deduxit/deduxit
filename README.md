@@ -14,8 +14,11 @@ Kripke countermodel and classical logic has truth tables and tableaux,
 and propositional modal logic in the fifteen systems from K to S5.
 It checks and builds derivations in calculi given as rule files,
 natural deduction among them, drawn as trees or as Fitch proofs. It
-proves step by step, draws proof nets and countermodels, reads
-intuitionistic proofs as lambda-terms, and exports proofs to LaTeX,
+proves step by step, draws proof nets and countermodels, rewrites a
+classical sequent into normal forms and refutes its clauses by
+resolution, reads intuitionistic proofs as lambda-terms, checks the
+terms you write and finds a type's terms, grades an answer to a
+problem, and exports proofs to LaTeX,
 Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
 proves step by step in the browser with the same library. It began as
 linlog, a linear logic library (up to 0.2.0), and is growing to take in

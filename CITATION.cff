@@ -16,7 +16,10 @@ abstract: >-
   countermodel, and a modal one that is valid a derivation in a
   labelled sequent calculus. It checks and builds derivations in calculi given as
   rule files, natural deduction in Gentzen's and Fitch's styles among
-  them. Its code, tests and documentation were written with
+  them. It rewrites classical sequents into normal forms and refutes
+  their clauses by resolution and DPLL, each step checked, checks the
+  terms of the simply typed and the linear lambda calculus and finds and
+  counts a simple type's terms, and grades answers to problems. Its code, tests and documentation were written with
   substantial AI assistance, by Anthropic's Claude models in Claude
   Code, in steps the author planned, directed and accepted, and the
   author is responsible for them. Its results do not rest on the model
@@ -61,5 +64,7 @@ keywords:
   - proof search
   - sequent calculus
   - natural deduction
+  - resolution
+  - lambda calculus
   - proof nets
   - theorem prover
