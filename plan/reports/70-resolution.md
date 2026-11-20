@@ -511,3 +511,185 @@ with the flag to raise, exit 3, not an error.
 - **Later**: first-order resolution and the TPTP `cnf` reader with SZS
   output are in `plan/later.md`; RAT steps and a resolution session in
   the command would be additions there.
+
+## Session 70c: the page
+
+Opus 5.5 at `high`, the same worker and conversation as 70a and 70b,
+from the brief `start-70c.md` on 2026-11-20, cores 7 to 9: deduxit in
+the jj workspace `../deduxit-wt-step-58a-610ed3` on `main@origin`
+`tkmmrwos` (70b pushed), the client in its own workspace
+`../deduxit.github.io-70c` (workspace `step70c`) on its `main@origin`
+`okwokwwv`, its deduxit input overridden by `git+file://` of this chain.
+
+### Outcome
+
+A started classical proof's Logic popover offers two more buttons under
+the translation's and the interpolant's: **Rewrite into a normal form**
+and **Refute by resolution**. Each opens a sheet over the stage with its
+verdict first. The normal form is stepped through one law at a time. The
+clauses of the sequent's negation are refuted by a search, traced by
+DPLL, or by hand, and the refutation is listed and drawn as a graph,
+the two in step and operable from the keyboard. A visitor who presses
+neither sees nothing new.
+
+deduxit's chain, on `main@origin` `tkmmrwos`:
+
+| change | what |
+|---|---|
+| `omwlqkqk` | the library: `Refutation::check_steps`, a refutation in progress checked step by step |
+| `sywtmkly` | the bindings: `ordinary_normalize`, `ordinary_resolve`, `ordinary_clauses`, `ordinary_resolve_step`, `ordinary_refutation_check`; `about`'s transformations; their test |
+| `vqyvyllr` | the guide, the changelog, the web plan's table, the bindings' rules |
+| `ormpkqwk` | the law of a definition's step: its clauses may be one direction only (Plaisted–Greenbaum), after the reviewer |
+| (this report) | `plan/reports/70-resolution.md` |
+
+The client's chain, on its `main@origin` `okwokwwv`:
+
+| change | what |
+|---|---|
+| `ynqvywmw` | `src/lib/clausal.ts` (the forms, the steps in signs, the words, clauses, the atoms two clauses clash on, the graph's layout) and its tests, the API's and the worker's calls |
+| `ponxukxv` | `src/islands/Clausal.tsx` (the two sheets and the graph), the popover's two buttons, the band's sheets, the styles, the client's `web.md` |
+| `nxxlqsyv` | `tests/clausal.spec.ts`, the walk `clausal` in `tests/states.ts`, its axe and target-size tests |
+
+### The bindings
+
+- `ordinary_normalize(sequent, options, settings)` and
+  `ordinary_resolve(sequent, options, settings)` answer 70a's level-21
+  and 70b's level-22 documents; `options` are `{"form"}` and `{"form",
+  "method", "clauses", "steps"}`, `""` for CNF and saturation within the
+  library's bounds. `about` lists them under the ordinary suite's
+  `transformations` (`normal` with its `forms`, `resolution` with its
+  `methods` and `clauses`), and the tab's `settings` name
+  `limits.form_occurrences`.
+- **A refutation by hand**: `ordinary_clauses` starts one (the level-22
+  refutation with no resolvent); `ordinary_resolve_step(refutation,
+  first, second, atom, settings)` checks every step the page sent and
+  adds the resolvent, answering `{"refutation", "added", "finished"}`;
+  `ordinary_refutation_check` checks one. The check of a refutation in
+  progress is the library's (`Refutation::check_steps`, every resolvent
+  checked, no `□` asked), since a front end builds no error of the
+  library's (core.md).
+- **The module's size**: 3 741 399 bytes at gzip, about 20 KB for these
+  calls (3 721 760 after 70b), 8.6 KB under the 3 750 000 ceiling; no
+  raise was needed.
+
+### The page
+
+Designed with the education skills' cognitive-load analysis and
+worked-example fading, and the frontend-design plugin's rule of one
+large thing per sheet.
+
+- **Where they are asked for**: the Logic popover of a started
+  classical proof, under the two transformations of 63t-b, as sheets
+  over the stage (light dismiss, Escape, the title focused). Not a view
+  tab: the stage's row of views is full on a phone, and the author's
+  rule (not overwhelming) wants nothing new for a visitor who does not
+  ask.
+- **The normal form**: CNF first (a first course's), then NNF, DNF,
+  Tseitin and Plaisted–Greenbaum, each with a line of what it is. The
+  check's keyword first ("Equivalent", "Same verdict", "Not checked"),
+  the result large, then a stepper from the sequent as typed through
+  each step: the law in the formulas' font, where it acts, and the
+  sequent after it. One new thing per step; the last step's sequent is
+  the result (a unit test holds it for every form).
+- **Resolution**: three ways, the worked example first: Search (a
+  refutation found), DPLL (its steps, indented by their decisions, in
+  words with the literals in the formulas' font, then the refutation
+  read off), and By hand (choose two clauses; the atoms they clash on
+  are buttons "Resolve on p"; deduxit adds the resolvent; Undo takes the
+  last back; "You derived □" when deduxit says the refutation is
+  finished). A pair that clashes on no atom is said in the status. A
+  sequent that is not valid says the model of its clauses in words.
+- **The graph view** (web-front-end-6): the given clauses on the top
+  row, each resolvent one row below its deeper parent, an edge from each
+  of its two clauses; the edges an `aria-hidden` SVG, each clause an
+  HTML button over it (44 by 44 pixels, a phone's target), placed
+  through the CSSOM (no `style` attribute, the CSP's rule). The list and
+  the graph share one choice: a clause chosen in either is pressed in
+  both, and the two edges into a chosen resolvent are marked. Tab and
+  Enter or Space operate both; the graph scrolls sideways where it is
+  wider than the sheet.
+- **The look**: no new colour or font; the controls are the page's
+  (segmented controls, small buttons, the `kw` keywords), every value a
+  token (`tokens.test.ts`).
+
+### The reviewer's findings
+
+`fresh-reviewer` once, on Fable 5.2 at medium, with the page in a
+browser (the built site served, the sheets driven by Playwright). Four
+findings, all fixed in the chains above:
+
+1. **"You derived □" for a set that holds □ already.** `|- true` gives
+   the empty clause among the given ones; the page claimed a derivation
+   deduxit never made. The page now says so from deduxit's answer alone:
+   "You derived □" only when the last step's answer says `finished`,
+   reset by Undo, and a set with a given □ has its own sentence. An e2e
+   test covers it.
+2. **The Plaisted–Greenbaum law overclaimed.** The definition step's law
+   said "the clauses of t ↔ A" where the encoding adds one direction
+   only. The library's law now says so (`ormpkqwk`), and so does the
+   sheet's opening line.
+3. **A long clause overflowed its node.** The graph's node now cuts its
+   text with an ellipsis; the full clause stays in the button's name and
+   in the list beside it.
+4. **The focus fell to the page after a step or an Undo** (both buttons
+   leave the DOM). The focus now goes to the new clause's list button
+   after a step and to Undo after an undo (the first clause when nothing
+   is left to undo); the by-hand e2e test holds both.
+
+It also noted that `ordinary_refutation_check` is bound and tested but
+the page does not call it: each step already checks the whole
+refutation, so a separate check would repeat it. Kept for a front end
+that stores a refutation and reads it back.
+
+### Checks
+
+All at the heads above, after the reviewer's fixes, under the machine
+lock on cores 7 to 9.
+
+- **deduxit**: `nix flake check --keep-going` at the head: every check
+  passed, the gate's five parts with it (so no separate gate), the
+  bindings' tests under Node (`web-wasm-tests`, the new test
+  `a_sequent_is_normalized_and_resolved` among them), `budget` (the
+  module at 3 741 399 bytes), `conventions` and `doc-private`. A first
+  run had failed `conventions` alone, on a doc comment of
+  `web/src/ordinary.rs` that read like a plan's step numbers; reworded
+  in `sywtmkly`.
+- **The client**: `nix flake check --keep-going --override-input
+  deduxit git+file://` of this chain: every check passed, among them
+  `unit` (712 tests in 33 files, 8 of them `clausal.test.ts`'s against
+  the real module), `e2e` (354 tests, all passed: `clausal.spec.ts`'s
+  six, and the walk `clausal` under axe and at the 24- and 44-pixel
+  targets), `lint`, `typecheck`, `no-style-attributes`, `csp` and
+  `licences`.
+
+### Departures
+
+- The clauses on the page are CNF's alone, with no choice of Tseitin or
+  Plaisted–Greenbaum for resolution: the binding takes `clauses`, the
+  page does not offer it, to keep the sheet to one choice (the way).
+  (departs from the design)
+- The sheets are in the Logic popover, not views beside the derivation
+  (see "The page"). (departs from the design)
+- The graph scrolls sideways where it is wider than the sheet; it is
+  not scaled down, since a scaled node would fall below the targets'
+  sizes. (departs from the design)
+- `ordinary_refutation_check` is bound, not called by the page (see the
+  reviewer's findings).
+
+### What the next sessions must know
+
+For 73, the release of 0.7.0:
+
+- The client's chain was built and checked against this deduxit chain
+  through `--override-input deduxit git+file://…`. Its `flake.lock`
+  still pins the deduxit before 70c: after the push, move the client's
+  input (`nix flake update deduxit`, a change of its own) before the
+  client's chain lands, or its build lacks the five calls and its unit
+  and e2e tests fail.
+- The module is 3 741 399 bytes at gzip, 8.6 KB under the 3 750 000
+  ceiling. A further binding of any size will need the ceiling raised,
+  with its reason, in a commit of its own.
+- The changelog's entries for the five calls and
+  `Refutation::check_steps` are under "Unreleased".
+- The level-22 refutation is read and written by the page; a change of
+  its form is a change of the client's `src/lib/clausal.ts` too.
