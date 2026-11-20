@@ -79,7 +79,7 @@ jobs:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
-          name: linlog-prover
+          name: deduxit
           skipPush: true
       # Which crates this tag publishes: the library and the command at
       # its version, then the last releases of their old names, linlog
