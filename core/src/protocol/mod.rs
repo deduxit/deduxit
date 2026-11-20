@@ -61,6 +61,7 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+mod lambda;
 mod linear;
 mod modal;
 mod ordinary;
@@ -414,11 +415,12 @@ pub fn suites() -> &'static [&'static dyn Suite] {
 }
 
 /// The suites of this build, in the order a front end shows them.
-static SUITES: [&dyn Suite; 4] = [
+static SUITES: [&dyn Suite; 5] = [
     &linear::LINEAR,
     &ordinary::ORDINARY,
     &rules::RULES,
     &modal::MODAL,
+    &lambda::LAMBDA,
 ];
 
 /// The kinds no suite owns: the renderings every suite makes.
@@ -480,6 +482,10 @@ const OPERATIONS: &[&str] = &[
     #[cfg(any(feature = "latex", feature = "typst"))]
     "modal.export",
     "modal.duplicate",
+    "lambda.check",
+    "lambda.inhabit",
+    "lambda.enumerate",
+    "lambda.duplicate",
 ];
 
 /// Every kind name of this build: the suites' in order, then the shared.
@@ -668,12 +674,13 @@ fn takes(call: &Call<'_>, kind: &str) -> Result<(), Error> {
 /// a workspace's sequent holds: `suite` is `ordinary` with `parameter` a
 /// logic, `linear` with `parameter` a mode, whose intuitionistic modes
 /// read the sequent two-sided in the syntax of intuitionistic linear logic,
-/// or `modal` with `parameter` a system (`S4`).
-/// The text is kept beside the sequent as typed.
+/// `modal` with `parameter` a system (`S4`), or `lambda` with a lambda-term
+/// for the sequent and `parameter` a calculus (`simple`).
+/// The text is kept beside the sequent or the term as typed.
 ///
 /// # Errors
 ///
-/// An unknown suite, logic, mode or system, the parser's error, and a sequent past
+/// An unknown suite, logic, mode, system or calculus, the parser's error, and a sequent past
 /// `limits.occurrences`.
 pub fn statement(
     suite: &str,
@@ -703,10 +710,11 @@ pub fn statement(
             let sequent = crate::modal::Sequent::parse_within(text, limits)?;
             modal::typed_statement(&sequent, system, Some(text))
         }
+        "lambda" => lambda::typed_statement(text, parameter.parse()?, limits),
         _ => Err(Error::UnknownName {
             what: "suite",
             name: suite.into(),
-            known: &["linear", "ordinary", "modal"],
+            known: &["linear", "ordinary", "modal", "lambda"],
         }),
     }
 }
@@ -930,6 +938,13 @@ mod promises {
         name: "equisatisfiable",
         check: Some(Cost::Search),
         description: "The output's clauses can be satisfied exactly when the input can be false: the input with the new atoms' definitions implies the clauses, and the clauses imply the input's negation.",
+    };
+
+    /// A term is well typed.
+    pub(super) static WELL_TYPED: Promise = Promise {
+        name: "well_typed",
+        check: Some(Cost::Instant),
+        description: "Every term is well typed in its calculus, of the type asked for where one was, which deduxit's type checker accepts.",
     };
 
     /// A drawing or a text shows its input.

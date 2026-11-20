@@ -1345,10 +1345,12 @@ fn a_document_that_is_no_term_is_refused() {
         assert_eq!(form, "lambda-term");
         assert!(found.starts_with(message), "{found}");
     }
-    let later = document(variables, nodes, 2).replace(r#""version":23"#, r#""version":24"#);
+    let above = crate::wire::LEVEL + 1;
+    let later =
+        document(variables, nodes, 2).replace(r#""version":23"#, &format!(r#""version":{above}"#));
     assert!(matches!(
         read(&later),
-        Err(Error::Version { found: 24, .. })
+        Err(Error::Version { found, .. }) if found == u64::from(above)
     ));
     let small = Limits::default().with_occurrences(Some(5));
     let json = document(variables, nodes, 2);

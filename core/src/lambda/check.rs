@@ -28,10 +28,12 @@ use std::fmt::Write;
 /// The types are [`types`](Self::types): the term's own, at the ids the
 /// term gives them, followed by those the rules made.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Typing {
     /// The term's types, then those the rules made, operands first.
     types: Vec<Type>,
     /// The type of every node.
+    #[cfg_attr(feature = "serialize", serde(rename = "nodes"))]
     of: Vec<TypeId>,
 }
 

@@ -158,6 +158,7 @@ impl Serialize for Details<'_> {
             Rejected(e) | Reduction(e) => e.serialize(s),
             NoCut { node } => entries!(s; "node" => node),
             NoTerm { reason } => entries!(s; "reason" => reason),
+            NotEnumerable { connective } => entries!(s; "connective" => connective),
             IllTyped { reason, node, span } => {
                 entries!(s; "reason" => reason; "node" => node; "span" => span)
             }

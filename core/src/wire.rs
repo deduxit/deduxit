@@ -296,10 +296,14 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 23;
+pub const LEVEL: u32 = 24;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
+
+/// The level of a type's terms listed and counted, and of whether a type
+/// has a term, which are written only.
+pub(crate) const INHABITANTS: u32 = 24;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.

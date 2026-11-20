@@ -264,6 +264,192 @@
         }
       }
     },
+    "lambda_typing": {
+      "description": "A lambda-term checked (level 23, `term check --format json`, written only): the term's document, then the type of every node and the judgement with every type. The command adds `deduxit` and `verdict`. The keys of the term come first, so the document reads back as the term.",
+      "type": "object",
+      "required": [
+        "version",
+        "calculus",
+        "atoms",
+        "types",
+        "variables",
+        "context",
+        "goal",
+        "nodes",
+        "root",
+        "typing",
+        "judgement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 23
+        },
+        "calculus": {
+          "$ref": "#/$defs/typed_term/properties/calculus"
+        },
+        "atoms": {
+          "$ref": "#/$defs/typed_term/properties/atoms"
+        },
+        "types": {
+          "$ref": "#/$defs/typed_term/properties/types"
+        },
+        "variables": {
+          "$ref": "#/$defs/typed_term/properties/variables"
+        },
+        "context": {
+          "$ref": "#/$defs/typed_term/properties/context"
+        },
+        "goal": {
+          "$ref": "#/$defs/typed_term/properties/goal"
+        },
+        "nodes": {
+          "$ref": "#/$defs/typed_term/properties/nodes"
+        },
+        "root": {
+          "$ref": "#/$defs/typed_term/properties/root"
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "const": "well_typed"
+        },
+        "typing": {
+          "description": "The type of every node: `types` the term's types and those the typing rules made, each after its operands, as the term's `types` are written, and `nodes` the index of each node's type.",
+          "type": "object",
+          "required": [
+            "types",
+            "nodes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "types": {
+              "$ref": "#/$defs/typed_term/properties/types"
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "judgement": {
+          "description": "The judgement with every type, as the parser reads it.",
+          "type": "string"
+        }
+      }
+    },
+    "lambda_ill_typed": {
+      "description": "A lambda-term that is not well typed (level 23, `term check --format json`, written only): the error, whose code is `ill_typed` or a parse error's.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "verdict",
+        "error"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 23
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "const": "ill_typed"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      }
+    },
+    "lambda_inhabitation": {
+      "description": "Whether a type has a term (level 24, `term inhabit --format json`, written only): `inhabited` with the `term`, checked; `empty` with the `countermodel` where the engine gave one; or `unknown` with the `reason`.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "verdict"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 24
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "enum": [
+            "inhabited",
+            "empty",
+            "unknown"
+          ]
+        },
+        "term": {
+          "$ref": "#/$defs/typed_term"
+        },
+        "countermodel": {
+          "$ref": "#/$defs/ordinary_outcome_keys/properties/countermodel"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        }
+      }
+    },
+    "lambda_inhabitants": {
+      "description": "A type's terms, listed and counted up to βη-equality (level 24, `term enumerate --format json`, written only): the count, `exactly` and `at_least` with a `count`, or `infinite`; and the terms listed, each checked, the shortest first.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "count",
+        "terms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 24
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "count": {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "exactly",
+                "infinite",
+                "at_least"
+              ]
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typed_term"
+          }
+        }
+      }
+    },
     "error": {
       "description": "An error of the library, written and never read: `code` is what a program branches on, one of `deduxit::Error::CODES`; `kind` is what sort of failure it is; `message` is the English text; `setting` is the settings key of the bound that refused the call, present only where a bound did; `details` holds the fields of the error's variant, or the wrapped error's (a parse error's span, a check's node, rule, fault and premises, a refusal's `kind`). A client reads a code it does not know by its `kind`.",
       "type": "object",
@@ -353,6 +539,8 @@
             "step_needs",
             "not_fitch",
             "no_term",
+            "ill_typed",
+            "not_enumerable",
             "no_derivation",
             "not_built",
             "no_cut",

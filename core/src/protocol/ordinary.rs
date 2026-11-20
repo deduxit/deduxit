@@ -486,7 +486,7 @@ struct Statement<'a> {
 }
 
 /// Reads a statement: its sequent and its logic.
-fn statement(value: &str, limits: &Limits) -> Result<(Sequent, Logic), Error> {
+pub(super) fn statement(value: &str, limits: &Limits) -> Result<(Sequent, Logic), Error> {
     let claim: Claim = object(value, "ordinary statement")?;
     Ok((document(value, limits)?, claim.logic))
 }

@@ -173,8 +173,10 @@ Each entry point is described in the file of its module:
   `Term::parse(text, calculus, &limits)`, `wire::upgrade::<Term, _>`,
   `Term::check(&limits, stop)` to a `lambda::Typing` or
   `Error::IllTyped`, `Term::write`/`write_judgement` under
-  `lambda::Options`, and `Error::NoTerm` with a `lambda::NoTerm`
-  (`core-lambda.md`).
+  `lambda::Options`, and `Error::NoTerm` with a `lambda::NoTerm`;
+  `lambda::inhabit(&sequent, &limits, stop)` to an `Inhabitation`,
+  `lambda::enumerate(&sequent, &InhabitOptions, &limits, stop)` to
+  `Inhabitants` with a `Count` (`core-lambda.md`).
 
 ## Crate-wide rules
 
@@ -397,7 +399,8 @@ the commit that lands it rewrites that bullet.
   `lltp::{Problem, Status}`; `mist::{Problem, Safety}`;
   `nets::cut::{Elimination, Reduction, Step}`;
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
-  Options}` (added at step 50); `ordinary::{Evidence, Logic, Method, Options,
+  Options}` (added at step 50), `lambda::{Count, InhabitOptions,
+  Inhabitation, Inhabitants}` (added at step 71b); `ordinary::{Evidence, Logic, Method, Options,
   Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
   and `Search` added at step 54s); `ordinary::interactive::{Applicable,
   Closed, Context, Hint, Needs, Step, StepError}`;

@@ -601,6 +601,20 @@ pub enum Error {
         /// was read.
         span: Option<std::ops::Range<u32>>,
     },
+    /// A type's terms cannot be counted up to βη-equality as long normal
+    /// forms: it has `∨`, `⊥` or `¬`, under which βη-equality identifies
+    /// terms that long normal forms tell apart
+    /// ([`lambda::enumerate`](crate::lambda::enumerate)).
+    #[error(
+        "the terms of a type with {connective} are not counted: deduxit counts them for types \
+         built from atoms, →, ∧, ↔ and ⊤"
+    )]
+    #[non_exhaustive]
+    NotEnumerable {
+        /// The connective, `∨`, `⊥` (with `¬`, which is `A → ⊥`) or a
+        /// linear one.
+        connective: &'static str,
+    },
     /// A sequent is valid by a clausal proof or its truth table, where a
     /// derivation is needed: to draw or export it, or to read it as a
     /// lambda-term
@@ -877,6 +891,7 @@ impl Error {
         "not_fitch",
         "no_term",
         "ill_typed",
+        "not_enumerable",
         "no_derivation",
         "not_built",
         "no_cut",
@@ -964,6 +979,7 @@ impl Error {
             Self::NoCut { .. } => Unsupported,
             Self::NoTerm { .. } | Self::NoDerivation { .. } => Unsupported,
             Self::IllTyped { .. } => Invalid,
+            Self::NotEnumerable { .. } => Unsupported,
             Self::NotBuilt => Limit,
         }
     }
@@ -1061,6 +1077,7 @@ impl Error {
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::IllTyped { .. } => "ill_typed",
+            Self::NotEnumerable { .. } => "not_enumerable",
             Self::NoDerivation { .. } => "no_derivation",
             Self::NotBuilt => "not_built",
             Self::Reduction(_) => "reduction_rejected",
@@ -1410,6 +1427,7 @@ mod tests {
                 reason: crate::lambda::NoTerm::Classical,
             },
             Error::NoDerivation { evidence: "x" },
+            Error::NotEnumerable { connective: "∨" },
             Error::IllTyped {
                 reason: message(),
                 node: Some(0),
@@ -1658,6 +1676,7 @@ mod tests {
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::IllTyped { .. }
+            | Error::NotEnumerable { .. }
             | Error::NoDerivation { .. }
             | Error::NotBuilt
             | Error::Reduction(_) => {}

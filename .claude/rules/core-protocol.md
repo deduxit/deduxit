@@ -124,6 +124,19 @@ workspace graph builds on it.
   makes the clauses again from the input without the normal form's
   check (`normal::rewrite`), compares them (part `clauses`), then checks
   the refutation (read through the level-22 reader) or the model.
+- **The lambda suite** (`lambda.rs`): a `lambda.term` is a statement,
+  the term's document (form `typed_term`) with `text`, which
+  `protocol::statement("lambda", text, calculus, …)` makes; a type is an
+  `ordinary.sequent` claimed in intuitionistic logic (`InvalidOption`
+  key `logic` otherwise), its formulas left of `⊢` the free variables.
+  `lambda.check` writes the term's document with `typing` and
+  `judgement` (form `lambda_typing`, the record `term check` writes
+  less `deduxit` and `verdict`); its check of `well_typed` compares the
+  output's term with the input's and its `typing` with the checker's.
+  `lambda.inhabit` and `lambda.enumerate` write the level-24 documents;
+  their checks read each term, check it and hold it to the type with
+  `lambda::has_type`; an `empty` answer is `Recorded` (its countermodel
+  was checked by the engine, or LJT's search was exhaustive).
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

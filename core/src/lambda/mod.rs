@@ -142,6 +142,7 @@
 #![deny(clippy::wildcard_enum_match_arm)]
 
 mod check;
+mod inhabit;
 pub(crate) mod linear;
 #[cfg(feature = "parse")]
 mod parse;
@@ -153,6 +154,9 @@ pub(crate) mod simple;
 mod tests;
 
 pub use check::Typing;
+#[cfg(feature = "protocol")]
+pub(crate) use inhabit::has_type;
+pub use inhabit::{Count, InhabitOptions, Inhabitants, Inhabitation, enumerate, inhabit};
 
 use crate::hash::HashMap;
 use crate::limits::Refusal;
@@ -891,7 +895,7 @@ impl Types {
 /// What the read-backs and the readers fill while they build a term: the
 /// atoms, the types (two equal types are one id), the variables with
 /// their names, and the nodes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Builder {
     /// The atoms' names and their indices.
     atoms: Vec<Box<str>>,

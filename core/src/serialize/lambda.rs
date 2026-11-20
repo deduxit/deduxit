@@ -4,9 +4,13 @@
 //! The wire form of a lambda-term: a document of its own at the level
 //! of the term's form, read with its shape checked.
 
+use super::ordinary::CountermodelForm;
 use crate::lambda::read::{FORM, Parts};
-use crate::lambda::{Calculus, Node, Term, TermId, Type, TypeId, VarId, Variable};
+use crate::lambda::{
+    Calculus, Count, Inhabitants, Inhabitation, Node, Term, TermId, Type, TypeId, VarId, Variable,
+};
 use crate::limits::Limits;
+use crate::linear::search::Reason;
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -118,5 +122,78 @@ impl Readable for Term {
             root: form.root,
         };
         Term::from_parts(parts, limits).map_err(wire::fail)
+    }
+}
+
+/// The written form of a type's terms listed and counted.
+#[derive(Serialize)]
+struct InhabitantsForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// How many terms the type has.
+    count: Count,
+    /// The terms listed.
+    terms: &'a [Term],
+}
+
+impl Serialize for Inhabitants {
+    /// Serializes the terms and their count as a document at level 24,
+    /// written only.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        InhabitantsForm {
+            version: wire::INHABITANTS,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            count: self.count,
+            terms: &self.terms,
+        }
+        .serialize(serializer)
+    }
+}
+
+/// The written form of whether a type has a term.
+#[derive(Serialize)]
+struct InhabitationForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// `inhabited`, `empty` or `unknown`.
+    verdict: &'static str,
+    /// The term, for `inhabited`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    term: Option<&'a Term>,
+    /// The Kripke model that refutes the type's formula, for `empty` where
+    /// the engine gave one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    countermodel: Option<CountermodelForm>,
+    /// Why the engines did not decide, for `unknown`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<Reason>,
+}
+
+impl Serialize for Inhabitation {
+    /// Serializes the answer as a document at level 24, written only.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let (verdict, term, countermodel, reason) = match self {
+            Self::Inhabited(term) => ("inhabited", Some(&**term), None, None),
+            Self::Empty { countermodel } => (
+                "empty",
+                None,
+                countermodel.as_ref().map(CountermodelForm::of),
+                None,
+            ),
+            Self::Unknown(reason) => ("unknown", None, None, Some(*reason)),
+        };
+        InhabitationForm {
+            version: wire::INHABITANTS,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            verdict,
+            term,
+            countermodel,
+            reason,
+        }
+        .serialize(serializer)
     }
 }

@@ -112,62 +112,14 @@ pub(crate) fn read(
 
 impl ReadBack<'_> {
     /// Returns the type of a formula, `¬A` as `A → ⊥` and `A ↔ B` as `(A →
-    /// B) ∧ (B → A)`, building its operands' first with a stack of its own.
+    /// B) ∧ (B → A)`.
     fn ty(&mut self, id: NodeId) -> TypeId {
-        use crate::ordinary::Node as F;
-        if let Some(&t) = self.types.get(&id) {
-            return t;
-        }
-        let formulas = self.derivation.formulas();
-        let mut stack = vec![id];
-        while let Some(&top) = stack.last() {
-            let node = formulas.node(top);
-            let operands = node.operands();
-            let missing: Vec<NodeId> = [operands.0, operands.1]
-                .into_iter()
-                .flatten()
-                .filter(|o| !self.types.contains_key(o))
-                .collect();
-            if !missing.is_empty() {
-                stack.extend(missing);
-                continue;
-            }
-            stack.pop();
-            let of = |o: Option<NodeId>| self.types[&o.expect("an operand")];
-            let (a, b) = (operands.0, operands.1);
-            let ty = match node {
-                F::Atom(atom) => {
-                    let atom = self.builder.atom(formulas.atom_name(atom));
-                    self.builder.ty(Type::Atom { atom })
-                }
-                F::True => self.builder.ty(Type::Top),
-                F::False => self.builder.ty(Type::Zero),
-                F::Not(_) => {
-                    let to = self.builder.ty(Type::Zero);
-                    self.builder.ty(Type::Lollipop { from: of(a), to })
-                }
-                F::And(..) => self.builder.ty(Type::With {
-                    left: of(a),
-                    right: of(b),
-                }),
-                F::Or(..) => self.builder.ty(Type::Plus {
-                    left: of(a),
-                    right: of(b),
-                }),
-                F::Implies(..) => self.builder.ty(Type::Lollipop {
-                    from: of(a),
-                    to: of(b),
-                }),
-                F::Iff(..) => {
-                    let (a, b) = (of(a), of(b));
-                    let left = self.builder.ty(Type::Lollipop { from: a, to: b });
-                    let right = self.builder.ty(Type::Lollipop { from: b, to: a });
-                    self.builder.ty(Type::With { left, right })
-                }
-            };
-            self.types.insert(top, ty);
-        }
-        self.types[&id]
+        type_of(
+            self.derivation.formulas(),
+            &mut self.builder,
+            &mut self.types,
+            id,
+        )
     }
 
     /// Returns the type of an inference's term: its goal, or `⊥`.
@@ -438,4 +390,69 @@ impl ReadBack<'_> {
             }
         }
     }
+}
+
+/// Returns the type of a formula of `formulas` in `builder`'s arena,
+/// `¬A` as `A → ⊥` and `A ↔ B` as `(A → B) ∧ (B → A)`, building its
+/// operands' first with a stack of its own; `types` keeps the type of
+/// every formula met.
+pub(super) fn type_of(
+    formulas: &crate::ordinary::Formulas,
+    builder: &mut Builder,
+    types: &mut HashMap<NodeId, TypeId>,
+    id: NodeId,
+) -> TypeId {
+    use crate::ordinary::Node as F;
+    if let Some(&t) = types.get(&id) {
+        return t;
+    }
+    let mut stack = vec![id];
+    while let Some(&top) = stack.last() {
+        let node = formulas.node(top);
+        let operands = node.operands();
+        let missing: Vec<NodeId> = [operands.0, operands.1]
+            .into_iter()
+            .flatten()
+            .filter(|o| !types.contains_key(o))
+            .collect();
+        if !missing.is_empty() {
+            stack.extend(missing);
+            continue;
+        }
+        stack.pop();
+        let of = |o: Option<NodeId>| types[&o.expect("an operand")];
+        let (a, b) = (operands.0, operands.1);
+        let ty = match node {
+            F::Atom(atom) => {
+                let atom = builder.atom(formulas.atom_name(atom));
+                builder.ty(Type::Atom { atom })
+            }
+            F::True => builder.ty(Type::Top),
+            F::False => builder.ty(Type::Zero),
+            F::Not(_) => {
+                let to = builder.ty(Type::Zero);
+                builder.ty(Type::Lollipop { from: of(a), to })
+            }
+            F::And(..) => builder.ty(Type::With {
+                left: of(a),
+                right: of(b),
+            }),
+            F::Or(..) => builder.ty(Type::Plus {
+                left: of(a),
+                right: of(b),
+            }),
+            F::Implies(..) => builder.ty(Type::Lollipop {
+                from: of(a),
+                to: of(b),
+            }),
+            F::Iff(..) => {
+                let (a, b) = (of(a), of(b));
+                let left = builder.ty(Type::Lollipop { from: a, to: b });
+                let right = builder.ty(Type::Lollipop { from: b, to: a });
+                builder.ty(Type::With { left, right })
+            }
+        };
+        types.insert(top, ty);
+    }
+    types[&id]
 }

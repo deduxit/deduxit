@@ -58,7 +58,7 @@ fn the_names_list_every_operation_and_kind_once() {
         }
     }
     let json = serde_json::to_value(catalogue()).unwrap();
-    assert_eq!(json["suites"].as_array().unwrap().len(), 4);
+    assert_eq!(json["suites"].as_array().unwrap().len(), 5);
     assert_eq!(
         json["suites"][1]["operations"][4]["promise"]["name"],
         "same_verdict"
@@ -535,4 +535,59 @@ fn a_modal_derivation_is_exported() {
     let outcome = ran("modal.decide", &[&s4], "");
     let text = ran("modal.export", &[&outcome], "");
     assert!(text.contains(r"\\Box"), "{text}");
+}
+
+#[test]
+fn a_term_is_checked_and_a_type_s_terms_found_and_counted() {
+    let limits = settings().limits;
+    let term = super::statement("lambda", r"\f:a -> b. \x:a. f x", "simple", &limits).unwrap();
+    let typed = ran("lambda.check", &[&term], "");
+    assert_eq!(
+        summary("lambda.typing", &typed, &limits).unwrap(),
+        "λf. λx. f x"
+    );
+    assert_eq!(
+        checked("lambda.check", &[&term], "", &typed).status,
+        Status::Held
+    );
+    let other = super::statement("lambda", r"\x:a. x", "simple", &limits).unwrap();
+    assert_eq!(
+        checked("lambda.check", &[&other], "", &typed).status,
+        Status::Failed
+    );
+    let intuitionistic = crate::ordinary::Logic::Intuitionistic;
+    let ty = ordinary("|- a /\\ b -> b /\\ a", intuitionistic);
+    let found = ran("lambda.inhabit", &[&ty], "");
+    assert_eq!(
+        summary("lambda.inhabitation", &found, &limits).unwrap(),
+        "Has a term"
+    );
+    assert_eq!(
+        checked("lambda.inhabit", &[&ty], "", &found).status,
+        Status::Held
+    );
+    // A term of another type fails the check.
+    let swapped = ordinary("|- a /\\ b -> a /\\ b", intuitionistic);
+    let wrong = ran("lambda.inhabit", &[&swapped], "");
+    assert_eq!(
+        checked("lambda.inhabit", &[&ty], "", &wrong).status,
+        Status::Failed
+    );
+    let pick = ordinary("|- a -> a -> a", intuitionistic);
+    let listed = ran("lambda.enumerate", &[&pick], r#"{"max_terms": 1}"#);
+    assert_eq!(
+        summary("lambda.inhabitants", &listed, &limits).unwrap(),
+        "Exactly 2 terms"
+    );
+    assert_eq!(
+        checked("lambda.enumerate", &[&pick], "", &listed).status,
+        Status::Held
+    );
+    let classical = ordinary("|- a -> a", crate::ordinary::Logic::Classical);
+    assert!(matches!(
+        run("lambda.enumerate", &[&classical], "", &settings(), |_| {
+            false
+        }),
+        Err(Error::InvalidOption { key: "logic", .. })
+    ));
 }

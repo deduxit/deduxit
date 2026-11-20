@@ -454,11 +454,21 @@ struct OutcomeForm<'a> {
 /// The serialized form of a countermodel: the sequent refuted and the
 /// model.
 #[derive(Serialize, Deserialize)]
-struct CountermodelForm {
+pub(super) struct CountermodelForm {
     /// The sequent refuted.
     sequent: SequentForm,
     /// The model.
     model: super::kripke::ModelForm,
+}
+
+impl CountermodelForm {
+    /// Returns the written form of a countermodel.
+    pub(super) fn of(c: &crate::ordinary::Countermodel) -> Self {
+        Self {
+            sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
+            model: super::kripke::ModelForm::from(&c.model),
+        }
+    }
 }
 
 /// How an ordinary sequent was searched, as an outcome writes it: an
@@ -562,10 +572,7 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         #[cfg(feature = "sat")]
         Search::Sat(_) => wire::SEARCH,
     };
-    let countermodel = outcome.countermodel.as_ref().map(|c| CountermodelForm {
-        sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
-        model: super::kripke::ModelForm::from(&c.model),
-    });
+    let countermodel = outcome.countermodel.as_ref().map(CountermodelForm::of);
     // A reader of level 12 may ignore the countermodel without
     // misreading the verdict, so it raises no level.
     OutcomeForm {

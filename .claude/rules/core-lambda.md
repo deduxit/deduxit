@@ -27,6 +27,9 @@ design, with its sources and the alternatives weighed, is
   `Term::parse`; `read.rs` (feature `serialize`): `Term::from_parts`,
   the shape check of a document's parts, whose serde forms are
   `core/src/serialize/lambda.rs` (wire level 23, `wire::LAMBDA`);
+  `inhabit.rs`: `inhabit` and `enumerate` (inhabitation of simple
+  types, their answers' forms at level 24, `wire::INHABITANTS`) and the
+  protocol's `has_type`;
   `tests.rs`: the round trips against a checker of the tests' own.
 - **A variable is its `VarId`, with its type** (Church's own typing):
   a binder and every use name one entry of `Term::variables`, so a
@@ -175,3 +178,47 @@ design, with its sources and the alternatives weighed, is
   application and a `Type` variant with a bound type variable, in the
   arena's operand-first order; `NoTerm::Quantified` stays for
   first-order quantifiers, which are no type quantifiers.
+- **Inhabitation goes through the ordinary engines** (`inhabit.rs`):
+  `inhabit` is `ordinary::decide_within` of the sequent in
+  intuitionistic logic, LJT again where the default method gave no
+  derivation, the derivation read back (`simple::read`) and checked. The
+  type is the ordinary formula, converted by `simple::type_of`, the
+  read-back's own conversion, so `¬A` and `↔` are typed alike.
+- **`enumerate` counts long normal forms** (Ben-Yelles; Hindley 1997,
+  ch. 8) of the negative fragment only: atoms, `→`, `∧`, `⊤` (`↔` is a
+  pair of `→`). With `∨` or `⊥`, βη-equality is not the identity of long
+  normal forms (Scherer and Rémy, ICFP 2015), so a count would be
+  wrong: `Error::NotEnumerable`. Widening the fragment needs their
+  focused normal forms, not a new arm.
+- **Why its count is right**: every goal's shape (the sorted set of the
+  types in scope and the goal) is decided by the engines first
+  (`Search::decided`, memoized), and a head is a candidate only when
+  every argument's shape has a term, so every goal the search enters
+  lies in some inhabitant. Then (a) a shape met again inside itself
+  (`on_way`) means infinitely many terms: the outer goal's term can
+  stand for the inner goal, as the inner context holds the outer's
+  variables, pumping a longer term each time; (b) without such a repeat
+  the pruned tree is finite (contexts only grow, shapes are finitely
+  many), so a search that met no depth bound and no undecided shape met
+  every term, and the count is exact. Distinct derivations of the
+  grammar are distinct terms (a head is a `VarId`, a path a list of
+  eliminations). A shape the engines leave unknown is not entered, and
+  the count becomes "at least" (`undecided`). The engines' verdicts are
+  the trusted part of the count; the terms listed are checked by
+  `Term::check` one by one.
+- **The counts saturate** at `u64::MAX` (`Found::overflow`), which
+  makes the answer "at least"; the lists stop at `max_terms` while the
+  counts go on (`product`, `Join`). The search is a task stack
+  (`Task`), no recursion; work and the arena's bytes
+  (`NODE_BYTES` per node) are held to `limits.work` and
+  `limits.memory_bytes`. Each engine call takes the caller's whole
+  `limits`, so the work of a call is bounded per shape decided, not in
+  total.
+- **Variable names** follow the read-back's letters per kind of type,
+  counted along the context (`Ctx::named`), so names on one path are
+  distinct and the capture condition of `check` never fires on a term
+  listed; siblings reuse names.
+- **`has_type`** (feature `protocol`) interns the sequent's formulas
+  into a builder seeded with the term's own arena and atoms, so a type
+  equal to one of the term's gets its id; a type made anew is none of
+  the term's.
