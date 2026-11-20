@@ -1084,3 +1084,119 @@ reviewer (the brief).
   `main@origin` `rluokntt`.
 - rocq-deduxit: `twvrwvrk`, on `main@origin` `nmklslnu`.
 - deduxit: `lstszmrm` and this report, on `main@origin` `xuptrvts`.
+
+## Session 54x9: the fuzz runs
+
+The five targets that had never run long (`lambda_text` and
+`lambda_inhabit`, built with inhabitation, and the modal three after
+their 90 minutes in 54x7), run on cores 12 to 15 until a cap of two
+hours each or a stall of 20 minutes. Two finds, both fixed: one in the
+library, one in the target. Opus 5.5 at `high`; the reviewer Fable 5.2
+at `medium`.
+
+### The seeds
+
+- `qtvnrmtk` "Seed the lambda fuzz targets with level 23's terms and
+  the manual's" (`fuzz/seed.sh`):
+  - `lambda_text`: the four documents of `core/tests/wire/level-23.txt`;
+    the manual's terms, each with the calculi whose syntax has it
+    (`\f:a -> b. \x:a. f x` simple only, the ill-typed `\x:a. x * x`
+    linear and affine, `\x:a. \y:b. x` all three); and the judgements
+    that `term inhabit` (an `inhabited` answer's second line) and `term
+    enumerate --depth 3 --max-terms 4` print for the manual's five types.
+  - `lambda_inhabit`: those five types with the first byte `C` (depth 3,
+    eight terms listed).
+  - Counts after seeding: `lambda_text` 52, `lambda_inhabit` 13. The
+    modal three took 54x7's corpora (`json_modal` 5 483, `modal_text`
+    2 627, `modal_decide` 3 451) from its workspace.
+
+### The runs
+
+`fuzz/run.sh --inside lambda_text lambda_inhabit modal_decide
+json_modal modal_text` as the user unit `deduxit-fuzz` from 18:30 on
+2026-11-20, `STALL` 1 200 s, `CAP` 7 200 s, debug assertions on:
+`lambda_text` then `modal_text` on core 12, `lambda_inhabit` on 13,
+`modal_decide` on 14, `json_modal` on 15. `lambda_inhabit` was stopped
+after 150 s for its find, rebuilt and run again on core 13 for 7 200 s
+(`-max_total_time`, the scope `deduxit-fuzz-lambda_inhabit-2`). The
+machine was suspended from 20:23 to 20:49, which the times below leave
+out:
+
+| target | time | ended | coverage | corpus | finds |
+|---|---|---|---|---|---|
+| `lambda_text` | 6 811 s | cap | 7 373 | 5 392 | 1 |
+| `lambda_inhabit` | 150 s + 6 480 s | cap | 9 943 | 3 429 | 1 |
+| `modal_decide` | 6 811 s | cap | 5 945 (54x7: 5 909) | 3 807 | 0 |
+| `json_modal` | 6 811 s | cap | 8 787 (54x7: 8 217) | 6 258 | 0 |
+| `modal_text` | 2 251 s | stalled | 1 889 (54x7: 1 887) | 2 710 | 0 |
+
+`modal_text` stalled; the other four reached the cap still growing,
+by 3 (`modal_decide`) to 57 (`lambda_text`) edges in their last 12
+minutes (departs from the design: "until their coverage stops
+growing"; the corpora stay under `fuzz/corpus/` in this workspace for a
+longer run).
+
+### The finds and fixes
+
+1. **`lambda_text`, three inputs in the first minute: "a printed term
+   reads back: Refused(Occurrences { occurrences: 4097, limit: 4096
+   })".** The target's claim was too strong: the printed text writes
+   every type out, a shared `↔` as its two implications, so it can pass
+   the occurrence bound the term kept within (the parser counts every
+   node of the text, the JSON reader the arena's shared ids). `plmznllv`
+   "Let a bound end the lambda fuzz target's round trip": a refusal of
+   kind `Limit` on reading back or checking ends the round trip; any
+   other error still panics. The three inputs replay clean.
+2. **`lambda_inhabit`, `\006true` (depth 6, no term asked for): the
+   count was exact and 1 and one term was listed.** `enumerate` listed
+   ⊤'s `⟨⟩` whatever `max_terms` said, the one list that did not honour
+   it. `poyxupyy` "List no term of ⊤ when none is asked for", with the
+   test `no_term_is_listed_when_none_is_asked_for` (`|- true` fails it
+   before the fix). The input replays clean.
+3. **Two false finds at the resume from the suspend**, both filed at
+   20:49:40: a timeout of `lambda_inhabit` (replays in 1.2 s under the
+   fuzzer, 61 ms in a release build with the fuzz build's features,
+   within the 20 s timeout; the fuzz build has no `sat`, so `inhabit`
+   decides by the other default method) and a slow unit of `lambda_text`
+   (146 ms). `evidence.md` now says to replay every timeout and slow unit
+   before counting it, and to take a suspend out of a run's time.
+
+`xwywwnmt` "Record the lambda and modal fuzz runs": the table above,
+the seeds, the bound in the round trip's description and the suspend in
+`.claude/rules/evidence.md`.
+
+### The reviewer's findings
+
+`fresh-reviewer` once (Fable 5.2, `medium`) on the three commits. The
+target's `Limit` return and the ⊤ fix held: every other list (`product`,
+the lambda's, the join's) already honoured `max_terms` 0, the count is
+kept apart from the lists, and the test fails before the fix. Three
+findings, all fixed and folded into their commits:
+
+1. `term inhabit`'s second line was seeded for every type, and for
+   Peirce's law it is `countermodel:`, no term: only an `inhabited`
+   answer's second line is seeded now.
+2. Four of the nine manual seeds were refused at once by the calculus
+   their first byte named (`\f:a -> b. …` does not parse in the linear
+   and affine syntax, `x * x` not in the simple one): each term goes
+   with the calculi whose syntax has it. The four files were removed
+   from the corpus.
+3. The target's header and `evidence.md` still promised the round trip
+   without the bound's exception: both say it now.
+
+### Checks
+
+- The inhabit unit tests (9) after the fix; the fuzz targets rebuilt by
+  `fuzz/run.sh` after each fix and every find replayed (`TARGET -runs=1
+  FILE`). The header comment of `lambda_text.rs` changed after its last
+  build.
+- `nix flake check` (machine lock, `--max-jobs 4 --cores 8`) at the
+  chain before the review's fixes, rebased on `main@origin` `rsqsmmst`:
+  passed. It holds the gate's parts, so no separate gate ran.
+- `nix flake check` again at `xwywwnmt`, after the fixes: passed. This
+  report's commit, a plan file alone, is the only change after it.
+
+### Commits
+
+`qtvnrmtk`, `plmznllv`, `poyxupyy`, `xwywwnmt` and this report, on
+`main@origin` `rsqsmmst`.
