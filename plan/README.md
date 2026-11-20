@@ -7628,3 +7628,16 @@ move (D26).
   44722429110: every group, `nix flake check --no-build`, the advisories and the Pages deployment).
   ci-speed's follow-up `musnrzko` pushed: Install's "from the release" job asks for the latest
   release with the job's token (`gh release view`), where an anonymous `curl` met the rate limit.
+- 2026-11-20, 13:10: **70b reviewed and pushed; 70c started.**
+  - **70b** (`mplyqsmv` to `nzrtuzxv`): `ordinary::resolution`: clause sets from a sequent's
+    negation (through 70a's checked forms) or DIMACS; a refutation as a graph of resolvents, by hand
+    (`Refutation::resolve`) or found by saturation within bounds; DPLL traced (unit, pure, decide,
+    conflict, backtrack) with its refutation read off; every refutation checked step by step, a
+    model checked against every clause; an outside solver's DRAT (text, binary) or LRAT proof
+    checked by 54s's DRUP checker (RAT refused); `resolve`, `check` of a refutation, `check
+    --dimacs FILE PROOF`; wire level 22; `ordinary.resolve` in the protocol. The panel:
+    counterexamples and argument both refuted the checker's soundness (a resolvent dropped both
+    signs of the pivot from both parents, so `{a ∨ ¬a}` was "refuted"; fixed and pinned), integers
+    found wraps past 2³¹ atoms and unbounded DIMACS headers (fixed); fresh-reviewer (Fable) three
+    findings, fixed. Module +31 KB (3 721 760, 28 KB under the ceiling). `nix flake check` passed.
+  - **70c** (the page: normal forms and resolution, the graph view) started in the same worker.
