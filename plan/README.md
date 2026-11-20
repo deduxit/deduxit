@@ -7532,3 +7532,9 @@ move (D26).
 - 2026-11-16, 22:40: **rocq-deduxit 0.6.0 prepared and pushed** (69's `qworrpqw`, `1ab69571`: the
   changelog's 0.6.0 section, CITATION and opam at 0.6.0, README saying the library is released
   under deduxit's number when it changes, no 0.5.0). Its tag `v0.6.0` follows when its CI is green.
+- 2026-11-20, 04:15: **Resumed after the weekly limit.** On 2026-11-16 at about 22:50 every session,
+  this one included, met the account's weekly limit (reset 2026-11-20 04:00). Nothing was lost:
+  54x7 had its gate, fuzz run and reviewer under way; 69 had rocq-deduxit's release commit pushed
+  (`1ab69571`, CI green, not yet tagged) and its deduxit chain's Rocq checks passing. Both resumed
+  at 04:15. The release is re-dated to its tag day: 69 moves rocq-deduxit's and deduxit's 0.6.0
+  dates to 2026-11-20 before the tags.
