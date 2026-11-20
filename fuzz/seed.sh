@@ -143,6 +143,55 @@ for t in 'a -> a -> a' '(a -> a) -> a -> a' 'a /\ b -> b /\ a' '(a -> b) -> (b -
     printf '%s' "$t"
   } | seed lambda_inhabit "small-$i"
 done
+# The lambda-terms the wire level's test keeps (level 23, a byte for the
+# calculus before each), the manual's and the guide's terms and types,
+# and the judgements, types shown, that `term inhabit` and `term
+# enumerate` print for those types, which read back as terms. A manual's
+# term goes with each calculus whose syntax has it, its bytes before a
+# colon; `x * x` is the manual's term that does not check.
+grep -E '^[a-z-]+: ' core/tests/wire/level-23.txt | while read -r name json; do
+  {
+    printf '%b' '\002'
+    printf '%s' "$json"
+  } | seed lambda_text "${name%:}"
+done
+for entry in '2:\f:a -> b. \x:a. f x' '01:\x:a. x * x' '012:\x:a. \y:b. x'; do
+  i=$((i + 1))
+  bytes=${entry%%:*}
+  t=${entry#*:}
+  for b in $(echo "$bytes" | fold -w 1); do
+    {
+      printf '%b' "\\00$b"
+      printf '%s' "$t"
+    } | seed lambda_text "manual-$i-$b"
+  done
+done
+for t in 'a /\ b -> b /\ a' '((a -> b) -> a) -> a' '(a -> a -> b) -> a -> a -> b' \
+  '(a -> a) -> a -> a' 'a -> a -> a'; do
+  i=$((i + 1))
+  {
+    printf '%b' '\103'
+    printf '%s' "$t"
+  } | seed lambda_inhabit "manual-$i"
+  # The judgement is the second line of an `inhabited` answer only.
+  { "$deduxit" term inhabit "$t" || true; } |
+    awk 'NR == 1 && !/^inhabited/ { exit } NR == 2' | while read -r line; do
+    {
+      printf '%b' '\002'
+      printf '%s' "$line"
+    } | seed lambda_text "inhabitant-$i"
+  done
+  { "$deduxit" term enumerate --depth 3 --max-terms 4 "$t" || true; } | tail -n +2 | {
+    k=0
+    while read -r line; do
+      k=$((k + 1))
+      {
+        printf '%b' '\002'
+        printf '%s' "$line"
+      } | seed lambda_text "listed-$i-$k"
+    done
+  }
+done
 # The modal documents the wire level's test keeps: a sequent and an
 # outcome of each verdict.
 grep -E '^[a-z-]+: ' core/tests/wire/level-20.txt | while read -r name json; do
