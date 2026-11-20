@@ -202,6 +202,7 @@
             "too_many_atoms",
             "elimination_limit",
             "index_limit",
+            "form_too_large",
             "thread_pool",
             "write_failed",
             "not_svg",

@@ -97,6 +97,13 @@ pub struct Limits {
     /// The most atoms a truth table may have: its rows double with each.
     /// [`DEFAULT_TABLE_ATOMS`](Self::DEFAULT_TABLE_ATOMS) by default.
     pub table_atoms: Option<u32>,
+    /// The most subformula occurrences a normal form may unfold to, and
+    /// each sequent on the way to it (`deduxit::ordinary::normal`):
+    /// distribution can make a formula exponentially longer.
+    /// [`DEFAULT_FORM_OCCURRENCES`](Self::DEFAULT_FORM_OCCURRENCES) by
+    /// default.
+    #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
+    pub form_occurrences: Option<u64>,
     /// The deepest recursion on any one stack. Every thread the library
     /// starts is sized for it ([`stack_bytes`](Self::stack_bytes)).
     ///
@@ -127,6 +134,10 @@ impl Limits {
     /// as many as a reader scans; a table that large is refused unless the
     /// bound is raised.
     pub const DEFAULT_TABLE_ATOMS: u32 = 10;
+    /// The default bound on a normal form's occurrences: ten thousand,
+    /// some pages of text, which every step of the rewriting is shown
+    /// with; a larger form is refused unless the bound is raised.
+    pub const DEFAULT_FORM_OCCURRENCES: u64 = 10_000;
     /// The default recursion depth: 2048 levels, which fit a main
     /// thread's stack of 8 MiB in an optimized build.
     pub const DEFAULT_RECURSION_DEPTH: u32 = 2048;
@@ -139,6 +150,7 @@ impl Limits {
         derivation_bytes: None,
         work: None,
         table_atoms: None,
+        form_occurrences: None,
         recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
         workspace: WorkspaceLimits::UNBOUNDED,
     };
@@ -220,6 +232,14 @@ impl Limits {
         self
     }
 
+    /// Returns the limits with another bound on a normal form's
+    /// occurrences.
+    #[must_use]
+    pub const fn with_form_occurrences(mut self, form_occurrences: Option<u64>) -> Self {
+        self.form_occurrences = form_occurrences;
+        self
+    }
+
     /// Returns the limits with another recursion depth.
     #[must_use]
     pub const fn with_recursion_depth(mut self, recursion_depth: u32) -> Self {
@@ -245,6 +265,7 @@ impl Default for Limits {
             derivation_bytes: Some(Self::DEFAULT_DERIVATION_BYTES),
             work: None,
             table_atoms: Some(Self::DEFAULT_TABLE_ATOMS),
+            form_occurrences: Some(Self::DEFAULT_FORM_OCCURRENCES),
             recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
             workspace: WorkspaceLimits::default(),
         }
@@ -444,6 +465,8 @@ pub enum Phase {
     ReadBack,
     /// Eliminating the cuts of a proof.
     Eliminate,
+    /// Rewriting a formula into a normal form.
+    Rewrite,
 }
 
 impl Phase {
@@ -460,6 +483,7 @@ impl Phase {
             Self::Net => "net",
             Self::ReadBack => "read-back",
             Self::Eliminate => "elimination",
+            Self::Rewrite => "rewriting",
         }
     }
 }
@@ -665,6 +689,15 @@ pub enum Refusal {
         /// The most the representation holds.
         most: u64,
     },
+    /// A normal form, or a sequent on the way to it, would unfold to more
+    /// occurrences than the bound. The count is the first past it.
+    #[non_exhaustive]
+    Form {
+        /// The occurrences the rewriting reached.
+        occurrences: u64,
+        /// The bound, [`Limits::form_occurrences`].
+        limit: u64,
+    },
 }
 
 impl Refusal {
@@ -682,6 +715,7 @@ impl Refusal {
             Self::Atoms { .. } => "too_many_atoms",
             Self::Workspace { .. } => "workspace_limit",
             Self::Index { .. } => "index_limit",
+            Self::Form { .. } => "form_too_large",
         }
     }
 
@@ -695,6 +729,7 @@ impl Refusal {
             Self::Output { .. } => Some("limits.derivation_bytes"),
             Self::Work { .. } => Some("limits.work"),
             Self::Atoms { .. } => Some("limits.table_atoms"),
+            Self::Form { .. } => Some("limits.form_occurrences"),
             Self::Workspace { what, .. } => Some(what.setting()),
             Self::Pixels { .. } => Some("styles.png.pixels"),
             Self::Elimination {
@@ -822,6 +857,11 @@ impl Display for Refusal {
                 f,
                 "{count} {} are more than this representation can index ({most})",
                 what.plural()
+            ),
+            Self::Form { occurrences, limit } => write!(
+                f,
+                "the normal form would grow to {occurrences} occurrences, more than the \
+                 limit of {limit}"
             ),
         }
     }

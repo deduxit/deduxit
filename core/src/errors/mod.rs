@@ -821,6 +821,7 @@ impl Error {
         "workspace_limit",
         "elimination_limit",
         "index_limit",
+        "form_too_large",
         "thread_pool",
         "write_failed",
         "not_svg",
@@ -1231,6 +1232,10 @@ mod tests {
                 limit: 1,
             },
             Refusal::Atoms { atoms: 2, limit: 1 },
+            Refusal::Form {
+                occurrences: 2,
+                limit: 1,
+            },
             Refusal::Workspace {
                 what: crate::limits::Held::Nodes,
                 count: 2,
@@ -1613,7 +1618,8 @@ mod tests {
             | Refusal::Elimination { .. }
             | Refusal::Atoms { .. }
             | Refusal::Workspace { .. }
-            | Refusal::Index { .. } => {}
+            | Refusal::Index { .. }
+            | Refusal::Form { .. } => {}
         }
     }
 

@@ -1546,6 +1546,7 @@ fn limit_named(reason: &str, setting: Option<&str>) -> Limit {
             "limits.derivation_bytes",
             "limits.work",
             "limits.table_atoms",
+            "limits.form_occurrences",
             "limits.recursion_depth",
             "search.copies",
             "search.witness_depth",

@@ -36,6 +36,7 @@
 //! | 18 | a session in a calculus given as data with lines a forward step derived: a node's `line`, and a goal's `cites` | a session of [`rules`](crate::rules) that holds such a line (feature `interactive`) |
 //! | 19 | a workspace of linked values: the values, each its kind's document whole; the nodes, given or made by a recipe; the records of runs; the log of edits | a workspace (`workspace`, feature `protocol`) |
 //! | 20 | the forms of modal logic: a sequent with the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic, and the outcome of deciding one | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is); every modal outcome |
+//! | 21 | a classical sequent's normal form with its steps and the claims of its promise decided, each outcome nested without `version` and `deduxit`; written only | a normal form |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -242,6 +243,13 @@
 //!   halves decided, the interpolant last right of `⊢` in the first and
 //!   first left of `⊢` in the second; see
 //!   [`ordinary::interpolant::Interpolation`](crate::ordinary::interpolant::Interpolation).
+//! - **Normal form** (written only): `{"version": 21, "deduxit": "0.6.0",
+//!   "form": "cnf", "promise": "equivalent", "checked": true, "sequent":
+//!   {…}, "result": {…}, "steps": [{"rule", "law", "before", "after",
+//!   "left", "right", "added"}, …], "checks": [{"claim", "sequent",
+//!   "outcome"}, …]}`, the steps' numbers indices of the result's
+//!   `formulas`; see
+//!   [`ordinary::normal::NormalForm`](crate::ordinary::normal::NormalForm).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -268,7 +276,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 20;
+pub const LEVEL: u32 = 21;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -459,6 +467,9 @@ pub(crate) const TABLES: u32 = 14;
 /// The level of a negative translation compared and of an interpolation,
 /// which are written only.
 pub(crate) const TRANSFORMS: u32 = 16;
+
+/// The level of a normal form with its steps, which is written only.
+pub(crate) const FORMS: u32 = 21;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

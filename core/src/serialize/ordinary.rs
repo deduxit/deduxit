@@ -1404,3 +1404,98 @@ impl Serialize for crate::ordinary::interpolant::Interpolation {
         .serialize(serializer)
     }
 }
+
+/// The written form of a normal form: the form, its promise, the input,
+/// the result, the steps and the checks.
+#[derive(Serialize)]
+struct NormalFormForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// The form's name.
+    form: crate::ordinary::normal::Form,
+    /// What it keeps of the input.
+    promise: crate::ordinary::normal::Promise,
+    /// Whether every claim of the promise was decided valid.
+    checked: bool,
+    /// The input.
+    sequent: SequentForm,
+    /// The normal form, whose formulas the steps index.
+    result: SequentForm,
+    /// The steps.
+    steps: Vec<StepForm>,
+    /// The claims decided.
+    checks: Vec<CheckedForm<'a>>,
+}
+
+/// The written form of a step: its rule and law, and indices of the
+/// result's formulas.
+#[derive(Serialize)]
+struct StepForm {
+    /// The rule.
+    rule: crate::ordinary::normal::Rule,
+    /// The law the rule applies, as text.
+    law: &'static str,
+    /// The subformula rewritten.
+    before: u32,
+    /// What replaces it.
+    after: u32,
+    /// The input's formulas left of `⊢` after the step.
+    left: Vec<u32>,
+    /// The input's formulas right of `⊢` after the step.
+    right: Vec<u32>,
+    /// The clauses the step adds as hypotheses.
+    added: Vec<u32>,
+}
+
+/// The written form of a claim decided.
+#[derive(Serialize)]
+struct CheckedForm<'a> {
+    /// The claim.
+    claim: crate::ordinary::normal::Claim,
+    /// The sequent whose validity is the claim.
+    sequent: SequentForm,
+    /// The sequent decided.
+    outcome: NestedOutcome<'a>,
+}
+
+impl Serialize for crate::ordinary::normal::NormalForm {
+    /// Serializes the normal form as a document at level 21.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
+        let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
+        NormalFormForm {
+            version: wire::FORMS,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            form: self.form,
+            promise: self.form.promise(),
+            checked: self.is_checked(),
+            sequent: form(&self.sequent),
+            result: form(&self.result),
+            steps: self
+                .steps
+                .iter()
+                .map(|step| StepForm {
+                    rule: step.rule,
+                    law: step.rule.law(),
+                    before: step.before.index() as u32,
+                    after: step.after.index() as u32,
+                    left: ids(&step.left),
+                    right: ids(&step.right),
+                    added: ids(&step.added),
+                })
+                .collect(),
+            checks: self
+                .checks
+                .iter()
+                .map(|c| CheckedForm {
+                    claim: c.claim,
+                    sequent: form(&c.sequent),
+                    outcome: NestedOutcome(&c.outcome),
+                })
+                .collect(),
+        }
+        .serialize(serializer)
+    }
+}

@@ -71,6 +71,7 @@ pub mod ljt;
 /// The check of a Kripke model.
 mod model;
 pub mod negative;
+pub mod normal;
 #[cfg(feature = "parse")]
 mod parse;
 /// The certificates over `Prop`.
