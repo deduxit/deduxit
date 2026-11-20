@@ -252,6 +252,13 @@ to D32), grouped by release. In brief:
 
 ## How a step runs
 
+A slot the step chain cannot use goes to a **fixup** session: loose ends
+from reviews, accepted proposals, `plan/later.md` items. It is named
+`fixup-NN` (two digits, counting on from 54x9 = 9), never with a step's
+number (the author, 2026-11-20); its brief is `start-fixup-NN.md`, its
+report a section of `plan/reports/fixups.md`, its log rows kind `small`
+or `panel` with the step `fixup-NN`.
+
 1. **Finish its prompt** at the review its row names: a section "What
    step N left you" (the facts a session cannot see: renamed items,
    numbers, the oracles, what the release promised), "How the step

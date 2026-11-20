@@ -7760,3 +7760,8 @@ move (D26).
   the reviewer). `later.md`'s seriality item is done (`xvpnroyr`: a name a rule asks to be new is
   new to its other variables) and its auto-reverse item is narrowed to rule files (the ordinary
   suite has `invert_all`).
+- 2026-11-20, about 22:05: **The side sessions are fixups now** (the author: "If they're not part
+  of the ordinary steps, they shouldn't use the main numbering"). From now on a session of loose
+  ends beside the step chain is `fixup-NN`, counting on from 54x9, with its reports in
+  `plan/reports/fixups.md` (`plan/handoff.md`, "How a step runs"). The running 54x10 is
+  `fixup-10`; 54x to 54x9 keep their names in the history and `54x-proposals.md`.
