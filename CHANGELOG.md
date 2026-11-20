@@ -10,14 +10,45 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-20
+
+Resolution and the simply typed lambda calculus. deduxit rewrites a
+classical sequent into negation, conjunctive or disjunctive normal form,
+or into clauses by Tseitin's or Plaisted and Greenbaum's encoding, one
+law per step, and checks the result with its SAT solver. It refutes the
+clauses of a sequent's negation by resolution or by DPLL, checks every
+refutation step by step and every model clause by clause, and checks an
+outside SAT solver's DRAT or LRAT proof. `term check` reads a term of
+the simply typed, the linear or the affine lambda calculus and checks
+its type; `term inhabit` finds a term of a type, read back from a
+derivation and checked, or shows that it has none; `term enumerate`
+lists and counts a type's terms up to βη-equality. A well-typed term's
+typing derivation is drawn as a tree in every export. `grade` grades an
+answer to a problem in one call, and a dataset of 843 problems with
+verified answers comes with it, for evaluating models. On the web page,
+a classical proof's normal forms are stepped through one law at a time,
+its clauses are refuted by resolution, as a list and as a graph, by
+DPLL or by hand; a lambda-term is checked and its typing derivation
+drawn, and a type's terms are found and counted; and the switch of
+invertible rules acts in LK and LJ tabs too.
+
+### What breaks, and what to do instead
+
+- **A variable of a `lambda::Term` has a name**, an identifier, where it
+  had a letter and an index: `lambda::Variable::name` replaces `letter`
+  and `index`, and `Variable` is no longer `Copy` (clone it, or keep its
+  `VarId`). In JSON a variable is `{"type": 0, "name": "x"}` where it
+  was `{"type": 0, "letter": "x", "index": 0}`. Digits at a name's end
+  still print as an index (`x1` is `x₁`).
+
+Nothing else that 0.6.0 offers was removed or changed: its other calls,
+types, command lines, error codes and JSON forms are as they were. Every
+new variant or field belongs to a `#[non_exhaustive]` type, so a
+program's patterns go on compiling. What a program may notice is under
+"Changed".
+
 ### Changed
 
-- **Breaking:** a variable of a `lambda::Term` has a name, an
-  identifier, where it had a letter and an index:
-  `lambda::Variable::name` replaces `letter` and `index`, `Variable` is
-  no longer `Copy`, and in JSON a variable is `{"type": 0, "name": "x"}`
-  where it was `{"type": 0, "letter": "x", "index": 0}`. Digits at a
-  name's end still print as an index (`x1` is `x₁`).
 - With `--lambda-types` (`lambda.types`), `inl` and `inr` now show the
   sum type they give, as `false` and `abort` show theirs, and a
   subscript that is no atom or constant is in brackets:
@@ -26,9 +57,42 @@ second number (0.1.x to 0.2.0), anything else the third.
   `_` and subscript digits, which the math fonts lack, were written.
 - The value `--lambda` adds to an outcome in JSON has the key `version`
   (23), as the term's own document.
+- `protocol::suites()` lists five suites: `lambda` joins them.
+- The help of `check` names `--dimacs` and `--proof-format`, and the
+  list of commands names `resolve`, `grade` and `term`.
 
 ### Added
 
+- Normal forms of classical sequents, every step shown and the result
+  checked: `seq normalize --to nnf|cnf|dnf|tseitin|plaisted-greenbaum`,
+  CNF by default. Negation, conjunctive and disjunctive normal form are
+  made by equivalence laws, one law per step; Tseitin's and Plaisted and
+  Greenbaum's encodings give the clauses of the sequent's negation, a new
+  atom for each compound subformula. The SAT solver checks that each
+  formula is equivalent to its form, or that the clauses can be
+  satisfied exactly when the sequent can be false. `--form-limit`
+  (`limits.form_occurrences`, 10000 by default) bounds the form.
+- In the library, `ordinary::normal` (`rewrite`, `normalize`,
+  `NormalForm` with its `steps` and `checks`), `Limits::form_occurrences`
+  with `Refusal::Form` (code `form_too_large`) and `Phase::Rewrite`.
+- In the protocol, the operations `ordinary.nnf`, `ordinary.cnf`,
+  `ordinary.dnf`, `ordinary.tseitin` and `ordinary.plaisted_greenbaum`,
+  with the promises `equivalent` and `equisatisfiable`, so a workspace
+  takes a normal form as an edge.
+- Resolution and DPLL at teaching scale: `resolve SEQUENT` turns the
+  sequent's negation into clauses (`--clauses cnf|tseitin|plaisted-greenbaum`),
+  or `resolve --dimacs FILE` reads them, and refutes them by saturation
+  or with `--method dpll`, which prints every step; `--clause-limit` and
+  `--step-limit` bound the search. Every refutation is checked step by
+  step and every model clause by clause. `check` checks a refutation in
+  JSON, and `check --dimacs FILE PROOF` an outside SAT solver's DRAT or
+  LRAT proof.
+- In the library, `ordinary::resolution`: `Clauses`, `Refutation` (built
+  by hand with `resolve`, checked with `check`), `decide`, `clauses_of`
+  and, with `sat`, `check_proof`; the errors `InvalidRefutation` (code
+  `invalid_clause_refutation`) and `ClauseFile` (code `clause_file`). In the
+  protocol, the operation `ordinary.resolve` and the kind
+  `ordinary.resolution`.
 - The library type-checks lambda-terms. `lambda::Term::parse` reads a
   term of the simply typed, the linear or the affine lambda calculus
   from text, in Church's style (every `λ` with its variable's type), as
@@ -52,8 +116,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   exactly, infinitely many, or at least as many as a search within
   `lambda::InhabitOptions` met; every term listed is checked. It counts
   the types built from atoms, `→`, `∧`, `↔` and `⊤`, and refuses one with
-  `∨` or `⊥` with `Error::NotEnumerable` (code `not_enumerable`). Their
-  answers are JSON documents at wire level 24.
+  `∨` or `⊥` with `Error::NotEnumerable` (code `not_enumerable`).
 - The protocol has a suite `lambda`: `lambda.check` (a term to its
   typing, promise `well_typed`), `lambda.inhabit` (an intuitionistic
   statement to `lambda.inhabitation`, promise `decides`),
@@ -67,8 +130,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   deduction its term stands for, and LaTeX, Typst and SVG take it as
   they take a proof (`export::Drawable::Lambda`). In the linear calculi
   each premise's context holds the variables it uses. Rocq refuses it
-  with `rocq::Unsupported::Typing`.
-
+  with `rocq::Unsupported::Typing`. The protocol's `lambda.draw` and
+  `lambda.export` draw a checked term's derivation or write it in LaTeX
+  or Typst.
 - `deduxit grade SEQUENT` grades an answer to a problem, read from
   standard input or `--answer FILE`, by its shape: a session script that
   must finish the proof by its own steps (`close` and `invertible`
@@ -85,44 +149,28 @@ second number (0.1.x to 0.2.0), anything else the third.
   `input`, `target`, `metadata`), with its card, Croissant metadata and
   the script that builds it. `deduxit-bench instances` prints the
   generated families' instances it reads.
-- Normal forms of classical sequents, every step shown and the result
-  checked: `seq normalize --to nnf|cnf|dnf|tseitin|plaisted-greenbaum`,
-  CNF by default. Negation, conjunctive and disjunctive normal form are
-  made by equivalence laws, one law per step; Tseitin's and Plaisted and
-  Greenbaum's encodings give the clauses of the sequent's negation, a new
-  atom for each compound subformula. The SAT solver checks that each
-  formula is equivalent to its form, or that the clauses can be
-  satisfied exactly when the sequent can be false. `--form-limit`
-  (`limits.form_occurrences`, 10000 by default) bounds the form.
-- In the library, `ordinary::normal` (`rewrite`, `normalize`,
-  `NormalForm` with its `steps` and `checks`), `Limits::form_occurrences`
-  with `Refusal::Form` (code `form_too_large`) and `Phase::Rewrite`.
-- In the protocol, the operations `ordinary.nnf`, `ordinary.cnf`,
-  `ordinary.dnf`, `ordinary.tseitin` and `ordinary.plaisted_greenbaum`,
-  with the promises `equivalent` and `equisatisfiable`, so a workspace
-  takes a normal form as an edge.
-- Wire level 21: the normal form's document, which `seq normalize
-  --format json` writes.
-- Resolution and DPLL at teaching scale: `resolve SEQUENT` turns the
-  sequent's negation into clauses (`--clauses cnf|tseitin|plaisted-greenbaum`),
-  or `resolve --dimacs FILE` reads them, and refutes them by saturation
-  or with `--method dpll`, which prints every step; `--clause-limit` and
-  `--step-limit` bound the search. Every refutation is checked step by
-  step and every model clause by clause. `check` checks a refutation in
-  JSON, and `check --dimacs FILE PROOF` an outside SAT solver's DRAT or
-  LRAT proof.
-- In the library, `ordinary::resolution`: `Clauses`, `Refutation` (built
-  by hand with `resolve`, checked with `check`), `decide`, `clauses_of`
-  and, with `sat`, `check_proof`; the errors `InvalidRefutation` (code
-  `invalid_clause_refutation`) and `ClauseFile` (code `clause_file`). In the
-  protocol, the operation `ordinary.resolve` and the kind
-  `ordinary.resolution`.
 - In the web bindings, `ordinary_normalize`, `ordinary_resolve`, and a
   refutation by hand: `ordinary_clauses`, `ordinary_resolve_step` and
   `ordinary_refutation_check`; in the library `Refutation::check_steps`,
-  which checks a refutation in progress.
-- Wire level 22: a refutation by resolution and a clause set decided.
-  Level 22 is now the highest the library reads.
+  which checks a refutation in progress. The lambda calls read and check
+  a term (`lambda_read`, `lambda_check`), draw and export its derivation
+  (`lambda_draw`, `lambda_export`), read a type and find, list and count
+  its terms (`lambda_read_type`, `lambda_inhabit`, `lambda_enumerate`).
+
+### Wire forms
+
+- Level 21 is a classical sequent's normal form with its steps and the
+  claims of its promise decided (`seq normalize --format json`), written
+  only.
+- Level 22 is a refutation by resolution, read and written, and a
+  clause set decided (`resolve --format json`), written only.
+- Level 23 is a lambda-term (`term check --format json`, and the value
+  `--lambda` adds to an outcome), read and written.
+- Level 24 is a type's terms listed and counted, and whether a type has
+  a term (`term enumerate` and `term inhabit --format json`), written
+  only.
+- `wire::LEVEL` is 24. Every document of levels 1 to 20 reads and is
+  written as before; 0.6.0 refuses levels 21 to 24 by name.
 
 ## [0.6.0] - 2026-11-20
 
@@ -2006,6 +2054,7 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.7.0]: https://github.com/deduxit/deduxit/releases/tag/v0.7.0
 [0.6.0]: https://github.com/deduxit/deduxit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/deduxit/deduxit/releases/tag/v0.5.0
 [0.4.0]: https://github.com/deduxit/deduxit/releases/tag/v0.4.0
