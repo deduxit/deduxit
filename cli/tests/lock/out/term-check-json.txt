@@ -1,0 +1,5 @@
+$ deduxit term check --format json 'x : a |- \y:b. x : b -> a'
+--- status 0
+--- stdout
+{"version":23,"calculus":"simple","atoms":["a","b"],"types":[{"kind":"atom","atom":0},{"kind":"atom","atom":1},{"kind":"lollipop","from":1,"to":0}],"variables":[{"type":0,"name":"x"},{"type":1,"name":"y"}],"context":[0],"goal":2,"nodes":[{"kind":"var","variable":0},{"kind":"lambda","variable":1,"body":0}],"root":1,"deduxit":"…","verdict":"well_typed","typing":{"types":[{"kind":"atom","atom":0},{"kind":"atom","atom":1},{"kind":"lollipop","from":1,"to":0}],"nodes":[0,2]},"judgement":"x : a ⊢ λy:b. x : b → a"}
+--- stderr

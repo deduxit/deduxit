@@ -1,0 +1,5 @@
+$ deduxit term check --calculus linear '\x:a. x * x'
+--- status 1
+--- stdout
+ill typed: the variable x is used more than once, and the linear lambda calculus uses every variable exactly once
+--- stderr

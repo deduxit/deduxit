@@ -1,0 +1,9 @@
+$ deduxit term enumerate '(a -> a -> b) -> a -> a -> b'
+--- status 0
+--- stdout
+exactly 4 terms
+λf:(a → (a → b)). λx:a. λy:a. f x x
+λf:(a → (a → b)). λx:a. λy:a. f x y
+λf:(a → (a → b)). λx:a. λy:a. f y x
+λf:(a → (a → b)). λx:a. λy:a. f y y
+--- stderr

@@ -1,0 +1,5 @@
+$ deduxit term enumerate 'a -> ~~a'
+--- status 2
+--- stdout
+--- stderr
+error: the terms of a type with ⊥ are not counted: deduxit counts them for types built from atoms, →, ∧, ↔ and ⊤

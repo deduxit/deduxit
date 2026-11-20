@@ -1,0 +1,6 @@
+$ deduxit term inhabit 'a /\ b -> b /\ a'
+--- status 0
+--- stdout
+inhabited
+⊢ λx:(a ∧ b). ⟨snd(x), fst(x)⟩ : (a ∧ b) → (b ∧ a)
+--- stderr

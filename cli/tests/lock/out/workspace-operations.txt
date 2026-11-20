@@ -13,4 +13,6 @@ ordinary.tseitin  ordinary.sequent -> ordinary.sequent: Tseitin's clauses
 ordinary.plaisted_greenbaum  ordinary.sequent -> ordinary.sequent: Plaisted and Greenbaum's clauses
 ordinary.resolve  ordinary.sequent -> ordinary.resolution: A refutation by resolution
 ordinary.duplicate  ordinary.sequent -> ordinary.sequent: A copy
+lambda.inhabit  ordinary.sequent -> lambda.inhabitation: A term of the type, or that it has none
+lambda.enumerate  ordinary.sequent -> lambda.inhabitants: The type's terms, listed and counted
 --- stderr

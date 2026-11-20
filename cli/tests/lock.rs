@@ -393,6 +393,47 @@ const CASES: &[Case] = &[
         "resolve-limit",
         &["resolve", "--step-limit", "1", "a -> b, b -> c |- a -> c"],
     ),
+    call("term-check", &["term", "check", "\\f:a -> b. \\x:a. f x"]),
+    call(
+        "term-ill-typed",
+        &["term", "check", "--calculus", "linear", "\\x:a. x * x"],
+    ),
+    call(
+        "term-check-json",
+        &[
+            "term",
+            "check",
+            "--format",
+            "json",
+            "x : a |- \\y:b. x : b -> a",
+        ],
+    ),
+    call("term-inhabit", &["term", "inhabit", "a /\\ b -> b /\\ a"]),
+    call(
+        "term-inhabit-empty",
+        &["term", "inhabit", "((a -> b) -> a) -> a"],
+    ),
+    call(
+        "term-enumerate",
+        &["term", "enumerate", "(a -> a -> b) -> a -> a -> b"],
+    ),
+    call(
+        "term-enumerate-infinite",
+        &["term", "enumerate", "--depth", "3", "(a -> a) -> a -> a"],
+    ),
+    call(
+        "term-enumerate-json",
+        &[
+            "term",
+            "enumerate",
+            "--format",
+            "json",
+            "--max-terms",
+            "1",
+            "a -> a -> a",
+        ],
+    ),
+    call("term-enumerate-refused", &["term", "enumerate", "a -> ~~a"]),
     call(
         "check-drat",
         &["check", "--dimacs", "four.cnf", "four.drat"],

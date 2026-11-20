@@ -1,0 +1,8 @@
+$ deduxit term enumerate --depth 3 '(a -> a) -> a -> a'
+--- status 0
+--- stdout
+infinitely many terms, the first 3 within depth 3
+λf:(a → a). λx:a. x
+λf:(a → a). λx:a. f x
+λf:(a → a). λx:a. f (f x)
+--- stderr

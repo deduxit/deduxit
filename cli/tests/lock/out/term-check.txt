@@ -1,0 +1,6 @@
+$ deduxit term check '\f:a -> b. \x:a. f x'
+--- status 0
+--- stdout
+well typed
+⊢ λf:(a → b). λx:a. f x : (a → b) → (a → b)
+--- stderr

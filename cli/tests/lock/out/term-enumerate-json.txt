@@ -1,0 +1,5 @@
+$ deduxit term enumerate --format json --max-terms 1 'a -> a -> a'
+--- status 0
+--- stdout
+{"version":24,"deduxit":"…","count":{"kind":"exactly","count":2},"terms":[{"version":23,"calculus":"simple","atoms":["a"],"types":[{"kind":"atom","atom":0},{"kind":"lollipop","from":0,"to":0},{"kind":"lollipop","from":0,"to":1}],"variables":[{"type":0,"name":"x"},{"type":0,"name":"y"}],"context":[],"goal":2,"nodes":[{"kind":"var","variable":0},{"kind":"lambda","variable":1,"body":0},{"kind":"lambda","variable":0,"body":1}],"root":2}]}
+--- stderr
