@@ -7684,3 +7684,11 @@ move (D26).
     100 MB), a cut list holding the deepest terms, and a 25-minute loop at the largest depth: all
     fixed. The web module's ceiling raised to 3 900 000 (3 831 827 with the suite) in its own
     commit. Gate and `nix flake check` passed.
+- 2026-11-20, 18:10: **71c reviewed; its deduxit chain pushed, its client chain after its lock.**
+  - **71c** (deduxit `wwwpmwzl` to `twpnvsto`; the client `yoqtkorx`, `mpmrtwpu`): `lambda::Drawing`
+    draws a checked term's typing derivation in every export (natural deduction's rule names,
+    `Γ ⊢ M : A`, the linear calculi's split contexts; Rocq refuses it); `lambda.draw` and
+    `lambda.export` in the protocol; the bindings `lambda_…`; the page's "Lambda-terms" button in
+    the calculus popover (a term checked and drawn, or a type with a term found, listed and counted;
+    the link keeps the text and calculus; nothing new before the button). Module 3 846 685 under
+    3 900 000. fresh-reviewer (Fable) findings answered. Both flake checks passed.
