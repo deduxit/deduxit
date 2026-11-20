@@ -60,6 +60,7 @@ impl Derivation {
             calculus: "tableau".into(),
             reason,
         };
+        tableau.formulas().propositional("a tableau's rule file")?;
         let mut out = Self::new("tableau", 1);
         let formulas = terms_of(tableau.formulas(), out.terms_mut())?;
         // The term of each line, signed.

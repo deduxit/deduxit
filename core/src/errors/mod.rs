@@ -230,10 +230,7 @@ pub enum Error {
     /// An atom name read from a file or given to a constructor is no
     /// identifier of the text syntax, or is one of its keywords. The
     /// sequent written as text would not read back as itself.
-    #[error(
-        "the atom name {name:?} {}",
-        crate::name::fault(name)
-    )]
+    #[error("the atom name {name:?} {}", crate::name::fault(name))]
     #[non_exhaustive]
     AtomName {
         /// The name.
@@ -251,8 +248,9 @@ pub enum Error {
         /// What is wrong with it.
         fault: SymbolFault,
     },
-    /// A root or a cut formula of a sequent has a bound variable that no
-    /// binder of the formula binds. Every formula of a sequent is closed.
+    /// A root or a cut formula of a sequent, a formula of an ordinary
+    /// derivation, or a term put for a bound variable has a bound variable
+    /// that no binder of it binds. Every formula of a sequent is closed.
     #[error("term {term} has a bound variable that no binder of it binds")]
     #[non_exhaustive]
     LooseVariable {

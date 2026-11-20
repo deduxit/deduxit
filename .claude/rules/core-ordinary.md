@@ -224,10 +224,97 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Translation::DEFAULT_INTUITIONISTIC`, chosen by the ILTP run
   (`plan/reports/25-ordinary-logic.md`). The goal state's `close` and
   `hint` pass `Method::Embedding`: its steps take no cut.
-- **Where quantifiers go**: `Node` gains `Forall`/`Exists` with a bound
-  variable and `Atom` gains terms; the pattern table gets their rows
-  (Girard: `∀` as `∀`, `∃` as `∃!`), and the read-back's tags carry no
-  more than the node.
+- **First-order formulas** (`plan/notes/first-order-design.md` is the
+  design): `Node::Forall(body)` and `Node::Exists(body)`, last, over de
+  Bruijn indices, so formulas equal up to bound names are one node and
+  the checker's comparison by id holds through binders. What the code
+  relies on:
+  - **The tables are the linear suite's** (`crate::first_order`,
+    `FirstOrder<NodeId>` and `Interner<NodeId>`), held as
+    `Formulas::fo: Option<Box<Interner>>`, made at the first binder,
+    predicate with arguments or term: a propositional arena pays a
+    pointer (the whole interner inline made `lambda::Inhabitation`'s
+    variants lopsided and every arena larger). `first_order()` lends
+    `NO_TABLES` where there are none.
+  - **First-order exactly when the tables are not empty**
+    (`is_first_order`): every binder gets its name entry when `add`
+    makes it (`x` until `binder` names it; the first name written wins
+    for a shared node), and from the first binder or predicate on every
+    atom has its predicate entry (`enter_first_order` gives the earlier
+    atoms nullary ones, `atom` the later). An atom's name is its
+    canonical text (`p(f(a), #0)`), so atoms stay keyed by names.
+  - **Closed formulas only**: `Sequent::new` refuses a root with a loose
+    variable (`Error::LooseVariable`, the cold `closed` pass), and the
+    derivation reader runs `closed` over every inference's formulas,
+    which `Derivation::from_parts` does not (the panel's finding: a
+    derivation of `p(#0) ⊢ p(#0)` read and checked). `instantiate` and
+    `instance` refuse a term with a bound variable (`is_closed`), which
+    the instance would capture: the checker's witness is any term id a
+    document names.
+  - **Every propositional method refuses at its door**
+    (`Formulas::propositional(method)`, `Error::FirstOrder`): `decide`'s
+    `within`, `ljt::run`, `sat::run`, `truth_table`, `Tableau::of`,
+    `normal`'s `rewrite_dyn`, `Clauses::of_sequent`, `interpolate` and
+    `interpolant`, `negative::translate`, `translate` (the embedding),
+    `Model::forcing_with`, `Interactive::within` and `from_parts`,
+    `WrittenTableau::review_dyn` (its own and the expected sequent),
+    the Rocq certificate (`rocq::write`), `Derivation::term`,
+    `lambda::enumerate` (whose search reads the types itself; `has_type`
+    answers `false`), `NormalForm::claims` (its fields are public),
+    `rules::Derivation::from_ordinary` and `from_tableau`, and the
+    tableau's reader. Every inner arm on a binder is
+    `unreachable!("{}", REFUSED)` (`panic!` in a `const fn`) resting on
+    those doors; a new method gets its door and its line in
+    `every_propositional_method_refuses_a_first_order_sequent`. A
+    derivation of a first-order sequent exists (an axiom on `∀x. p(x)`)
+    and the checker takes it; its quantifier rules are still to come.
+  - **Instances are nodes** (`instance.rs`): `instantiate(body, t)`
+    builds `A[t/x]` by an iterative walk memoised per node and depth (a
+    node shared at two depths is substituted at each, `p(#0)` under an
+    inner binder is not `p(x)`), the closed `t` needing no shift; a
+    binder it builds keeps the copied one's name. `instance` is the
+    find-only form for the checker, which builds nothing (the interner's
+    `find_term`, `find_list`). Both have no caller outside the tests
+    until the checker's quantifier rules (`expect(dead_code)`).
+  - **The printer renames** (`write_first_order`, cold, only for a
+    first-order arena): a binder whose name a symbol or an enclosing
+    binder has is written `x_1`, `x_2` (the linear printer's scheme),
+    a binder inside another formula is bracketed but a binder's body
+    binder is not, and a binary body is bracketed. `Symbols` has
+    `forall`, `exists` and `dot` per target; `Formulas::write` takes a
+    `name` writer beside `atom` for symbols and variables.
+  - **The parser** (`parse.rs`): `starts_binder` is one byte compare on
+    the operand path (white space is skipped by then), `binder`,
+    `predicate` and `close_binder` are cold, and the cold paths read names
+    with `word`, a copy of `identifier`, and add atoms by `entry`, never
+    `Formulas::atom`'s `get` and `insert`: a function the operand loop
+    is the one caller of inlines there, and each second caller cost the
+    `read-tptp` journey hundreds of thousands of instructions (with them,
+    1.5 M more; now 0.5 % over the parser before, the clause splitter's
+    bracket arm a third of it). `rest` stays out of line: inlined, the
+    operator tokens' comparisons became `memcmp` calls. Natively a
+    binder (`forall x y.`, `∀x.`) is a `Pending::Binder` that `reduce`
+    does not take while a connective follows, so it reaches right; in
+    TPTP (`! [X] :`) it takes its unit at once. A name in term position
+    is the innermost bound variable of that name, else a constant or
+    function symbol; in TPTP an unbound upper-case word is refused. `=`
+    and `!=` get the `EQUALITY` hint. `lltp::clauses` counts `[`/`]`
+    with the parentheses, or a quantifier's `[X, Y]` read as an
+    annotation.
+  - **JSON at level 25** (`wire::ORDINARY_TERMS`): the sequent proxy has
+    the linear sequent's `symbols`, `fo`, mixed `atoms` and `binders`
+    (one name per binder in node order), written through
+    `serialize::sequents::Tables::of_tables` and read through its
+    generic `read`, then `Formulas::of_tables`, which interns every
+    symbol, term and list again, so the arena holds each term once
+    whatever the document repeats (with a term listed twice, `instance`
+    missed what `instantiate` built: the panel's finding), and dedupes
+    atoms by key; an atom form names the arena's atom by index. Tables
+    without a term whose atoms are all nullary read as a propositional
+    sequent (`None`), so first-order means a binder or arguments. A sequent or derivation is
+    written at 25 when its arena is first-order; the session refuses
+    first-order input, so none is written. `wire/level-25.txt` pins a
+    sequent and a derivation.
 
 ## The native engine (`ljt.rs`)
 

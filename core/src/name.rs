@@ -73,6 +73,7 @@ pub(crate) fn check(name: &str) -> Result<(), Error> {
 /// logic, and is no keyword of the ordinary syntax (`true`, `false`).
 ///
 /// Returns [`Error::AtomName`] otherwise.
+#[inline]
 pub(crate) fn check_ordinary(name: &str) -> Result<(), Error> {
     check(name)?;
     if ORDINARY_KEYWORDS.contains(&name) {

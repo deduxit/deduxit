@@ -32,6 +32,12 @@
 //! student wrote as text and [reviews](WrittenTableau::review) it rule by
 //! rule, naming the first step that breaks a rule.
 //!
+//! A sequent may be first-order, with predicates and quantifiers
+//! ([`Sequent`] has the syntax). Nothing decides first-order validity
+//! here: every method above refuses such a sequent
+//! ([`Error::FirstOrder`]), and a derivation of one is checked as any
+//! other.
+//!
 //! The excluded middle is not valid in intuitionistic logic, the default:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
@@ -110,7 +116,9 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
-use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Interner};
+use crate::first_order::{Args, FirstOrder, Interner};
+#[cfg(any(test, feature = "parse"))]
+use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -783,6 +791,87 @@ impl Formulas {
         self.add(Node::Atom(index))
     }
 
+    /// Returns the arena of the first-order `tables`, read from a
+    /// document and checked, without a node yet, and the index in it of
+    /// every atom of the tables: an atom equal to an earlier one is that
+    /// one. Every symbol, term and argument list is interned again, so the
+    /// arena holds each term once however often the document lists it.
+    /// `None` where the tables have no term and every atom is nullary:
+    /// the document is a propositional sequent, its atoms by name.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::AtomName`] for a symbol named by a keyword of the ordinary
+    /// syntax.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn of_tables(
+        tables: &FirstOrder<NodeId>,
+    ) -> Result<Option<(Self, Vec<u32>)>, Error> {
+        let propositional = tables.terms.is_empty()
+            && tables
+                .atoms
+                .iter()
+                .all(|&(_, args)| tables.list(args).is_empty());
+        if propositional {
+            return Ok(None);
+        }
+        let mut fo = Interner::new();
+        let mut predicates = vec![false; tables.symbols.len()];
+        for &(p, _) in &tables.atoms {
+            predicates[p.index()] = true;
+        }
+        let mut symbols = Vec::with_capacity(tables.symbols.len());
+        for ((name, arity), &predicate) in tables.symbols.iter().zip(&predicates) {
+            crate::name::check_ordinary(name)?;
+            let symbol = fo
+                .symbol(name, *arity, predicate)
+                .map_err(|fault| Error::Symbol {
+                    name: name.clone(),
+                    fault,
+                })?;
+            symbols.push(symbol);
+        }
+        let mut terms: Vec<crate::first_order::FoTermId> = Vec::with_capacity(tables.terms.len());
+        for &term in &tables.terms {
+            let id = match term {
+                crate::first_order::FoTerm::Bound(_) => fo.term(term),
+                crate::first_order::FoTerm::App(f, args) => {
+                    let items: Vec<_> =
+                        tables.list(args).iter().map(|t| terms[t.index()]).collect();
+                    let args = fo.list(&items);
+                    fo.term(crate::first_order::FoTerm::App(symbols[f.index()], args))
+                }
+                crate::first_order::FoTerm::Eigen(_) | crate::first_order::FoTerm::Meta(_) => {
+                    unreachable!("the reader of a sequent's terms refuses them")
+                }
+            };
+            terms.push(id);
+        }
+        let mut formulas = Self {
+            fo: Some(Box::new(fo)),
+            ..Self::default()
+        };
+        let mut indices = Vec::with_capacity(tables.atoms.len());
+        for &(p, args) in &tables.atoms {
+            let items: Vec<_> = tables.list(args).iter().map(|t| terms[t.index()]).collect();
+            let args = formulas.interner().list(&items);
+            let symbol = symbols[p.index()];
+            let key = formulas.tables().atom_key(symbol, args);
+            let len = formulas.atoms.len() as u32;
+            let index = match formulas.names.entry(key) {
+                std::collections::hash_map::Entry::Occupied(found) => *found.get(),
+                std::collections::hash_map::Entry::Vacant(vacant) => {
+                    formulas.atoms.push(vacant.key().clone());
+                    vacant.insert(len);
+                    formulas.interner().tables.atoms.push((symbol, args));
+                    len
+                }
+            };
+            indices.push(index);
+        }
+        Ok(Some((formulas, indices)))
+    }
+
     /// Returns whether the arena is first-order: it holds a binder or a
     /// predicate with arguments. The methods that decide propositional
     /// logic refuse such an arena ([`Error::FirstOrder`]).
@@ -825,11 +914,16 @@ impl Formulas {
     #[cold]
     #[inline(never)]
     fn enter_first_order(&mut self) -> Result<(), Error> {
-        for n in self.tables().atoms.len()..self.atoms.len() {
+        let had = self.tables().atoms.len();
+        for n in had..self.atoms.len() {
             let name = std::mem::take(&mut self.atoms[n]);
             let result = self.nullary(&name);
             self.atoms[n] = name;
-            result?;
+            if let Err(error) = result {
+                // All or none, so that the entries stay parallel.
+                self.interner().tables.atoms.truncate(had);
+                return Err(error);
+            }
         }
         Ok(())
     }
@@ -839,10 +933,13 @@ impl Formulas {
     #[cold]
     #[inline(never)]
     fn nullary(&mut self, name: &str) -> Result<(), Error> {
-        let symbol = self.interner().symbol(name, 0, true).map_err(|fault| Error::Symbol {
-            name: name.to_owned(),
-            fault,
-        })?;
+        let symbol = self
+            .interner()
+            .symbol(name, 0, true)
+            .map_err(|fault| Error::Symbol {
+                name: name.to_owned(),
+                fault,
+            })?;
         let args = self.interner().list(&[]);
         self.interner().tables.atoms.push((symbol, args));
         Ok(())
@@ -856,10 +953,7 @@ impl Formulas {
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// and [`Error::Symbol`] where the name is a predicate or has another
     /// arity.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the readers of first-order text and JSON call it")
-    )]
+    #[cfg(any(test, feature = "parse"))]
     pub(crate) fn function(&mut self, name: &str, args: &[FoTermId]) -> Result<FoTermId, Error> {
         let name = &*crate::name::normalized(name);
         crate::name::check_ordinary(name)?;
@@ -876,31 +970,23 @@ impl Formulas {
 
     /// Returns the bound variable of the binder `index` binders out, as a
     /// term: `0` is the innermost binder's variable.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the readers of first-order text and JSON call it")
-    )]
+    #[cfg(any(test, feature = "parse"))]
     pub(crate) fn variable(&mut self, index: u32) -> FoTermId {
         self.interner().term(FoTerm::Bound(index))
     }
 
     /// Returns the atom of the predicate `name` applied to `args`, adding
-    /// it unless the arena has it. A predicate without arguments is the
-    /// atom of that name ([`atom`](Self::atom)).
+    /// it unless the arena has it. The parser calls it with arguments
+    /// only; a nullary predicate is an atom ([`atom`](Self::atom)), and
+    /// called with none it makes the arena first-order all the same.
     ///
     /// # Errors
     ///
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// [`Error::Symbol`] where the name is a function symbol or has another
     /// arity, and [`Refusal::Index`] when the arena is full.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the readers of first-order text and JSON call it")
-    )]
+    #[cfg(any(test, feature = "parse"))]
     pub(crate) fn predicate(&mut self, name: &str, args: &[FoTermId]) -> Result<NodeId, Error> {
-        if args.is_empty() {
-            return self.atom(name);
-        }
         let name = &*crate::name::normalized(name);
         crate::name::check_ordinary(name)?;
         self.enter_first_order()?;
@@ -918,8 +1004,11 @@ impl Formulas {
     /// Returns the atom of `symbol` applied to `args`, both of the tables,
     /// adding it unless the arena has it. The arena must be first-order.
     #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+        not(any(test, feature = "parse")),
+        expect(
+            dead_code,
+            reason = "the text readers and the checker's instances call it"
+        )
     )]
     fn predicate_atom(
         &mut self,
@@ -927,14 +1016,16 @@ impl Formulas {
         args: Args,
     ) -> Result<NodeId, Error> {
         let key = self.tables().atom_key(symbol, args);
-        let index = match self.names.get(&key) {
-            Some(&index) => index,
-            None => {
-                let index = self.atoms.len() as u32;
-                self.atoms.push(key.clone());
-                self.names.insert(key, index);
+        // By `entry`, so that `atom`'s lookup and insertion keep the
+        // parsers as their one caller and inline there.
+        let len = self.atoms.len() as u32;
+        let index = match self.names.entry(key) {
+            std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                self.atoms.push(entry.key().clone());
+                entry.insert(len);
                 self.interner().tables.atoms.push((symbol, args));
-                index
+                len
             }
         };
         self.add(Node::Atom(index))
@@ -949,11 +1040,13 @@ impl Formulas {
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// [`Error::IndexOutOfBounds`] for a body of another arena, and
     /// [`Refusal::Index`] when the arena is full.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the readers of first-order text and JSON call it")
-    )]
-    pub(crate) fn binder(&mut self, forall: bool, body: NodeId, name: &str) -> Result<NodeId, Error> {
+    #[cfg(any(test, feature = "parse", feature = "serialize"))]
+    pub(crate) fn binder(
+        &mut self,
+        forall: bool,
+        body: NodeId,
+        name: &str,
+    ) -> Result<NodeId, Error> {
         let name = crate::name::normalized(name);
         crate::name::check_ordinary(&name)?;
         let len = self.nodes.len();
@@ -1179,11 +1272,12 @@ impl Formulas {
             if i > 0 {
                 out.write_str(", ")?;
             }
-            tables.write(out, t, &mut |o, s| name(o, s), &mut |o, index| {
-                match scope.len().checked_sub(index as usize + 1) {
-                    Some(at) => name(o, &scope[at]),
-                    None => write!(o, "#{index}"),
-                }
+            tables.write(out, t, &mut |o, s| name(o, s), &mut |o, index| match scope
+                .len()
+                .checked_sub(index as usize + 1)
+            {
+                Some(at) => name(o, &scope[at]),
+                None => write!(o, "#{index}"),
             })?;
         }
         out.write_char(')')
@@ -1245,15 +1339,14 @@ pub struct Formula<'a> {
 impl Display for Formula<'_> {
     /// Writes the formula: `(a ∧ b) → ¬c`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.formulas
-            .write(
-                f,
-                self.id,
-                false,
-                &Symbols::UNICODE,
-                |o, a| o.write_str(self.formulas.atom_name(a)),
-                |o, name| o.write_str(name),
-            )
+        self.formulas.write(
+            f,
+            self.id,
+            false,
+            &Symbols::UNICODE,
+            |o, a| o.write_str(self.formulas.atom_name(a)),
+            |o, name| o.write_str(name),
+        )
     }
 }
 
@@ -1273,10 +1366,20 @@ impl Display for Formula<'_> {
 /// right), `\/`/`∨`, `/\`/`∧` (these to the left) and the prefix `~`/`¬`,
 /// over the constants `true`/`⊤` and `false`/`⊥`, atoms and parentheses.
 /// An atom is a Unicode identifier other than a keyword: `true`, `false`,
-/// the linear syntax's `par`, `top` and `bot`, and the reserved `forall`
-/// and `exists`. The symbols of linear logic (`&`, `|`, `*`, `-o`, …) are
-/// not read here, so that a linear connective is never taken for an
-/// ordinary one.
+/// the linear syntax's `par`, `top` and `bot`, and `forall` and `exists`.
+/// The symbols of linear logic (`&`, `|`, `*`, `-o`, …) are not read
+/// here, so that a linear connective is never taken for an ordinary one.
+///
+/// A first-order formula has predicates and quantifiers:
+/// `forall x. p(x) -> q(x), p(a) |- q(a)`. An atom may be a predicate
+/// applied to terms, `p(x, f(a))`, with no space before the bracket; a
+/// term is a variable, a constant or a function symbol applied to terms.
+/// `forall x y. A` (or `∀x y. A`) and `exists x. A` (or `∃x. A`) bind
+/// loosest and reach as far right as they can, so `forall x. p(x) ->
+/// q(x)` is `∀x. (p(x) → q(x))`. A name that a quantifier around it binds
+/// is that variable; any other name in a term is a constant or a function
+/// symbol. A name has one arity and is a predicate or a function symbol,
+/// not both. Every formula is closed.
 ///
 /// `Display` writes the Unicode symbols with every nested binary formula
 /// in brackets, which this syntax reads back.
@@ -1290,6 +1393,12 @@ impl Display for Formula<'_> {
 /// operand before the formula built from it, as `{"V": atom}`, `"⊤"`,
 /// `"⊥"`, `{"¬": a}`, `{"∧": [a, b]}`, `{"∨": [a, b]}`, `{"→": [a, b]}`
 /// and `{"↔": [a, b]}`, and the two sides as indices into them.
+///
+/// A first-order sequent is written at level 25 with the keys of a
+/// first-order linear sequent ([`linear::Sequent`](crate::linear::Sequent)):
+/// `symbols`, `fo` (the terms), the atoms as `{"P": [symbol, [terms]]}`,
+/// and `binders`, the name of each binder's variable in the order of the
+/// binders among the formulas, which are `{"∀": a}` and `{"∃": a}`.
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -1357,7 +1466,10 @@ impl Display for Sequent {
 /// bound variable no binder of it binds.
 #[cold]
 #[inline(never)]
-fn closed<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> Result<(), Error> {
+pub(crate) fn closed<'a>(
+    formulas: &Formulas,
+    roots: impl Iterator<Item = &'a NodeId>,
+) -> Result<(), Error> {
     let loose = formulas.loose();
     for id in roots {
         if loose[id.index()] > 0 {
@@ -1768,8 +1880,12 @@ mod first_order_tests {
             principal: None,
             premises: Vec::<InfId>::new(),
         };
-        let derivation =
-            Derivation::from_parts(Logic::Classical, formulas, (vec![all], vec![all]), vec![axiom]);
+        let derivation = Derivation::from_parts(
+            Logic::Classical,
+            formulas,
+            (vec![all], vec![all]),
+            vec![axiom],
+        );
         (sequent, derivation)
     }
 
@@ -1798,7 +1914,9 @@ mod first_order_tests {
             #[cfg(feature = "sat")]
             {
                 refused(sat::decide(&sequent, logic, &limits, |_| false));
-                refused(sat::decide_preferring_ljt(&sequent, logic, &limits, |_| false));
+                refused(sat::decide_preferring_ljt(&sequent, logic, &limits, |_| {
+                    false
+                }));
             }
             for &translation in Translation::ALL {
                 refused(translate(&sequent, logic, translation, &limits));
@@ -1806,14 +1924,21 @@ mod first_order_tests {
             let options = Options::default().with_logic(logic);
             let partition = interpolant::Partition::hypotheses(&sequent);
             refused(interpolant::interpolate(
-                &sequent, &options, &partition, &search, &limits, |_| false,
-            ));
-            refused(crate::kripke::Model::new(vec![crate::kripke::World::default()], 0).forcing(
                 &sequent,
-                logic,
+                &options,
+                &partition,
+                &search,
                 &limits,
                 |_| false,
             ));
+            refused(
+                crate::kripke::Model::new(vec![crate::kripke::World::default()], 0).forcing(
+                    &sequent,
+                    logic,
+                    &limits,
+                    |_| false,
+                ),
+            );
             #[cfg(feature = "interactive")]
             refused(Interactive::within(&sequent, logic, &limits));
         }
@@ -1839,6 +1964,22 @@ mod first_order_tests {
             &limits,
         ));
         refused(derivation.term(&limits, |_| false));
+        refused(crate::lambda::enumerate(
+            &sequent,
+            &crate::lambda::InhabitOptions::default(),
+            &limits,
+            |_| false,
+        ));
+        // A normal form's public fields can be given a first-order sequent.
+        let mut normal = normal::rewrite(
+            &Sequent::new(Formulas::default(), vec![], vec![]).unwrap(),
+            &normal::Options::default(),
+            &limits,
+            |_| false,
+        )
+        .unwrap();
+        normal.sequent = sequent.clone();
+        refused(normal.claims());
         #[cfg(feature = "interactive")]
         refused(Tableau::of(&derivation, |_| false));
         #[cfg(feature = "rocq")]
@@ -1854,8 +1995,8 @@ mod first_order_tests {
         {
             let tableau = WrittenTableau::parse_within("1 F p\n", &limits).unwrap();
             let mut json = serde_json::Deserializer::from_str(crate::rules::TABLEAU);
-            let calculus = crate::wire::upgrade::<crate::rules::Calculus, _>(&mut json, &limits)
-                .unwrap();
+            let calculus =
+                crate::wire::upgrade::<crate::rules::Calculus, _>(&mut json, &limits).unwrap();
             refused(tableau.review(&calculus, Some(&sequent), &limits, |_| false));
         }
     }
@@ -1888,6 +2029,48 @@ mod first_order_tests {
             Sequent::new(formulas, vec![], vec![body]),
             Err(Error::LooseVariable { .. })
         ));
+    }
+
+    /// Reads `json` as a document of the form `T`.
+    #[cfg(feature = "serialize")]
+    fn read<T: crate::wire::Readable>(json: &str) -> Result<T, Error> {
+        let mut json = serde_json::Deserializer::from_str(json);
+        crate::wire::upgrade::<T, _>(&mut json, &Limits::default())
+    }
+
+    /// The readers hold a document to what the arena promises: closed
+    /// formulas in a derivation, each term once, no first-order tableau,
+    /// and a document of nullary predicates propositional.
+    #[test]
+    #[cfg(feature = "serialize")]
+    fn documents_are_held_to_the_arena_s_promises() {
+        let loose = r#"{"version":25,"logic":"classical","sequent":{"formulas":[{"V":0}],"atoms":[{"P":[0,[0]]}],"symbols":[["p",1]],"fo":[{"B":0}],"left":[0],"right":[0]},"inferences":[{"left":[0],"right":[0],"rule":"ax"}]}"#;
+        assert!(matches!(
+            read::<Derivation>(loose),
+            Err(Error::LooseVariable { .. })
+        ));
+        // `a` twice: an instance is found however the document names it.
+        let twice = r#"{"version":25,"formulas":[{"V":0},{"∀":0},{"V":1}],"atoms":[{"P":[1,[2]]},{"P":[1,[1]]}],"symbols":[["a",0],["p",1]],"fo":[{"F":[0,[]]},{"F":[0,[]]},{"B":0}],"binders":["x"],"left":[2],"right":[1]}"#;
+        let sequent: Sequent = read(twice).unwrap();
+        let formulas = sequent.formulas();
+        let Node::Forall(body) = formulas.node(sequent.right()[0]) else {
+            panic!("a binder")
+        };
+        let a = formulas
+            .tables()
+            .terms
+            .iter()
+            .position(|t| matches!(t, crate::first_order::FoTerm::App(..)));
+        let a = crate::first_order::FoTermId::new(a.unwrap() as u32);
+        assert_eq!(formulas.instance(body, a), Some(sequent.left()[0]));
+        #[cfg(feature = "interactive")]
+        refused(read::<Tableau>(
+            r#"{"version":25,"sequent":{"formulas":[{"V":0},{"∀":0}],"atoms":["q"],"binders":["x"],"left":[1],"right":[1]},"nodes":[{"lines":[["T",1],["F",1]],"end":{"kind":"closed","true_line":0,"false_line":1}}]}"#,
+        ));
+        let nullary = r#"{"version":25,"formulas":[{"V":0}],"atoms":[{"P":[0,[]]}],"symbols":[["p",0]],"left":[],"right":[0]}"#;
+        let sequent: Sequent = read(nullary).unwrap();
+        assert!(!sequent.formulas().is_first_order());
+        assert_eq!(sequent.to_string(), "⊢ p");
     }
 
     #[test]

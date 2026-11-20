@@ -448,6 +448,9 @@ impl NormalForm {
     /// result has a formula right of `⊢`; [`Error::IndexOutOfBounds`] for
     /// a step's id outside the result's arena; the arena's errors.
     pub fn claims(&self) -> Result<Vec<(Claim, Sequent)>, Error> {
+        // Its fields are public, so a first-order sequent can be set.
+        self.sequent.formulas().propositional("a normal form")?;
+        self.result.formulas().propositional("a normal form")?;
         let mut formulas = self.result.formulas().clone();
         let (left, right) = transfer(&self.sequent, &mut formulas)?;
         match self.form.promise() {
@@ -1018,7 +1021,9 @@ impl Passes {
                     Node::Or(a, b) => Node::Or(map(a), map(b)),
                     Node::Implies(a, b) => Node::Implies(map(a), map(b)),
                     Node::Iff(a, b) => Node::Iff(map(a), map(b)),
-                    Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 };
                 if mapped == node {
                     id

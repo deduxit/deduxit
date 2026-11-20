@@ -610,7 +610,10 @@ impl<K> Interner<K> {
     /// Returns the id of `term` if the tables hold it.
     #[cfg_attr(
         not(test),
-        expect(dead_code, reason = "the checker's quantifier rules are its first caller outside the tests")
+        expect(
+            dead_code,
+            reason = "the checker's quantifier rules are its first caller outside the tests"
+        )
     )]
     pub(crate) fn find_term(&self, term: FoTerm) -> Option<FoTermId> {
         self.terms.get(&term).copied()
@@ -619,7 +622,10 @@ impl<K> Interner<K> {
     /// Returns the argument list of `items` if the tables hold it.
     #[cfg_attr(
         not(test),
-        expect(dead_code, reason = "the checker's quantifier rules are its first caller outside the tests")
+        expect(
+            dead_code,
+            reason = "the checker's quantifier rules are its first caller outside the tests"
+        )
     )]
     pub(crate) fn find_list(&self, items: &[FoTermId]) -> Option<Args> {
         self.lists.get(items).copied()

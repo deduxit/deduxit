@@ -316,6 +316,7 @@ fn enumerate_dyn(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Inhabitants, Error> {
+    sequent.formulas().propositional("a lambda-term")?;
     succedents(sequent)?;
     let mut search = Search::new(sequent, options, limits, stop)?;
     let root_types: Vec<TypeId> = search
@@ -379,6 +380,10 @@ fn enumerate_dyn(
 /// of it, in order: each formula's type is made in the term's own arena,
 /// where equal types are one id, and compared by id.
 pub(crate) fn has_type(term: &Term, sequent: &Sequent) -> bool {
+    // A lambda-term's type is a propositional formula.
+    if sequent.formulas().is_first_order() {
+        return false;
+    }
     let mut builder = Builder::new();
     for atom in term.atoms() {
         builder.atom(atom);

@@ -320,14 +320,15 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
             .split_once(',')
             .ok_or_else(|| error(format!("clause `{name}` has no formula")))?;
         // The formula runs to the parenthesis that closes `fof(`; a comma
-        // outside its parentheses starts an annotation.
+        // outside its parentheses and a quantifier's brackets starts an
+        // annotation.
         let mut depth = 1usize;
         let end = body
             .char_indices()
             .find(|&(_, c)| {
                 match c {
-                    '(' => depth += 1,
-                    ')' => depth -= 1,
+                    '(' | '[' => depth += 1,
+                    ')' | ']' => depth = depth.saturating_sub(1),
                     _ => {}
                 }
                 depth == 0 || (depth == 1 && c == ',')

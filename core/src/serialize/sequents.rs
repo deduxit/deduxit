@@ -1,8 +1,9 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
+use crate::first_order::FirstOrder as Generic;
 use crate::limits::{Limits, Refusal};
-use crate::linear::sequents::fo::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
+use crate::linear::sequents::fo::{Args, FoTerm, FoTermId, Symbol};
 use crate::linear::sequents::{Sequent as Seq, Term, TermId};
 use crate::name;
 use crate::wire::{self, Readable};
@@ -193,12 +194,18 @@ impl Tables {
     /// Returns the forms of `sequent`'s tables: the atoms by name where
     /// none is a predicate, else every atom as a predicate.
     pub(super) fn of(sequent: &Seq) -> Self {
-        let fo = &sequent.fo;
+        Self::of_tables(&sequent.fo, &sequent.atoms)
+    }
+
+    /// Returns the forms of the tables `fo` of an arena whose atoms are
+    /// called `names`: the atoms by name where none is a predicate, else
+    /// every atom as a predicate. Any suite's arena has such tables.
+    pub(super) fn of_tables<K>(fo: &Generic<K>, names: &[String]) -> Self {
         if fo.atoms.is_empty() {
             return Self {
                 symbols: vec![],
                 fo: vec![],
-                atoms: Atoms::Names(sequent.atoms.clone()),
+                atoms: Atoms::Names(names.to_vec()),
             };
         }
         let list = |args: Args| fo.list(args).iter().map(|t| t.get()).collect();
@@ -237,8 +244,11 @@ impl Tables {
     /// and the terms every atom unfolds to are counted against
     /// `limits.terms` first. The terms are shared, so a short document
     /// could name a key of exponential length.
-    pub(super) fn read(self, limits: &Limits) -> Result<(FirstOrder, Vec<String>), crate::Error> {
-        let mut tables = FirstOrder::new();
+    pub(super) fn read<K: Copy + Ord>(
+        self,
+        limits: &Limits,
+    ) -> Result<(Generic<K>, Vec<String>), crate::Error> {
+        let mut tables = Generic::<K>::new();
         let first_order = !self.symbols.is_empty() || !self.fo.is_empty();
         let atoms = match self.atoms {
             Atoms::Names(mut names) if !first_order => {
@@ -261,7 +271,7 @@ impl Tables {
             .collect::<Result<_, crate::Error>>()?;
         // Equal lists are one entry, as the parser interns them.
         let mut known = crate::hash::HashMap::<Vec<u32>, Args>::default();
-        let mut list = |tables: &mut FirstOrder, items: Vec<u32>| {
+        let mut list = |tables: &mut Generic<K>, items: Vec<u32>| {
             if let Some(&args) = known.get(&items) {
                 return args;
             }

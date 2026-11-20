@@ -10,6 +10,32 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### What breaks, and what to do instead
+
+- **`ordinary::Node` has two variants more**, `Forall` and `Exists`, for
+  the quantifiers of first-order formulas. A `match` over `Node` needs an
+  arm for each.
+
+### Added
+
+- **First-order formulas in ordinary logic**: predicates applied to
+  terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
+  the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
+  equal up to the names of their bound variables are one formula.
+- **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
+  method that decides or transforms propositional sequents (the SAT
+  solver, LJT, the embedding, the truth table, the tableau, the normal
+  forms, resolution, the interpolants, the negative translations, the
+  Kripke model's check, the goal state, the certificate over `Prop`, the
+  lambda-term) refuses a first-order sequent by name.
+
+### Wire forms
+
+- **Level 25**: a first-order ordinary sequent or derivation, its
+  formulas with `{"∀": a}` and `{"∃": a}`, and its tables under the
+  linear sequent's keys `symbols`, `fo`, the atoms as `{"P": [symbol,
+  [terms]]}` and `binders`. A propositional one stays at level 8.
+
 ## [0.7.0] - 2026-11-20
 
 Resolution and the simply typed lambda calculus. deduxit rewrites a

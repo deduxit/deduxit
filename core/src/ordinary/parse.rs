@@ -10,8 +10,13 @@
 use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
 use crate::errors::ParseError;
+use crate::first_order::FoTermId;
 use crate::limits::{Limits, Refusal};
 use crate::linear::lltp::{Status, clauses};
+
+/// The hint for `=` and `!=`, which ordinary formulas do not have.
+const EQUALITY: &str =
+    "ordinary formulas have no equality; write it as a predicate, such as eq(a, b)";
 
 /// A binary connective as it is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,6 +68,9 @@ enum Pending {
     Not,
     /// A binary connective with its left operand.
     Binary(Binary, NodeId),
+    /// A binder, `∀` where the flag is set, else `∃`; its variable's name
+    /// is the innermost of `Parser::scope`.
+    Binder(bool),
 }
 
 /// The dialect read.
@@ -91,6 +99,9 @@ struct Parser<'a> {
     /// The most formulas the arena may hold: the caller's bound on
     /// occurrences, since every formula of the arena is at least one.
     limit: Option<u64>,
+    /// The names of the variables of the binders waiting for their body,
+    /// the innermost last, in NFC.
+    scope: Vec<String>,
 }
 
 /// What a formula's list ended with.
@@ -110,7 +121,16 @@ impl<'a> Parser<'a> {
         Error::from(ParseError::new(self.input, at, expected))
     }
 
-    /// Skips white space and returns the rest of the text.
+    /// Skips white space and returns where the next character stands.
+    fn next_at(&mut self) -> usize {
+        self.rest();
+        self.at
+    }
+
+    /// Skips white space and returns the rest of the text. Out of line:
+    /// inlined, the operator tokens' comparisons became calls of `memcmp`
+    /// (the `read-tptp` journey counted 2 % more).
+    #[inline(never)]
     fn rest(&mut self) -> &'a str {
         let rest = &self.input[self.at..];
         self.at += rest.len() - rest.trim_start().len();
@@ -138,7 +158,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Reads an identifier if one starts here.
+    /// Reads an identifier if one starts here. The operand loop is its one
+    /// caller, so that it inlines there; the first-order paths read their
+    /// names with [`word`](Self::word).
     fn identifier(&mut self) -> Option<&'a str> {
         let rest = self.rest();
         let first = rest.chars().next()?;
@@ -166,6 +188,8 @@ impl<'a> Parser<'a> {
                     count_within(self.open, self.limit)?;
                 } else if self.negation() {
                     self.wait(Pending::Not)?;
+                } else if self.starts_binder() && self.binder()? {
+                    // The binder waits for its body.
                 } else {
                     break self.constant_or_atom()?;
                 };
@@ -231,7 +255,15 @@ impl<'a> Parser<'a> {
                     } else {
                         &["a connective", "`,`", "`|-`", "the end"]
                     };
-                    return Err(self.unexpected(self.at.max(at), expected));
+                    let at = self.at.max(at);
+                    let error = ParseError::new(self.input, at, expected);
+                    let equality =
+                        self.input[at..].starts_with('=') || self.input[at..].starts_with("!=");
+                    return Err(if equality {
+                        error.with_hint(EQUALITY).into()
+                    } else {
+                        error.into()
+                    });
                 };
                 return Ok((self.reduce(operand, None)?, end));
             }
@@ -277,12 +309,192 @@ impl<'a> Parser<'a> {
         match self.identifier() {
             Some("true") if native => self.add(Node::True),
             Some("false") if native => self.add(Node::False),
+            Some(name) if self.input.as_bytes().get(self.at) == Some(&b'(') => self.predicate(name),
             Some(name) => {
                 let id = self.formulas.atom(name)?;
                 self.within(id)
             }
             None => Err(self.unexpected(at, &["a formula"])),
         }
+    }
+
+    /// Reads an identifier if one starts here, as
+    /// [`identifier`](Self::identifier) does, for the first-order paths.
+    #[cold]
+    #[inline(never)]
+    fn word(&mut self) -> Option<&'a str> {
+        let rest = self.rest();
+        let first = rest.chars().next()?;
+        if !crate::name::starts_identifier(first) {
+            return None;
+        }
+        let end = rest
+            .find(|c| !unicode_ident::is_xid_continue(c))
+            .unwrap_or(rest.len());
+        self.at += end;
+        Some(&rest[..end])
+    }
+
+    /// Returns whether a binder may start here: the first character is
+    /// that of `forall`, `exists`, `∀`, `∃` or TPTP's `!` and `?`. It
+    /// reads nothing, so a propositional text pays one comparison; the
+    /// white space before it is skipped already.
+    fn starts_binder(&self) -> bool {
+        let first = self.input.as_bytes().get(self.at).copied();
+        match self.dialect {
+            Dialect::Native => matches!(first, Some(b'f' | b'e' | 0xE2)),
+            Dialect::Tptp => matches!(first, Some(b'!' | b'?')),
+        }
+    }
+
+    /// Reads a binder's quantifier and variables if one starts here, and
+    /// returns whether it did: `forall x y.` or `∀x.` (and `exists`, `∃`)
+    /// natively, `! [X, Y] :` or `? [X] :` in TPTP. Each variable waits
+    /// for the body as a binder of its own, the last the innermost.
+    #[cold]
+    #[inline(never)]
+    fn binder(&mut self) -> Result<bool, Error> {
+        let start = self.at;
+        let forall = match self.dialect {
+            Dialect::Native => {
+                if self.eat("∀") {
+                    true
+                } else if self.eat("∃") {
+                    false
+                } else {
+                    match self.word() {
+                        Some("forall") => true,
+                        Some("exists") => false,
+                        _ => {
+                            self.at = start;
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
+            Dialect::Tptp => {
+                let forall = self.eat("!");
+                if !forall && !self.eat("?") {
+                    return Ok(false);
+                }
+                if !self.eat("[") {
+                    let at = self.next_at();
+                    return Err(self.unexpected(at, &["`[`"]));
+                }
+                forall
+            }
+        };
+        let mut count = 0;
+        loop {
+            let at = self.next_at();
+            let done = match self.dialect {
+                Dialect::Native => self.eat("."),
+                Dialect::Tptp => self.eat("]"),
+            };
+            if done {
+                if count == 0 {
+                    return Err(self.unexpected(at, &["a variable"]));
+                }
+                if self.dialect == Dialect::Tptp && !self.eat(":") {
+                    let at = self.next_at();
+                    return Err(self.unexpected(at, &["`:`"]));
+                }
+                return Ok(true);
+            }
+            if count > 0 && self.dialect == Dialect::Tptp && !self.eat(",") {
+                return Err(self.unexpected(at, &["`,`", "`]`"]));
+            }
+            let at = self.next_at();
+            let Some(name) = self.word() else {
+                let expected: &[&str] = match self.dialect {
+                    Dialect::Native if count > 0 => &["a variable", "`.`"],
+                    Dialect::Native | Dialect::Tptp => &["a variable"],
+                };
+                return Err(self.unexpected(at, expected));
+            };
+            let name = crate::name::normalized(name).into_owned();
+            if crate::name::check_ordinary(&name).is_err() {
+                return Err(self.unexpected(at, &["a variable"]));
+            }
+            self.scope.push(name);
+            self.wait(Pending::Binder(forall))?;
+            count += 1;
+        }
+    }
+
+    /// Reads the arguments of the predicate `name`, whose `(` follows,
+    /// and returns its atom. A term is a variable of a binder waiting for
+    /// its body, the innermost of that name, or a function symbol applied
+    /// to terms, a constant without brackets. It reads on a stack of its
+    /// own, so a term of any depth costs no recursion. In TPTP a name
+    /// that starts upper-case is a variable, and one that no binder binds
+    /// is refused.
+    #[cold]
+    #[inline(never)]
+    fn predicate(&mut self, name: &'a str) -> Result<NodeId, Error> {
+        // The applications open, each its symbol's name and the arguments
+        // read so far.
+        let mut open: Vec<(&'a str, Vec<FoTermId>)> = Vec::new();
+        let mut name = name;
+        loop {
+            // A `(` follows `name`: its arguments start.
+            self.at += 1;
+            open.push((name, Vec::new()));
+            loop {
+                let here = self.next_at();
+                let Some(word) = self.word() else {
+                    return Err(self.unexpected(here, &["a term"]));
+                };
+                if self.input[self.at..].starts_with('(') {
+                    name = word;
+                    break;
+                }
+                let word = crate::name::normalized(word);
+                let term = match self.scope.iter().rposition(|bound| *bound == *word) {
+                    Some(at) => self.formulas.variable((self.scope.len() - 1 - at) as u32),
+                    None if self.dialect == Dialect::Tptp
+                        && word.starts_with(char::is_uppercase) =>
+                    {
+                        return Err(self.unexpected(here, &["a bound variable", "a constant"]));
+                    }
+                    None => self.formulas.function(&word, &[])?,
+                };
+                // The term may end its own application and those around.
+                let mut term = Some(term);
+                loop {
+                    if let Some(term) = term.take() {
+                        open.last_mut()
+                            .expect("an application is open")
+                            .1
+                            .push(term);
+                    }
+                    if self.eat(",") {
+                        break;
+                    }
+                    let close = self.next_at();
+                    if !self.eat(")") {
+                        return Err(self.unexpected(close, &["`,`", "`)`"]));
+                    }
+                    let (symbol, args) = open.pop().expect("an application is open");
+                    if open.is_empty() {
+                        let id = self.formulas.predicate(symbol, &args)?;
+                        return self.within(id);
+                    }
+                    term = Some(self.formulas.function(symbol, &args)?);
+                }
+            }
+        }
+    }
+
+    /// Makes the binder waiting innermost, `∀` where `forall` is set, of
+    /// the body `operand`, and returns it.
+    #[cold]
+    #[inline(never)]
+    fn close_binder(&mut self, forall: bool, operand: NodeId) -> Result<NodeId, Error> {
+        self.pending.pop();
+        let name = self.scope.pop().expect("a name per binder");
+        let id = self.formulas.binder(forall, operand, &name)?;
+        self.within(id)
     }
 
     /// Gives `operand` to the pending operators that take it before
@@ -292,6 +504,16 @@ impl<'a> Parser<'a> {
         while let Some(&top) = self.pending.last() {
             let node = match top {
                 Pending::Open => break,
+                Pending::Binder(forall) => {
+                    // A native binder reaches as far right as it can: a
+                    // connective after its body is inside it. TPTP's binds
+                    // the unit that follows it.
+                    if next.is_some() && self.dialect == Dialect::Native {
+                        break;
+                    }
+                    operand = self.close_binder(forall, operand)?;
+                    continue;
+                }
                 Pending::Not => Node::Not(operand),
                 Pending::Binary(binary, left) => {
                     if next.is_some_and(|next| !binary.takes_before(next)) {
@@ -351,6 +573,7 @@ impl Sequent {
             pending: Vec::new(),
             open: 0,
             limit: limits.occurrences,
+            scope: Vec::new(),
         };
         let (mut left, mut right) = (Vec::new(), Vec::new());
         let mut turnstile = false;
@@ -416,6 +639,7 @@ pub(super) fn formula_in(
         pending: Vec::new(),
         open: 0,
         limit: limits.occurrences,
+        scope: Vec::new(),
     };
     let at = parser.at;
     let (formula, end) = match parser.formula() {
@@ -479,14 +703,17 @@ pub struct Problem {
     pub status: Option<Status>,
 }
 
-/// Reads a problem of propositional logic in TPTP's `fof` syntax, as the
-/// ILTP library writes them: every clause with the role `axiom` or
-/// `hypothesis` is a hypothesis, the one `conjecture` the formula right
-/// of `⊢`. A formula is built over `$true`, `$false` and atoms with these
-/// connectives, from the tightest binding to the loosest: `~`; `&` and
-/// `~&`; `|` and `~|`; `=>` and `<=`; `<=>` and `<~>`. TPTP asks for
-/// parentheses wherever this order matters, and binds `~` as tightly as
-/// here. The file's statuses are read as
+/// Reads a problem of TPTP's `fof` syntax, as the ILTP library writes
+/// them: every clause with the role `axiom` or `hypothesis` is a
+/// hypothesis, the one `conjecture` the formula right of `⊢`. A formula
+/// is built over `$true`, `$false` and atoms with these connectives, from
+/// the tightest binding to the loosest: `~`, `! [X, …] :` and `? [X, …] :`;
+/// `&` and `~&`; `|` and `~|`; `=>` and `<=`; `<=>` and `<~>`. TPTP asks
+/// for parentheses wherever this order matters, and binds `~` as tightly
+/// as here. A quantifier binds the unit after it: `! [X] : p(X) & q` is
+/// `(∀X. p(X)) ∧ q`. An atom may be a predicate applied to terms, a term
+/// a variable (upper-case, bound by a quantifier) or a function symbol
+/// applied to terms (lower-case). The file's statuses are read as
 /// [`lltp::read`](crate::linear::lltp::read) reads them.
 ///
 /// Every formula is read within `limits.occurrences`, as
@@ -501,7 +728,9 @@ pub struct Problem {
 /// (TPTP asks for each to be proved, which right of `⊢` would read as
 /// their disjunction), [`Error::Parse`] for a formula that is not one,
 /// [`Error::AtomName`] for an atom named by a keyword of the ordinary
-/// syntax, such as `true`, and [`Refusal::Occurrences`] past the bound.
+/// syntax, such as `true`, [`Error::Symbol`] for a name used with two
+/// arities or as a predicate and a function symbol, and
+/// [`Refusal::Occurrences`] past the bound.
 pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Tptp { message })?;
     let mut formulas = Formulas::default();
@@ -517,6 +746,7 @@ pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
             pending: Vec::new(),
             open: 0,
             limit: limits.occurrences,
+            scope: Vec::new(),
         };
         // A parse error's place in the file, which the formula is a part of.
         let (start, len) = (
@@ -608,6 +838,78 @@ mod tests {
 
     /// TPTP's connectives, its constants, the clauses' roles and the
     /// status, with `~` as tight as its operand.
+    /// A binder reaches as far right as it can, takes several variables,
+    /// and binds the innermost variable of its name; predicates take
+    /// nested terms; what is printed reads back as itself.
+    #[test]
+    fn reads_binders_and_terms() {
+        let read = |text: &str| text.parse::<Sequent>().unwrap().to_string();
+        assert_eq!(
+            read("forall x. p(x) -> q(x), p(a) |- q(a)"),
+            "∀x. (p(x) → q(x)), p(a) ⊢ q(a)"
+        );
+        assert_eq!(
+            read("∀x y. r(x, f(y, a))"),
+            read("forall x. forall y. r(x, f(y, a))")
+        );
+        assert_eq!(read("(exists x. p(x)) /\\ q"), "⊢ (∃x. p(x)) ∧ q");
+        assert_eq!(read("~ exists x. p(x) /\\ q"), "⊢ ¬(∃x. (p(x) ∧ q))");
+        assert_eq!(read("a -> forall x. p(x)"), "⊢ a → (∀x. p(x))");
+        // The inner `x` shadows the outer one.
+        assert_eq!(read("forall x. exists x. p(x)"), "⊢ ∀x. ∃x_1. p(x_1)");
+        // Bound names do not matter: one formula is one node.
+        let sequent: Sequent = "forall x. p(x) |- forall y. p(y)".parse().unwrap();
+        assert_eq!(sequent.left(), sequent.right());
+        // A propositional atom beside a predicate is its nullary predicate.
+        assert_eq!(read("p(a), b |- b"), "p(a), b ⊢ b");
+        for text in [
+            "forall x. p(x) -> q(x), p(a) |- q(a)",
+            "∀x y. r(x, f(y, a))",
+            "forall x. exists x. p(x)",
+            "exists x. p(x, x), forall y. (p(y, y) <-> ~q) |- ⊥",
+        ] {
+            let printed = read(text);
+            assert_eq!(read(&printed), printed, "{text}");
+        }
+        for bad in [
+            "forall . p",
+            "forall x p(x)",
+            "forall forall. p",
+            "p()",
+            "p(a,)",
+            "p(a",
+            "p(a) /\\ p",
+            "p(a) /\\ p(a, a)",
+            "p(a) /\\ a",
+            "p(f) /\\ p(f(a))",
+            "p(p(a))",
+        ] {
+            assert!(bad.parse::<Sequent>().is_err(), "{bad:?}");
+        }
+    }
+
+    /// In TPTP a quantifier binds the unit after it, and an upper-case
+    /// word that no quantifier binds is refused.
+    #[test]
+    fn reads_tptp_quantifiers() {
+        let read = |formula: &str| {
+            let text = format!("fof(c, conjecture, {formula}).");
+            read_tptp(&text, &Limits::default()).map(|p| p.sequent.to_string())
+        };
+        assert_eq!(read("! [X] : p(X) & q").unwrap(), "⊢ (∀X. p(X)) ∧ q");
+        assert_eq!(
+            read("? [X, Y] : (r(X, f(Y)) => r(a, Y))").unwrap(),
+            "⊢ ∃X. ∃Y. (r(X, f(Y)) → r(a, Y))"
+        );
+        assert!(read("p(X)").is_err());
+        assert!(read("! [] : p").is_err());
+        assert!(read("! X : p(X)").is_err());
+        let Err(Error::Parse(e)) = read("a = b") else {
+            panic!("a = b");
+        };
+        assert_eq!(e.hint, Some(EQUALITY));
+    }
+
     #[test]
     fn reads_tptp() {
         let text = "% Status (intuit.) : Non-Theorem\n\

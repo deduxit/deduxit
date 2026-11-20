@@ -1199,3 +1199,42 @@ fn transformations_are_written_at_level_16() {
     );
     assert!(written["outcome"].get("version").is_none());
 }
+
+/// A first-order ordinary sequent is written at level 25 with the linear
+/// sequent's keys for its tables, and reads back to the same bytes; a
+/// propositional one stays at level 8.
+#[test]
+fn first_order_ordinary_sequent_json() {
+    use deduxit::ordinary;
+    let sequent: ordinary::Sequent = "forall x. p(x) -> q(f(x)), p(a) |- exists y. q(y)"
+        .parse()
+        .unwrap();
+    let json = serde_json::to_string(&sequent).unwrap();
+    assert_eq!(
+        json,
+        r#"{"version":25,"formulas":[{"V":0},{"V":1},{"→":[0,1]},{"∀":2},{"V":2},{"V":3},{"∃":5}],"atoms":[{"P":[0,[0]]},{"P":[2,[1]]},{"P":[0,[2]]},{"P":[2,[0]]}],"symbols":[["p",1],["f",1],["q",1],["a",0]],"fo":[{"B":0},{"F":[1,[0]]},{"F":[3,[]]}],"binders":["x","y"],"left":[3,4],"right":[6]}"#
+    );
+    let mut read = serde_json::Deserializer::from_str(&json);
+    let back: ordinary::Sequent = deduxit::wire::upgrade(&mut read, &Limits::default()).unwrap();
+    assert_eq!(serde_json::to_string(&back).unwrap(), json);
+    assert_eq!(back.to_string(), sequent.to_string());
+    let propositional: ordinary::Sequent = "a |- a".parse().unwrap();
+    assert!(
+        serde_json::to_string(&propositional)
+            .unwrap()
+            .starts_with(r#"{"version":8,"#)
+    );
+    // A loose variable, a keyword for a symbol and an unknown symbol are
+    // refused.
+    for bad in [
+        r#"{"version":25,"formulas":[{"V":0}],"atoms":[{"P":[0,[0]]}],"symbols":[["p",1]],"fo":[{"B":0}],"left":[],"right":[0]}"#,
+        r#"{"version":25,"formulas":[{"V":0}],"atoms":[{"P":[0,[]]}],"symbols":[["true",0]],"left":[],"right":[0]}"#,
+        r#"{"version":25,"formulas":[{"V":0}],"atoms":[{"P":[1,[]]}],"symbols":[["p",0]],"left":[],"right":[0]}"#,
+    ] {
+        let mut read = serde_json::Deserializer::from_str(bad);
+        assert!(
+            deduxit::wire::upgrade::<ordinary::Sequent, _>(&mut read, &Limits::default()).is_err(),
+            "{bad}"
+        );
+    }
+}

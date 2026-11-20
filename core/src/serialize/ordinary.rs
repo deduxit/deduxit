@@ -2,6 +2,7 @@
 // Licensed under the EUPL
 
 use super::search::Why;
+use super::sequents::{Atoms, FoExpression, Tables};
 use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
 use crate::linear::proofs::InfId;
@@ -89,7 +90,9 @@ impl From<Node> for FormulaForm {
 }
 
 /// The serialized form of an ordinary sequent: the formulas, the atom
-/// names and the two sides.
+/// names and the two sides, and for a first-order arena its symbols, its
+/// terms, every atom as its predicate applied to terms, and the names of
+/// its binders' variables, the linear sequent's keys.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SequentForm {
     /// The wire level, written only at the top of a document.
@@ -101,8 +104,18 @@ struct SequentForm {
     version: Option<u32>,
     /// The formulas, every operand before the formula built from it.
     formulas: Vec<FormulaForm>,
-    /// The atom names.
-    atoms: Vec<String>,
+    /// The atoms, by name or, in a first-order arena, as predicates.
+    atoms: Atoms,
+    /// The symbols, each a name and its arity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    symbols: Vec<(String, u32)>,
+    /// The terms, each after those it is built from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    fo: Vec<FoExpression>,
+    /// The name of every binder's variable, in the order of the binders
+    /// among the formulas.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    binders: Vec<String>,
     /// The hypotheses, as indices of formulas, in the order written.
     left: Vec<u32>,
     /// The formulas right of `⊢`, as indices, in the order written.
@@ -113,6 +126,14 @@ impl SequentForm {
     /// Returns the form of the sequent `left ⊢ right` over the formulas.
     fn of(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Self {
         let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
+        let tables = Tables::of_tables(formulas.first_order(), formulas.atom_names());
+        // Every binder has its name in the tables, in the order of nodes.
+        let binders = formulas
+            .first_order()
+            .binders
+            .iter()
+            .map(|(_, name)| name.clone())
+            .collect();
         Self {
             version: None,
             formulas: formulas
@@ -120,7 +141,10 @@ impl SequentForm {
                 .iter()
                 .map(|&n| FormulaForm::from(n))
                 .collect(),
-            atoms: formulas.atom_names().to_vec(),
+            atoms: tables.atoms,
+            symbols: tables.symbols,
+            fo: tables.fo,
+            binders,
             left: ids(left),
             right: ids(right),
         }
@@ -138,7 +162,27 @@ impl SequentForm {
                 limit,
             }));
         }
-        let mut formulas = Formulas::default();
+        let first_order = !self.symbols.is_empty()
+            || !self.fo.is_empty()
+            || matches!(self.atoms, Atoms::Mixed(_));
+        let (mut formulas, indices, names) = if first_order {
+            let tables = Tables {
+                symbols: self.symbols,
+                fo: self.fo,
+                atoms: self.atoms,
+            };
+            let (tables, names) = tables.read::<NodeId>(limits)?;
+            match Formulas::of_tables(&tables)? {
+                Some((formulas, indices)) => (formulas, Some(indices), Vec::new()),
+                None => (Formulas::default(), None, names),
+            }
+        } else {
+            let Atoms::Names(names) = self.atoms else {
+                unreachable!("a document of named atoms alone is propositional");
+            };
+            (Formulas::default(), None, names)
+        };
+        let mut binders = self.binders.iter().map(String::as_str);
         let mut ids: Vec<NodeId> = Vec::with_capacity(self.formulas.len());
         for (n, form) in self.formulas.iter().enumerate() {
             let at = |k: u32| {
@@ -150,12 +194,19 @@ impl SequentForm {
             };
             let id = match *form {
                 FormulaForm::Atom(a) => {
-                    let name = self.atoms.get(a as usize).ok_or(Error::IndexOutOfBounds {
+                    let len = indices.as_ref().map_or(names.len(), Vec::len);
+                    let outside = Error::IndexOutOfBounds {
                         space: Space::Atom,
                         index: a as usize,
-                        len: self.atoms.len(),
-                    })?;
-                    formulas.atom(name)?
+                        len,
+                    };
+                    match &indices {
+                        Some(indices) => {
+                            let index = indices.get(a as usize).ok_or(outside)?;
+                            formulas.add(Node::Atom(*index))?
+                        }
+                        None => formulas.atom(names.get(a as usize).ok_or(outside)?)?,
+                    }
                 }
                 FormulaForm::True => formulas.add(Node::True)?,
                 FormulaForm::False => formulas.add(Node::False)?,
@@ -164,8 +215,14 @@ impl SequentForm {
                 FormulaForm::Or(a, b) => formulas.add(Node::Or(at(a)?, at(b)?))?,
                 FormulaForm::Implies(a, b) => formulas.add(Node::Implies(at(a)?, at(b)?))?,
                 FormulaForm::Iff(a, b) => formulas.add(Node::Iff(at(a)?, at(b)?))?,
-                FormulaForm::Forall(a) => formulas.add(Node::Forall(at(a)?))?,
-                FormulaForm::Exists(a) => formulas.add(Node::Exists(at(a)?))?,
+                FormulaForm::Forall(a) => {
+                    let body = at(a)?;
+                    formulas.binder(true, body, binders.next().unwrap_or("x"))?
+                }
+                FormulaForm::Exists(a) => {
+                    let body = at(a)?;
+                    formulas.binder(false, body, binders.next().unwrap_or("x"))?
+                }
             };
             ids.push(id);
         }
@@ -389,6 +446,16 @@ impl DerivationForm {
                 form: "ordinary derivation",
                 message: "the inferences are no tree with its root last".to_owned(),
             });
+        }
+        // Every formula of every inference is closed, as a sequent's are.
+        if read.formulas.is_first_order() {
+            crate::ordinary::closed(
+                &read.formulas,
+                inferences
+                    .iter()
+                    .flat_map(|i| i.left.iter().chain(&i.right))
+                    .chain(left.iter().chain(&right)),
+            )?;
         }
         Ok(
             Derivation::from_parts(self.logic, read.formulas, (left, right), inferences)
@@ -1164,6 +1231,7 @@ impl TableauForm {
             message,
         };
         let (read, left, right) = self.sequent.within(limits)?;
+        read.formulas.propositional("a tableau")?;
         let total: u64 = self.nodes.iter().map(|n| n.lines.len() as u64).sum();
         let total =
             u32::try_from(total).map_err(|_| refuse("more lines than a u32 numbers".to_owned()))?;

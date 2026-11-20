@@ -14,7 +14,9 @@
 //! ordinary outcomes of level 12, `wire/level-13.txt` a Kripke model and
 //! an outcome that holds one (at level 12), `wire/level-22.txt` two
 //! refutations by resolution and `wire/level-23.txt` four lambda-terms,
-//! as 0.7.0 wrote them; none is ever
+//! as 0.7.0 wrote them, and `wire/level-25.txt` a first-order ordinary
+//! sequent and derivation as the first release with them writes them;
+//! none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -517,4 +519,25 @@ fn the_twenty_third_level_reads() {
             .unwrap_or_else(|error| panic!("{name}: {error}"));
     }
     assert_eq!(lines.lines().count(), 4);
+}
+
+/// The first-order ordinary forms of level 25: a sequent and a derivation,
+/// which reads back and checks. Never rewritten, as `wire/level-1.txt` is
+/// not.
+#[test]
+fn the_twenty_fifth_level_reads() {
+    use deduxit::ordinary;
+    let lines = include_str!("wire/level-25.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "sequent" => again::<ordinary::Sequent>(name, json),
+            "derivation" => {
+                again::<ordinary::Derivation>(name, json);
+                let derivation: ordinary::Derivation = read(name, json);
+                assert_eq!(derivation.check(&Limits::default(), |_| false), Ok(()));
+            }
+            other => panic!("no form {other}"),
+        }
+    }
 }

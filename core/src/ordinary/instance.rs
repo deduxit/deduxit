@@ -25,13 +25,14 @@ impl Formulas {
     /// `∃x. A`, built as nodes of the arena where new. A binder built here
     /// keeps the name of the binder it copies.
     ///
-    /// `body` is the operand of a binder of a closed formula and `term` a
-    /// closed term of the arena, so no de Bruijn index needs a shift
-    /// beyond the one the removed binder makes.
+    /// `body` is the operand of a binder of a closed formula, so no de
+    /// Bruijn index needs a shift beyond the one the removed binder makes.
     ///
     /// # Errors
     ///
-    /// [`Error::IndexOutOfBounds`] for an id of another arena, and
+    /// [`Error::IndexOutOfBounds`] for an id of another arena,
+    /// [`Error::LooseVariable`] for a term with a bound variable, which
+    /// the instance would capture, and
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub(crate) fn instantiate(&mut self, body: NodeId, term: FoTermId) -> Result<NodeId, Error> {
         self.holds(body)?;
@@ -42,6 +43,9 @@ impl Formulas {
                 len: self.tables().terms.len(),
             });
         }
+        if !self.is_closed(term) {
+            return Err(Error::LooseVariable { term: term.index() });
+        }
         let made = Substitution::new(term).run(&mut Build(self), body)?;
         Ok(made.expect("an arena that adds what it lacks finds every node"))
     }
@@ -51,13 +55,37 @@ impl Formulas {
     /// builds nothing, finds the instance a right inference's premise
     /// holds.
     pub(crate) fn instance(&self, body: NodeId, term: FoTermId) -> Option<NodeId> {
-        if body.index() >= self.nodes.len() || term.index() >= self.tables().terms.len() {
+        if body.index() >= self.nodes.len()
+            || term.index() >= self.tables().terms.len()
+            || !self.is_closed(term)
+        {
             return None;
         }
         Substitution::new(term)
             .run(&mut Find(self), body)
             .ok()
             .flatten()
+    }
+}
+
+impl Formulas {
+    /// Returns whether the term `t` has no bound variable. It walks on a
+    /// stack of its own, each shared term once.
+    fn is_closed(&self, t: FoTermId) -> bool {
+        let tables = self.tables();
+        let mut seen = vec![false; tables.terms.len()];
+        let mut stack = vec![t];
+        while let Some(u) = stack.pop() {
+            if std::mem::replace(&mut seen[u.index()], true) {
+                continue;
+            }
+            match tables.terms[u.index()] {
+                FoTerm::Bound(_) => return false,
+                FoTerm::App(_, args) => stack.extend_from_slice(tables.list(args)),
+                FoTerm::Eigen(_) | FoTerm::Meta(_) => {}
+            }
+        }
+        true
     }
 }
 
@@ -338,7 +366,11 @@ mod tests {
         let all = expected.binder(true, inner, "z").unwrap();
         let whole = expected.add(Node::And(pa, all)).unwrap();
         assert_eq!(instance, whole);
-        assert_eq!(expected.len(), formulas.len(), "the instance was built whole");
+        assert_eq!(
+            expected.len(),
+            formulas.len(),
+            "the instance was built whole"
+        );
         // The binder built keeps the name of the one it copies.
         assert_eq!(formulas.first_order().binder_name(all), Some("y"));
         // The checker's form finds it once built, and only then.
@@ -365,5 +397,20 @@ mod tests {
         let instance = formulas.instantiate(body, a).unwrap();
         assert_eq!(formulas.instance(body, a), Some(instance));
         assert_ne!(instance, body);
+    }
+
+    #[test]
+    fn a_term_with_a_bound_variable_is_no_witness() {
+        let (mut formulas, body, _) = arena(|f, [v0, v1, _]| {
+            let r = f.predicate("r", &[v1, v0]).unwrap();
+            f.binder(false, r, "y").unwrap()
+        });
+        // `#0` put for `x` in `∃y. r(x, y)` would be captured by `y`.
+        let bound = FoTermId::new(0);
+        assert!(matches!(
+            formulas.instantiate(body, bound),
+            Err(crate::Error::LooseVariable { .. })
+        ));
+        assert_eq!(formulas.instance(body, bound), None);
     }
 }

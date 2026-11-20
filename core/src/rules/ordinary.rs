@@ -37,7 +37,8 @@ pub(crate) fn terms_of(
             Or(a, b) => terms.apply("∨", &[ids[a.index()], ids[b.index()]])?,
             Implies(a, b) => terms.apply("→", &[ids[a.index()], ids[b.index()]])?,
             Iff(a, b) => terms.apply("↔", &[ids[a.index()], ids[b.index()]])?,
-            // `from_ordinary` refuses a first-order derivation.
+            // `from_ordinary` and `from_tableau` refuse a first-order
+            // arena.
             Forall(_) | Exists(_) => unreachable!("{}", ordinary::REFUSED),
         };
         ids.push(id);
