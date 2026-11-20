@@ -183,7 +183,11 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   `cargo install` with Fedora's, Arch's and Ubuntu 26.04's Rust, with
   rustup on Debian 13 and on the macOS and Windows runners, and (not on
   a push) the chapter's downloads from the latest release, skipped while
-  it carries no `SHA256SUMS`. A chapter's command that changes changes
+  it carries no `SHA256SUMS`. After a Release run (`workflow_run`) it
+  builds nothing: `packages` is skipped and the install jobs download
+  the release run's own artifacts (`download-artifact`'s `run-id`, with
+  `actions: read`), so they test the files published; after a release
+  that failed they are skipped. A chapter's command that changes changes
   this workflow in the same commit.
 - **Release** (`release.yml`, on a tag `vX.Y.Z` only), five jobs. `tag`:
   the tag equals `[workspace.package]`'s version, CITATION.cff states it,
