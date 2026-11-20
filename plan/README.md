@@ -7573,3 +7573,6 @@ move (D26).
   `b3d33553` (`xuptrvts`); the signed tag object `136b2ea2` (verified "true valid") and
   `refs/tags/v0.6.0`, on the author's yes. The release workflow runs; its `cargo publish` waits for
   the author's approval.
+- 2026-11-20, about 11:10: **0.6.0 published.** The author approved the `crates-io` environment;
+  `cargo publish` succeeded; crates.io lists `deduxit` and `deduxit-cli` 0.6.0. The archives, the
+  GitHub release, docs.rs and Zenodo to be checked when the run ends. Step 69 complete.
