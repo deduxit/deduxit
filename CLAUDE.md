@@ -163,15 +163,20 @@ nix fmt           # nixfmt, rustfmt, taplo, shfmt, shellcheck, ruff-format (a ho
 nix build         # deduxit-cli, whose binary is result/bin/deduxit
 nix build .#deduxit-web   # the web bindings: deduxit_web.js, deduxit_web_bg.wasm, LICENSE, THIRD-PARTY-NOTICES.txt
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p deduxit-web --target wasm32-unknown-unknown   # the bindings' tests under Node
-nix build .#doc   # the Pages site, as the Docs workflow publishes it: the rustdoc and the manual under manual/
+nix build .#doc   # the Pages site, as CI publishes it: the rustdoc and the manual under manual/
 nix build .#manual   # the manual alone (docs/, mdBook), its figures drawn by bench/plots.py; `manual` in the devshell draws them and serves it
 ```
 
-Verify as much as the change needs:
+Verify as much as the change needs, and each thing once. Nix keeps a
+check it built for the same tree, so building it again here is a
+lookup. Two things do run twice: the gate's cargo builds beside the
+full check's sandbox builds of the same tree, and a check built here
+and again on CI, whose results this machine does not fetch.
+
 
 | the change | the proof |
 |---|---|
-| any commit that touches code | `gate` passes (capped: `systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 2-5 nix develop -c gate`); a change of the behaviour lock's files or of a ceiling is a commit of its own that says why |
+| any commit that touches code | `gate` passes (capped: `systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 2-5 nix develop -c gate`), except at a head that gets the full check (the last row), which holds the gate's five parts; a change of the behaviour lock's files or of a ceiling is a commit of its own that says why |
 | any `.rs` edit | `cargo clippy …` and `cargo test --workspace` |
 | touches `#[cfg(feature = …)]` or `[features]` | add `cargo hack check --each-feature -p deduxit` and `cargo hack check --feature-powerset --depth 2 -p deduxit` (both cover `parallel`, which is off by default: `--each-feature`'s `--all-features` run is the one that differs from the defaults) |
 | touches `bench/` or `core/src/linear/families.rs` | add `cargo run --release -p deduxit-bench -- run --all-families --timeout 5` for the verdicts (a `MISMATCH` in `summary` is a bug); timings only from `bench/baseline.sh` on an idle machine |
@@ -186,7 +191,7 @@ Verify as much as the change needs:
 | adds or changes a dependency | add `cargo deny check`. New deps must use a license `deny.toml` allows: EUPL-1.2, MIT, Apache-2.0 (± LLVM-exception), Unicode-3.0, Zlib, BSD-2-Clause or BSD-3-Clause |
 | touches `web/` | add the bindings' tests under Node (`nix build .#checks.x86_64-linux.web-wasm-tests`, or the command above in the devshell) |
 | touches the checker's, the size estimate's or the memo's integers | add `nix build .#checks.x86_64-linux.web-core-wasm32` (their tests on a 32-bit target); for the checker's, `nix build .#kani-harnesses` too (its harnesses, `core-proofs.md`; about 32 minutes, one at a time, up to 8 GB each; `nix flake check` leaves it out) |
-| `flake.nix`, `modules/`, `.github/`, the toolchain, a lock bump, or before a push | `nix flake check`, which runs all of the above |
+| `flake.nix`, `modules/`, `.github/`, the toolchain, a lock bump, or before a push | the full check, once per head: `plan/push-ci.sh NAME REV` (the planning session's; every flake check in groups on GitHub's runners, nothing on this machine), or `nix flake check` here under the lock; each runs all of the above |
 
 ## The flake
 
@@ -197,14 +202,17 @@ every output it needs; no file is ever added to an imports list.
 
 ## CI
 
-`ci.yml` runs `nix flake check` and the online `cargo deny check
-advisories` on every push to `main`, every pull request and weekly, with
-nothing installed but Nix; `docs.yml` publishes the rustdoc of `main` to
-GitHub Pages; `kani.yml` builds `kani-harnesses` weekly and on
-pushes that touch the checker; `release.yml` releases a version tag (crates.io through
-Trusted Publishing from 0.1.1 on, and a GitHub release). Every job that
-installs Nix pulls from the public Cachix cache `linlog-prover`, and
-the jobs on `main` push what they build, so a check whose inputs did not
+`ci.yml` runs every flake check on each push to `main` or to a branch
+`ci/NAME`, each pull request and weekly, in groups on runners side by
+side (`checks.yml`; the groups are `modules/ci.nix`'s), with the online
+`cargo deny check advisories` beside them and nothing installed but
+Nix, and on `main` deploys the rustdoc and the manual to GitHub Pages
+once every check passed; `kani.yml` builds `kani-harnesses` weekly and on
+pushes that touch the checker; `release.yml` releases a version tag (the
+same checks, crates.io through Trusted Publishing from 0.1.1 on, and a
+GitHub release). Every job that installs Nix pulls from the public
+Cachix cache `linlog-prover`, and the jobs of a push (to `main` or a
+`ci/` branch) push what they build, so a check whose inputs did not
 change is fetched, not rerun. Locally, `nix run
 nixpkgs#cachix -- use linlog-prover` (once, as a trusted user) does the
 same for `nix flake check`; the flake sets no `nixConfig`.

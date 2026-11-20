@@ -347,18 +347,33 @@ to D32), grouped by release. In brief:
      one back to the session.
 5. **Stack and check**: rebase its chain onto `main` (`jj rebase -s
    FIRST -d main`), resolve conflicts by hand, and check the combined
-   head. When code from two chains meets, that is the gate and `nix
-   flake check` (they once found semantic conflicts each chain's checks
-   had passed); when only plan files came between, the text checks
-   suffice (`nix build .#checks.x86_64-linux.typos
-   .#checks.x86_64-linux.treefmt .#checks.x86_64-linux.conventions`).
+   head once. When code changed (two chains meeting once found semantic
+   conflicts each chain's checks had passed), that is the full check on
+   GitHub's runners: `plan/push-ci.sh NAME HEAD`, in the background,
+   which pushes `ci/NAME`, waits for its CI run and exits with its
+   outcome (every flake check in groups side by side, about the longest
+   group's time; nothing on this machine, no lock), and whose uploads
+   make `main`'s run after it a lookup. Not the gate and `nix flake
+   check` here as well: they rebuild the same checks. `nix flake check`
+   here under the lock is the fallback when GitHub is unreachable. When
+   only plan files came between, the text checks suffice (`nix build
+   .#checks.x86_64-linux.typos .#checks.x86_64-linux.treefmt
+   .#checks.x86_64-linux.conventions`).
+   - A step session's own checks: the gate at each commit that touches
+     code, and `nix build` of the checks the verification table names
+     for its areas (the manual, the export, the Rocq checks, the web
+     tests). Its brief asks for `nix flake check` at its head only when
+     the session must see the full result before it ends; it then
+     leaves the gate out at that head, and you skip `push-ci.sh` for a
+     chain that lands unchanged on the `main` it was checked on.
 6. **Record it**: a dated Status entry in `plan/README.md` (what was
    delivered, what you checked and how, what the author must decide),
    the follow-ups into `plan/later.md`, the next prompts amended. Commit
    as "Plan: review session NNx", on top of the session's commits.
 7. **Push** with `plan/push-main.sh REV` for linlog, `--client REV` for
    the client and `--rocq REV` for the Rocq library, the linlog part
-   first, chained after its check (`check && push`).
+   first, chained after its check (`plan/push-ci.sh NAME REV &&
+   plan/push-main.sh REV`).
    - The script fails within a minute when the SSH key is locked instead
      of waiting on a prompt, and checks `main@origin` after.
    - Never push any other way: any `jj git push …`, even with `--help`,
