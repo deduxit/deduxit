@@ -449,6 +449,11 @@ const OPERATIONS: &[&str] = &[
     "ordinary.interpolate",
     "ordinary.half",
     "ordinary.embed",
+    "ordinary.nnf",
+    "ordinary.cnf",
+    "ordinary.dnf",
+    "ordinary.tseitin",
+    "ordinary.plaisted_greenbaum",
     "ordinary.term",
     #[cfg(feature = "svg")]
     "ordinary.draw",
@@ -909,6 +914,20 @@ mod promises {
         name: "interpolates",
         check: Some(Cost::Search),
         description: "The interpolant's atoms occur in both parts, and both halves are valid.",
+    };
+
+    /// Each formula is equivalent to its normal form.
+    pub(super) static EQUIVALENT: Promise = Promise {
+        name: "equivalent",
+        check: Some(Cost::Search),
+        description: "Each formula of the output is equivalent to the input's formula in its place, which a decision of their equivalence shows.",
+    };
+
+    /// The clauses are satisfiable exactly when the input's negation is.
+    pub(super) static EQUISATISFIABLE: Promise = Promise {
+        name: "equisatisfiable",
+        check: Some(Cost::Search),
+        description: "The output's clauses can be satisfied exactly when the input can be false: the input with the new atoms' definitions implies the clauses, and the clauses imply the input's negation.",
     };
 
     /// A drawing or a text shows its input.

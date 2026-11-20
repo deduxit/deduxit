@@ -5,7 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::promises::{DECIDES, EXACT, INTERPOLATES, PROVES, RENDERS, SAME_VERDICT};
+use super::promises::{
+    DECIDES, EQUISATISFIABLE, EQUIVALENT, EXACT, INTERPOLATES, PROVES, RENDERS, SAME_VERDICT,
+};
 use super::shared::{Term, Text};
 use super::{
     Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Part, Produced, Role, Status,
@@ -13,7 +15,7 @@ use super::{
 };
 use crate::ordinary::interpolant::{self, Partition};
 use crate::ordinary::{
-    self, Derivation, Interactive, Logic, Method, Outcome, Sequent, Translation, negative,
+    self, Derivation, Interactive, Logic, Method, Outcome, Sequent, Translation, negative, normal,
 };
 use crate::{Error, ErrorKind, Limits, Progress};
 
@@ -130,6 +132,59 @@ static TERM_READS: [&str; 7] = [
     "view",
     "lambda",
 ];
+
+/// The settings keys a normal form reads: the readers' sizes and the
+/// rewriting's bounds.
+static NORMAL_READS: [&str; 5] = [
+    "limits.memory_bytes",
+    "limits.occurrences",
+    "limits.terms",
+    "limits.work",
+    "limits.form_occurrences",
+];
+
+/// Returns the operation of a normal form.
+const fn normal_form(
+    name: &'static str,
+    promise: &'static super::Promise,
+    label: &'static str,
+) -> Operation {
+    Operation {
+        name,
+        from: &[&["ordinary.sequent"]],
+        to: "ordinary.sequent",
+        class: Class::Derived,
+        cost: Cost::Instant,
+        parameters: &[],
+        reads: &NORMAL_READS,
+        promise,
+        label,
+    }
+}
+
+/// Returns the normal form an operation's name makes.
+fn form_of(operation: &str) -> Option<normal::Form> {
+    Some(match operation {
+        "ordinary.nnf" => normal::Form::Nnf,
+        "ordinary.cnf" => normal::Form::Cnf,
+        "ordinary.dnf" => normal::Form::Dnf,
+        "ordinary.tseitin" => normal::Form::Tseitin,
+        "ordinary.plaisted_greenbaum" => normal::Form::PlaistedGreenbaum,
+        _ => return None,
+    })
+}
+
+/// Reads a statement of classical logic, which a normal form takes.
+fn classical(value: &str, limits: &Limits) -> Result<Sequent, Error> {
+    let (sequent, logic) = statement(value, limits)?;
+    if logic != Logic::Classical {
+        return Err(Error::InvalidOption {
+            key: "logic",
+            message: "a normal form is made of a sequent of classical logic".to_owned(),
+        });
+    }
+    Ok(sequent)
+}
 
 /// The settings keys a session's derivation reads.
 static FINISH_READS: [&str; 5] = [
@@ -271,6 +326,15 @@ static OPERATIONS: &[Operation] = &[
         promise: &SAME_VERDICT,
         label: "The embedding into linear logic",
     },
+    normal_form("ordinary.nnf", &EQUIVALENT, "Negation normal form"),
+    normal_form("ordinary.cnf", &EQUIVALENT, "Conjunctive normal form"),
+    normal_form("ordinary.dnf", &EQUIVALENT, "Disjunctive normal form"),
+    normal_form("ordinary.tseitin", &EQUISATISFIABLE, "Tseitin's clauses"),
+    normal_form(
+        "ordinary.plaisted_greenbaum",
+        &EQUISATISFIABLE,
+        "Plaisted and Greenbaum's clauses",
+    ),
     Operation {
         name: "ordinary.term",
         from: &[&["ordinary.session", "ordinary.derivation"]],
@@ -823,6 +887,13 @@ impl Suite for Ordinary {
                 statement(&half, limits)?;
                 half
             }
+            name if form_of(name).is_some() => {
+                let sequent = classical(call.input(0), limits)?;
+                let options =
+                    normal::Options::default().with_form(form_of(name).unwrap_or_default());
+                let made = normal::rewrite(&sequent, &options, limits, &mut *stop)?;
+                write_statement(&made.result, Logic::Classical)?
+            }
             "ordinary.embed" => {
                 let (sequent, logic) = statement(call.input(0), limits)?;
                 let p: Embed = parameters(call)?;
@@ -1014,10 +1085,86 @@ impl Suite for Ordinary {
                     ],
                 ))
             }
+            "equivalent" | "equisatisfiable" => normal_check(call, output, limits, ask, stop),
             "certifies" => Ok(Check::whole(promise, Status::Outside)),
             _ => Ok(Check::whole(promise, Status::None)),
         }
     }
+}
+
+/// The parameters of the decision of a normal form's claim: the SAT
+/// solver, whose clausal proof is checked, where the build has it.
+#[cfg(feature = "sat")]
+const CLAIMS: &str = r#"{"method": "sat"}"#;
+/// The parameters of the decision of a normal form's claim: the SAT
+/// solver, whose clausal proof is checked, where the build has it.
+#[cfg(not(feature = "sat"))]
+const CLAIMS: &str = "";
+
+/// Checks a normal form's promise: makes the form again from the input
+/// (for an encoding, whose definitions the output does not hold, and
+/// compares the output with it), then decides each claim of the promise
+/// in classical logic.
+fn normal_check(
+    call: &Call<'_>,
+    output: &str,
+    limits: &Limits,
+    ask: &mut super::Ask<'_>,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Check, Error> {
+    let promise = call.operation.promise;
+    let form = form_of(call.operation.name).unwrap_or_default();
+    let input = classical(call.input(0), limits)?;
+    let (given, logic) = statement(output, limits)?;
+    // The output is claimed in classical logic, where its promise holds.
+    let classical = Part {
+        name: "logic".to_owned(),
+        status: if logic == Logic::Classical {
+            Status::Held
+        } else {
+            Status::Failed
+        },
+        verdict: None,
+    };
+    if classical.status == Status::Failed {
+        return Ok(Check::of(promise, vec![classical]));
+    }
+    let options = normal::Options::default().with_form(form);
+    let mut made = match normal::rewrite(&input, &options, limits, &mut *stop) {
+        Ok(made) => made,
+        Err(error) => return Ok(Check::of(promise, vec![checked("form", Err(error))?])),
+    };
+    let mut parts = Vec::new();
+    match form.promise() {
+        // The output itself is held to the input.
+        normal::Promise::Equivalent => made.result = given,
+        // The definitions are the form's made again, so the output must
+        // be that form.
+        _ => {
+            let same = made.result.to_string() == given.to_string();
+            parts.push(Part {
+                name: "form".to_owned(),
+                status: if same { Status::Held } else { Status::Failed },
+                verdict: None,
+            });
+            if !same {
+                return Ok(Check::of(promise, parts));
+            }
+        }
+    }
+    let claims = match made.claims() {
+        Ok(claims) => claims,
+        Err(error) => {
+            parts.push(checked("definitions", Err(error))?);
+            return Ok(Check::of(promise, parts));
+        }
+    };
+    for (claim, sequent) in claims {
+        let statement = write_statement(&sequent, Logic::Classical)?;
+        let verdict = verdict_of(&ask("ordinary.decide", &[&statement], CLAIMS)?)?;
+        parts.push(part(claim.name(), verdict, Verdict::Valid));
+    }
+    Ok(Check::of(promise, parts))
 }
 
 /// Checks a decision's evidence.

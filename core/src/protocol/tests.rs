@@ -124,6 +124,57 @@ fn a_translation_keeps_the_verdict_and_its_check_says_so() {
     );
 }
 
+/// Every normal form is an edge between two sequents whose check decides
+/// its promise's claims, and a wrong output fails that check.
+#[test]
+fn a_normal_form_keeps_its_promise_and_its_check_says_so() {
+    let classical = crate::ordinary::Logic::Classical;
+    let sequent = ordinary("a -> b |- ~(b /\\ c)", classical);
+    let limits = settings().limits;
+    for (operation, parts, written) in [
+        ("ordinary.nnf", 1, "¬a ∨ b ⊢ ¬b ∨ ¬c"),
+        ("ordinary.cnf", 1, "¬a ∨ b ⊢ ¬b ∨ ¬c"),
+        ("ordinary.dnf", 1, "¬a ∨ b ⊢ ¬b ∨ ¬c"),
+        (
+            "ordinary.tseitin",
+            3,
+            "t1, t3, (¬t1 ∨ ¬a) ∨ b, t1 ∨ a, t1 ∨ ¬b, ¬t2 ∨ b, ¬t2 ∨ c, (t2 ∨ ¬b) ∨ ¬c, \
+             ¬t3 ∨ t2, t3 ∨ ¬t2 ⊢",
+        ),
+        (
+            "ordinary.plaisted_greenbaum",
+            3,
+            "t1, t3, (¬t1 ∨ ¬a) ∨ b, ¬t2 ∨ b, ¬t2 ∨ c, ¬t3 ∨ t2 ⊢",
+        ),
+    ] {
+        let output = ran(operation, &[&sequent], "");
+        assert_eq!(
+            summary("ordinary.sequent", &output, &limits).unwrap(),
+            written,
+            "{operation}"
+        );
+        let check = checked(operation, &[&sequent], "", &output);
+        assert_eq!(check.status, Status::Held, "{operation}");
+        assert_eq!(check.parts.len(), parts, "{operation}");
+        let wrong = ordinary("a |- b", classical);
+        let check = checked(operation, &[&sequent], "", &wrong);
+        assert_eq!(check.status, Status::Failed, "{operation}");
+    }
+    // The same formula claimed in intuitionistic logic, where `a ∨ ¬a`
+    // is not valid, is no normal form of the classical sequent.
+    let excluded = ordinary("a \\/ ~a", classical);
+    let claimed = ordinary("a \\/ ~a", crate::ordinary::Logic::Intuitionistic);
+    let check = checked("ordinary.nnf", &[&excluded], "", &claimed);
+    assert_eq!(check.status, Status::Failed);
+    let intuitionistic = ordinary("a", crate::ordinary::Logic::Intuitionistic);
+    assert!(matches!(
+        run("ordinary.cnf", &[&intuitionistic], "", &settings(), |_| {
+            false
+        }),
+        Err(Error::InvalidOption { key: "logic", .. })
+    ));
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);
