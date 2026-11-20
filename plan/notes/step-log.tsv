@@ -92,5 +92,6 @@ ci-speed	small	opus-5-5	high	reviewer (fable)	local_739ba359	2026-11-20 10:33	20
 71c	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-20 15:40	2026-11-20 18:00	typing derivations drawn, the typed lambda calculus on the page
 73	release	opus-5-5	high	reviewer	local_b8490613	2026-11-20 16:28	2026-11-20 18:20	the 0.7.0 release, prepared (tags held)
 71	step	-	-	-	-	-	2026-11-20 18:30	complete: the simply typed lambda calculus
-74a	design	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-20 18:23		first-order design (Opus in place of Fable, unattended)
+74a	design	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-20 18:23	2026-11-20 18:40	first-order design (Opus in place of Fable, unattended)
 54x9	run	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-20 18:23		fuzz runs, lambda and modal
+74b	panel	opus-5-5	high	panel argument (fable), reviewer (fable)	local_fe155f72	2026-11-20 18:45		first-order formulas in the ordinary arena

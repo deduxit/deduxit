@@ -7708,3 +7708,16 @@ move (D26).
   to 79 were written: only 74's is; 75 to 79 are written at the reviews their rows name.)
 - 2026-11-20, about 19:00: **The author: "Tag 0.7.0"**: the planning session tags `v0.7.0` (deduxit
   alone; rocq-deduxit 0.6.0 stays) once CI is green at the release commit `1fb4ee2b`.
+- 2026-11-20, 18:45: **74a reviewed; 74b started.**
+  - **74a** (`zzqkrqxr`, `svtkmtqv`; Opus in place of Fable, unattended): the design
+    `plan/notes/first-order-design.md`: one arena (`ordinary::Node::{Forall, Exists}`, atoms with
+    their predicate and arguments in step 42's first-order table, the node still 12 bytes), bound
+    variables as de Bruijn indices, instances as memoised nodes, step 42's terms shared at the
+    crate's root, G3c/G3i/G3m's quantifier rules with a local eigenvariable condition, witnesses
+    as the linear session's (typed or an open `$1` filled by unification), JSON at level 25, the
+    deciding methods refusing first order at their door until 75 and 77, Rocq certificates as
+    shallow terms over `Prop` without a library module (departs from the prompt's default, with
+    the reason). No code landed (departs: the `Node` change touches 67 `match`es and must land
+    whole); the ratchet baseline recorded. fresh-reviewer (Fable) eight findings, all answered.
+  - **74b** (the terms to the root, `Node`'s quantifiers with every arm and the refusals, the
+    parser and JSON) started in a cleared worker.
