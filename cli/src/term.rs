@@ -296,7 +296,7 @@ fn enumerate(args: &EnumerateArgs, given: &Given) -> Result<Status> {
         Count::AtLeast { count, .. } => (
             Status::Yes,
             format!(
-                "at least {count} terms within depth {} (raise --depth to search deeper)",
+                "at least {count} terms: --depth {} or a limit cut the search",
                 args.depth
             ),
         ),

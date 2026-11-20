@@ -1784,9 +1784,10 @@ pub(crate) enum TermCommand {
     ///
     /// The command prints `well typed` and the judgement with every type,
     /// or `ill typed` and why, with exit status 1. With `--format json`
-    /// the answer is `{"version", "deduxit", "verdict", "term", "typing",
-    /// "judgement"}`, `typing` the type of every node of the term, or
-    /// `verdict` "ill_typed" with the `error`.
+    /// the answer is the term's own document, then `deduxit`, `verdict`,
+    /// `typing` (the type of every node) and `judgement`, so that it reads
+    /// back as the term; or `{"version", "deduxit", "verdict": "ill_typed",
+    /// "error"}`.
     Check(TermCheckArgs),
     /// Find a term of a type, or show that it has none
     ///
@@ -1810,7 +1811,7 @@ pub(crate) enum TermCommand {
     /// applied to arguments. The count is exact when the search met every
     /// term, "infinitely many" when a term can be put inside itself, as
     /// in the Church numerals of (a -> a) -> a -> a, and "at least" when
-    /// --depth cut the search. The type is built from atoms, ->, /\, <->
+    /// --depth or a limit cut the search. The type is built from atoms, ->, /\, <->
     /// and true: with \/ or false, βη-equality makes terms equal that long
     /// normal forms tell apart, and the command refuses them.
     ///

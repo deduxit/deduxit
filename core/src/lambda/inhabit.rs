@@ -533,6 +533,18 @@ const NAME_BYTES: u64 = 16;
 /// of the term's tables.
 const TERM_NODE_BYTES: u64 = 16;
 
+/// The bytes a list of eliminations takes: its allocation, by its
+/// capacity, the list's head and the allocator's share.
+fn way_bytes(ways: &Vec<Way>) -> u64 {
+    (ways.capacity() * size_of::<Way>() + size_of::<Vec<Way>>() + 16) as u64
+}
+
+/// The bytes a key of types takes in a table: its list, its allocation's
+/// head and the entry's share.
+fn key_bytes(types: &[TypeId]) -> u64 {
+    (size_of_val(types) + size_of::<Vec<TypeId>>() + 16) as u64
+}
+
 /// How often the stop is asked, in units of work.
 const POLL: u64 = 1024;
 
@@ -584,6 +596,13 @@ struct Search<'a> {
     pending: usize,
     /// The bytes of the terms built for the answer.
     built: u64,
+    /// The bytes of the ways to a head's atom found and not yet used: those
+    /// of the goal being planned, and those of the spines waiting.
+    ways_held: u64,
+    /// The bytes of the keys of the engines' decisions.
+    keys: u64,
+    /// The bytes of the keys of the shapes.
+    shape_keys: u64,
     /// The work done.
     work: u64,
     /// The work at which the stop is asked next.
@@ -658,6 +677,9 @@ impl<'a> Search<'a> {
             listed: 0,
             pending: 0,
             built: 0,
+            ways_held: 0,
+            keys: 0,
+            shape_keys: 0,
             work: 0,
             next: POLL,
         };
@@ -737,6 +759,9 @@ impl<'a> Search<'a> {
             .saturating_add(bytes(self.listed, size_of::<u32>()))
             .saturating_add(bytes(self.pending, size_of::<Task>()))
             .saturating_add(self.built)
+            .saturating_add(self.ways_held)
+            .saturating_add(self.keys)
+            .saturating_add(self.shape_keys)
     }
 
     /// Counts `units` of work, and refuses past the limit, past the
@@ -792,6 +817,7 @@ impl<'a> Search<'a> {
             }
             Verdict::Unknown(_) => Decided::Unknown,
         };
+        self.keys = self.keys.saturating_add(key_bytes(&key.0));
         self.decisions.insert(key, decided);
         Ok(decided)
     }
@@ -807,7 +833,11 @@ impl<'a> Search<'a> {
         types.sort_unstable();
         types.dedup();
         let next = self.shapes.len() as u32;
+        let bytes = key_bytes(&types);
         let id = *self.shapes.entry((types, atom)).or_insert(next);
+        if id == next {
+            self.shape_keys = self.shape_keys.saturating_add(bytes);
+        }
         if id as usize == self.on_way.len() {
             self.on_way.push(0);
         }
@@ -818,26 +848,40 @@ impl<'a> Search<'a> {
     /// `atom`, each a list of eliminations, `fst` before `snd`.
     fn ways(&mut self, ty: TypeId, atom: TypeId) -> Result<Vec<Vec<Way>>, Error> {
         let mut found = Vec::new();
-        let mut stack = vec![(ty, Vec::new())];
+        let mut stack: Vec<(TypeId, Vec<Way>)> = vec![(ty, Vec::new())];
+        // A type shared as a DAG can have exponentially many ways to an
+        // atom, each a list of its own: they are held against the bound.
+        let before = self.ways_held;
+        let mut held = 0u64;
         while let Some((at, ways)) = stack.pop() {
+            held = held.saturating_sub(way_bytes(&ways));
+            self.ways_held = before.saturating_add(held);
             self.tick(1)?;
             match self.base.types.get(at) {
                 Type::Lollipop { from, to } => {
                     let mut ways = ways;
                     ways.push(Way::Apply(from));
+                    held = held.saturating_add(way_bytes(&ways));
                     stack.push((to, ways));
                 }
                 Type::With { left, right } => {
                     let mut second = ways.clone();
                     second.push(Way::Second);
-                    stack.push((right, second));
                     let mut first = ways;
                     first.push(Way::First);
+                    held = held
+                        .saturating_add(way_bytes(&second))
+                        .saturating_add(way_bytes(&first));
+                    stack.push((right, second));
                     stack.push((left, first));
                 }
                 Type::Atom { .. } => {
                     if at == atom {
+                        let before = found.capacity();
+                        held = held.saturating_add(way_bytes(&ways));
                         found.push(ways);
+                        let grown = found.capacity() - before;
+                        held = held.saturating_add((grown * size_of::<Vec<Way>>()) as u64);
                     }
                 }
                 // The fragment was checked: no other type is reached.
@@ -849,6 +893,7 @@ impl<'a> Search<'a> {
                 | Type::Bang { .. } => {}
             }
         }
+        self.ways_held = before;
         Ok(found)
     }
 
@@ -868,6 +913,8 @@ impl<'a> Search<'a> {
         self.lnf.clear();
         self.elims.clear();
         self.shapes.clear();
+        self.shape_keys = 0;
+        self.ways_held = 0;
         self.on_way.clear();
         self.listed = 0;
         self.pending = 0;
@@ -914,6 +961,7 @@ impl<'a> Search<'a> {
                     results.push(found);
                 }
                 Task::Spine { head, ways } => {
+                    self.ways_held = self.ways_held.saturating_sub(way_bytes(&ways));
                     let args = ways.iter().filter(|w| matches!(w, Way::Apply(_))).count();
                     let lists = results.split_off(results.len().saturating_sub(args));
                     let found = self.product(&lists, |search, picked| {
@@ -1039,7 +1087,11 @@ impl<'a> Search<'a> {
         let mut candidates = Vec::new();
         for &head in &scope {
             let head_ty = self.vars[head as usize].ty;
-            for ways in self.ways(head_ty, atom)? {
+            let found = self.ways(head_ty, atom)?;
+            let held: u64 = found.iter().map(way_bytes).sum::<u64>()
+                + (found.capacity() * size_of::<Vec<Way>>()) as u64;
+            self.ways_held = self.ways_held.saturating_add(held);
+            for ways in found {
                 let mut all = true;
                 for way in &ways {
                     if let Way::Apply(arg) = *way {
@@ -1057,9 +1109,12 @@ impl<'a> Search<'a> {
                     }
                 }
                 if all {
+                    // Held until its spine is made.
+                    self.ways_held = self.ways_held.saturating_add(way_bytes(&ways));
                     candidates.push((head, ways));
                 }
             }
+            self.ways_held = self.ways_held.saturating_sub(held);
         }
         self.on_way[shape as usize] = self.on_way[shape as usize].saturating_add(1);
         tasks.push(Task::Leave(shape));
@@ -1308,6 +1363,29 @@ mod tests {
         assert_eq!(terms.len(), 5);
         assert_eq!(terms[0], "λf. λx. x");
         assert_eq!(terms[1], "λf. λx. f x x");
+    }
+
+    #[test]
+    fn a_type_shared_as_a_dag_is_held_to_the_memory_bound() {
+        // ((a ∧ a) ∧ (a ∧ a)) … sixteen deep, sixty times left of ⊢: each
+        // hypothesis has 2¹⁶ ways down to a.
+        let mut formulas = ordinary::Formulas::default();
+        let mut shared = formulas.atom("a").expect("an atom");
+        let a = shared;
+        for _ in 0..16 {
+            shared = formulas
+                .add(ordinary::Node::And(shared, shared))
+                .expect("a conjunction");
+        }
+        let sequent =
+            ordinary::Sequent::new(formulas, vec![shared; 60], vec![a]).expect("a sequent");
+        let options = InhabitOptions::default().with_max_terms(3);
+        let small = Limits::default().with_memory_bytes(Some(10_000_000));
+        let refused = enumerate(&sequent, &options, &small, |_| false);
+        assert!(
+            matches!(refused, Err(Error::Refused(crate::Refusal::Memory { .. }))),
+            "{refused:?}"
+        );
     }
 
     #[test]

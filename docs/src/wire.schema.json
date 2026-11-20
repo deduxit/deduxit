@@ -344,7 +344,7 @@
       }
     },
     "lambda_ill_typed": {
-      "description": "A lambda-term that is not well typed (level 23, `term check --format json`, written only): the error, whose code is `ill_typed` or a parse error's.",
+      "description": "A lambda-term that is not well typed (level 23, `term check --format json`, written only): the error, whose code is `ill_typed`.",
       "type": "object",
       "required": [
         "version",

@@ -356,7 +356,7 @@ The count is one of three. It is exact when the search met every term.
 It is "infinitely many" when a goal comes back inside itself with the
 same types in scope, as `f (…)` does for the Church numerals above: a
 term can then be put inside itself as often as wanted. It is "at least"
-when `--depth` cut the search, which counts how deep variables are
+when `--depth` or a limit cut the search; the depth counts how deep variables are
 applied inside each other's arguments (8 by default). `--max-terms`
 (32 by default) bounds the list, not the count; a list cut short keeps
 the shortest terms. Every term listed is

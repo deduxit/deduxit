@@ -39,6 +39,7 @@
 //! | 21 | a classical sequent's normal form with its steps and the claims of its promise decided, each outcome nested without `version` and `deduxit`; written only | a normal form |
 //! | 22 | resolution: a set of clauses with the resolvents of a refutation, and a set decided by saturation or DPLL with its evidence and DPLL's trace (written only) | a refutation of [`ordinary::resolution`](crate::ordinary::resolution), a clause set decided |
 //! | 23 | the lambda-term: its calculus, its atoms, types and variables, and its nodes, `{"calculus": "simple", "atoms": […], "types": […], "variables": [{"type": 0, "name": "x"}], "context": […], "goal": 1, "nodes": […], "root": 1}` | a term of [`lambda`](crate::lambda) |
+//! | 24 | a type's terms listed and counted, and whether a type has a term (written only): `{"count": {"kind": "exactly", "count": 2}, "terms": [term, …]}` and `{"verdict": "inhabited", "term": term}` | [`lambda::Inhabitants`](crate::lambda::Inhabitants), [`lambda::Inhabitation`](crate::lambda::Inhabitation) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys

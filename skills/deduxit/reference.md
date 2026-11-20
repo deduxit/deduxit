@@ -371,7 +371,8 @@ prints `well typed` and the judgement, or `ill typed:` and why (exit 1).
 logic and prints a checked term, or `empty` with the countermodel (exit
 1). `deduxit term enumerate TYPE` lists the type's terms up to
 βη-equality, as long normal forms, and counts them: `exactly N`,
-`infinitely many`, or `at least N` when `--depth N` (8) cut the search;
+`infinitely many`, or `at least N` when `--depth N` (8) or a limit cut the
+search;
 `--max-terms N` (32) bounds the list. It refuses a type with `\/`,
 `false` or `~`. `--format json` writes the term's document with
 `typing`, or a document at wire level 24.

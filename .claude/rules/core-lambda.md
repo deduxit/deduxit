@@ -211,7 +211,12 @@ design, with its sources and the alternatives weighed, is
   counts go on (`product`, `Join`). The search is a task stack
   (`Task`), no recursion; work and the bytes held (`Search::held`:
   the arena, the variables and contexts, the lists and tasks waiting,
-  the terms built) are held to `limits.work` and `limits.memory_bytes`.
+  the terms built, the ways to a head's atom and the tables' keys) are
+  held to `limits.work` and `limits.memory_bytes`. The ways are counted
+  by capacity and kept up as they grow: a type shared as a DAG has
+  exponentially many ways to an atom (the reviewer's 621-byte document
+  held 2.3 GB under 1 GiB before), and a count by length missed the
+  doubling, 1.8 times the bound.
   The arena alone was counted at first, and the panel's witness took
   1.1 GB under a bound of 100 MB; a new growing structure joins `held`. Each engine call takes the caller's whole
   `limits`, so the work of a call is bounded per shape decided, not in

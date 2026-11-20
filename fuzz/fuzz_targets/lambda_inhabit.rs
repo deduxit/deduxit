@@ -4,9 +4,10 @@
 //! A type's terms found and counted, under small bounds: the first byte
 //! picks the depth and the number of terms listed, the rest is an
 //! ordinary sequent whose formula right of `⊢` is the type. Nothing may
-//! panic, an error of kind `defect` is a find, a term found has the
-//! sequent's type, and an exact count lists all its terms up to the
-//! number asked for.
+//! panic, an error of kind `defect` is a find, a term found checks
+//! against its own judgement, and an exact count lists all its terms up to
+//! the number asked for. That the judgement is the sequent's is the
+//! library's own assertion in a debug build, which `fuzz/run.sh` makes.
 #![no_main]
 
 use deduxit::lambda::{Count, InhabitOptions, Inhabitation, enumerate, inhabit};
