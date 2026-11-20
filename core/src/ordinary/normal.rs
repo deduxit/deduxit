@@ -293,7 +293,9 @@ impl Rule {
             Self::DistributeOr => "A ∨ (B ∧ C) ≡ (A ∨ B) ∧ (A ∨ C)",
             Self::DistributeAnd => "A ∧ (B ∨ C) ≡ (A ∧ B) ∨ (A ∧ C)",
             Self::Negate => "Γ ⊢ A, Δ is valid exactly when Γ, ¬A ⊢ Δ is",
-            Self::Define => "a new atom t names A, with the clauses of t ↔ A",
+            Self::Define => {
+                "a new atom t names A, with the clauses of t ↔ A or of its one direction the place of A needs"
+            }
             Self::TrueHypothesis => "Γ, ⊤ ⊢ Δ is valid exactly when Γ ⊢ Δ is",
         }
     }
