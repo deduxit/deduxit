@@ -7672,3 +7672,15 @@ move (D26).
     passed.
   - **71c** started on Opus in the same worker: the typing derivation drawn in every export (71b
     left it), then the page once 71b lands.
+- 2026-11-20, 16:30: **71b reviewed and pushed.**
+  - **71b** (`wwwzyquq` to `ozmzmzlq`): `lambda::inhabit` decides a simple type through the
+    ordinary engines and reads the derivation back as a checked term (or the engine's checked
+    countermodel for none); `lambda::enumerate` lists and counts a type's long normal forms (exactly
+    n, infinitely many, at least n), every term checked, the fragment without `∨` and `⊥`
+    (Scherer and Rémy: βη identifies there what long normal forms tell apart; refused with
+    `not_enumerable`); the command `term check|inhabit|enumerate`; the protocol's suite `lambda`;
+    wire level 24; two fuzz targets (built, not run). The panel found two gaps in 71a's checker and
+    reader (already fixed by 71a's review) and the enumeration past its memory bound (1.1 GB under
+    100 MB), a cut list holding the deepest terms, and a 25-minute loop at the largest depth: all
+    fixed. The web module's ceiling raised to 3 900 000 (3 831 827 with the suite) in its own
+    commit. Gate and `nix flake check` passed.
