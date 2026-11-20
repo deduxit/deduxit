@@ -25,8 +25,8 @@ use crate::linear::occurrences::Forest;
 use crate::linear::occurrences::reading::Side;
 use crate::linear::occurrences::written::Written;
 use crate::linear::sequents::fo::{self, FoTerm, FoTermId, Interner, SymbolFault};
-use crate::linear::sequents::name::{KEYWORDS, RESERVED, normalized, starts_identifier};
 use crate::linear::sequents::{Atom, Sequent, Term, TermId};
+use crate::name::{KEYWORDS, RESERVED, normalized, starts_identifier};
 use std::borrow::Cow;
 
 /// The hint for a symbol used with another number of arguments than at

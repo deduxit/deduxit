@@ -7,7 +7,7 @@
 use crate::Error;
 use crate::hash::{BuildHasher, HashMap};
 use crate::limits::{Refusal, Space};
-use crate::linear::sequents::name;
+use crate::name;
 use std::hash::BuildHasher as _;
 
 /// A term of a [`Terms`] arena, by its index.

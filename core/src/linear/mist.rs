@@ -151,7 +151,7 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let mut names = Vec::new();
     while !reader.at_keyword("rules") {
         let name = reader.name()?;
-        crate::linear::sequents::name::check(name)?;
+        crate::name::check(name)?;
         names.push(name);
     }
     let index: HashMap<&str, usize> = names.iter().enumerate().map(|(i, &n)| (n, i)).collect();

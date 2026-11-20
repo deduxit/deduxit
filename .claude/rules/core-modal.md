@@ -203,7 +203,7 @@ The design, with its reasons, alternatives and sources, is
   `found` from `ordinary::Countermodel`, and the poll cadence and
   memory account of LJT (`linear::search::memory::Account` as it is,
   `Reason` as it is); it uses `linear::sequents::{Stop, Stops}`,
-  `linear::sequents::name`, `rules::{Calculus, Derivation}` and the
+  `crate::name`, `rules::{Calculus, Derivation}` and the
   rule files' forms as they are.
 - **Where quantifiers and agents go**: `Node` gains `Forall` and
   `Exists` and `Atom` terms, as the ordinary arena will; an agent is a

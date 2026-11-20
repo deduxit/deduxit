@@ -10,7 +10,7 @@ use super::{Calculus, Node, Term, TermId, Type, TypeId, Types, VarId, Variable, 
 use crate::Error;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Refusal};
-use crate::linear::sequents::name;
+use crate::name;
 
 /// The form's name, as an error names it.
 pub(crate) const FORM: &str = "lambda-term";

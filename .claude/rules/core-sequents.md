@@ -3,6 +3,8 @@ paths:
   - "core/src/linear/sequents/**"
   - "core/src/linear/parse/**"
   - "core/src/linear/fragment.rs"
+  - "core/src/first_order.rs"
+  - "core/src/name.rs"
   - "core/src/serialize/**"
   - "core/tests/parse.rs"
   - "core/tests/first_order.rs"
@@ -32,7 +34,10 @@ the parser or the serialization is read or changed.
   roots (`Error::Antecedents`). Only the intuitionistic reading reads it
   (`core-forest.md`); it is part of equality.
 - `cuts: Vec<[TermId; 2]>`: the cut formulas (`core-proofs.md`).
-- `fo: fo::FirstOrder` (`sequents/fo.rs`): the first-order tables, empty
+- `fo: fo::FirstOrder` (`core/src/first_order.rs`, at the root since the
+  ordinary arena holds the same tables, keyed by its own binder ids `K`;
+  `linear::sequents::fo` re-exports the public types and names the
+  linear `FirstOrder<TermId>` and `Interner<TermId>` by alias): the first-order tables, empty
   exactly when every atom is nullary and there is no binder, so that a
   propositional sequent pays nothing and writes level 1. `symbols` are
   `(name, arity)` in the order first used (one arity per name, and a name
@@ -281,7 +286,7 @@ time and memory linear in the text. What the code relies on:
   its lookup; so `é` written composed and decomposed is one atom (H8,
   HD3), and a table's names are composed. A new reader of names
   composes them too.
-- **One check of an atom name** (`sequents/name.rs`, `name::check`):
+- **One check of an atom name** (`core/src/name.rs`, `name::check`, shared by every suite):
   an identifier that is no keyword (`par`, `top`, `bot`) and no
   quantifier's keyword (`forall`, `exists`), else `Error::AtomName` (code `atom_name`,
   malformed); `check_ordinary` refuses `true` and `false` besides, since

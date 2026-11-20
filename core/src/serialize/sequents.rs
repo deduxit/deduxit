@@ -3,7 +3,8 @@
 
 use crate::limits::{Limits, Refusal};
 use crate::linear::sequents::fo::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
-use crate::linear::sequents::{Sequent as Seq, Term, TermId, name};
+use crate::linear::sequents::{Sequent as Seq, Term, TermId};
+use crate::name;
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;

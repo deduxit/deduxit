@@ -195,11 +195,11 @@ impl Clauses {
         }
         let mut names = Vec::with_capacity(atoms.len());
         for name in atoms {
-            let normal = match crate::linear::sequents::name::normalized(&name) {
+            let normal = match crate::name::normalized(&name) {
                 std::borrow::Cow::Borrowed(_) => name,
                 std::borrow::Cow::Owned(normal) => normal,
             };
-            crate::linear::sequents::name::check_ordinary(&normal)?;
+            crate::name::check_ordinary(&normal)?;
             names.push(normal);
         }
         let mut seen = crate::hash::HashSet::default();

@@ -304,6 +304,8 @@
 /// The error types of this crate.
 mod errors;
 pub mod export;
+/// The first-order terms, symbols and binders of a formula arena.
+mod first_order;
 /// The hash tables of this crate.
 mod hash;
 pub mod kripke;
@@ -311,6 +313,8 @@ pub mod lambda;
 pub mod limits;
 pub mod linear;
 pub mod modal;
+/// Atom names: identifiers of the text syntax that no keyword takes.
+mod name;
 pub mod ordinary;
 #[cfg(feature = "protocol")]
 pub mod protocol;

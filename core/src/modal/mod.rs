@@ -262,11 +262,11 @@ impl Formulas {
     /// or a word reserved for a later version of the syntax (`forall`,
     /// `exists`), and [`Refusal::Index`] when the arena is full.
     pub fn atom(&mut self, name: &str) -> Result<NodeId, Error> {
-        let name = &*crate::linear::sequents::name::normalized(name);
+        let name = &*crate::name::normalized(name);
         let index = match self.names.get(name) {
             Some(&index) => index,
             None => {
-                crate::linear::sequents::name::check_ordinary(name)?;
+                crate::name::check_ordinary(name)?;
                 let index = self.atoms.len() as u32;
                 self.atoms.push(name.to_owned());
                 self.names.insert(name.to_owned(), index);

@@ -8,7 +8,7 @@
 use crate::Error;
 use crate::kripke::{Model, World};
 use crate::limits::Limits;
-use crate::linear::sequents::name;
+use crate::name;
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

@@ -232,7 +232,7 @@ pub enum Error {
     /// sequent written as text would not read back as itself.
     #[error(
         "the atom name {name:?} {}",
-        crate::linear::sequents::name::fault(name)
+        crate::name::fault(name)
     )]
     #[non_exhaustive]
     AtomName {

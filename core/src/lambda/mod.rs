@@ -835,7 +835,7 @@ const SUBSCRIPTED: [&str; 4] = ["inl", "inr", "abort", "false"];
 /// is no keyword with a subscript.
 #[cfg(any(feature = "parse", feature = "serialize"))]
 fn names_variable(word: &str) -> bool {
-    crate::linear::sequents::name::is_identifier(word)
+    crate::name::is_identifier(word)
         && !KEYWORDS.contains(&word)
         && !word.starts_with('λ')
         && !SUBSCRIPTED

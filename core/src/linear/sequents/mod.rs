@@ -9,8 +9,6 @@
 pub mod fmt;
 /// The first-order terms, symbols and binders of a sequent.
 pub mod fo;
-/// Atom names: identifiers of the text syntax that no keyword takes.
-pub(crate) mod name;
 /// The printer of formulas and sequents, with a table of spellings for
 /// each output format.
 pub(crate) mod notation;

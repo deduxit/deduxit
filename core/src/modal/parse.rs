@@ -163,7 +163,7 @@ impl<'a> Parser<'a> {
     fn identifier(&mut self) -> Option<&'a str> {
         let rest = self.rest();
         let first = rest.chars().next()?;
-        if !crate::linear::sequents::name::starts_identifier(first) {
+        if !crate::name::starts_identifier(first) {
             return None;
         }
         let end = rest

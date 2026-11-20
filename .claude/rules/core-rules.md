@@ -394,5 +394,5 @@ design, with the reasons and the alternatives weighed, is
 - **What it copied** (for the kernel crate): the hash-consed arena's
   idea from `ordinary::Formulas`, the meter's cadence from the ordinary
   checkers, the reader's pattern (`wire::Readable`, a form, `within`),
-  and it uses `linear::sequents::name` (`normalized`, `is_identifier`)
+  and it uses `crate::name` (`normalized`, `is_identifier`)
   for atom names.
