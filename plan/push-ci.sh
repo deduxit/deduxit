@@ -46,4 +46,12 @@ if [[ -z $run ]]; then
   exit 1
 fi
 echo "push-ci: $name is ${sha:0:12} (change ${want:0:12}), run https://github.com/deduxit/deduxit/actions/runs/$run"
-gh run watch "$run" --repo deduxit/deduxit --exit-status --compact --interval 60 >/dev/null
+# The watch's exit status alone is not the verdict: on a dropped connection
+# `gh run watch` has exited 0 with the run still going (2026-11-20). So
+# watch until the run is completed, then read its conclusion.
+until [[ $(gh run view "$run" --repo deduxit/deduxit --json status --jq .status 2>/dev/null) == completed ]]; do
+  gh run watch "$run" --repo deduxit/deduxit --compact --interval 60 >/dev/null 2>&1 || sleep 60
+done
+conclusion=$(gh run view "$run" --repo deduxit/deduxit --json conclusion --jq .conclusion)
+echo "push-ci: run $run $conclusion"
+[[ $conclusion == success ]]
