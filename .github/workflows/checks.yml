@@ -47,7 +47,7 @@ jobs:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
-          name: linlog-prover
+          name: deduxit
           skipPush: true
       - id: matrix
         run: echo "matrix=$(nix eval --json .#githubActions.matrix)" >>"$GITHUB_OUTPUT"
@@ -67,7 +67,7 @@ jobs:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
-          name: linlog-prover
+          name: deduxit
           skipPush: true
       # `--no-build' fetches and builds nothing, not even a path the
       # evaluation reads (`kani.nix' reads the nightly toolchain's
@@ -98,7 +98,7 @@ jobs:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
-          name: linlog-prover
+          name: deduxit
           # The caller says whether to upload (ci.yml: not for a pull
           # request; release.yml: never).
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}

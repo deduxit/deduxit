@@ -2807,3 +2807,11 @@ the crate by the step named, none by a session of its own:
 | The checkers' meter and the model checks' memory pre-check | `rules/check.rs:29`, `modal/model.rs:376`; `ordinary/model.rs:263-282`, `modal/model.rs:245-263` | the next checker that would write the struct a third time (step 68's tableau checker is the candidate): one in `limits` |
 | `protocol::Limit` built from a `Reason` three times | `protocol/linear.rs:529`, `modal.rs:480`, `ordinary.rs:475` | any session that edits them |
 | The command's and the bindings' per-suite copies (`goals`, `opened`, `Changed`, `session_of`, `written`) | `cli/src/interact/`, `web/src/{calls,ordinary,rules}.rs` | the front ends' own matter, when a fourth session kind is added |
+
+## The old Cachix cache, to delete (2026-11-20)
+
+The cache moved from `linlog-prover` to `deduxit` on 2026-11-20 (Cachix
+cannot rename), and nothing in the three repositories reads the old one
+any more. Once each repository's `main` has run green on the new cache,
+the author deletes the cache `linlog-prover` and its token on
+app.cachix.org.

@@ -82,13 +82,18 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   syntax, unknown runner labels, bad expressions and shell mistakes, not
   behaviour on GitHub. Read run results with `gh run list` and
   `gh run view --log-failed`.
-- **The cache: Cachix `linlog-prover`** (public,
-  https://linlog-prover.cachix.org, key
-  `linlog-prover.cachix.org-1:6K+DDVwwELnSYtfflwUdsHdYuolC7hprdD/r2/KOQZU=`,
-  signed by Cachix; the name is Cachix's, not GitHub's, so it stayed
-  when the repositories moved to `sequentium` and it became `deduxit`,
-  and no Cachix page says a
-  cache can be renamed). `cachix/cachix-action` follows `install-nix-action`
+- **The cache: Cachix `deduxit`** (public,
+  https://deduxit.cachix.org, key
+  `deduxit.cachix.org-1:lmDetRhVfKUBvhBRlkLv1Qp7ABrtHxZe8hOoIQ36Oek=`,
+  signed by Cachix). Until 2026-11-20 it was `linlog-prover`
+  (key `linlog-prover.cachix.org-1:6K+DDVwwELnSYtfflwUdsHdYuolC7hprdD/r2/KOQZU=`):
+  Cachix cannot rename a cache, so a new one was made with a new write
+  token in each repository's secret. CI does not read the old cache:
+  `cachix-action` hands Nix its token for every `*.cachix.org` host, and
+  a cache refuses another cache's token with HTTP 401, which fails the
+  job (both `extraPullNames` and `extra_nix_config` did, 2026-11-20). A
+  second cache read beside `deduxit` needs a token that covers both, or
+  none. `cachix/cachix-action` follows `install-nix-action`
   in every job of every workflow that installs Nix, with the
   repository secret `CACHIX_AUTH_TOKEN` (a write token) and `skipPush`
   for a pull request (`release.yml` only reads it, `checks.yml`'s input

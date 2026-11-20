@@ -87,17 +87,17 @@ the manual, runs the tests with and without debug assertions, compiles
 the exports' LaTeX and Typst, and checks the Rocq certificates.
 
 CI uploads what `main` builds to the public binary cache
-`linlog-prover` on Cachix. With the cache, a local check fetches
+`deduxit` on Cachix. With the cache, a local check fetches
 everything a change does not touch instead of building it again. Add it
 once, as a trusted user of the Nix daemon (otherwise `cachix` says what
 to add to the system's configuration):
 
 ```sh
-nix run nixpkgs#cachix -- use linlog-prover
+nix run nixpkgs#cachix -- use deduxit
 ```
 
-Or add `https://linlog-prover.cachix.org` to `extra-substituters` and
-`linlog-prover.cachix.org-1:6K+DDVwwELnSYtfflwUdsHdYuolC7hprdD/r2/KOQZU=`
+Or add `https://deduxit.cachix.org` to `extra-substituters` and
+`deduxit.cachix.org-1:lmDetRhVfKUBvhBRlkLv1Qp7ABrtHxZe8hOoIQ36Oek=`
 to `extra-trusted-public-keys` in `nix.conf`.
 
 ## Benchmarks

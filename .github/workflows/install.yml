@@ -244,7 +244,7 @@ jobs:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
-          name: linlog-prover
+          name: deduxit
           skipPush: true
       - run: |
           set -eux

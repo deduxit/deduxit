@@ -211,10 +211,11 @@ once every check passed; `kani.yml` builds `kani-harnesses` weekly and on
 pushes that touch the checker; `release.yml` releases a version tag (the
 same checks, crates.io through Trusted Publishing from 0.1.1 on, and a
 GitHub release). Every job that installs Nix pulls from the public
-Cachix cache `linlog-prover`, and the jobs of a push (to `main` or a
+Cachix cache `deduxit` (and, until the old cache is deleted, from
+`linlog-prover`, its name until 2026-11-20), and the jobs of a push (to `main` or a
 `ci/` branch) push what they build, so a check whose inputs did not
 change is fetched, not rerun. Locally, `nix run
-nixpkgs#cachix -- use linlog-prover` (once, as a trusted user) does the
+nixpkgs#cachix -- use deduxit` (once, as a trusted user) does the
 same for `nix flake check`; the flake sets no `nixConfig`.
 
 ## Version control: jj only
