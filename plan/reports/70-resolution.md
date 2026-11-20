@@ -276,3 +276,238 @@ equivalent output whether or not it is in the form, as the promise says
   `∃` (prenex moves, `¬∀ ≡ ∃¬`), and the encodings need Skolem terms or
   a refusal there; `Node` gaining binders breaks every exhaustive match
   in `normal.rs` on purpose.
+
+## Session 70b: resolution and DPLL
+
+Opus 5.5 at `high`, the same worker and conversation as 70a, in the jj
+workspace `../deduxit-wt-step-58a-610ed3`, from the brief
+`start-70b.md` on 2026-11-20, cores 7 to 9; begun on `main@origin`
+`krpxlpnw` (70a pushed) and rebased onto `qomlluyl` (the CI work)
+without conflict.
+
+### Outcome
+
+Clauses of classical logic are refuted by resolution and by DPLL at
+teaching scale, and every refutation is checked step by step. A clause
+set comes from a sequent's negation (through 70a's checked normal forms)
+or from a DIMACS file. A refutation is a graph of resolvents, built by
+hand one step at a time or found by saturation within bounds of clauses
+and steps; DPLL prints every step and its refutation is read off the
+steps. An outside SAT solver's DRAT (text or binary) or LRAT proof is
+checked by 54s's DRUP checker. In the library (`ordinary::resolution`),
+the command (`resolve`, `check` of a refutation, `check --dimacs` of an
+outside proof), the JSON at wire level 22, the protocol
+(`ordinary.resolve`), a new manual chapter, the guide and the changelog.
+The page is 70c's.
+
+The chain on `main@origin` `qomlluyl`, the report last:
+
+| change | what |
+|---|---|
+| `mplyqsmv` | the library: `ordinary::resolution` (clauses, the refutation and its checker, saturation, DPLL, outside proofs), the errors `InvalidRefutation` and `ClauseFile`, level 22 |
+| `vswytytu` | the protocol: `ordinary.resolve`, the kind `ordinary.resolution` |
+| `uyrtpsqr` | the command: `resolve`, `check --dimacs`, `check` of a refutation; the schema's level-22 forms |
+| `omvlxlnl` | the behaviour lock: ten calls over four input files |
+| `vwytpuum` | the manual's chapter, the protocol and status chapters, the guide, the changelog |
+| `uyrwyptm` | the rules files |
+| (this report) | `plan/reports/70-resolution.md` |
+
+### What was built
+
+- **Clause sets** (`Clauses`): atoms by name, clauses sorted and each
+  literal once. `from_dimacs` (comments, the header, `%` as SATLIB ends
+  files; the variable k is the atom `xk`); `of_sequent` (a sequent of
+  clauses or conjunctions of clauses, nothing right of `⊢`);
+  `clauses_of` (a sequent's negation by CNF, Tseitin or
+  Plaisted–Greenbaum, the normal form's promise checked);
+  `to_sequent` back. `Literal` is `2·atom + sign` in a `u32`.
+- **The refutation** (`Refutation`): the set and its resolvents, each
+  with the numbers of its two clauses (the set's from 0, then the
+  resolvents), the pivot atom and the clause. It is the graph 70c draws:
+  nodes the set's clauses and the resolvents, two edges into each
+  resolvent. `resolve(first, second, atom)` is the step by hand (either
+  order of the two clauses; refused with `StepRefused` where they do not
+  clash on the atom), `is_finished` says whether `□` is derived,
+  `trimmed` keeps what the first `□` needs.
+- **The searches** (`decide`, `Options { method, clauses, steps }`,
+  defaults 2 000 clauses and 100 000 steps): saturation, shortest clause
+  first, tautologies and subsumed clauses left out, and when saturated
+  DPLL for the model; DPLL, classic (no learning), units, then pure
+  literals, then decisions, every step an `Event` (`unit`, `pure`,
+  `decide`, `conflict`, `backtrack`), the refutation read off going back.
+  `Verdict::Refuted`, `Satisfiable { true_atoms }` or `Unknown(Bound)`.
+- **Options for every front end** (D15): `resolution::Options` (plain
+  data with serde) is the call's input, as `negative::Options` is; the
+  command maps `--method`, `--clause-limit`, `--step-limit` onto it and
+  the protocol its parameters, so no settings key holds it.
+
+### The checker
+
+- **`Refutation::check`** is the trust: every resolvent's clauses come
+  before it, the first holds the atom and the second its negation, the
+  clause is the first without `p` joined with the second without `¬p`,
+  and some clause is empty. A resolvent is a unit of `limits.work`, the
+  stop asked once per resolvent. Its fault is `Error::InvalidRefutation`
+  (kind invalid) with the step counted from 1.
+- **`decide` checks what the searches found**: the refutation by
+  `check` and against the input set, the model against every clause; a
+  failure is `ClaimFails`, a defect. The searches are untrusted.
+- **Outside proofs** (`check_proof`, feature `sat`): DRAT as text or
+  binary (a binary proof starts with `a` or holds a control byte, as
+  drat-trim tells them apart), LRAT as text with its numbering (hints
+  ignored); every addition is checked by RUP in `drup::check`, deletions
+  only weaken, so a misread proof can be refused but not wrongly
+  accepted. A RAT step fails (no RAT check; CaDiCaL and Kissat write RUP
+  proofs unless asked for more). No solver dependency: the checker is
+  54s's.
+
+### The command and the protocol
+
+- **`resolve SEQUENT`** or **`resolve --dimacs FILE`**, `--method
+  saturation|dpll`, `--clauses cnf|tseitin|plaisted-greenbaum`,
+  `--clause-limit N`, `--step-limit N`: text with the verdict line, how a
+  sequent's clauses were made, the clauses numbered from 1, DPLL's steps
+  indented by their decisions, the resolvents with their parents and
+  atom; JSON the level-22 document. Exit 0 unsatisfiable (a valid
+  sequent), 1 satisfiable, 3 unknown, 2 error. It is a command of its
+  own, as `interpolate` is, since it decides.
+- **`check FILE`** reads a refutation's JSON (told by `resolvents`);
+  **`check --dimacs FILE PROOF`** an outside proof (`--proof-format`, or
+  the extension `.lrat`). Exit 0 holds, 1 does not, 3 at a limit; text
+  only.
+- **The protocol**: `ordinary.resolve`, a classical sequent to
+  `ordinary.resolution` (the command's JSON), parameters `method`,
+  `form`, `clauses`, `steps`, promise `decides`; its check makes the
+  clauses again from the input, compares them, then checks the
+  refutation through the level-22 reader or the model.
+- **Wire level 22** (`wire::CLAUSES`): the refutation (read and
+  written) and the clause set decided (written only), in the manual's
+  schema (`clause_refutation`, `clause_resolution`, `resolvent`,
+  `dpll_event`).
+
+### The panel's and the reviewer's findings
+
+**The panel** (step 26's three members, on the library's change before
+the command was written): every finding is fixed in `mplyqsmv` and
+pinned by a test.
+
+- **Counterexamples** (`panel-counterexamples`, Opus 5.5 at high): one
+  refutation of the checker's soundness, found also by the argument
+  member on its own. The resolvent dropped every literal of the pivot's
+  atom from both clauses, so a parent holding `p` and `¬p` lost both:
+  `{a ∨ ¬a}` was "refuted" in one step, and `x1 ∨ x2, ¬x1 ∨ ¬x2, ¬x2`
+  (satisfiable) by hand through the tautology `x2 ∨ ¬x2`; 15 of 60 000
+  mutated documents were accepted for satisfiable sets. The rule now
+  takes `p` from the first clause alone and `¬p` from the second
+  (`a_tautology_is_no_way_to_the_empty_clause`). The searches were never
+  wrong (saturation keeps no tautology, DPLL's parents never hold both),
+  but their re-check rested on the same rule. Beside it: 90 000 runs of
+  both searches, 120 000 DRAT proofs as text and binary and 120 000 LRAT
+  proofs, all agreeing with its own brute force and checkers.
+- **Argument** (`panel-argument`, Fable 5.2 at high): the same fault in
+  the checker, with three witnesses, one without any tautology in the
+  set and none resolving a clause with itself. Saturation's completeness
+  (forward subsumption alone), DPLL's read-off (the clause carried false
+  under the trail that remains) and the outside readers (a misread can
+  lose a proof, never accept one) hold, each stated from the code. Two
+  smaller points, both taken: DPLL ignored the memory bound (it charges
+  its events and resolvents now), and `ClausalProof`'s docs described
+  only the SAT solver's own proofs (now any set's).
+- **Integers** (`panel-integers`, Sonnet 5.5 at high): `Literal::new`
+  wrapped past 2³¹ atoms, through `resolve` (atom 2³¹ aliased atom 0 in a
+  release build) and `Clauses::new`: `new` answers `None` from
+  `MOST_ATOMS` on, the crate's `of` is used for atoms of a set only,
+  `resolve` refuses an atom past the set's, and `of_sequent` counts the
+  atoms first. A 32-byte DIMACS header of 50 million variables held 7 GB
+  past a 1 GiB bound: `from_dimacs` refuses at the memory bound before it
+  makes names, `Clauses::new` no longer copies them three times, and
+  `decide` charges the set and its per-atom arrays first. LRAT was
+  charged half its memory: each clause twice now. Every other limit it
+  drove (headers to 2⁶⁴, literals at `i64::MIN`, binary varints of ten
+  bytes, LRAT ids at `u64::MAX`, bounds 0 and 1) was refused or right.
+
+**The fresh reviewer** (`fresh-reviewer`, Fable 5.2 at medium): 150
+random DIMACS sets and about 60 sequents through every form and both
+methods against a truth table, hand-written refutations (each fault
+refused), DRAT text and binary, LRAT, standard input and time limits.
+No wrong verdict. Its findings, all fixed:
+
+1. **Two errors shared a code**: `InvalidRefutation` had the linear
+   suite's `invalid_refutation`; it is `invalid_clause_refutation` now
+   (the gate's `the_codes_are_listed` had caught it too).
+2. **The step bound answered unknown within it**: saturation's model
+   search counted against the bound its resolvents had used, DPLL tested
+   the bound before it looked at the state (a trace of exactly N steps
+   was unknown at N), and saturation reported a step past the bound. The
+   bound is now tested before each step is made (a test pins a trace of
+   six at the bounds six and five).
+3. **"1 steps checked"**: the plural fixed.
+
+Its questions, answered: `check` reads the four-key refutation, not
+`resolve`'s answer (as documented: the answer is written only); a set
+holding `□` with an empty DRAT proof is refused for want of an added
+empty clause, as DRAT's format asks; and a bound or a stop that ends
+`decide` (memory, work, a stop during the final check) is now unknown
+with the flag to raise, exit 3, not an error.
+
+### Checks
+
+- **The tests**: the core crate's unit tests (536 and one ignored) and
+  the command's suite (the lock, README's, the manual's and the guide's
+  examples) passed after every round of fixes; the resolution tests
+  (nine) pin the checker's refusals, the tautology witnesses, the trace,
+  the bounds and their edge, DIMACS, the outside formats, and both
+  searches against the SAT solver on 80 generated sequents (more than
+  250 answers).
+- **The gate** (capped, cores 7 to 9) passed on the chain before the
+  reviewer's fixes, after one failure that the reviewer named too (the
+  shared error code). After the rebase the head took the full check in
+  its place, as CLAUDE.md now says.
+- **`nix flake check`** under the machine lock, `--keep-going`, at the
+  head on `qomlluyl`: all checks passed, `wire-schema` among them (97
+  documents, the four of `resolve` included, 0 failures). Two earlier
+  runs failed and were fixed in `mplyqsmv`: `treefmt` (a module line a
+  script added unformatted) and `doc-private` (two links in private
+  module docs). **The web module** is 3 721 760 bytes at gzip, under the
+  3 750 000 ceiling; it was 3 690 645 after 70a, so resolution adds
+  about 31 KB, and 28 KB are left.
+
+### Departures
+
+- **No `close` or interactive session for resolution in the command.**
+  The brief's "built by hand step by step" is the library's
+  `Refutation::resolve` (for 70c's page) and a refutation written as
+  JSON, which `check` checks; a session of the command, like `interact`,
+  was not asked for (departs from the design only in reading "by hand"
+  as the library's step).
+- **`resolve` is a command of its own**, as `interpolate` is, since it
+  decides; and `check` takes the outside proofs and refutations, as it
+  takes every proof.
+- **The bounds are options of the call** (`--clause-limit`,
+  `--step-limit`, the protocol's parameters), not settings keys, as
+  63t's options are: they shape the question, not the machine's budget.
+- **A RAT step is refused**: the checker has no RAT check, and the brief
+  allows a checker of deduxit's own; CaDiCaL and Kissat write RUP proofs
+  by default.
+
+### What the next sessions must know
+
+- **70c (the page)**: a call `ordinary_resolve(sequent, options,
+  settings)` over `resolution::clauses_of` and `decide` answers the
+  level-22 document (`resolvents` with `first`, `second`, `atom`,
+  `clause`; DPLL's `trace`), which is the graph: nodes the clauses then
+  the resolvents, edges `first → k` and `second → k`. For by-hand steps
+  the page keeps a `Refutation` document (level 22, read and written)
+  and a call over `Refutation::resolve` adds a step (refused with
+  `step_refused` where the clauses do not clash on the atom); `check`
+  and `is_finished` say when `□` is reached. The protocol's
+  `ordinary.resolve` already runs in the workspace.
+- **Teaching text**: the command's words (unit, pure, decide, conflict,
+  backtrack; "from 3, 1 on a") are the manual's; the page can take them.
+- **The module's ceiling**: 28 KB are left under 3 750 000 at gzip; the
+  page's calls over `resolution` add little (the code is linked already
+  through the protocol), but a raise of the ceiling would be a commit of
+  its own that says what earned the room.
+- **Later**: first-order resolution and the TPTP `cnf` reader with SZS
+  output are in `plan/later.md`; RAT steps and a resolution session in
+  the command would be additions there.
