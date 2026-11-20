@@ -7660,3 +7660,15 @@ move (D26).
   (the yes of 2026-11-16 covered 0.6.0), the crates.io approval, and any session that needs a switch
   to Fable (it prompts and would block): such a session runs on Opus with "(departs from the plan:
   Opus in place of Fable, unattended)" or waits.
+- 2026-11-20, 15:40: **71a reviewed and pushed; 71c started.**
+  - **71a** (`pnsnmqkm` to `ruywkzzp`): the design (`plan/notes/typed-lambda-design.md`) and
+    `lambda::Term::parse` and `check` for the simply typed, linear and affine calculi (Church-style:
+    every binder typed; the typing derivation is the checked term, a type per node; STLC's rules
+    are no rule file, since step 60's checker cannot say that λ binds); variable names as strings
+    (the one API and wire change, under the changelog's "Changed"); the JSON form at wire level 23;
+    step 50's read-back terms now checked by the crate's checker. The Opus reviewer fuzzed it with
+    2.35 million inputs: no panic, the rules sound; six findings, five fixed (a capture missed in a
+    pattern's shadowing among them), one left open with its reason. Gate and `nix flake check`
+    passed.
+  - **71c** started on Opus in the same worker: the typing derivation drawn in every export (71b
+    left it), then the page once 71b lands.
