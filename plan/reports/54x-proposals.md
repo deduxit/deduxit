@@ -1003,3 +1003,84 @@ findings, all fixed in `losmmunn`:
 - No new side condition in the rule language: `fresh` was sharpened,
   which is no API change (no syntax, no wire level); a stored derivation
   of `Ser` with `x = y` is now refused, which was the point.
+
+## Session 54x8: the page's switch for ordinary auto-reverse, and a Rocq comment
+
+Two small follow-ups of 54x7, in the client and in rocq-deduxit; no
+reviewer (the brief).
+
+### The client (`deduxit.github.io`, on its `main@origin` `rluokntt`)
+
+- `twpqkvlu` "flake.lock: Update": the input `deduxit` moves to
+  `b28125482f1b` (`zuswqzsu`, deduxit's `main` with 54x7).
+- `wmkvwwoy` "Apply the invertible rules by themselves in ordinary tabs
+  too": Settings' "Apply invertible rules by themselves" now acts on an
+  ordinary tab as on a linear one.
+  - `ordinaryStepping(id)` adds `interactive.invertible` to
+    `ordinary_start` and `ordinary_apply` (the three starts and the
+    step); no other ordinary call gets it.
+  - Turning the switch on calls `ordinary_invert_all` on every open
+    ordinary proof (the worker's new entry, `api.ordinary.invertAll`) and
+    empties that proof's `later`, whose sessions lack the steps taken.
+  - Undo passes the view's `invertible` (the library's
+    `invertible_steps`) to `retract` of `ordinary.ts`, which goes past
+    the steps it lists to the visitor's last choice, as the linear
+    `retract` does; less the goals a search grafted (`engines`), which
+    the library lists where the graft's first rule is invertible but
+    which are the visitor's choice. Where every step on the branch is
+    one, the note says so.
+  - 68d's bar holds: every path reads `invertibleOn(p.id)`.
+  - The switch's tip names LK's and LJ's set; the client's
+    `.claude/rules/web.md` says what ordinary tabs do.
+  - Tests: a Vitest case of `retract` with the set (LJ, `∨R₁` then the
+    automatic `→R` and axiom; a sequent the rules finish alone), a
+    Playwright test in `tests/ordinary.spec.ts` (turned on mid-session,
+    a choice, undo), and an ordinary problem in the pack test of 68d.
+
+### rocq-deduxit (on its `main@origin` `nmklslnu`, tagged v0.6.0)
+
+- `twvrwvrk` "Say that deduxit's Ser now asks x to differ from y":
+  `theories/Modal/Calculus.v`'s header says `[ser]` takes any `x`, `y`
+  itself included, and deduxit's rule asks `x` to differ from `y`, so
+  each of its instances is one of `ser`'s; the library's rules note on
+  `ser` says deduxit accepted the one-label instance up to 0.5.0 and
+  refuses it from 0.6.0 on (corrected by deduxit-orchestrator, squashed
+  in).
+
+### deduxit
+
+- `.claude/rules/web.md`: the bindings' note on the ordinary invertible
+  rules no longer calls the page's switch a later step.
+
+### Checks
+
+- rocq-deduxit: `nix flake check --keep-going` (machine lock, `--max-jobs
+  4 --cores 8`) at `twvrwvrk` before the rules note's correction
+  (Markdown alone after it): passed, its theorems' assumptions closed.
+- The client, in its dev shell on cores 10 to 12: `nix fmt`, `tests`
+  (Vitest, 704 passed), `lint` (Biome, `astro check`: no error), and
+  Playwright on `tests/ordinary.spec.ts`, `tests/packs.spec.ts` and
+  `tests/invertible.spec.ts` (25 passed; the pack test first failed
+  because a new tab takes the calculus last started, LJ, so its last
+  sequent is now LJ's).
+- The client's `nix flake check --keep-going` (machine lock): failed
+  first in `e2e`, `tests/written.spec.ts` "a text that is no tableau
+  says where", both tries: the written tableau's start lines
+  (`ordinary_tableau`) answered after the test had typed and overwrote
+  the text, so the check reviewed `1 T p / 2 F q` ("Unfinished").
+  `okwokwwv` "Keep a tableau typed before its start lines arrive" fills
+  them in only where nothing was typed since the sequent was set. Run
+  again at `okwokwwv`: passed (Vitest 704, Playwright 342).
+
+### Departures
+
+- `okwokwwv` is a fix of a race of the client's that the brief did not
+  name (departs from the design): the lock's move showed it in the
+  sandbox, and the flake check could not pass without it.
+
+### Commits
+
+- The client: `twpqkvlu`, `wmkvwwoy`, `okwokwwv` (head), on
+  `main@origin` `rluokntt`.
+- rocq-deduxit: `twvrwvrk`, on `main@origin` `nmklslnu`.
+- deduxit: `lstszmrm` and this report, on `main@origin` `xuptrvts`.
