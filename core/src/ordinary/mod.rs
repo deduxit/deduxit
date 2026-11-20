@@ -770,9 +770,9 @@ impl Formulas {
     ///
     /// # Errors
     ///
-    /// [`Error::AtomName`] for a name that is no identifier, a keyword or a
-    /// word reserved for a later version of the syntax (`forall`,
-    /// `exists`), and [`Refusal::Index`] when the arena is full.
+    /// [`Error::AtomName`] for a name that is no identifier or a keyword,
+    /// the quantifiers' `forall` and `exists` among them, and
+    /// [`Refusal::Index`] when the arena is full.
     pub fn atom(&mut self, name: &str) -> Result<NodeId, Error> {
         let name = &*crate::name::normalized(name);
         let index = match self.names.get(name) {

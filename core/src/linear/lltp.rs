@@ -328,6 +328,8 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
             .find(|&(_, c)| {
                 match c {
                     '(' | '[' => depth += 1,
+                    // An unmatched `]` ends the formula early, and the
+                    // clause is refused, since `).` does not follow.
                     ')' | ']' => depth = depth.saturating_sub(1),
                     _ => {}
                 }

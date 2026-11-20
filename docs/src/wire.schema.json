@@ -503,6 +503,7 @@
             "fragment_mismatch",
             "translation",
             "logic",
+            "first_order",
             "negative_target",
             "partition",
             "not_cut_free",

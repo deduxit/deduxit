@@ -836,8 +836,6 @@ mod tests {
         assert_eq!(e.expected, ["a connective", "the end"]);
     }
 
-    /// TPTP's connectives, its constants, the clauses' roles and the
-    /// status, with `~` as tight as its operand.
     /// A binder reaches as far right as it can, takes several variables,
     /// and binds the innermost variable of its name; predicates take
     /// nested terms; what is printed reads back as itself.
@@ -908,8 +906,12 @@ mod tests {
             panic!("a = b");
         };
         assert_eq!(e.hint, Some(EQUALITY));
+        // An unmatched bracket is refused.
+        assert!(read("p ] q").is_err());
     }
 
+    /// TPTP's connectives, its constants, the clauses' roles and the
+    /// status, with `~` as tight as its operand.
     #[test]
     fn reads_tptp() {
         let text = "% Status (intuit.) : Non-Theorem\n\
