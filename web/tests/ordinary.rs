@@ -73,7 +73,8 @@ fn about_lists_the_suites() {
             &json!("linear"),
             &json!("ordinary"),
             &json!("rules"),
-            &json!("modal")
+            &json!("modal"),
+            &json!("lambda")
         ]
     );
     let terms: Vec<&Value> = suites.iter().map(|s| &s["term"]).collect();
@@ -83,11 +84,14 @@ fn about_lists_the_suites() {
             &json!("term"),
             &json!("ordinary_term"),
             &Value::Null,
+            &Value::Null,
             &Value::Null
         ]
     );
     assert_eq!(suites[3]["calls"], "modal_");
     assert_eq!(suites[3]["parameters"][0]["default"], "K");
+    assert_eq!(suites[4]["calls"], "lambda_");
+    assert_eq!(suites[4]["parameters"][0]["default"], "simple");
     let ordinary = &suites[1];
     assert_eq!(ordinary["calls"], "ordinary_");
     assert_eq!(

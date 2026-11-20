@@ -23,13 +23,16 @@
 //! as `export_as`. Those of [`ordinary`] are exported with the prefix
 //! `ordinary_`, those of [`rules`], which build a derivation in a
 //! calculus given as data, with the prefix `rules_`, and those of
-//! [`modal`], which decide modal logic, with the prefix `modal_`. [`protocol`] writes
+//! [`modal`], which decide modal logic, with the prefix `modal_`, and
+//! those of [`lambda`], which check lambda-terms and find a type's
+//! terms, with the prefix `lambda_`. [`protocol`] writes
 //! down which call of each suite is which of the protocol's, `describe`
 //! answering it as JSON. Those of [`workspace`], the linked tabs a page
 //! keeps, are exported with the prefix `workspace_`.
 
 pub mod calls;
 mod failure;
+pub mod lambda;
 pub mod modal;
 pub mod ordinary;
 pub mod protocol;
@@ -42,7 +45,7 @@ pub use failure::Failure;
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
     use crate::failure::Failure;
-    use crate::{calls, modal, ordinary, protocol, rules, workspace};
+    use crate::{calls, lambda, modal, ordinary, protocol, rules, workspace};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -588,6 +591,48 @@ mod exports {
     #[wasm_bindgen]
     pub fn rules_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         rules::export(session, format, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::read`].
+    #[wasm_bindgen]
+    pub fn lambda_read(text: &str, calculus: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::read(text, calculus, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::check`].
+    #[wasm_bindgen]
+    pub fn lambda_check(term: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::check(term, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::draw`].
+    #[wasm_bindgen]
+    pub fn lambda_draw(typing: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::draw(typing, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::export`].
+    #[wasm_bindgen]
+    pub fn lambda_export(typing: &str, format: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::export(typing, format, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::read_type`].
+    #[wasm_bindgen]
+    pub fn lambda_read_type(text: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::read_type(text, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::inhabit`].
+    #[wasm_bindgen]
+    pub fn lambda_inhabit(ty: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::inhabit(ty, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::enumerate`].
+    #[wasm_bindgen]
+    pub fn lambda_enumerate(ty: &str, options: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::enumerate(ty, options, settings).map_err(thrown)
     }
 
     /// See [`modal::read`].

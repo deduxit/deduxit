@@ -144,6 +144,20 @@ pub fn about() -> String {
                 "settings": [],
                 "term": null,
             },
+            {
+                "suite": "lambda",
+                "name": "Lambda-terms",
+                "calls": "lambda_",
+                "parameters": [
+                    {
+                        "name": "calculus",
+                        "values": deduxit::lambda::Calculus::NAMES,
+                        "default": deduxit::lambda::Calculus::Simple.name(),
+                    },
+                ],
+                "settings": ["lambda"],
+                "term": null,
+            },
         ],
     })
     .to_string()

@@ -418,6 +418,22 @@ for `THIRD-PARTY-NOTICES.txt`.
   `about`'s row names the parameter `system`, default `K`; `SUITES`
   (`protocol.rs`) offers `read`, `draw`, `export_as` and the rest as
   extras, the method `labelled`.
+- **A tab of lambda-terms** has `lambda.rs`'s calls, exported as
+  `lambda_…`, each the protocol's operation of its name under the tab's
+  settings, as the modal tab's are: `lambda_read` (`protocol::statement
+  ("lambda", …)`), `lambda_check`, `lambda_draw` and `lambda_export`
+  (`lambda.draw`, `lambda.export`, which take the checked term),
+  `lambda_read_type` (an ordinary statement claimed in intuitionistic
+  logic), `lambda_inhabit` and `lambda_enumerate`, which add to every
+  term they answer its `text` and `judgement` (`printed`, the settings'
+  `lambda`), as `term` does, so the page prints no term. There is no session:
+  the derivation is a function of the term, so a tab holds the term or
+  the type and what the calls answered. An ill-typed term and text that
+  is no term are thrown, as every reader's error is; the page branches
+  on `code` (`ill_typed`, `parse`) and shows the place. `about`'s row
+  names the parameter `calculus`, default `simple`, and the setting
+  `lambda`; `SUITES` offers `read`, `draw` and `export_as`, the method
+  `typing`, and the rest as extras. `tests/lambda.rs` holds the tests.
 - **The workspace** (`workspace.rs`, exported `workspace_…`): the
   linked tabs a page keeps, over the library's `workspace`
   (`core-workspace.md`). The page holds the document and sends it with

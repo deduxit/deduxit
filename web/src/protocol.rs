@@ -137,8 +137,17 @@ const LABELLED: Method = Method {
     layouts: &["tree", "graph"],
 };
 
+/// The typing derivation, the method of the lambda suite: a checked
+/// term's judgements drawn as a tree, which nobody builds step by step.
+const TYPING: Method = Method {
+    method: "typing",
+    runs: None,
+    calculi: &[],
+    layouts: &["tree"],
+};
+
 /// Every suite of the module, as the protocol has it.
-pub const SUITES: [Speaks; 4] = [
+pub const SUITES: [Speaks; 5] = [
     Speaks {
         suite: "linear",
         calls: [
@@ -390,6 +399,50 @@ pub const SUITES: [Speaks; 4] = [
         ],
         layouts: &["tree", "graph"],
         builds: &[LABELLED],
+    },
+    Speaks {
+        suite: "lambda",
+        calls: [
+            offered("read", "lambda_read", &["input", "calculus", "settings"]),
+            lacks("start"),
+            lacks("view"),
+            lacks("rules"),
+            lacks("apply"),
+            lacks("undo"),
+            lacks("close"),
+            lacks("hint"),
+            offered("draw", "lambda_draw", &["typing", "settings"]),
+            offered(
+                "export_as",
+                "lambda_export",
+                &["typing", "format", "settings"],
+            ),
+            lacks("certificate"),
+        ],
+        extra: &[
+            Extra {
+                export: "lambda_check",
+                takes: &["term", "settings"],
+                does: "checks a term: the type of every subterm, or why it is ill typed",
+            },
+            Extra {
+                export: "lambda_read_type",
+                takes: &["input", "settings"],
+                does: "reads a type, a formula of intuitionistic logic",
+            },
+            Extra {
+                export: "lambda_inhabit",
+                takes: &["type", "settings"],
+                does: "finds a term of a type, or shows it has none",
+            },
+            Extra {
+                export: "lambda_enumerate",
+                takes: &["type", "options", "settings"],
+                does: "lists and counts a type's terms",
+            },
+        ],
+        layouts: &["tree"],
+        builds: &[TYPING],
     },
 ];
 
