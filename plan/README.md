@@ -7576,3 +7576,5 @@ move (D26).
 - 2026-11-20, about 11:10: **0.6.0 published.** The author approved the `crates-io` environment;
   `cargo publish` succeeded; crates.io lists `deduxit` and `deduxit-cli` 0.6.0. The archives, the
   GitHub release, docs.rs and Zenodo to be checked when the run ends. Step 69 complete.
+- 2026-11-20: **0.6.0 complete**: the release run passed (17 assets on the GitHub release), docs.rs
+  built 0.6.0, Zenodo archived it as 10.5281/zenodo.24393820.
