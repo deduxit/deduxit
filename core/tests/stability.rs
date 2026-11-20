@@ -12,7 +12,9 @@
 //! level 7 added, `wire/level-8.txt` those level 8 added,
 //! `wire/level-11.txt` those level 11 added, `wire/level-12.txt` the
 //! ordinary outcomes of level 12, `wire/level-13.txt` a Kripke model and
-//! an outcome that holds one (at level 12); none is ever
+//! an outcome that holds one (at level 12), `wire/level-22.txt` two
+//! refutations by resolution and `wire/level-23.txt` four lambda-terms,
+//! as 0.7.0 wrote them; none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -482,6 +484,37 @@ fn the_twentieth_level_reads() {
             }
             other => panic!("{name}: no form {other}"),
         }
+    }
+    assert_eq!(lines.lines().count(), 4);
+}
+
+#[test]
+fn the_twenty_second_level_reads() {
+    use deduxit::ordinary::resolution::Refutation;
+    let lines = include_str!("wire/level-22.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        again::<Refutation>(name, json);
+        let refutation: Refutation = read(name, json);
+        assert_eq!(
+            refutation.check(&Limits::default(), |_| false),
+            Ok(()),
+            "{name}"
+        );
+    }
+    assert_eq!(lines.lines().count(), 2);
+}
+
+#[test]
+fn the_twenty_third_level_reads() {
+    use deduxit::lambda::Term;
+    let lines = include_str!("wire/level-23.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        again::<Term>(name, json);
+        let term: Term = read(name, json);
+        term.check(&Limits::default(), |_| false)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
     }
     assert_eq!(lines.lines().count(), 4);
 }

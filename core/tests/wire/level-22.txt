@@ -1,0 +1,2 @@
+refutation-saturation: {"version":22,"atoms":["a","b","c"],"clauses":[[-1,2],[-2,3],[1],[-3]],"resolvents":[{"first":2,"second":0,"atom":1,"clause":[2]},{"first":1,"second":3,"atom":3,"clause":[-2]},{"first":4,"second":5,"atom":2,"clause":[]}]}
+refutation-dpll: {"version":22,"atoms":["a","b"],"clauses":[[1,2],[-1],[-2]],"resolvents":[{"first":0,"second":2,"atom":2,"clause":[1]},{"first":3,"second":1,"atom":1,"clause":[]}]}
