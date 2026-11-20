@@ -56,6 +56,7 @@ text, quick to make again.
 | `ordinary.outcome` | a sequent decided, with a derivation or a countermodel | the outcome's JSON |
 | `ordinary.derivation` | a derivation of LK or LJ | the derivation's JSON |
 | `ordinary.interpolant` | a Craig interpolant and its two halves | `{"logic", "partition", "outcome", "interpolant"}` |
+| `ordinary.resolution` | the clauses of a sequent's negation decided: a refutation or a model | the document of `resolve --format json` |
 | `rules.calculus` | a calculus | the rule file |
 | `rules.sequent` | a sequent to derive in a calculus | `{"goal", "assumptions"}`, text the calculus reads |
 | `rules.session` | a derivation in progress | the session's JSON |
@@ -105,6 +106,7 @@ promises something of its output and says what checking that costs.
 | `ordinary.dnf` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
 | `ordinary.tseitin` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
 | `ordinary.plaisted_greenbaum` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
+| `ordinary.resolve` | `ordinary.sequent` | `ordinary.resolution` | decides |
 | `ordinary.term` | a session or a derivation | `term` | renders |
 | `ordinary.draw` | a session, a derivation or an outcome | `drawing` | renders |
 | `ordinary.export` | a session or a derivation | `text` | renders |

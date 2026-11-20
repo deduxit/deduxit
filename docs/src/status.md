@@ -215,6 +215,13 @@ in use.
   encoding that the clauses can be satisfied exactly when the sequent
   can be false. The library and the protocol have them; the web page
   does not yet.
+- [Clauses are refuted by resolution and by DPLL](resolution.md) at
+  teaching scale, within bounds of clauses and steps: a sequent's
+  negation turned into clauses, or a DIMACS file. Every refutation is
+  checked step by step, every model clause by clause, and DPLL prints
+  each step. A refutation written by hand, and an outside SAT solver's
+  DRAT or LRAT proof, are checked by `check`. The library and the
+  protocol have them; the web page does not yet.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is

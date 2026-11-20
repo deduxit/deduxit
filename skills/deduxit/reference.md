@@ -1354,6 +1354,44 @@ every formula is equivalent to its normal form: valid, a checked clausal proof
 "checks"}`, each step's `before` and `after` numbers of the result's
 `formulas`.
 
+### Resolution and DPLL
+
+`deduxit resolve SEQUENT` turns a classical sequent's negation into
+clauses (`--clauses cnf`, the default, `tseitin` or `plaisted-greenbaum`)
+and refutes them by resolution; `--dimacs FILE` reads clauses in the
+DIMACS CNF format instead (the variable k is the atom xk). `--method
+dpll` prints DPLL's steps (unit, pure, decide, conflict, backtrack) and
+reads the refutation off them. Every refutation is checked step by
+step, every model clause by clause. `--clause-limit N` (2000) and
+`--step-limit N` (100000) bound the search, `none` lifts them. Exit 0
+for unsatisfiable clauses (a valid sequent), 1 for satisfiable ones, 3
+for unknown.
+
+```console
+$ deduxit resolve 'a -> b, b -> c |- a -> c'
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 resolutions
+clauses of its negation by conjunctive normal form, checked:
+1. ¬a ∨ b
+2. ¬b ∨ c
+3. a
+4. ¬c
+resolution:
+5. b  from 3, 1 on a
+6. ¬b  from 2, 4 on c
+7. □  from 5, 6 on b
+```
+
+`--format json` writes a document at wire level 22: `{"version",
+"deduxit", "method", "verdict", "atoms", "clauses", "resolvents",
+"true_atoms", "bound", "trace", "statistics"}`, literals as DIMACS writes
+them and clauses numbered from 0. `deduxit check FILE` checks a
+refutation `{"version": 22, "atoms", "clauses", "resolvents": [{"first",
+"second", "atom", "clause"}]}`; `deduxit check --dimacs FILE PROOF`
+checks an outside SAT solver's DRAT (text or binary) or LRAT proof; a
+file ending in `.lrat` is LRAT, and `--proof-format` names the format
+otherwise. Exit 0
+for a refutation that holds, 1 for one that does not.
+
 ### Step by step in LK or LJ
 
 `deduxit interact --logic LOGIC SEQUENT` proves an ordinary sequent step
@@ -1733,6 +1771,17 @@ occurrences by id, and `describe(&forest)` names them by formula.
   `is_checked()`. `ordinary::normal::rewrite` makes the steps without
   the check. Past `limits.form_occurrences` it is `Refusal::Form` (code
   `form_too_large`); a promise found false is `Error::ClaimFails`.
+- `ordinary::resolution::decide(&clauses, &options, &limits, stop)`
+  decides a `Clauses` set (`Clauses::from_dimacs`, or
+  `resolution::clauses_of(&sequent, form, &search, &limits, stop)` for a
+  sequent's negation) by `resolution::Options` (`method`: `Saturation` or
+  `Dpll`, `clauses`, `steps`) and returns a `Resolution` whose `verdict`
+  is `Refuted` with a checked `Refutation`, `Satisfiable` with a checked
+  model's `true_atoms`, or `Unknown`; `trace` holds DPLL's `Event`s.
+  `Refutation::new(clauses)` and `resolve(first, second, atom)` build one
+  by hand, `check(&limits, stop)` checks one (`Error::InvalidRefutation`);
+  `resolution::check_proof(&clauses, bytes, format, &limits, stop)` (feature
+  `sat`) checks a DRAT or LRAT proof.
 - `ordinary::interpolant::interpolate(&sequent, &options, &partition,
   &search, &limits, stop)` decides the sequent and returns an
   `ordinary::interpolant::Interpolation` whose `interpolant` holds both

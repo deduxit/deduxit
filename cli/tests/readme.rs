@@ -277,6 +277,12 @@ fn fixtures(directory: &Path) {
     );
     assert_eq!(shared.len(), 438);
     std::fs::write(directory.join("shared.json"), shared).unwrap();
+    // The resolution chapter's clauses, an outside solver's proof of them,
+    // and a refutation of them by hand.
+    let lock = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/lock/inputs");
+    for name in ["four.cnf", "four.drat", "four.lrat", "refutation.json"] {
+        std::fs::copy(lock.join(name), directory.join(name)).unwrap();
+    }
 }
 
 /// Runs every example of the document `name`, in directories under
@@ -406,7 +412,7 @@ fn guide_examples() {
 
 /// The commands whose help the guide's flags are looked up in, as the
 /// words after `deduxit`.
-const COMMANDS: [&[&str]; 23] = [
+const COMMANDS: [&[&str]; 24] = [
     &["prove"],
     &["check"],
     &["eliminate"],
@@ -418,6 +424,7 @@ const COMMANDS: [&[&str]; 23] = [
     &["seq", "fragment"],
     &["seq", "translate"],
     &["seq", "normalize"],
+    &["resolve"],
     &["workspace", "new"],
     &["workspace", "add"],
     &["workspace", "apply"],

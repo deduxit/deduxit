@@ -45,7 +45,23 @@ second number (0.1.x to 0.2.0), anything else the third.
   with the promises `equivalent` and `equisatisfiable`, so a workspace
   takes a normal form as an edge.
 - Wire level 21: the normal form's document, which `seq normalize
-  --format json` writes. Level 21 is now the highest the library reads.
+  --format json` writes.
+- Resolution and DPLL at teaching scale: `resolve SEQUENT` turns the
+  sequent's negation into clauses (`--clauses cnf|tseitin|plaisted-greenbaum`),
+  or `resolve --dimacs FILE` reads them, and refutes them by saturation
+  or with `--method dpll`, which prints every step; `--clause-limit` and
+  `--step-limit` bound the search. Every refutation is checked step by
+  step and every model clause by clause. `check` checks a refutation in
+  JSON, and `check --dimacs FILE PROOF` an outside SAT solver's DRAT or
+  LRAT proof.
+- In the library, `ordinary::resolution`: `Clauses`, `Refutation` (built
+  by hand with `resolve`, checked with `check`), `decide`, `clauses_of`
+  and, with `sat`, `check_proof`; the errors `InvalidRefutation` (code
+  `invalid_clause_refutation`) and `ClauseFile` (code `clause_file`). In the
+  protocol, the operation `ordinary.resolve` and the kind
+  `ordinary.resolution`.
+- Wire level 22: a refutation by resolution and a clause set decided.
+  Level 22 is now the highest the library reads.
 
 ## [0.6.0] - 2026-11-20
 
