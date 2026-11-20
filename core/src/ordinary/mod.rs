@@ -60,6 +60,8 @@
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
+/// The instances of a quantified formula, built or found.
+mod instance;
 /// Step-by-step proving in LK and LJ.
 #[cfg(feature = "interactive")]
 mod interactive;
@@ -108,12 +110,18 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
+use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Interner};
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::sequents::notation::TEXT;
 use crate::linear::sequents::{Stop, Stops};
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
+
+/// What an arm of a propositional method says of a binder: the method
+/// refused the first-order sequent at its door
+/// ([`Formulas::propositional`]), so none reaches it.
+pub(crate) const REFUSED: &str = "a propositional method refuses a first-order sequent at its door";
 
 /// An ordinary propositional logic.
 #[non_exhaustive]
@@ -581,6 +589,11 @@ pub enum Node {
     Implies(NodeId, NodeId),
     /// `A ↔ B`
     Iff(NodeId, NodeId),
+    /// `∀x. A`: the body `A`, whose bound variable `x` its atoms' terms
+    /// name by the de Bruijn index of this binder.
+    Forall(NodeId),
+    /// `∃x. A`: the body `A`, as for [`Forall`](Self::Forall).
+    Exists(NodeId),
 }
 
 /// A node stays a tag and at most two arena indices, since the arena and
@@ -592,7 +605,7 @@ impl Node {
     pub const fn operands(self) -> (Option<NodeId>, Option<NodeId>) {
         match self {
             Self::Atom(_) | Self::True | Self::False => (None, None),
-            Self::Not(a) => (Some(a), None),
+            Self::Not(a) | Self::Forall(a) | Self::Exists(a) => (Some(a), None),
             Self::And(a, b) | Self::Or(a, b) | Self::Implies(a, b) | Self::Iff(a, b) => {
                 (Some(a), Some(b))
             }
@@ -603,17 +616,32 @@ impl Node {
 /// The formulas of ordinary sequents, as an arena in which every
 /// subformula precedes the formulas built from it and equal formulas are
 /// one node, so that two formulas are equal exactly when their ids are.
+///
+/// A bound variable is the de Bruijn index of its binder, so two formulas
+/// that differ only in the names of their bound variables are one node.
+/// A binder keeps the name it was first written with, for printing.
 #[derive(Clone, Debug, Default)]
 pub struct Formulas {
     /// The nodes, each after its subformulas.
     nodes: Vec<Node>,
-    /// The atom names, by the index `Node::Atom` holds.
+    /// The atom names, by the index `Node::Atom` holds. The name of an
+    /// atom with arguments is its canonical text, `p(f(a), #0)`.
     atoms: Vec<String>,
     /// The index of every atom name.
     names: HashMap<String, u32>,
     /// The id of every node, for sharing.
     ids: HashMap<Node, NodeId>,
+    /// The first-order tables and their lookup maps: the symbols, the
+    /// terms, each atom's predicate and arguments, and every binder's
+    /// name. Made at the first binder, predicate with arguments or term;
+    /// empty exactly when the arena has no binder and no predicate with
+    /// arguments, and then every atom's entry is missing too. A
+    /// propositional arena pays a pointer for it.
+    fo: Option<Box<Interner<NodeId>>>,
 }
+
+/// The tables of an arena that has none.
+static NO_TABLES: FirstOrder<NodeId> = FirstOrder::new();
 
 impl Formulas {
     /// Returns the id of a node the arena holds, if it holds it.
@@ -699,9 +727,16 @@ impl Formulas {
                 most: Self::MOST as u64,
             }));
         }
+        if matches!(node, Node::Forall(_) | Node::Exists(_)) {
+            self.enter_first_order()?;
+        }
         let id = NodeId(self.nodes.len() as u32);
         self.nodes.push(node);
         self.ids.insert(node, id);
+        if matches!(node, Node::Forall(_) | Node::Exists(_)) {
+            // A binder made without a name prints its variable as `x`.
+            self.interner().tables.binders.push((id, "x".to_owned()));
+        }
         Ok(id)
     }
 
@@ -736,6 +771,9 @@ impl Formulas {
             Some(&index) => index,
             None => {
                 crate::name::check_ordinary(name)?;
+                if self.is_first_order() {
+                    self.nullary(name)?;
+                }
                 let index = self.atoms.len() as u32;
                 self.atoms.push(name.to_owned());
                 self.names.insert(name.to_owned(), index);
@@ -745,6 +783,224 @@ impl Formulas {
         self.add(Node::Atom(index))
     }
 
+    /// Returns whether the arena is first-order: it holds a binder or a
+    /// predicate with arguments. The methods that decide propositional
+    /// logic refuse such an arena ([`Error::FirstOrder`]).
+    pub(crate) fn is_first_order(&self) -> bool {
+        !self.tables().is_empty()
+    }
+
+    /// Fails with [`Error::FirstOrder`] naming `method` where the arena is
+    /// first-order.
+    pub(crate) fn propositional(&self, method: &'static str) -> Result<(), Error> {
+        if self.is_first_order() {
+            Err(Error::FirstOrder { method })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Returns the first-order tables, empty where the arena has none.
+    pub(crate) fn first_order(&self) -> &FirstOrder<NodeId> {
+        self.tables()
+    }
+
+    /// Returns the first-order tables, empty where the arena has none.
+    fn tables(&self) -> &FirstOrder<NodeId> {
+        self.fo.as_deref().map_or(&NO_TABLES, |fo| &fo.tables)
+    }
+
+    /// Returns the first-order tables and their maps, made empty where the
+    /// arena has none yet.
+    fn interner(&mut self) -> &mut Interner<NodeId> {
+        self.fo.get_or_insert_with(Box::default)
+    }
+
+    /// Gives every atom without one its nullary predicate, so that the
+    /// tables have an entry per atom, as a first-order arena's must.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Symbol`] where an atom's name is a function symbol's.
+    #[cold]
+    #[inline(never)]
+    fn enter_first_order(&mut self) -> Result<(), Error> {
+        for n in self.tables().atoms.len()..self.atoms.len() {
+            let name = std::mem::take(&mut self.atoms[n]);
+            let result = self.nullary(&name);
+            self.atoms[n] = name;
+            result?;
+        }
+        Ok(())
+    }
+
+    /// Adds the nullary predicate `name` to the tables, as the entry of
+    /// the next atom.
+    #[cold]
+    #[inline(never)]
+    fn nullary(&mut self, name: &str) -> Result<(), Error> {
+        let symbol = self.interner().symbol(name, 0, true).map_err(|fault| Error::Symbol {
+            name: name.to_owned(),
+            fault,
+        })?;
+        let args = self.interner().list(&[]);
+        self.interner().tables.atoms.push((symbol, args));
+        Ok(())
+    }
+
+    /// Returns the term made by the function symbol `name` applied to
+    /// `args`, interned: a constant where `args` is empty.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::AtomName`] for a name that is no identifier or a keyword,
+    /// and [`Error::Symbol`] where the name is a predicate or has another
+    /// arity.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+    )]
+    pub(crate) fn function(&mut self, name: &str, args: &[FoTermId]) -> Result<FoTermId, Error> {
+        let name = &*crate::name::normalized(name);
+        crate::name::check_ordinary(name)?;
+        let symbol = self
+            .interner()
+            .symbol(name, args.len() as u32, false)
+            .map_err(|fault| Error::Symbol {
+                name: name.to_owned(),
+                fault,
+            })?;
+        let args = self.interner().list(args);
+        Ok(self.interner().term(FoTerm::App(symbol, args)))
+    }
+
+    /// Returns the bound variable of the binder `index` binders out, as a
+    /// term: `0` is the innermost binder's variable.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+    )]
+    pub(crate) fn variable(&mut self, index: u32) -> FoTermId {
+        self.interner().term(FoTerm::Bound(index))
+    }
+
+    /// Returns the atom of the predicate `name` applied to `args`, adding
+    /// it unless the arena has it. A predicate without arguments is the
+    /// atom of that name ([`atom`](Self::atom)).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::AtomName`] for a name that is no identifier or a keyword,
+    /// [`Error::Symbol`] where the name is a function symbol or has another
+    /// arity, and [`Refusal::Index`] when the arena is full.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+    )]
+    pub(crate) fn predicate(&mut self, name: &str, args: &[FoTermId]) -> Result<NodeId, Error> {
+        if args.is_empty() {
+            return self.atom(name);
+        }
+        let name = &*crate::name::normalized(name);
+        crate::name::check_ordinary(name)?;
+        self.enter_first_order()?;
+        let symbol = self
+            .interner()
+            .symbol(name, args.len() as u32, true)
+            .map_err(|fault| Error::Symbol {
+                name: name.to_owned(),
+                fault,
+            })?;
+        let args = self.interner().list(args);
+        self.predicate_atom(symbol, args)
+    }
+
+    /// Returns the atom of `symbol` applied to `args`, both of the tables,
+    /// adding it unless the arena has it. The arena must be first-order.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+    )]
+    fn predicate_atom(
+        &mut self,
+        symbol: crate::first_order::Symbol,
+        args: Args,
+    ) -> Result<NodeId, Error> {
+        let key = self.tables().atom_key(symbol, args);
+        let index = match self.names.get(&key) {
+            Some(&index) => index,
+            None => {
+                let index = self.atoms.len() as u32;
+                self.atoms.push(key.clone());
+                self.names.insert(key, index);
+                self.interner().tables.atoms.push((symbol, args));
+                index
+            }
+        };
+        self.add(Node::Atom(index))
+    }
+
+    /// Returns `∀x. body` (`forall`) or `∃x. body`, adding it unless the
+    /// arena has it. A binder added here keeps `name` for printing; one
+    /// the arena had keeps the name it was first given.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::AtomName`] for a name that is no identifier or a keyword,
+    /// [`Error::IndexOutOfBounds`] for a body of another arena, and
+    /// [`Refusal::Index`] when the arena is full.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the readers of first-order text and JSON call it")
+    )]
+    pub(crate) fn binder(&mut self, forall: bool, body: NodeId, name: &str) -> Result<NodeId, Error> {
+        let name = crate::name::normalized(name);
+        crate::name::check_ordinary(&name)?;
+        let len = self.nodes.len();
+        let id = self.add(if forall {
+            Node::Forall(body)
+        } else {
+            Node::Exists(body)
+        })?;
+        if self.nodes.len() > len
+            && let Some(entry) = self.interner().tables.binders.last_mut()
+        {
+            // The node is new, so its entry is the last.
+            entry.1 = name.into_owned();
+        }
+        Ok(id)
+    }
+
+    /// Returns per node how many binders it needs above it: one more than
+    /// the largest index of a bound variable that no binder inside it
+    /// binds, `0` for a closed formula.
+    fn loose(&self) -> Vec<u32> {
+        let terms = self.tables().loose();
+        let mut loose: Vec<u32> = Vec::with_capacity(self.nodes.len());
+        for &node in &self.nodes {
+            let of = |k: NodeId| loose[k.index()];
+            loose.push(match node {
+                Node::Atom(a) => match self.tables().atoms.get(a as usize) {
+                    Some(&(_, args)) => self
+                        .tables()
+                        .list(args)
+                        .iter()
+                        .map(|t| terms[t.index()])
+                        .max()
+                        .unwrap_or(0),
+                    None => 0,
+                },
+                Node::True | Node::False => 0,
+                Node::Not(a) => of(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    of(a).max(of(b))
+                }
+                Node::Forall(a) | Node::Exists(a) => of(a).saturating_sub(1),
+            });
+        }
+        loose
+    }
+
     /// Returns the formula at `id` as a value that prints it.
     pub fn formula(&self, id: NodeId) -> Formula<'_> {
         Formula { formulas: self, id }
@@ -752,7 +1008,9 @@ impl Formulas {
 
     /// Writes the formula at `id` with the spellings given, every binary
     /// subformula in brackets, and the whole in brackets too if it is
-    /// binary and `brackets` is set.
+    /// binary and `brackets` is set. `atom` writes an atom of the arena,
+    /// `name` a symbol's or a bound variable's name, each in the target's
+    /// markup.
     pub(crate) fn write<W: Write>(
         &self,
         out: &mut W,
@@ -760,7 +1018,11 @@ impl Formulas {
         brackets: bool,
         symbols: &Symbols,
         atom: impl Fn(&mut W, u32) -> FmtResult,
+        name: impl Fn(&mut W, &str) -> FmtResult,
     ) -> FmtResult {
+        if self.is_first_order() {
+            return self.write_first_order(out, id, brackets, symbols, &atom, &name);
+        }
         for visit in Stops::new(id, brackets, |k| self.node(k).operands()) {
             match visit {
                 Stop::Enter(k, nested) => match self.node(k) {
@@ -768,21 +1030,13 @@ impl Formulas {
                     Node::True => out.write_str(symbols.truth)?,
                     Node::False => out.write_str(symbols.falsity)?,
                     Node::Not(_) => out.write_str(symbols.not)?,
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("an arena with a binder is first-order")
+                    }
                     _ if nested => out.write_char('(')?,
                     Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => {}
                 },
-                Stop::Between(k) => {
-                    out.write_char(' ')?;
-                    out.write_str(match self.node(k) {
-                        Node::And(..) => symbols.and,
-                        Node::Or(..) => symbols.or,
-                        Node::Implies(..) => symbols.implies,
-                        Node::Atom(_) | Node::True | Node::False | Node::Not(_) | Node::Iff(..) => {
-                            symbols.iff
-                        }
-                    })?;
-                    out.write_char(' ')?;
-                }
+                Stop::Between(k) => self.between(out, k, symbols)?,
                 Stop::Exit(k, nested) => {
                     if nested && self.node(k).operands().1.is_some() {
                         out.write_char(')')?;
@@ -791,6 +1045,148 @@ impl Formulas {
             }
         }
         Ok(())
+    }
+
+    /// Writes the connective of the binary formula `k` with a space on
+    /// either side.
+    fn between<W: Write>(&self, out: &mut W, k: NodeId, symbols: &Symbols) -> FmtResult {
+        out.write_char(' ')?;
+        out.write_str(match self.node(k) {
+            Node::And(..) => symbols.and,
+            Node::Or(..) => symbols.or,
+            Node::Implies(..) => symbols.implies,
+            Node::Atom(_)
+            | Node::True
+            | Node::False
+            | Node::Not(_)
+            | Node::Iff(..)
+            | Node::Forall(_)
+            | Node::Exists(_) => symbols.iff,
+        })?;
+        out.write_char(' ')
+    }
+
+    /// Writes the formula at `id` of a first-order arena as
+    /// [`write`](Self::write) does. A binder's variable is written by its
+    /// recorded name, or by that name with `_` and a number after it where
+    /// a symbol or an enclosing binder has the name, so the text reads
+    /// back as the formula. A binder inside another formula is in
+    /// brackets, but the body of a binder, since a binder reaches as far
+    /// right as it can.
+    #[cold]
+    #[inline(never)]
+    fn write_first_order<W: Write>(
+        &self,
+        out: &mut W,
+        id: NodeId,
+        brackets: bool,
+        symbols: &Symbols,
+        atom: &impl Fn(&mut W, u32) -> FmtResult,
+        name: &impl Fn(&mut W, &str) -> FmtResult,
+    ) -> FmtResult {
+        let tables = self.tables();
+        let taken: std::collections::HashSet<&str> =
+            tables.symbols.iter().map(|(s, _)| s.as_str()).collect();
+        // The names of the open binders, the innermost last.
+        let mut scope: Vec<String> = Vec::new();
+        // Per compound formula entered, whether a bracket was opened.
+        let mut opened: Vec<bool> = Vec::new();
+        // Whether the next formula entered is a binder's body.
+        let mut body = false;
+        for visit in Stops::new(id, brackets, |k| self.node(k).operands()) {
+            match visit {
+                Stop::Enter(k, nested) => {
+                    let in_body = std::mem::take(&mut body);
+                    match self.node(k) {
+                        Node::Atom(a) => self.write_atom(out, a, &scope, atom, name)?,
+                        Node::True => out.write_str(symbols.truth)?,
+                        Node::False => out.write_str(symbols.falsity)?,
+                        Node::Not(_) => {
+                            out.write_str(symbols.not)?;
+                            opened.push(false);
+                        }
+                        Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => {
+                            if nested {
+                                out.write_char('(')?;
+                            }
+                            opened.push(nested);
+                        }
+                        node @ (Node::Forall(_) | Node::Exists(_)) => {
+                            let open = nested && !in_body;
+                            if open {
+                                out.write_char('(')?;
+                            }
+                            opened.push(open);
+                            out.write_str(if matches!(node, Node::Forall(_)) {
+                                symbols.forall
+                            } else {
+                                symbols.exists
+                            })?;
+                            let recorded = tables.binder_name(k).unwrap_or("x");
+                            let clashes = |candidate: &str| {
+                                taken.contains(candidate)
+                                    || scope.iter().any(|open| open == candidate)
+                            };
+                            let mut written = recorded.to_owned();
+                            let mut n = 0u32;
+                            while clashes(&written) {
+                                n += 1;
+                                written = format!("{recorded}_{n}");
+                            }
+                            name(out, &written)?;
+                            out.write_str(symbols.dot)?;
+                            scope.push(written);
+                            body = true;
+                        }
+                    }
+                }
+                Stop::Between(k) => self.between(out, k, symbols)?,
+                Stop::Exit(k, _) => {
+                    if matches!(self.node(k), Node::Forall(_) | Node::Exists(_)) {
+                        scope.pop();
+                    }
+                    if opened.pop() == Some(true) {
+                        out.write_char(')')?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes the atom `a` of a first-order arena: by `atom` where it has
+    /// no arguments, else as its predicate applied to its terms, a bound
+    /// variable by the name `scope` gives its binder.
+    fn write_atom<W: Write>(
+        &self,
+        out: &mut W,
+        a: u32,
+        scope: &[String],
+        atom: &impl Fn(&mut W, u32) -> FmtResult,
+        name: &impl Fn(&mut W, &str) -> FmtResult,
+    ) -> FmtResult {
+        let tables = self.tables();
+        let Some(&(symbol, args)) = tables.atoms.get(a as usize) else {
+            return atom(out, a);
+        };
+        let list = tables.list(args);
+        if list.is_empty() {
+            return atom(out, a);
+        }
+        name(out, &tables.symbols[symbol.index()].0)?;
+        out.write_char('(')?;
+        for (i, &t) in list.iter().enumerate() {
+            if i > 0 {
+                out.write_str(", ")?;
+            }
+            tables.write(out, t, &mut |o, s| name(o, s), &mut |o, index| {
+                match scope.len().checked_sub(index as usize + 1) {
+                    Some(at) => name(o, &scope[at]),
+                    None => write!(o, "#{index}"),
+                }
+            })?;
+        }
+        out.write_char(')')
     }
 }
 
@@ -812,6 +1208,12 @@ pub(crate) struct Symbols {
     pub(crate) truth: &'static str,
     /// `⊥`
     pub(crate) falsity: &'static str,
+    /// `∀`, with what stands between it and the variable's name.
+    pub(crate) forall: &'static str,
+    /// `∃`, with what stands between it and the variable's name.
+    pub(crate) exists: &'static str,
+    /// What stands between a binder's variable and its body.
+    pub(crate) dot: &'static str,
 }
 
 impl Symbols {
@@ -824,6 +1226,9 @@ impl Symbols {
         iff: "↔",
         truth: "⊤",
         falsity: "⊥",
+        forall: "∀",
+        exists: "∃",
+        dot: ". ",
     };
 }
 
@@ -841,9 +1246,14 @@ impl Display for Formula<'_> {
     /// Writes the formula: `(a ∧ b) → ¬c`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.formulas
-            .write(f, self.id, false, &Symbols::UNICODE, |o, a| {
-                o.write_str(self.formulas.atom_name(a))
-            })
+            .write(
+                f,
+                self.id,
+                false,
+                &Symbols::UNICODE,
+                |o, a| o.write_str(self.formulas.atom_name(a)),
+                |o, name| o.write_str(name),
+            )
     }
 }
 
@@ -903,10 +1313,14 @@ impl Sequent {
     /// # Errors
     ///
     /// [`Error::IndexOutOfBounds`] for an id of the two lists that is no
-    /// node of `formulas`.
+    /// node of `formulas`, and [`Error::LooseVariable`] for a formula with
+    /// a bound variable that no binder of it binds.
     pub fn new(formulas: Formulas, left: Vec<NodeId>, right: Vec<NodeId>) -> Result<Self, Error> {
         for &id in left.iter().chain(&right) {
             formulas.holds(id)?;
+        }
+        if formulas.is_first_order() {
+            closed(&formulas, left.iter().chain(&right))?;
         }
         Ok(Self {
             formulas,
@@ -937,6 +1351,20 @@ impl Display for Sequent {
         let sides = (&self.left[..], &self.right[..]);
         TEXT.ordinary(f, &self.formulas, sides, false, false)
     }
+}
+
+/// Fails with [`Error::LooseVariable`] at the first of `roots` that has a
+/// bound variable no binder of it binds.
+#[cold]
+#[inline(never)]
+fn closed<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> Result<(), Error> {
+    let loose = formulas.loose();
+    for id in roots {
+        if loose[id.index()] > 0 {
+            return Err(Error::LooseVariable { term: id.index() });
+        }
+    }
+    Ok(())
 }
 
 /// Returns the number of subformula occurrences the formulas unfold to,
@@ -1239,6 +1667,9 @@ mod tests {
                     Node::Or(a, b) => of(a) || of(b),
                     Node::Implies(a, b) => !of(a) || of(b),
                     Node::Iff(a, b) => of(a) == of(b),
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("the samples are propositional")
+                    }
                 };
                 value.push(holds);
             }
@@ -1314,5 +1745,161 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod first_order_tests {
+    use super::*;
+    use crate::Limits;
+    use crate::linear::proofs::InfId;
+
+    /// Returns `∀x. p(x) ⊢ ∀x. p(x)` with the axiom that derives it.
+    fn quantified() -> (Sequent, Derivation) {
+        let mut formulas = Formulas::default();
+        let x = formulas.variable(0);
+        let body = formulas.predicate("p", &[x]).unwrap();
+        let all = formulas.binder(true, body, "x").unwrap();
+        let sequent = Sequent::new(formulas.clone(), vec![all], vec![all]).unwrap();
+        let axiom = Inference {
+            left: vec![all],
+            right: vec![all],
+            rule: Rule::Axiom,
+            principal: None,
+            premises: Vec::<InfId>::new(),
+        };
+        let derivation =
+            Derivation::from_parts(Logic::Classical, formulas, (vec![all], vec![all]), vec![axiom]);
+        (sequent, derivation)
+    }
+
+    /// Asserts that `result` is the refusal of a first-order sequent.
+    #[track_caller]
+    fn refused<T: std::fmt::Debug>(result: Result<T, Error>) {
+        match result {
+            Err(Error::FirstOrder { .. }) => {}
+            other => panic!("expected the first-order refusal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn every_propositional_method_refuses_a_first_order_sequent() {
+        let (sequent, derivation) = quantified();
+        let limits = Limits::default();
+        let search = crate::linear::Options::default();
+        for &logic in Logic::ALL {
+            for &method in Method::ALL {
+                let options = Options::default()
+                    .with_logic(logic)
+                    .with_method(Some(method));
+                refused(decide(&sequent, &options));
+            }
+            refused(ljt::decide(&sequent, logic, &limits, |_| false));
+            #[cfg(feature = "sat")]
+            {
+                refused(sat::decide(&sequent, logic, &limits, |_| false));
+                refused(sat::decide_preferring_ljt(&sequent, logic, &limits, |_| false));
+            }
+            for &translation in Translation::ALL {
+                refused(translate(&sequent, logic, translation, &limits));
+            }
+            let options = Options::default().with_logic(logic);
+            let partition = interpolant::Partition::hypotheses(&sequent);
+            refused(interpolant::interpolate(
+                &sequent, &options, &partition, &search, &limits, |_| false,
+            ));
+            refused(crate::kripke::Model::new(vec![crate::kripke::World::default()], 0).forcing(
+                &sequent,
+                logic,
+                &limits,
+                |_| false,
+            ));
+            #[cfg(feature = "interactive")]
+            refused(Interactive::within(&sequent, logic, &limits));
+        }
+        refused(truth_table(&sequent, &limits, |_| false));
+        let partition = interpolant::Partition::hypotheses(&sequent);
+        refused(interpolant::interpolant(
+            &derivation,
+            &partition,
+            &search,
+            &limits,
+            |_| false,
+        ));
+        refused(normal::rewrite(
+            &sequent,
+            &normal::Options::default(),
+            &limits,
+            |_| false,
+        ));
+        refused(resolution::Clauses::of_sequent(&sequent));
+        refused(negative::translate(
+            &sequent,
+            &negative::Options::default(),
+            &limits,
+        ));
+        refused(derivation.term(&limits, |_| false));
+        #[cfg(feature = "interactive")]
+        refused(Tableau::of(&derivation, |_| false));
+        #[cfg(feature = "rocq")]
+        refused(crate::export::rocq::write(
+            &derivation,
+            &crate::export::rocq::Options::default(),
+            &mut String::new(),
+            |_| false,
+        ));
+        #[cfg(feature = "serialize")]
+        refused(crate::rules::Derivation::from_ordinary(&derivation));
+        #[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
+        {
+            let tableau = WrittenTableau::parse_within("1 F p\n", &limits).unwrap();
+            let mut json = serde_json::Deserializer::from_str(crate::rules::TABLEAU);
+            let calculus = crate::wire::upgrade::<crate::rules::Calculus, _>(&mut json, &limits)
+                .unwrap();
+            refused(tableau.review(&calculus, Some(&sequent), &limits, |_| false));
+        }
+    }
+
+    #[test]
+    fn a_first_order_formula_prints_with_its_binders_renamed_apart() {
+        let mut formulas = Formulas::default();
+        // `∀y. ∃x. r(y, x)` and `∃x. ∃z. r(x, z)` share `∃x. r(#1, #0)`.
+        let (outer, inner) = (formulas.variable(1), formulas.variable(0));
+        let r = formulas.predicate("r", &[outer, inner]).unwrap();
+        let some = formulas.binder(false, r, "x").unwrap();
+        let first = formulas.binder(true, some, "y").unwrap();
+        let second = formulas.binder(false, some, "x").unwrap();
+        let a = formulas.function("a", &[]).unwrap();
+        let p = formulas.predicate("p", &[a]).unwrap();
+        let both = formulas.add(Node::And(first, p)).unwrap();
+        let sequent = Sequent::new(formulas, vec![both], vec![second]).unwrap();
+        assert_eq!(
+            sequent.to_string(),
+            "(∀y. ∃x. r(y, x)) ∧ p(a) ⊢ ∃x. ∃x_1. r(x, x_1)"
+        );
+    }
+
+    #[test]
+    fn a_formula_with_a_loose_variable_is_no_formula_of_a_sequent() {
+        let mut formulas = Formulas::default();
+        let x = formulas.variable(0);
+        let body = formulas.predicate("p", &[x]).unwrap();
+        assert!(matches!(
+            Sequent::new(formulas, vec![], vec![body]),
+            Err(Error::LooseVariable { .. })
+        ));
+    }
+
+    #[test]
+    fn a_name_has_one_role() {
+        let mut formulas = Formulas::default();
+        let a = formulas.function("a", &[]).unwrap();
+        formulas.predicate("p", &[a]).unwrap();
+        // `a` names a constant, so it names no atom.
+        assert!(matches!(formulas.atom("a"), Err(Error::Symbol { .. })));
+        assert!(matches!(
+            formulas.predicate("p", &[a, a]),
+            Err(Error::Symbol { .. })
+        ));
     }
 }

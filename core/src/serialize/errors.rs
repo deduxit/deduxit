@@ -124,6 +124,7 @@ impl Serialize for Details<'_> {
                 entries!(s; "translation" => translation; "logic" => logic)
             }
             Logic { logic, method } => entries!(s; "logic" => logic; "method" => method),
+            FirstOrder { method } => entries!(s; "method" => method),
             NegativeTarget { translation, logic } => {
                 entries!(s; "translation" => translation; "logic" => logic)
             }

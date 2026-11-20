@@ -482,6 +482,7 @@ impl Interactive {
     ///
     /// As [`new`](Self::new) does, the bound being `limits.occurrences`.
     pub fn within(sequent: &Sequent, logic: Logic, limits: &Limits) -> Result<Self, Error> {
+        sequent.formulas.propositional("the goal state")?;
         if logic != Logic::Classical && sequent.right.len() > 1 {
             return Err(Error::Succedents {
                 count: sequent.right.len(),
@@ -1122,6 +1123,7 @@ impl Interactive {
                 Node::Or(a, b) => formulas.add(Node::Or(at(a), at(b)))?,
                 Node::Implies(a, b) => formulas.add(Node::Implies(at(a), at(b)))?,
                 Node::Iff(a, b) => formulas.add(Node::Iff(at(a), at(b)))?,
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
             ids.push(id);
         }
@@ -1652,6 +1654,7 @@ impl Interactive {
             inferences,
             history,
         } = parts;
+        formulas.propositional("the goal state")?;
         let inconsistent = |reason| Error::InconsistentSession { reason };
         let root = inferences
             .first()

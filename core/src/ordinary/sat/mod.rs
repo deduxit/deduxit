@@ -275,6 +275,9 @@ fn run(
     most: u32,
     derive: Derive,
 ) -> Result<Outcome, Error> {
+    sequent
+        .formulas()
+        .propositional(super::Method::Sat.title())?;
     if logic == Logic::Classical {
         return classical::decide(sequent, limits, stop, most);
     }
@@ -539,6 +542,7 @@ fn polarities(formulas: &Formulas, left: &[NodeId], goal: NodeId, falsity: NodeI
                     }
                 }
             }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
     polarity
@@ -722,6 +726,7 @@ impl<'a, S: Solver> Search<'a, S> {
                         clauses.push(vec![neg(i), neg(j), pos(x)]);
                     }
                 }
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             }
         }
         if let Some(reason) = flush(&mut clauses) {
@@ -962,6 +967,7 @@ fn kripke(
                 | Node::Or(..)
                 | Node::Implies(..)
                 | Node::Iff(..) => {}
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             }
         }
         atoms.sort_unstable();

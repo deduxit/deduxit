@@ -61,6 +61,12 @@ enum FormulaForm {
     /// `A ↔ B`
     #[serde(rename = "↔")]
     Iff(u32, u32),
+    /// `∀x. A`
+    #[serde(rename = "∀")]
+    Forall(u32),
+    /// `∃x. A`
+    #[serde(rename = "∃")]
+    Exists(u32),
 }
 
 impl From<Node> for FormulaForm {
@@ -76,6 +82,8 @@ impl From<Node> for FormulaForm {
             Node::Or(a, b) => Self::Or(i(a), i(b)),
             Node::Implies(a, b) => Self::Implies(i(a), i(b)),
             Node::Iff(a, b) => Self::Iff(i(a), i(b)),
+            Node::Forall(a) => Self::Forall(i(a)),
+            Node::Exists(a) => Self::Exists(i(a)),
         }
     }
 }
@@ -156,6 +164,8 @@ impl SequentForm {
                 FormulaForm::Or(a, b) => formulas.add(Node::Or(at(a)?, at(b)?))?,
                 FormulaForm::Implies(a, b) => formulas.add(Node::Implies(at(a)?, at(b)?))?,
                 FormulaForm::Iff(a, b) => formulas.add(Node::Iff(at(a)?, at(b)?))?,
+                FormulaForm::Forall(a) => formulas.add(Node::Forall(at(a)?))?,
+                FormulaForm::Exists(a) => formulas.add(Node::Exists(at(a)?))?,
             };
             ids.push(id);
         }
@@ -196,10 +206,10 @@ impl Read {
 
 impl Serialize for Sequent {
     /// Serializes the sequent as a document at level 8, the level of
-    /// ordinary logic.
+    /// ordinary logic, or at level 25 where its arena is first-order.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut form = SequentForm::of(self.formulas(), self.left(), self.right());
-        form.version = Some(wire::ORDINARY);
+        form.version = Some(terms(self.formulas(), wire::ORDINARY));
         form.serialize(serializer)
     }
 }
@@ -388,11 +398,12 @@ impl DerivationForm {
 }
 
 impl Serialize for Derivation {
-    /// Serializes the derivation as a document: at level 9 where an
-    /// inference is a cut, else at level 8.
+    /// Serializes the derivation as a document: at level 25 where its
+    /// arena is first-order, else at level 9 where an inference is a cut,
+    /// else at level 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut form = DerivationForm::from(self);
-        form.version = Some(level(self.inferences()));
+        form.version = Some(terms(self.formulas(), level(self.inferences())));
         form.serialize(serializer)
     }
 }
@@ -901,6 +912,16 @@ fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
         },
         limits,
     )
+}
+
+/// Returns `level`, or the level of a first-order form where `formulas`
+/// is first-order.
+fn terms(formulas: &Formulas, level: u32) -> u32 {
+    if formulas.is_first_order() {
+        level.max(wire::ORDINARY_TERMS)
+    } else {
+        level
+    }
 }
 
 /// Returns the level of a form of ordinary logic with these inferences:

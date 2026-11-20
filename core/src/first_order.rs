@@ -526,7 +526,7 @@ pub enum SymbolFault {
 
 /// Builds the first-order tables of a sequent. It interns every symbol,
 /// term and argument list, so equal ones are one entry.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Interner<K> {
     /// The tables built.
     pub(crate) tables: FirstOrder<K>,
@@ -605,6 +605,24 @@ impl<K> Interner<K> {
         self.tables.terms.push(term);
         self.terms.insert(term, id);
         id
+    }
+
+    /// Returns the id of `term` if the tables hold it.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the checker's quantifier rules are its first caller outside the tests")
+    )]
+    pub(crate) fn find_term(&self, term: FoTerm) -> Option<FoTermId> {
+        self.terms.get(&term).copied()
+    }
+
+    /// Returns the argument list of `items` if the tables hold it.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the checker's quantifier rules are its first caller outside the tests")
+    )]
+    pub(crate) fn find_list(&self, items: &[FoTermId]) -> Option<Args> {
+        self.lists.get(items).copied()
     }
 
     /// Returns the argument list of `items`, interned.

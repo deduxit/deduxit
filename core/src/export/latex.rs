@@ -126,6 +126,9 @@ const NOTATION: Notation = Notation {
         iff: r"\leftrightarrow",
         truth: r"\top",
         falsity: r"\bot",
+        forall: r"\forall ",
+        exists: r"\exists ",
+        dot: r".\,",
     },
 };
 

@@ -1151,9 +1151,14 @@ impl Notation {
         let (open, close) = if marks { ("\u{2}", "\u{3}") } else { ("", "") };
         let formula = |out: &mut W, id: NodeId| {
             out.write_str(open)?;
-            formulas.write(out, id, false, &self.ordinary, |o, a| {
-                self.atom.write(o, formulas.atom_name(a))
-            })?;
+            formulas.write(
+                out,
+                id,
+                false,
+                &self.ordinary,
+                |o, a| self.atom.write(o, formulas.atom_name(a)),
+                |o, name| self.atom.write(o, name),
+            )?;
             out.write_str(close)
         };
         let (left, right) = sides;

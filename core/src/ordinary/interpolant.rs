@@ -244,6 +244,7 @@ pub fn interpolate(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolation, Error> {
+    sequent.formulas().propositional("an interpolant")?;
     let logic = options.logic;
     partition.halves(logic, sequent.left().len(), sequent.right().len())?;
     let decided = decide_within(sequent, options, search, limits, &mut stop)?;
@@ -344,6 +345,7 @@ pub fn interpolant(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolant, Error> {
+    derivation.formulas().propositional("an interpolant")?;
     let logic = derivation.logic();
     if derivation.inferences().iter().any(|i| i.rule == Rule::Cut) {
         return Err(Error::NotCutFree);
@@ -691,7 +693,9 @@ impl Build<'_> {
             | Node::And(..)
             | Node::Or(..)
             | Node::Implies(..)
-            | Node::Iff(..) => self.out.add(Node::Not(a)),
+            | Node::Iff(..)
+            | Node::Forall(_)
+            | Node::Exists(_) => self.out.add(Node::Not(a)),
         }
     }
 

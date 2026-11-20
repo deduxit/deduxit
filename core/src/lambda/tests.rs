@@ -86,6 +86,7 @@ fn of_ordinary(formulas: &crate::ordinary::Formulas, id: crate::ordinary::NodeId
     let of = |id| Box::new(of_ordinary(formulas, id));
     match formulas.node(id) {
         F::Atom(a) => T::Atom(formulas.atom_name(a).to_owned()),
+        F::Forall(_) | F::Exists(_) => unreachable!("the samples are propositional"),
         F::True => T::Top,
         F::False => T::Zero,
         F::Not(a) => T::Arrow(of(a), Box::new(T::Zero)),

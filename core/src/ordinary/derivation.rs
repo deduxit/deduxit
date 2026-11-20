@@ -490,6 +490,7 @@ impl Derivation {
     ) -> Result<crate::lambda::Term, Error> {
         // A derivation of LK or with an open goal has no term whether it
         // checks or not: the read-back refuses it before it reads anything.
+        self.formulas.propositional("a lambda-term")?;
         let refused =
             self.logic == Logic::Classical || self.inferences.iter().any(|i| i.rule == Rule::Open);
         if !self.trusted.get() && !refused {
@@ -1078,6 +1079,16 @@ pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
             // ` ∧ ` and the brackets.
             Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
                 of(a).saturating_add(of(b)).saturating_add(5)
+            }
+            // `∀x. `, the brackets, and room for a renamed variable.
+            Node::Forall(a) | Node::Exists(a) => {
+                let name = formulas
+                    .first_order()
+                    .binder_name(NodeId(weight.len() as u32))
+                    .map_or(1, |n| n.chars().count() as u64);
+                of(a)
+                    .saturating_add(name.saturating_mul(2))
+                    .saturating_add(9)
             }
         };
         weight.push(w);

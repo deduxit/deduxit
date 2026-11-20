@@ -128,6 +128,9 @@ fn run(
     mut stop: &mut dyn FnMut(Progress) -> bool,
     plant: Option<Plant>,
 ) -> Result<Outcome, Error> {
+    sequent
+        .formulas()
+        .propositional(super::Method::Ljt.title())?;
     if logic == Logic::Classical {
         return Err(Error::Logic {
             logic,
@@ -363,6 +366,7 @@ impl Search {
             | Node::And(..)
             | Node::Or(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
 
@@ -384,6 +388,7 @@ impl Search {
             Node::True => return one(Kind::TrueRight, goal),
             Node::Implies(..) | Node::Not(_) => return one(Kind::ImpliesRight, goal),
             Node::Atom(_) | Node::False | Node::And(..) | Node::Or(..) | Node::Iff(..) => {}
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
         // Invertible left rules with one premise.
         for &h in left {
@@ -398,7 +403,11 @@ impl Search {
                     Node::Iff(..) => Some(Kind::IffImplies),
                     Node::Or(..) => Some(Kind::OrImplies),
                     Node::Atom(_) | Node::False | Node::Implies(..) | Node::Not(_) => None,
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 },
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
             if let Some(kind) = kind {
                 return one(kind, h);
@@ -414,6 +423,7 @@ impl Search {
             | Node::Not(_)
             | Node::Or(..)
             | Node::Implies(..) => {}
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
         if let Some(&h) = left.iter().find(|&&h| matches!(f.node(h), Node::Or(..))) {
             return one(Kind::OrLeft, h);
@@ -476,6 +486,7 @@ impl Search {
                 Node::Not(_) => heads.push(self.falsity),
                 Node::Implies(_, c) => stack.push(c),
                 Node::And(a, b) | Node::Or(a, b) | Node::Iff(a, b) => stack.extend([a, b]),
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             }
         }
     }

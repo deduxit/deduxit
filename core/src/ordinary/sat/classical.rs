@@ -85,6 +85,7 @@ fn polarities(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Vec<u8>
                 polarity[a.index()] |= TRUE | FALSE;
                 polarity[b.index()] |= TRUE | FALSE;
             }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
     polarity
@@ -216,6 +217,7 @@ pub(super) fn encode(
                     definition.push(vec![f(a), f(b), t(x)]);
                 }
             }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
         for clause in definition {
             add(clause).map_or(Ok(()), Err)?;
@@ -364,6 +366,7 @@ fn assignment(formulas: &Formulas, clauses: &Encoding, solver: &impl Solver) -> 
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         })
         .collect();
     atoms.sort_unstable();

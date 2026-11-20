@@ -57,6 +57,9 @@ const ROCQ: Symbols = Symbols {
     iff: "<->",
     truth: "True",
     falsity: "False",
+    forall: "forall ",
+    exists: "exists ",
+    dot: ", ",
 };
 
 /// What the walk has yet to do.
@@ -96,9 +99,14 @@ impl Certificate<'_> {
             out.push('(');
         }
         formulas
-            .write(&mut out, id, true, &ROCQ, |o, a| {
-                o.write_str(&self.atoms[a as usize])
-            })
+            .write(
+                &mut out,
+                id,
+                true,
+                &ROCQ,
+                |o, a| o.write_str(&self.atoms[a as usize]),
+                |o, name| o.write_str(name),
+            )
             .unwrap();
         if negation {
             out.push(')');
@@ -379,6 +387,9 @@ pub(crate) fn write(
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
+    derivation
+        .formulas()
+        .propositional("a certificate over Prop")?;
     // A proof in progress, or a derivation read from a document, may break
     // the rules of its logic, and the terms are sound only for one that
     // keeps them.
@@ -577,6 +588,7 @@ fn falsified(
             Node::Or(a, b) => of(a) || of(b),
             Node::Implies(a, b) => !of(a) || of(b),
             Node::Iff(a, b) => of(a) == of(b),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         };
         truth.push(t);
     }
@@ -602,9 +614,14 @@ fn falsified(
             text.push('(');
         }
         formulas
-            .write(&mut text, id, true, &ROCQ, |o, a| {
-                o.write_str(&atoms[a as usize])
-            })
+            .write(
+                &mut text,
+                id,
+                true,
+                &ROCQ,
+                |o, a| o.write_str(&atoms[a as usize]),
+                |o, name| o.write_str(name),
+            )
             .expect("a string takes the text");
         if negation {
             text.push(')');
@@ -692,6 +709,7 @@ pub(crate) fn countermodel(
             Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
                 of(a).saturating_add(of(b)).saturating_add(10)
             }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         };
         bytes.push(b);
     }
@@ -921,6 +939,9 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
                     Node::Or(..) => out.push_str("vee "),
                     Node::Implies(..) => out.push_str("imp "),
                     Node::Iff(..) => out.push_str("equiv "),
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 }
             }
             Stop::Between(_) => out.push(' '),

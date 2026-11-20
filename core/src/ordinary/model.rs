@@ -226,6 +226,7 @@ impl Model {
         limits: &Limits,
         mut stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Forcing, Error> {
+        sequent.formulas().propositional("a Kripke model's check")?;
         if logic != Logic::Classical && sequent.right().len() > 1 {
             return Err(Error::Succedents {
                 count: sequent.right().len(),
@@ -403,6 +404,9 @@ impl Model {
                     Node::Not(a) => (!at(t, a) || falsity) && higher(t),
                     Node::Implies(a, b) => (!at(t, a) || at(t, b)) && higher(t),
                     Node::Iff(a, b) => at(t, a) == at(t, b) && higher(t),
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 };
                 let cell = n * width + id;
                 table[cell / 64] |= u64::from(value) << (cell % 64);

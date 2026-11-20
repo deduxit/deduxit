@@ -221,6 +221,10 @@ const fn row(translation: Translation, node: Node) -> Row {
     match (translation, node) {
         (Translation::Kolmogorov, _) => DOUBLE,
         (Translation::GodelGentzen, Node::Atom(_)) => DOUBLE,
+        // `translate` refuses a first-order sequent at its door.
+        (Translation::GodelGentzen, Node::Forall(_) | Node::Exists(_)) => {
+            panic!("a negative translation takes propositional sequents only")
+        }
         (Translation::GodelGentzen, Node::Or(..)) => Row {
             shape: Shape::DeMorgan,
             negations: 0,
@@ -261,6 +265,7 @@ const fn sides(translation: Translation) -> (u8, u8) {
 /// translation that unfolds past `limits.occurrences`;
 /// [`Refusal::Index`](crate::Refusal) when the arena is full.
 pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Result<Sequent, Error> {
+    sequent.formulas().propositional("a negative translation")?;
     let translation = options.translation;
     let target = options.target();
     if !translation.reaches(target) {
@@ -316,6 +321,7 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
             (_, Node::Or(a, b)) => out.add(Node::Or(of(a), of(b)))?,
             (_, Node::Implies(a, b)) => out.add(Node::Implies(of(a), of(b)))?,
             (_, Node::Iff(a, b)) => out.add(Node::Iff(of(a), of(b)))?,
+            (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", super::REFUSED),
         };
         id = negated(&mut out, id, negations)?;
         image[k] = id;

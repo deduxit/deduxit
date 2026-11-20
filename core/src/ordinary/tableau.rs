@@ -265,6 +265,9 @@ impl Tableau {
         derivation: &Derivation,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Self, Error> {
+        derivation
+            .formulas()
+            .propositional(super::Method::Tableau.title())?;
         if derivation.logic() != Logic::Classical {
             return Err(Error::Logic {
                 logic: derivation.logic(),
@@ -406,6 +409,9 @@ impl Tableau {
                         | Node::Or(..)
                         | Node::Implies(..)
                         | Node::Iff(..) => false,
+                        Node::Forall(_) | Node::Exists(_) => {
+                            unreachable!("{}", crate::ordinary::REFUSED)
+                        }
                     };
                     let line = if falsity {
                         inference.left().iter().position(constant).map(|i| lines[i])
@@ -750,6 +756,7 @@ fn next_step(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Option<S
         (_, Node::Atom(_) | Node::True | Node::False)
         | (Side::Left, Node::Or(..) | Node::Implies(..))
         | (Side::Right, Node::And(..) | Node::Iff(..)) => None,
+        (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", crate::ordinary::REFUSED),
     };
     let two = |side: Side, x: NodeId| match (side, formulas.node(x)) {
         (Side::Left, Node::Or(..)) => Some(Rule::OrLeft),
@@ -759,6 +766,7 @@ fn next_step(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Option<S
         (_, Node::Atom(_) | Node::True | Node::False | Node::Not(_))
         | (Side::Left, Node::And(..) | Node::Iff(..))
         | (Side::Right, Node::Or(..) | Node::Implies(..)) => None,
+        (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", crate::ordinary::REFUSED),
     };
     let rules: [&dyn Fn(Side, NodeId) -> Option<Rule>; 2] = [&one, &two];
     for rule_of in rules {
@@ -899,6 +907,7 @@ pub(super) fn decide(
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         })
         .collect();
     atoms.sort_unstable();

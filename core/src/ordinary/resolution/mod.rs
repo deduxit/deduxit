@@ -347,6 +347,7 @@ impl Clauses {
     /// or a hypothesis that is no conjunction of clauses.
     pub fn of_sequent(sequent: &Sequent) -> Result<Self, Error> {
         let formulas = sequent.formulas();
+        formulas.propositional("resolution")?;
         let not_clauses = |what: String| Error::InvalidOption {
             key: "clauses",
             message: format!(
@@ -388,6 +389,9 @@ impl Clauses {
                             "{} is no clause",
                             formulas.formula(id)
                         )));
+                    }
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
                     }
                 }
             }
@@ -507,8 +511,10 @@ fn clause_of(formulas: &Formulas, root: NodeId) -> Option<Option<Vec<Literal>>> 
                 Node::Not(_) | Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => {
                     return None;
                 }
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             },
             Node::And(..) | Node::Implies(..) | Node::Iff(..) => return None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
     Some((!holds).then_some(literals))

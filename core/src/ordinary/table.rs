@@ -208,6 +208,7 @@ pub fn truth_table(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<TruthTable, Error> {
     let formulas = sequent.formulas();
+    formulas.propositional(super::Method::Table.title())?;
     let atoms = formulas.atom_names().len() as u64;
     let width = formulas.len() as u64;
     if let Some(limit) = limits.table_atoms
@@ -266,6 +267,7 @@ pub fn truth_table(
                 Node::Or(a, b) => at(a) || at(b),
                 Node::Implies(a, b) => !at(a) || at(b),
                 Node::Iff(a, b) => at(a) == at(b),
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
         }
         // Below `cells`, which is a `usize`.

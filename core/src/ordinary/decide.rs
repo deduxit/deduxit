@@ -505,6 +505,7 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
+    sequent.formulas().propositional(options.method().title())?;
     let (logic, translation) = (options.logic, options.translation());
     let decided = match options.method() {
         Method::Embedding => None,

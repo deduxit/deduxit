@@ -427,6 +427,15 @@ pub enum Error {
         /// The method asked.
         method: crate::ordinary::Method,
     },
+    /// A method that decides or transforms propositional sequents was given
+    /// a first-order one: a formula with a quantifier or a predicate with
+    /// arguments. A derivation of such a sequent is checked, not decided.
+    #[error("{method} takes propositional sequents only, and this one is first-order")]
+    #[non_exhaustive]
+    FirstOrder {
+        /// The method: `the SAT solver`, `LJT`, `the truth table`, …
+        method: &'static str,
+    },
     /// A negative translation was asked to carry classical logic into a
     /// logic where its claim does not hold: Kuroda's translation and
     /// Glivenko's into minimal logic, or any into classical logic.
@@ -851,6 +860,7 @@ impl Error {
         "fragment_mismatch",
         "translation",
         "logic",
+        "first_order",
         "negative_target",
         "partition",
         "not_cut_free",
@@ -953,6 +963,7 @@ impl Error {
             | Self::FragmentMismatch { .. }
             | Self::Translation { .. }
             | Self::Logic { .. }
+            | Self::FirstOrder { .. }
             | Self::NegativeTarget { .. }
             | Self::NotCutFree
             | Self::NoEngine { .. }
@@ -1042,6 +1053,7 @@ impl Error {
             Self::FragmentMismatch { .. } => "fragment_mismatch",
             Self::Translation { .. } => "translation",
             Self::Logic { .. } => "logic",
+            Self::FirstOrder { .. } => "first_order",
             Self::NegativeTarget { .. } => "negative_target",
             Self::Partition { .. } => "partition",
             Self::NotCutFree => "not_cut_free",
@@ -1396,6 +1408,9 @@ mod tests {
                 logic: crate::ordinary::Logic::Classical,
                 method: crate::ordinary::Method::Ljt,
             },
+            Error::FirstOrder {
+                method: "the SAT solver",
+            },
             Error::NegativeTarget {
                 translation: crate::ordinary::negative::Translation::Kuroda,
                 logic: crate::ordinary::Logic::Minimal,
@@ -1652,6 +1667,7 @@ mod tests {
             | Error::FragmentMismatch { .. }
             | Error::Translation { .. }
             | Error::Logic { .. }
+            | Error::FirstOrder { .. }
             | Error::NegativeTarget { .. }
             | Error::Partition { .. }
             | Error::NotCutFree

@@ -1829,6 +1829,8 @@ pub fn countermodel(
                 Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
                     of(a).saturating_add(of(b)).saturating_add(9)
                 }
+                // The model's check refuses a first-order sequent first.
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
             bytes.push(b);
         }

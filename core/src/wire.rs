@@ -40,6 +40,7 @@
 //! | 22 | resolution: a set of clauses with the resolvents of a refutation, and a set decided by saturation or DPLL with its evidence and DPLL's trace (written only) | a refutation of [`ordinary::resolution`](crate::ordinary::resolution), a clause set decided |
 //! | 23 | the lambda-term: its calculus, its atoms, types and variables, and its nodes, `{"calculus": "simple", "atoms": […], "types": […], "variables": [{"type": 0, "name": "x"}], "context": […], "goal": 1, "nodes": […], "root": 1}` | a term of [`lambda`](crate::lambda) |
 //! | 24 | a type's terms listed and counted, and whether a type has a term (written only): `{"count": {"kind": "exactly", "count": 2}, "terms": [term, …]}` and `{"verdict": "inhabited", "term": term}` | [`lambda::Inhabitants`](crate::lambda::Inhabitants), [`lambda::Inhabitation`](crate::lambda::Inhabitation) |
+//! | 25 | the first-order forms of ordinary logic: the formulas `{"∀": a}` and `{"∃": a}` | a sequent, derivation or session of [`ordinary`](crate::ordinary) whose arena has a binder |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -297,7 +298,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 24;
+pub const LEVEL: u32 = 25;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
@@ -480,6 +481,9 @@ pub(crate) const ORDINARY: u32 = 8;
 
 /// The level of a form of ordinary logic that holds LJ's cut.
 pub(crate) const ORDINARY_CUT: u32 = 9;
+
+/// The level of a first-order form of ordinary logic.
+pub(crate) const ORDINARY_TERMS: u32 = 25;
 
 /// The level of an ordinary outcome: its search tagged by its method,
 /// the image's outcome nested under the embedding.

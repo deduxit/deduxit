@@ -246,6 +246,9 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
                     | Node::And(..)
                     | Node::Or(..)
                     | Node::Iff(..) => {}
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 }
             }
             if introduced[id] {
@@ -267,6 +270,9 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
                     Node::Not(_) => negations.push(p),
                     Node::True => truths.push(p),
                     Node::Atom(_) | Node::False => {}
+                    Node::Forall(_) | Node::Exists(_) => {
+                        unreachable!("{}", crate::ordinary::REFUSED)
+                    }
                 }
             }
         }
@@ -548,6 +554,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
                 | Node::Or(..)
                 | Node::Implies(..)
                 | Node::Not(_) => None,
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
         }
         if have(p) || !self.introduced[p.index()] {
@@ -573,6 +580,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Not(_) => return None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         };
         Some((rule, [p, p]))
     }
@@ -610,6 +618,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
                 | Node::Or(..)
                 | Node::Implies(..)
                 | Node::Iff(..) => None,
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             })
     }
 

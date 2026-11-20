@@ -23,6 +23,8 @@ fn invertible(logic: Logic, side: Side, node: Node) -> Option<Rule> {
     let classical = matches!(logic, Logic::Classical);
     match (side, node) {
         (_, Node::Atom(_)) => None,
+        // The goal state refuses a first-order sequent.
+        (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", super::REFUSED),
         (Left, Node::And(..)) => Some(Rule::AndLeft),
         (Left, Node::Or(..)) => Some(Rule::OrLeft),
         (Left, Node::Iff(..)) => Some(Rule::IffLeft),

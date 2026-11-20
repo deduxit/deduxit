@@ -357,6 +357,7 @@ fn goedel(sequent: &crate::ordinary::Sequent) -> Sequent {
                 let atom = formulas.atom(source.atom_name(a)).unwrap();
                 Node::Box(atom)
             }
+            O::Forall(_) | O::Exists(_) => unreachable!("the samples are propositional"),
             O::True => Node::True,
             O::False => Node::False,
             O::Not(a) => Node::Box(formulas.add(Node::Not(at(a, &image))).unwrap()),

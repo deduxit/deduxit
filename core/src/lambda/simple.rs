@@ -427,6 +427,7 @@ pub(super) fn type_of(
                 let atom = builder.atom(formulas.atom_name(atom));
                 builder.ty(Type::Atom { atom })
             }
+            F::Forall(_) | F::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             F::True => builder.ty(Type::Top),
             F::False => builder.ty(Type::Zero),
             F::Not(_) => {

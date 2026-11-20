@@ -37,6 +37,8 @@ pub(crate) fn terms_of(
             Or(a, b) => terms.apply("∨", &[ids[a.index()], ids[b.index()]])?,
             Implies(a, b) => terms.apply("→", &[ids[a.index()], ids[b.index()]])?,
             Iff(a, b) => terms.apply("↔", &[ids[a.index()], ids[b.index()]])?,
+            // `from_ordinary` refuses a first-order derivation.
+            Forall(_) | Exists(_) => unreachable!("{}", ordinary::REFUSED),
         };
         ids.push(id);
     }
@@ -129,6 +131,7 @@ impl Derivation {
             reason,
         };
         let formulas = derivation.formulas();
+        formulas.propositional("a rule file's derivation")?;
         let mut out = Self::new(calculus(logic), 2);
         let ids = terms_of(formulas, out.terms_mut())?;
         let zone = |side: &[ordinary::NodeId]| -> Vec<TermId> {

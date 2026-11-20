@@ -315,6 +315,9 @@ impl<'a> Translator<'a> {
                 self.mapped.insert(id, mapped);
                 return mapped;
             }
+            ordinary::Node::Forall(_) | ordinary::Node::Exists(_) => {
+                unreachable!("the samples are propositional")
+            }
             ordinary::Node::True => ordinary::Node::True,
             ordinary::Node::False => ordinary::Node::False,
             ordinary::Node::And(a, b) => ordinary::Node::And(self.formula(a), self.formula(b)),
@@ -843,6 +846,9 @@ impl Emitter<'_, '_> {
                     .unwrap();
                 self.terms.insert(id, term);
                 return term;
+            }
+            ordinary::Node::Forall(_) | ordinary::Node::Exists(_) => {
+                unreachable!("the samples are propositional")
             }
             ordinary::Node::True => ("⊤", vec![]),
             ordinary::Node::False => ("⊥", vec![]),

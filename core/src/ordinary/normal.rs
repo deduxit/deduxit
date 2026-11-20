@@ -553,6 +553,7 @@ impl NormalForm {
                     let (a, b) = node.operands();
                     of(a).max(of(b))
                 }
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             });
         }
         for (k, &(atom, named)) in (1u64..).zip(&definitions) {
@@ -631,6 +632,7 @@ fn transfer(
             Node::Or(a, b) => formulas.add(Node::Or(map(a), map(b)))?,
             Node::Implies(a, b) => formulas.add(Node::Implies(map(a), map(b)))?,
             Node::Iff(a, b) => formulas.add(Node::Iff(map(a), map(b)))?,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         };
         image.push(id);
     }
@@ -760,6 +762,7 @@ fn law(stage: Stage, formulas: &Formulas, id: NodeId) -> Option<Rule> {
             | Node::Not(_)
             | Node::And(..)
             | Node::Or(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Stage::Negations => match node {
             Node::Not(a) => match formulas.node(a) {
@@ -770,6 +773,7 @@ fn law(stage: Stage, formulas: &Formulas, id: NodeId) -> Option<Rule> {
                 Node::False => Some(Rule::NotFalse),
                 // No arrow is left after the first phase.
                 Node::Atom(_) | Node::Implies(..) | Node::Iff(..) => None,
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             },
             Node::Atom(_)
             | Node::True
@@ -778,6 +782,7 @@ fn law(stage: Stage, formulas: &Formulas, id: NodeId) -> Option<Rule> {
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Stage::Constants => match node {
             Node::And(a, b) if either(a, b, Kind::False) => Some(Rule::AndFalse),
@@ -792,6 +797,7 @@ fn law(stage: Stage, formulas: &Formulas, id: NodeId) -> Option<Rule> {
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Stage::Distribute { conjunctive } => match node {
             Node::Or(a, b) if conjunctive && either(a, b, Kind::And) => Some(Rule::DistributeOr),
@@ -804,6 +810,7 @@ fn law(stage: Stage, formulas: &Formulas, id: NodeId) -> Option<Rule> {
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
     }
 }
@@ -1011,6 +1018,7 @@ impl Passes {
                     Node::Or(a, b) => Node::Or(map(a), map(b)),
                     Node::Implies(a, b) => Node::Implies(map(a), map(b)),
                     Node::Iff(a, b) => Node::Iff(map(a), map(b)),
+                    Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
                 };
                 if mapped == node {
                     id
@@ -1117,6 +1125,7 @@ fn rewrite_dyn(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<NormalForm, Error> {
+    sequent.formulas().propositional("a normal form")?;
     let mut budget = Budget {
         limits,
         work: 0,
@@ -1193,6 +1202,7 @@ fn is_literal(formulas: &Formulas, id: NodeId) -> bool {
         Node::Atom(_) | Node::True | Node::False => true,
         Node::Not(a) => matches!(formulas.node(a), Node::Atom(_) | Node::True | Node::False),
         Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => false,
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     }
 }
 
@@ -1205,6 +1215,7 @@ fn negated(formulas: &mut Formulas, id: NodeId) -> Result<NodeId, Error> {
         Node::Atom(_) | Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => {
             formulas.add(Node::Not(id))
         }
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     }
 }
 
@@ -1272,6 +1283,7 @@ fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Mad
             Node::Or(a, b) => Node::Or(current(a), current(b)),
             Node::Implies(a, b) => Node::Implies(current(a), current(b)),
             Node::Iff(a, b) => Node::Iff(current(a), current(b)),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         })?;
         // A negation of a named subformula is a literal already.
         if is_literal(&formulas, before) {
@@ -1385,6 +1397,7 @@ fn polarities(formulas: &Formulas, order: &[NodeId], roots: &[NodeId]) -> HashMa
                 give(a, TRUE | FALSE);
                 give(b, TRUE | FALSE);
             }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
     polarity
@@ -1457,6 +1470,7 @@ fn definition(
                 lists.push(vec![t, lit(formulas, a, false)?, lit(formulas, b, false)?]);
             }
         }
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     }
     let mut clauses = Vec::with_capacity(lists.len());
     for list in lists {
@@ -1487,8 +1501,10 @@ fn constant(formulas: &Formulas, id: NodeId) -> Option<bool> {
             | Node::Or(..)
             | Node::Implies(..)
             | Node::Iff(..) => None,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Node::Atom(_) | Node::And(..) | Node::Or(..) | Node::Implies(..) | Node::Iff(..) => None,
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     }
 }
 
@@ -1505,6 +1521,7 @@ fn in_form(result: &Sequent, form: Form) -> bool {
         | Node::Or(..)
         | Node::Implies(..)
         | Node::Iff(..) => false,
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     };
     // Whether a formula is built by `join` over parts that `part` accepts,
     // walked with a stack of its own.
@@ -1557,6 +1574,7 @@ fn nnf(formulas: &Formulas, id: NodeId) -> bool {
             }
             Node::And(a, b) | Node::Or(a, b) => stack.extend([a, b]),
             Node::Implies(..) | Node::Iff(..) => return false,
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         }
     }
     true

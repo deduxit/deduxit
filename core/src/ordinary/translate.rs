@@ -124,6 +124,7 @@ pub(super) fn pattern(
         | Node::And(..)
         | Node::Or(..)
         | Node::Implies(..) => (id, id),
+        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
     };
     let minimal_false = logic == Logic::Minimal && node == Node::False;
     match translation {
@@ -169,6 +170,7 @@ pub(super) fn pattern(
                     Some((forward, f, 0)),
                     Some((backward, f, 0)),
                 ),
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             }
         }
         // Minimal logic's false is an atom, with an atom's `!`s.
@@ -187,6 +189,7 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, 0, 1)), Some((b, 0, 1))),
             Node::Implies(a, b) => make(0, Lollipop, Some((a, 0, 1)), Some((b, 0, 0))),
             Node::Iff(..) => make(0, With, Some((forward, 0, 0)), Some((backward, 0, 0))),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Translation::CallByValue => match node {
             Node::Atom(_) => make(1, Atom, None, None),
@@ -197,6 +200,7 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, 0, 0)), Some((b, 0, 0))),
             Node::Implies(a, b) => make(1, Lollipop, Some((a, 0, 0)), Some((b, 0, 0))),
             Node::Iff(..) => make(0, Tensor, Some((forward, 0, 0)), Some((backward, 0, 0))),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Translation::ZeroOne if function == T0 => match node {
             Node::Atom(_) => make(0, Atom, None, None),
@@ -207,6 +211,7 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, T0, 1)), Some((b, T0, 1))),
             Node::Implies(a, b) => make(0, Lollipop, Some((a, T1, 1)), Some((b, T0, 1))),
             Node::Iff(..) => make(0, With, Some((forward, T0, 1)), Some((backward, T0, 1))),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
         Translation::ZeroOne => match node {
             Node::Atom(_) => make(0, Atom, None, None),
@@ -217,6 +222,7 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, T1, 1)), Some((b, T1, 1))),
             Node::Implies(a, b) => make(1, Lollipop, Some((a, T0, 1)), Some((b, T1, 0))),
             Node::Iff(..) => make(1, With, Some((forward, T1, 0)), Some((backward, T1, 0))),
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         },
     }
 }
@@ -331,6 +337,9 @@ pub fn translate(
     translation: Translation,
     limits: &crate::Limits,
 ) -> Result<Image, Error> {
+    sequent
+        .formulas()
+        .propositional(super::Method::Embedding.title())?;
     if !translation.decides(logic) {
         return Err(Error::Translation { translation, logic });
     }
@@ -402,6 +411,9 @@ pub fn translate(
                         | Node::Or(..)
                         | Node::Implies(..)
                         | Node::Iff(..) => FALSE,
+                        Node::Forall(_) | Node::Exists(_) => {
+                            unreachable!("{}", crate::ordinary::REFUSED)
+                        }
                     };
                     let atom = builder.atom(name);
                     let (var, dual) = (

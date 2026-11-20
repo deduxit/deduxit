@@ -648,6 +648,12 @@ impl WrittenTableau {
         limits: &Limits,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<TableauReview, Error> {
+        self.formulas.propositional("the review of a tableau")?;
+        if let Some(expected) = expected {
+            expected
+                .formulas()
+                .propositional("the review of a tableau")?;
+        }
         let sequent = self.sequent()?;
         let answer = |standing, place: Option<&Line>, message| TableauReview {
             standing,
@@ -774,6 +780,7 @@ impl WrittenTableau {
                 Node::Or(a, b) => formulas.add(Node::Or(at(a), at(b)))?,
                 Node::Implies(a, b) => formulas.add(Node::Implies(at(a), at(b)))?,
                 Node::Iff(a, b) => formulas.add(Node::Iff(at(a), at(b)))?,
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
             };
             ids.push(id);
         }
@@ -965,6 +972,7 @@ fn shapes(formulas: &Formulas, signed: Signed) -> Vec<Shape> {
             }
             all
         }
+        (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", crate::ordinary::REFUSED),
     }
 }
 
