@@ -89,6 +89,18 @@ Input:
           
           Each line is a number, T (true) or F (false), a formula, and at its end the number of the line it expands, which a rule's name may precede (T∧ 2 or ∧L 2). The first lines, which expand no line, are the sequent's. A branch that closes ends with × and the two lines of a formula true and false, one that stays open with `open`. A branch starts with `-` (or ├─ and └─, as `prove --method tableau` prints a tableau) under the lines it goes on from, its lines indented after it. The check names the first step that breaks a rule, a branch marked wrongly, or the first branch not finished. A tableau without fault is checked again as a derivation in the built-in calculus `tableau`; an open one's branch gives a checked countermodel. The exit status is 0 for a tableau that is right and finished, closed or open, and 1 for one with a fault or not finished.
 
+      --dimacs <PATH>
+          The file is an outside SAT solver's proof that the clauses of this DIMACS CNF file are unsatisfiable, in the DRAT or LRAT format
+          
+          Every clause the proof adds must follow by unit propagation from the clauses kept, and the proof must add the empty clause. The exit status is 0 for a proof that holds and 1 for one that does not.
+
+      --proof-format <FORMAT>
+          The format of the proof --dimacs checks: drat (text or binary) or lrat; by default lrat for a file ending in .lrat, else drat
+
+          Possible values:
+          - drat: DRAT, as text or binary
+          - lrat: LRAT, as text
+
       --calculus <CALCULUS>
           With a derivation in a calculus given as data, the calculus to check it in: a rule file, or one built in (LK, LJ, LM, LL, tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM, NJ-defined, NK-defined, NM-defined)
           

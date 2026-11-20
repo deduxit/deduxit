@@ -1,0 +1,14 @@
+$ deduxit resolve 'a -> b, b -> c |- a -> c'
+--- status 0
+--- stdout
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 resolutions
+clauses of its negation by conjunctive normal form, checked:
+1. ¬a ∨ b
+2. ¬b ∨ c
+3. a
+4. ¬c
+resolution:
+5. b  from 3, 1 on a
+6. ¬b  from 2, 4 on c
+7. □  from 5, 6 on b
+--- stderr

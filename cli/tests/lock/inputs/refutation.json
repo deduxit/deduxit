@@ -1,0 +1,1 @@
+{"version":22,"atoms":["x1","x2"],"clauses":[[1,2],[-1,2],[1,-2],[-1,-2]],"resolvents":[{"first":0,"second":1,"atom":1,"clause":[2]},{"first":2,"second":3,"atom":1,"clause":[-2]},{"first":4,"second":5,"atom":2,"clause":[]}]}

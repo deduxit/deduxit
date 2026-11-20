@@ -1,0 +1,5 @@
+$ deduxit check refutation.json
+--- status 0
+--- stdout
+valid: a refutation of 4 clauses by 3 resolutions
+--- stderr

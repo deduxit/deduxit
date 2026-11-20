@@ -1,0 +1,5 @@
+$ deduxit resolve --method dpll --dimacs four.cnf --format json
+--- status 0
+--- stdout
+{"version":22,"deduxit":"…","method":"dpll","verdict":"unsatisfiable","atoms":["x1","x2"],"clauses":[[1,2],[-1,2],[1,-2],[-1,-2]],"resolvents":[{"first":1,"second":3,"atom":2,"clause":[-1]},{"first":0,"second":2,"atom":2,"clause":[1]},{"first":5,"second":4,"atom":1,"clause":[]}],"trace":[{"event":"decide","literal":1,"level":1},{"event":"unit","literal":2,"clause":1},{"event":"conflict","clause":3},{"event":"backtrack","literal":-1,"level":1},{"event":"unit","literal":2,"clause":0},{"event":"conflict","clause":2}],"statistics":{"clauses":4,"steps":6}}
+--- stderr

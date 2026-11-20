@@ -1,0 +1,5 @@
+$ deduxit check --dimacs four.cnf wrong.drat
+--- status 1
+--- stdout
+invalid: the refutation is wrong at step 1: the clause it adds does not follow by unit propagation
+--- stderr

@@ -1,0 +1,11 @@
+$ deduxit resolve --clauses tseitin 'a \/ b |- a'
+--- status 1
+--- stdout
+not valid in classical logic: a checked model of the clauses of its negation, b, t1 true, every other atom false
+clauses of its negation by Tseitin's encoding, checked:
+1. t1
+2. ¬a
+3. a ∨ b ∨ ¬t1
+4. ¬a ∨ t1
+5. ¬b ∨ t1
+--- stderr

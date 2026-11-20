@@ -373,6 +373,39 @@ const CASES: &[Case] = &[
         &["seq", "translate", "--by", "godel-gentzen", "a |- b"],
     ),
     call("interpolate", &["interpolate", "a /\\ b |- b \\/ c"]),
+    call("resolve", &["resolve", "a -> b, b -> c |- a -> c"]),
+    call(
+        "resolve-dpll",
+        &["resolve", "--method", "dpll", "a \\/ b, ~a |- b"],
+    ),
+    call(
+        "resolve-satisfiable",
+        &["resolve", "--clauses", "tseitin", "a \\/ b |- a"],
+    ),
+    call("resolve-dimacs", &["resolve", "--dimacs", "four.cnf"]),
+    call(
+        "resolve-json",
+        &[
+            "resolve", "--method", "dpll", "--dimacs", "four.cnf", "--format", "json",
+        ],
+    ),
+    call(
+        "resolve-limit",
+        &["resolve", "--step-limit", "1", "a -> b, b -> c |- a -> c"],
+    ),
+    call(
+        "check-drat",
+        &["check", "--dimacs", "four.cnf", "four.drat"],
+    ),
+    call(
+        "check-lrat",
+        &["check", "--dimacs", "four.cnf", "four.lrat"],
+    ),
+    call(
+        "check-drat-wrong",
+        &["check", "--dimacs", "four.cnf", "wrong.drat"],
+    ),
+    call("check-refutation", &["check", "refutation.json"]),
     call("normalize", &["seq", "normalize", "~(a -> b /\\ c)"]),
     call(
         "normalize-dnf",

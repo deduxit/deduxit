@@ -1,0 +1,5 @@
+$ deduxit check --dimacs four.cnf four.lrat
+--- status 0
+--- stdout
+valid: the proof refutes the 4 clauses, 2 steps checked
+--- stderr

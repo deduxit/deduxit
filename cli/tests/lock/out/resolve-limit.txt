@@ -1,0 +1,10 @@
+$ deduxit resolve --step-limit 1 'a -> b, b -> c |- a -> c'
+--- status 3
+--- stdout
+unknown: the bound of 1 step was reached; raise it with --step-limit
+clauses of its negation by conjunctive normal form, checked:
+1. ¬a ∨ b
+2. ¬b ∨ c
+3. a
+4. ¬c
+--- stderr

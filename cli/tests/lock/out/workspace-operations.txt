@@ -11,5 +11,6 @@ ordinary.cnf  ordinary.sequent -> ordinary.sequent: Conjunctive normal form
 ordinary.dnf  ordinary.sequent -> ordinary.sequent: Disjunctive normal form
 ordinary.tseitin  ordinary.sequent -> ordinary.sequent: Tseitin's clauses
 ordinary.plaisted_greenbaum  ordinary.sequent -> ordinary.sequent: Plaisted and Greenbaum's clauses
+ordinary.resolve  ordinary.sequent -> ordinary.resolution: A refutation by resolution
 ordinary.duplicate  ordinary.sequent -> ordinary.sequent: A copy
 --- stderr
