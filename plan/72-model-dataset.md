@@ -33,3 +33,29 @@ proof or refutation and answers with the exit statuses.
 
 One to two sessions on Opus 5.5 at `high`. Deliverables: the commits,
 the guide's lines, `plan/reports/72-model-dataset.md`.
+
+## What steps 63 to 69 left you (the review of 69, 2026-11-20)
+
+- **The suites that answer now**: linear, ordinary (classical,
+  intuitionistic, minimal: SAT, LJT, tables, tableaux, Kripke
+  countermodels, natural deduction), modal (fifteen systems, labelled
+  derivations, countermodels, Rocq certificates), calculi given as data.
+  Every proof is checked; refutations are checked countermodels or
+  certificates; "unknown" answers are left out.
+- **Sources whose licences allow it**: the generated families, ILTP's
+  274 problems (no licence stated: say how the dataset treats them and
+  ask the author through the report if in doubt), the client's stores
+  (452 linear problems, 62 ordinary, CC BY 4.0, their verdicts decided
+  by the command in a flake check); LLTP stays out.
+- **The grading mode** builds on `interact`'s session script and
+  `check` (`check --tableau`, `check --system`, `check --calculus`):
+  one call that reads a model's answer and exits 0, 1, 2 or 3 as the
+  command does.
+- **The protocol** (63a) and `wire.schema.json` describe every form the
+  dataset would hold.
+
+## The session (planned at this review)
+
+- **72**, one session on Opus 5.5 at `high`, a research sub-agent on
+  Sonnet 5.5 at `high` for the dataset's format and card; nothing
+  uploaded.
