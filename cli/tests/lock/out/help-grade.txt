@@ -1,0 +1,146 @@
+$ deduxit grade --help
+--- status 0
+--- stdout
+Grade an answer to a problem: whether it proves or refutes the sequent given, checked as `check` and `interact` check
+
+The problem is the sequent, in linear logic by default, or in the logic --logic, --system or --calculus names. The answer is read from --answer or standard input, and its kind from its shape:
+
+- a JSON document: a proof or an outcome as `prove --format json` or a session's `proof FILE` writes it, a Kripke model that refutes the sequent (`prove`'s `countermodel`), or a derivation in a calculus given as data; - a signed tableau of classical logic as `check --tableau` reads it, its first line starting with a line number; - otherwise, a script of `interact`'s commands, one per line, which must end with the proof finished. `close`, `save` and `load` are refused, since the steps must be the answer's own, and the commands that only show the session are passed over, as are blank lines, `#` comments and a Markdown code block's fences.
+
+A proof or a refutation must be of the problem's sequent, in its logic. The verdict is `correct`, `incorrect` (with the first step that failed, for a script) or `unknown`. The exit status is 0 for correct, 1 for incorrect (an answer that does not read is incorrect), 3 for unknown (a limit stopped the check) and 2 for an error of the problem or the flags. With `--format json` the verdict is `{"version", "verdict", "answer", "message"}`, `answer` the kind read, and `line` the script's line that failed first.
+
+Usage: deduxit grade [OPTIONS] [SEQUENT]
+
+Arguments:
+  [SEQUENT]
+          The sequent, such as "A, A -o B |- B"; without it, the sequent is read from --file, or from standard input (but not by `interact`)
+
+Options:
+      --settings <PATH>
+          Read the settings from a JSON file; the flags override it
+          
+          The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`, `input`, `cut` and `lambda`. Each holds the fields that the flags name in parentheses, such as `{"limits": {"work": 100000}}`. A field left out keeps the command's default, and a misspelt one is an error.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Input:
+  -f, --file <PATH>
+          Read the sequent from this file, or from standard input with `-` (not in `interact`, whose commands come from there)
+          
+          The file's extension gives its kind unless --input-format says otherwise. `.p` is an LLTP problem, or under --logic, where a command takes it, a TPTP problem of ordinary logic. `.spec` is a coverability problem and `.json` a JSON sequent. Anything else is the text syntax, which may span lines. `prove` takes the flag more than once, and a directory, as a batch.
+
+      --input-format <FORMAT>
+          How to read the input, in place of the file's extension
+          
+          `lines`, `jsonl` and `problems` hold many sequents, which `prove` decides as a batch.
+
+          Possible values:
+          - auto:     By the file's extension: `.p` lltp (tptp under --logic, where a command takes it), `.spec` spec, `.json` json, else text
+          - text:     One sequent in the text syntax, which may span lines
+          - json:     One sequent in JSON, as `seq json` writes it
+          - lltp:     A problem of the LLTP library: its axioms ⊢ its conjecture; the file does not say whether it is intuitionistic, the flags do
+          - spec:     A coverability problem in the .spec format of the Mist tool: its rules under !, its initial marking ⊢ its target; it is decided in affine mode, with or without --affine
+          - lines:    One sequent per line in the text syntax, as `NAME: SEQUENT` or `SEQUENT`; blank lines and everything from `#` on are skipped
+          - jsonl:    One JSON value per line: a sequent as `seq json` writes it, or {"name": …, "mode": …, "sequent": …} with the sequent in JSON or as text and the mode named as in `problems`; blank lines are skipped
+          - tptp:     A problem of ordinary propositional logic in TPTP syntax, as the ILTP library writes them: its axioms ⊢ its conjecture (with --logic, where a `.p` file is one)
+          - problems: The benchmark harness's problem files: `NAME; MODE; EXPECTED; COPIES; SEQUENT` per line, MODE one of classical, mix, affine, affine-mix, intuitionistic, intuitionistic-affine, cyclic, lambek or lambek-star (whose sequents are read as --cyclic reads them); EXPECTED and COPIES are not read
+          
+          [default: auto]
+
+      --occurrence-limit <N>
+          The most subformula occurrences the sequent may have, or `none` (limits.occurrences)
+          
+          A sequent in JSON can share subformulas, so a small file can stand for a sequent of any size. A sequent past the limit is refused before it is unfolded. Each occurrence costs about 25 bytes before any search, and even `none` lets through at most about four billion. A text nested deeper than the limit, with more `(` or `~` open at once, is refused the same way.
+          
+          [default: 50000000]
+
+      --term-limit <N>
+          The most first-order terms the atoms' arguments may unfold to, or `none` (limits.terms)
+          
+          A first-order sequent in JSON can share its terms, so a small file can name an atom of any length. A sequent past the limit is refused before it is unfolded, and so is a proof whose instance table has more entries.
+          
+          [default: 50000000]
+
+      --ill-syntax <SYNTAX>
+          How the text of an intuitionistic sequent is read: in its own syntax alone, or in the classical one (input.intuitionistic)
+          
+          With --intuitionistic, write a sequent in the syntax of intuitionistic linear logic: A -o B, A |- B. A symbol of the classical syntax (~, ^, par, |, ?, bot) is refused, and the error says what to write instead. `one-sided` reads the classical syntax as the one-sided sequent it stands for: ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
+
+          Possible values:
+          - strict:    The syntax of intuitionistic linear logic alone
+          - one-sided: The classical syntax, read as the one-sided sequent it stands for
+          
+          [default: strict]
+
+      --answer <PATH>
+          The answer to grade, a file; standard input when absent
+
+Logic:
+  -i, --intuitionistic
+          Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
+
+  -a, --affine
+          Affine logic: a hypothesis may go unused (weakening)
+
+      --mix
+          Allow the Mix rule, which proves ⊢ Γ, Δ from ⊢ Γ and ⊢ Δ
+
+      --cyclic
+          Cyclic linear logic: the order of the formulas counts, up to rotation (unit-free MLL)
+          
+          There is no exchange rule. The text is read with the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order.
+
+      --lambek
+          The Lambek calculus: intuitionistic, in the order written, with the divisions A \ B and B / A beside A * B (unit-free)
+          
+          Every sequent has a formula left of ⊢, unless --empty-antecedents is given. The text is read as --cyclic reads it.
+
+      --empty-antecedents
+          With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
+
+      --logic <LOGIC>
+          The problem is a sequent of this ordinary logic
+
+          Possible values:
+          - classical:      Classical propositional logic, derivations in LK
+          - intuitionistic: Intuitionistic propositional logic, derivations in LJ
+          - minimal:        Minimal logic: intuitionistic logic without ex falso, where false is an atom
+
+      --system <SYSTEM>
+          The problem is a sequent of this modal system: K, D, T, B, S4, S5, or K or D followed by axiom letters, such as KB4
+
+      --calculus <CALCULUS>
+          The problem is a sequent to derive in this calculus given as data: a rule file, or one built in (LK, LJ, LM, LL, tableau, NJ, NK, NM, …)
+
+      --assume <SEQUENT>
+          With --calculus, a sequent the derivation may assume; repeat it for more
+
+Output:
+      --format <FORMAT>
+          The output format: text, or json for the verdict as one object
+
+          Possible values:
+          - text: Lines of text
+          - json: One JSON document
+          
+          [default: text]
+
+Limits:
+      --timeout <DURATION>
+          Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)
+          
+          The check counts against it, from the start of the command. When the time runs out, the verdict is unknown (exit status 3).
+          
+          [default: 2s]
+
+      --memory-limit <SIZE>
+          The most memory the check may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
+          
+          [default: 1GiB]
+
+      --work-limit <N>
+          The most units of work the check may do, or `none` (limits.work)
+          
+          [default: none]
+--- stderr

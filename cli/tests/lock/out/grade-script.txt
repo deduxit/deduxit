@@ -1,0 +1,12 @@
+$ deduxit grade 'A, B |- A * B'
+--- stdin
+# a split, then the axioms
+apply 0 2 * 0
+apply 1 1 ax
+apply 2 1 ax
+proof
+
+--- status 0
+--- stdout
+correct: the script's 3 commands finish the proof, which checks
+--- stderr

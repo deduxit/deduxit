@@ -1,0 +1,10 @@
+$ deduxit grade 'A, B |- A * B'
+--- stdin
+apply 0 2 * 0
+apply 1 0 par
+close
+
+--- status 1
+--- stdout
+incorrect: the script's 2 commands leave the proof unfinished; the first that failed: the rule ⅋ does not act on formula 0, ~A; `rules 1 0` lists the rules that do (line 2)
+--- stderr

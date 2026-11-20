@@ -898,6 +898,29 @@ const CASES: &[Case] = &[
         "apply 9 0 ax\nrules 0 7\nfrobnicate\nproof\nquit\n",
     ),
     piped("interact-help", &["interact", "A |- A"], "help\n"),
+    // grade.
+    piped(
+        "grade-script",
+        &["grade", "A, B |- A * B"],
+        "# a split, then the axioms\napply 0 2 * 0\napply 1 1 ax\napply 2 1 ax\nproof\n",
+    ),
+    piped(
+        "grade-script-unfinished",
+        &["grade", "A, B |- A * B"],
+        "apply 0 2 * 0\napply 1 0 par\nclose\n",
+    ),
+    piped("grade-proof", &["grade", "A * B |- B * A"], PROOF),
+    piped("grade-proof-other", &["grade", "A * B |- A * B"], PROOF),
+    piped(
+        "grade-tableau",
+        &["grade", "--logic", "classical", "p \\/ q |- q \\/ p"],
+        TABLEAU_CLOSED,
+    ),
+    piped(
+        "grade-json",
+        &["grade", "--format", "json", "A |- A"],
+        "not an answer\n",
+    ),
     // seq.
     call("seq-print", &["seq", "print", "A -o B, !C |- ?D & 1"]),
     call(
@@ -943,6 +966,7 @@ const CASES: &[Case] = &[
     // Help.
     call("help-prove", &["prove", "--help"]),
     call("help-check", &["check", "--help"]),
+    call("help-grade", &["grade", "--help"]),
     call("help-interact", &["interact", "--help"]),
     call("help-seq-print", &["seq", "print", "--help"]),
 ];
