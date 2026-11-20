@@ -7541,3 +7541,16 @@ move (D26).
 - 2026-11-20, about 04:45: **rocq-deduxit 0.6.0 tagged**: CI green at the re-dated release commit
   `03f0af20` (`nmklslnu`); the signed tag object `41dac0af` (verified "true valid") and
   `refs/tags/v0.6.0`, on the author's yes. deduxit's tag follows 69's chain and its CI.
+- 2026-11-20, 09:10: **54x7 reviewed and pushed.**
+  - **54x7** (`xvpnroyr` to `lwlyzqlw`): a name a rule asks to be new now also differs from every
+    other variable of the rule, so `Ser` with `w1 R w1` for a new `w1` is refused (no new side
+    condition, no syntax or wire change; the Rocq library's wider `ser` stays sound for what deduxit
+    accepts); the ordinary suite applies its invertible rules by itself (`invert`, `invert_all`,
+    `is_invertible`; `interact --invertible`, `invertible on|off`; the bindings'
+    `interactive.invertible` and `ordinary_invert_all`; the page's switch is a later client step);
+    the modal fuzz targets ran 90 minutes each (`json_modal`, `modal_text`, `modal_decide`, seeded
+    with the level-20 documents): nothing found, coverage still growing at the cap (departs).
+    fresh-reviewer (Fable, resumed after the limit) three findings, fixed. Gate (twice) and
+    `nix flake check` passed.
+  - **Later:** the page's switch for ordinary auto-reverse; `theories/Modal/Calculus.v`'s header
+    comment in rocq-deduxit still says deduxit's `Ser` allows `y` itself.
