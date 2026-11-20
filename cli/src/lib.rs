@@ -48,6 +48,8 @@ mod show;
 mod style;
 /// `check --tableau`: a tableau written by hand, reviewed.
 mod tableau;
+/// The `term` commands: a lambda-term checked, a type's terms found.
+mod term;
 /// `seq translate` and `interpolate`.
 mod transform;
 /// `workspace`: linked values kept in a file.
@@ -315,6 +317,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
         Command::Interpolate(args) => transform::interpolate(args, given),
         Command::Resolve(args) => resolve::resolve(args, given),
         Command::Seq { command } => seq::run(command, given),
+        Command::Term { command } => term::run(command, given),
         Command::Workspace { command } => workspace::run(command, given),
     }
 }

@@ -337,6 +337,18 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: SeqCommand,
     },
+    /// Check a lambda-term's type, or find and count the terms of a type
+    ///
+    /// A term of the simply typed lambda calculus is a program, and its
+    /// type is a formula of intuitionistic logic: a term of type A is a
+    /// proof of A. `term check` reads a term and prints its type, `term
+    /// inhabit` finds a term of a type or shows that it has none, and `term
+    /// enumerate` lists a type's terms and counts them.
+    Term {
+        /// What to do.
+        #[command(subcommand)]
+        command: TermCommand,
+    },
     /// Keep sequents and what is made from them in a workspace file
     ///
     /// A workspace holds nodes: a sequent you give, or a value made from
@@ -578,7 +590,18 @@ impl Command {
             Command::Seq {
                 command: SeqCommand::Normalize(args),
             } => Some((&["seq", "normalize"], &args.common.input, true)),
-            Command::Check(_) | Command::Eliminate(_) | Command::Workspace { .. } => None,
+            Command::Term {
+                command: TermCommand::Inhabit(args),
+            } => Some((&["term", "inhabit"], &args.common.input, true)),
+            Command::Term {
+                command: TermCommand::Enumerate(args),
+            } => Some((&["term", "enumerate"], &args.common.input, true)),
+            Command::Check(_)
+            | Command::Eliminate(_)
+            | Command::Workspace { .. }
+            | Command::Term {
+                command: TermCommand::Check(_),
+            } => None,
         }
     }
 
@@ -606,7 +629,8 @@ impl Command {
             | Command::Check(_)
             | Command::Eliminate(_)
             | Command::Interpolate(_)
-            | Command::Resolve(_) => false,
+            | Command::Resolve(_)
+            | Command::Term { .. } => false,
         }
     }
 }
@@ -1743,6 +1767,126 @@ pub(crate) enum ClausesArg {
     Tseitin,
     /// Plaisted and Greenbaum's encoding
     PlaistedGreenbaum,
+}
+
+/// The subcommands of `term`.
+#[derive(Subcommand, Debug)]
+pub(crate) enum TermCommand {
+    /// Check that a lambda-term is well typed, and print its type
+    ///
+    /// The term is written as the command prints terms with
+    /// --lambda-types: every λ says its variable's type, such as `\f:a ->
+    /// b. \x:a. f x`, so a term has one type at most and nothing is
+    /// inferred. Free variables are declared before ⊢, as in `x : a, f : a
+    /// -> b |- f x`, and a type after `:` at the end is checked against
+    /// the term's. The chapter "Proofs as programs" of the manual has the
+    /// syntax.
+    ///
+    /// The command prints `well typed` and the judgement with every type,
+    /// or `ill typed` and why, with exit status 1. With `--format json`
+    /// the answer is `{"version", "deduxit", "verdict", "term", "typing",
+    /// "judgement"}`, `typing` the type of every node of the term, or
+    /// `verdict` "ill_typed" with the `error`.
+    Check(TermCheckArgs),
+    /// Find a term of a type, or show that it has none
+    ///
+    /// The type is a formula of ordinary logic, such as `a -> b -> a`; the
+    /// formulas left of ⊢, if any, are free variables the term may use.
+    /// The formula is decided in intuitionistic logic, and the derivation
+    /// found is read back as a term and checked. A formula that is not
+    /// valid has no term. ¬A is the type A → ⊥.
+    ///
+    /// The exit status is 0 when the type has a term, 1 when it has none,
+    /// and 3 when the time or a limit ran out first. With `--format json`
+    /// the answer is `{"version", "deduxit", "verdict", "term"}`, verdict
+    /// "inhabited", "empty" (with the `countermodel` where one was found)
+    /// or "unknown" (with the `reason`).
+    #[command(after_help = ORDINARY)]
+    Inhabit(InhabitArgs),
+    /// List the terms of a type and count them
+    ///
+    /// The terms are counted up to βη-equality, as long normal forms: a
+    /// function's term is a λ, a pair's a pair, and an atom's a variable
+    /// applied to arguments. The count is exact when the search met every
+    /// term, "infinitely many" when a term can be put inside itself, as
+    /// in the Church numerals of (a -> a) -> a -> a, and "at least" when
+    /// --depth cut the search. The type is built from atoms, ->, /\, <->
+    /// and true: with \/ or false, βη-equality makes terms equal that long
+    /// normal forms tell apart, and the command refuses them.
+    ///
+    /// The exit status is 0 when the type has a term, 1 when it has none,
+    /// and 3 when the search could not tell. With `--format json` the
+    /// answer is `{"version", "deduxit", "count", "terms"}`, `count`
+    /// `{"kind": "exactly", "count": n}`, `{"kind": "infinite"}` or
+    /// `{"kind": "at_least", "count": n}`.
+    #[command(after_help = ORDINARY)]
+    Enumerate(EnumerateArgs),
+}
+
+/// The arguments of `term check`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TermCheckArgs {
+    /// The term, such as "\\x:a. x"; without it, the term is read from
+    /// --file, or from standard input
+    #[arg(value_name = "TERM", conflicts_with = "file")]
+    pub(crate) term: Option<String>,
+    /// Read the term from this file, or from standard input with `-`
+    #[arg(help_heading = INPUT, short, long, value_name = "PATH")]
+    pub(crate) file: Option<PathBuf>,
+    /// The calculus: simple (any number of uses), linear (every variable
+    /// used once) or affine (at most once)
+    #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Simple)]
+    pub(crate) calculus: CalculusArg,
+    /// The output format: text, or json for the term, its typing and the
+    /// judgement
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+    pub(crate) format: AnswerFormat,
+    /// Write to this file instead of standard output
+    #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
+    pub(crate) output: Option<PathBuf>,
+    /// Read the settings from a JSON file
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. `lambda` picks the notation
+    /// (lambda.notation) and `limits` bounds the term read and its check;
+    /// the others are read and not used. A misspelt field is an error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
+}
+
+/// A lambda calculus.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CalculusArg {
+    /// The simply typed lambda calculus
+    Simple,
+    /// The linear lambda calculus
+    Linear,
+    /// The affine lambda calculus
+    Affine,
+}
+
+/// The arguments of `term inhabit`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct InhabitArgs {
+    /// The type, a formula of ordinary logic, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+}
+
+/// The arguments of `term enumerate`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct EnumerateArgs {
+    /// The type, a formula of ordinary logic, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// How deep a term may nest: variables applied inside each other's
+    /// arguments
+    #[arg(help_heading = SEARCH, long, value_name = "N", default_value_t = deduxit::lambda::InhabitOptions::DEFAULT_DEPTH)]
+    pub(crate) depth: u32,
+    /// The most terms listed; the count goes on past them
+    #[arg(help_heading = SEARCH, long, value_name = "N", default_value_t = deduxit::lambda::InhabitOptions::DEFAULT_MAX_TERMS)]
+    pub(crate) max_terms: u32,
 }
 
 /// The format of an outside solver's proof.

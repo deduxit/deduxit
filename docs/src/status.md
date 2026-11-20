@@ -243,10 +243,17 @@ in use.
   `prove`, `check` and `interact`, in JSON, and under the conclusion in
   LaTeX, Typst, SVG, PNG and PDF. What has no term is refused with the
   reason. In the library `lambda::Term` has `Display`.
-- In the library, a term of the simply typed, the linear or the affine
-  lambda calculus is read from text (`lambda::Term::parse`) or from JSON
-  and type-checked (`lambda::Term::check`); the command does not offer
-  this yet.
+- [A term you write is checked](terms.md#check-a-term) (`term check`;
+  in the library `lambda::Term::parse` and `lambda::Term::check`): a term
+  of the simply typed, the linear or the affine lambda calculus, from
+  text or JSON.
+- [A simple type's term is found](terms.md#find-a-term-of-a-type) by
+  deciding its formula (`term inhabit`), or shown to have none, and
+  [its terms are counted](terms.md#count-a-types-terms) up to
+  βη-equality (`term enumerate`): exactly, infinitely many, or at least
+  as many as a bounded search met, for types without `∨` and `⊥`.
+- Planned: a typing derivation drawn as a tree and built step by step
+  on the web page.
 
 ## Outputs and certificates
 

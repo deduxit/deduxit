@@ -174,6 +174,16 @@ run clause_resolution-saturation 0 "$deduxit" resolve "${t[@]}" --format json 'a
 run clause_resolution-dpll 0 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b, ~a |- b'
 run clause_resolution-satisfiable 1 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b |- a'
 run clause_resolution-unknown 3 "$deduxit" resolve "${t[@]}" --step-limit 1 --format json 'a -> b, b -> c |- a -> c'
+# Lambda-terms: a term checked, well typed and not; a type with a term
+# and one without; a type's terms counted exactly, infinitely many, and
+# at least as many as a shallow search met.
+run lambda_typing-check 0 "$deduxit" term check --format json '\f:a -> b. \x:a. f x'
+run lambda_ill_typed-check 1 "$deduxit" term check --format json '\x:a. x x'
+run lambda_inhabitation-inhabited 0 "$deduxit" term inhabit "${t[@]}" --format json 'a /\ b -> b /\ a'
+run lambda_inhabitation-empty 1 "$deduxit" term inhabit "${t[@]}" --format json '((a -> b) -> a) -> a'
+run lambda_inhabitants-exactly 0 "$deduxit" term enumerate "${t[@]}" --format json 'a -> a -> a'
+run lambda_inhabitants-infinite 0 "$deduxit" term enumerate "${t[@]}" --format json --depth 3 '(a -> a) -> a -> a'
+run lambda_inhabitants-at-least 3 "$deduxit" term enumerate "${t[@]}" --format json --depth 1 '(a -> b) -> (b -> c) -> a -> c'
 # Normal forms: an equivalent one and an encoding.
 run normal_form-cnf 0 "$deduxit" seq normalize "${t[@]}" --format json '~(a -> b /\ c)'
 run normal_form-tseitin 0 "$deduxit" seq normalize "${t[@]}" --to tseitin --format json 'a /\ b |- a'

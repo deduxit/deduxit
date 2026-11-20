@@ -27,8 +27,9 @@ lambda calculus, and a derivation of LJ (`--logic intuitionistic` or
 `minimal`) a term of the simply typed lambda calculus. deduxit reads
 every intuitionistic proof it finds or checks back as its term. The term
 is computed from the proof the checker accepted, one construction per
-rule. The proof stays the certificate. The library also checks a term
-on its own: [a term as data](#a-term-as-data) says how.
+rule. The proof stays the certificate. The command `term` works the
+other way round: it [checks a term](#check-a-term) you write, and
+[finds the terms of a type](#find-a-term-of-a-type).
 
 ## The linear lambda calculus
 
@@ -276,3 +277,93 @@ type they give as a subscript, `inl_(a ∨ b)(x)`: the calculus is typed
 in Church's style, and deduxit infers no types. The
 [API documentation](https://deduxit.github.io/deduxit/) has the whole
 syntax under `lambda::Term::parse`.
+
+## Check a term
+
+`term check` reads a term and prints its type, or says why it has none.
+Write it as `--lambda-types` prints terms: every `λ` says its variable's
+type.
+
+```console
+$ deduxit term check '\f:a -> b. \x:a. f x'
+well typed
+⊢ λf:(a → b). λx:a. f x : (a → b) → (a → b)
+$ deduxit term check --calculus linear '\x:a. x * x'; echo "exit $?"
+ill typed: the variable x is used more than once, and the linear lambda calculus uses every variable exactly once
+exit 1
+```
+
+Declare free variables before `⊢`, as in `x : a |- \y:b. x`, and give a
+type after a last `:` to have it compared with the term's. `--calculus`
+is `simple` by default, or `linear` or `affine`. The exit status is 0
+for a well-typed term and 1 for an ill-typed one. `--format json` writes
+the term's document with the type of every node under `typing`.
+
+## Find a term of a type
+
+A term of type `A` is a proof of `A` in intuitionistic logic, so a type
+has a term exactly when its formula is valid there. `term inhabit` takes
+the type as a formula of [ordinary logic](ordinary-logic.md), decides it,
+and reads the proof back as a term, which it checks:
+
+```console
+$ deduxit term inhabit 'a /\ b -> b /\ a'
+inhabited
+⊢ λx:(a ∧ b). ⟨snd(x), fst(x)⟩ : (a ∧ b) → (b ∧ a)
+$ deduxit term inhabit '((a -> b) -> a) -> a'; echo "exit $?"
+empty: the formula is not valid in intuitionistic logic
+countermodel:
+  world 0 (the model's world): forces nothing; below 1, 2
+  world 1: forces a; below 3
+  world 2: forces nothing; below 3
+  world 3: forces a
+exit 1
+```
+
+Peirce's law has no term: the Kripke model shows that the formula is not
+valid. Formulas left of `⊢` are free variables the term may use. The
+exit status is 0 for a type with a term, 1 for one without, and 3 when
+the time or a limit ran out first. Deciding this is PSPACE-complete
+(R. Statman, "Intuitionistic propositional logic is polynomial-space
+complete", *Theoretical Computer Science* 9, 1979), so a large type may
+take long.
+
+## Count a type's terms
+
+`term enumerate` lists a type's terms and counts them. Two terms count
+as one when they are equal by β- and η-conversion, so each is listed in
+its long normal form: a function is a `λ`, a pair a pair, and an atom a
+variable applied to arguments. This is the search that C.-B. Ben-Yelles
+gave in his thesis (*Type Assignment in the Lambda-Calculus: Syntax &
+Semantics*, Swansea, 1979) and that J. R. Hindley describes in *Basic
+Simple Type Theory* (Cambridge University Press, 1997), chapter 8:
+
+```console
+$ deduxit term enumerate '(a -> a -> b) -> a -> a -> b'
+exactly 4 terms
+λf:(a → (a → b)). λx:a. λy:a. f x x
+λf:(a → (a → b)). λx:a. λy:a. f x y
+λf:(a → (a → b)). λx:a. λy:a. f y x
+λf:(a → (a → b)). λx:a. λy:a. f y y
+$ deduxit term enumerate --depth 3 '(a -> a) -> a -> a'
+infinitely many terms, the first 3 within depth 3
+λf:(a → a). λx:a. x
+λf:(a → a). λx:a. f x
+λf:(a → a). λx:a. f (f x)
+```
+
+The count is one of three. It is exact when the search met every term.
+It is "infinitely many" when a goal comes back inside itself with the
+same types in scope, as `f (…)` does for the Church numerals above: a
+term can then be put inside itself as often as wanted. It is "at least"
+when `--depth` cut the search, which counts how deep variables are
+applied inside each other's arguments (8 by default). `--max-terms`
+(32 by default) bounds the list, not the count. Every term listed is
+checked.
+
+The type is built from atoms, `->`, `/\`, `<->` and `true`. With `\/`,
+`false` or `~`, βη-equality makes terms equal that long normal forms
+tell apart (G. Scherer and D. Rémy, "Which simple types have a unique
+inhabitant?", ICFP 2015), and the command refuses the type. `term
+inhabit` takes every type.
+

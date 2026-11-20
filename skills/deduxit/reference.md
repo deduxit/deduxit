@@ -360,6 +360,35 @@ provable (IALL, intuitionistic, additive engine)
 lambda-term: x : a & b ⊢ ⟨snd(x), fst(x)⟩ : b & a
 ```
 
+### Terms you write: `term`
+
+`deduxit term check TERM` reads a term of the simply typed lambda
+calculus (`--calculus linear` or `affine` for the others), written as
+`--lambda-types` prints one, every `λ` with its variable's type, and
+prints `well typed` and the judgement, or `ill typed:` and why (exit 1).
+`deduxit term inhabit TYPE` takes a formula of ordinary logic as the type
+(formulas left of `⊢` are free variables), decides it in intuitionistic
+logic and prints a checked term, or `empty` with the countermodel (exit
+1). `deduxit term enumerate TYPE` lists the type's terms up to
+βη-equality, as long normal forms, and counts them: `exactly N`,
+`infinitely many`, or `at least N` when `--depth N` (8) cut the search;
+`--max-terms N` (32) bounds the list. It refuses a type with `\/`,
+`false` or `~`. `--format json` writes the term's document with
+`typing`, or a document at wire level 24.
+
+```console
+$ deduxit term check '\x:a. \y:b. x'
+well typed
+⊢ λx:a. λy:b. x : a → (b → a)
+$ deduxit term inhabit 'a /\ b -> b /\ a'
+inhabited
+⊢ λx:(a ∧ b). ⟨snd(x), fst(x)⟩ : (a ∧ b) → (b ∧ a)
+$ deduxit term enumerate 'a -> a -> a'
+exactly 2 terms
+λx:a. λy:a. x
+λx:a. λy:a. y
+```
+
 ## 5. Why unprovable, why unknown
 
 ### Unprovable

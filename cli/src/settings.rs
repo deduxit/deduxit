@@ -362,6 +362,18 @@ impl CheckArgs {
     }
 }
 
+impl crate::argument_parsing::TermCheckArgs {
+    /// Returns the settings `term check` runs under: the settings file's,
+    /// or the command's defaults.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self) -> Result<Settings> {
+        read(self.settings.as_deref())
+    }
+}
+
 impl TransformArgs {
     /// Returns the settings `seq translate` and `interpolate` run under:
     /// the bounds of their searches and of the sequent.
@@ -729,6 +741,15 @@ mod tests {
                 unreachable!("only `seq print`, `seq translate` and `seq normalize` read settings")
             }
             Command::Workspace { command } => workspace_settings(&command, &given),
+            Command::Term { command } => match command {
+                crate::argument_parsing::TermCommand::Check(args) => args.settings().unwrap(),
+                crate::argument_parsing::TermCommand::Inhabit(args) => {
+                    args.common.settings(&given).unwrap()
+                }
+                crate::argument_parsing::TermCommand::Enumerate(args) => {
+                    args.common.settings(&given).unwrap()
+                }
+            },
         }
     }
 
@@ -985,6 +1006,17 @@ mod tests {
                     of_print(None, None, None, deduxit::linear::IllSyntax::Strict, &given).unwrap(),
                 ),
                 Command::Workspace { command } => drop(workspace_settings(&command, &given)),
+                Command::Term { command } => match command {
+                    crate::argument_parsing::TermCommand::Check(args) => {
+                        drop(args.settings().unwrap());
+                    }
+                    crate::argument_parsing::TermCommand::Inhabit(args) => {
+                        drop(args.common.settings(&given).unwrap());
+                    }
+                    crate::argument_parsing::TermCommand::Enumerate(args) => {
+                        drop(args.common.settings(&given).unwrap());
+                    }
+                },
             }
             let mut leaf = &cli;
             for word in &line[1..] {

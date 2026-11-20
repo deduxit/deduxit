@@ -412,7 +412,7 @@ fn guide_examples() {
 
 /// The commands whose help the guide's flags are looked up in, as the
 /// words after `deduxit`.
-const COMMANDS: [&[&str]; 24] = [
+const COMMANDS: [&[&str]; 27] = [
     &["prove"],
     &["check"],
     &["eliminate"],
@@ -425,6 +425,9 @@ const COMMANDS: [&[&str]; 24] = [
     &["seq", "translate"],
     &["seq", "normalize"],
     &["resolve"],
+    &["term", "check"],
+    &["term", "inhabit"],
+    &["term", "enumerate"],
     &["workspace", "new"],
     &["workspace", "add"],
     &["workspace", "apply"],
@@ -697,7 +700,7 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
                     continue;
                 }
                 let mut command = vec![first];
-                if first == "seq" || first == "workspace" {
+                if first == "seq" || first == "workspace" || first == "term" {
                     let Some(second) = words.next() else { continue };
                     command.push(second);
                 }

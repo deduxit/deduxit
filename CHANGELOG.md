@@ -39,6 +39,25 @@ second number (0.1.x to 0.2.0), anything else the third.
   the same way.
 - A lambda-term is a JSON document of its own, at wire level 23, which
   `wire::upgrade` reads.
+- `deduxit term check TERM` checks a lambda-term and prints its
+  judgement with every type, or why it is ill typed (exit 1);
+  `--calculus` picks the simple, the linear or the affine calculus.
+- Inhabitation of simple types. `lambda::inhabit` (`deduxit term
+  inhabit`) decides whether a type, an ordinary formula, has a term, and
+  gives the term read back from the derivation and checked, or says that
+  it has none. `lambda::enumerate` (`deduxit term enumerate`) lists a
+  type's terms up to βη-equality, as long normal forms, and counts them:
+  exactly, infinitely many, or at least as many as a search within
+  `lambda::InhabitOptions` met; every term listed is checked. It counts
+  the types built from atoms, `→`, `∧`, `↔` and `⊤`, and refuses one with
+  `∨` or `⊥` with `Error::NotEnumerable` (code `not_enumerable`). Their
+  answers are JSON documents at wire level 24.
+- The protocol has a suite `lambda`: `lambda.check` (a term to its
+  typing, promise `well_typed`), `lambda.inhabit` (an intuitionistic
+  statement to `lambda.inhabitation`, promise `decides`),
+  `lambda.enumerate` (to `lambda.inhabitants`, promise `well_typed` of
+  every term) and `lambda.duplicate`; `protocol::statement("lambda", …)`
+  makes a term's statement from its text.
 - `lambda::Calculus` has its names (`ALL`, `NAMES`, `name`, `FromStr`).
 
 - `deduxit grade SEQUENT` grades an answer to a problem, read from

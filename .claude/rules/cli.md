@@ -536,6 +536,20 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `.lrat`) and to `check_refutation` for a JSON document with
   `resolvents` (`Document::Resolution`; `grade` names it and refuses
   it as an answer); both write text only.
+- `term.rs`: `term check` (`TermCheckArgs`: the term as an argument,
+  `--file` or standard input, `--calculus`, `--format`, `--output`,
+  `--settings` for `lambda` and `limits`; text `well typed` and the
+  judgement with types on, so it reads back, or `ill typed: REASON`,
+  exit 1; JSON the term's document flattened first, then `deduxit`,
+  `verdict`, `typing`, `judgement`, so it reads back as the term),
+  `term inhabit` (`InhabitArgs`, `TransformArgs`) through
+  `lambda::inhabit` (`inhabited` and the judgement, or `empty` with the
+  countermodel indented, exit 1) and `term enumerate` (`EnumerateArgs`:
+  `--depth`, `--max-terms`, options of the call, so no settings key)
+  through `lambda::enumerate`, the count's line then one term a line,
+  types shown; exit 0 for a type with a term, 1 for none, 3 for "no term
+  found within depth" and a stop. JSON is the library's level-24
+  documents. A refusal at a bound is an `unknown:` line naming the flag.
 - `workspace.rs`: `deduxit workspace …` over the library's `workspace`
   (`core-workspace.md`), its file read through `wire::upgrade` within
   `limits.workspace` and written whole (`io::write`, beside and
