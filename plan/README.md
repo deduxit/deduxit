@@ -7653,3 +7653,5 @@ move (D26).
     four findings, fixed ("You derived □" for a set already holding □; the PG law overclaimed;
     overflow; focus). Departures marked (CNF only on the page; sheets in the popover; the graph
     scrolls). Both flake checks passed.
+- 2026-11-20, about 14:40: **Step 70 complete**: 70c's client chain and its lock update (`onkumrvo`)
+  are on the client's `main` after its flake check passed.
