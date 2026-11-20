@@ -7765,3 +7765,20 @@ move (D26).
   ends beside the step chain is `fixup-NN`, counting on from 54x9, with its reports in
   `plan/reports/fixups.md` (`plan/handoff.md`, "How a step runs"). The running 54x10 is
   `fixup-10`; 54x to 54x9 keep their names in the history and `54x-proposals.md`.
+- 2026-11-20, about 22:20: **74b reviewed; its check on `ci/step-74b`, then `main`.** 74b (Opus,
+  high; the panel's argument and the reviewer on Fable) landed the brief's three items: step 42's
+  term tables at the crate's root (the linear paths kept by re-export, the target set equal to
+  `47.csv`), `Node::Forall`/`Exists` with `instantiate` and `instance` and
+  `Error::FirstOrder { method }` at every deciding door (one test asks them all), and the
+  first-order readers (native, TPTP `fof`, JSON at wire level 25, `level-25.txt` pinned). The panel
+  found six faults (three doors missing, loose variables in a derivation read, a non-atomic table
+  entry, nullary predicates read as first-order, a non-canonical reader, a captured witness), each
+  fixed with a test of its witness; the reviewer's five are answered. ILTP's 274 propositional
+  problems at 2 s: no verdict differs from the 2026-11-16 baseline. **Accepted departures:** the
+  unifier moves in 74c with the goal tree's helpers (its first caller); `read-tptp` +1.05 %
+  (0.89 % over its ceiling, inside the 2 % tolerance; the parser's first +4.5 % cut by measured
+  steps): accepted, since only that journey moved and the propositional verdicts are unchanged,
+  but the next change on `read-tptp` or `read-lltp` has about 1 % left, and 74c's brief says so.
+  The module's ceiling raised to 3 950 000 bytes (3 903 905 now). 74c (ILTP's first-order package,
+  the quantifier rules and the checker, the sessions) waits for the author's "go" after the 22:45
+  stop.
