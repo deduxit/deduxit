@@ -328,7 +328,7 @@ in use.
 ## The command
 
 - The `deduxit` command has `prove`, `check`, `eliminate`, `interact`,
-  `interpolate`, `seq` and `workspace`. It
+  `interpolate`, `resolve`, `grade`, `term`, `seq` and `workspace`. It
   has time limits, Ctrl-C, statistics, JSON output, proof nets, LaTeX,
   Typst, SVG and Rocq output, and `--jobs`, `--pool-after` and
   `--deterministic` for the search. [Decide a sequent](commands.md)
@@ -360,6 +360,17 @@ in use.
   answer per sequent, in input order, a time limit per sequent and for
   the batch, a memory bound for the batch, and on request a child
   process per sequent.
+
+- [`grade`](grading.md) grades an answer to a problem in one call: a
+  session script that must finish the proof by its own steps, a proof
+  or an outcome in JSON, a countermodel, a tableau or a derivation in a
+  calculus given as data, about the problem's sequent in its logic.
+  Its exit status is correct, incorrect or unknown.
+- [A dataset of problems with verified answers](grading.md#problems-with-verified-answers)
+  for evaluating models, in every suite with a source whose licence
+  allows it: each problem with the verdict deduxit decided and an answer
+  `grade` accepts, and its card. A flake check decides every tenth
+  problem again and grades its answer.
 
 ## The library and the web
 
@@ -425,7 +436,10 @@ in use.
   a sequent read, a proof step by step, a goal closed by the search
   within a budget of work, a hint, and every export, for linear logic,
   for LK and LJ and for a calculus given as data; the translations and
-  interpolants; modal logic's decision, countermodels and a model
+  interpolants; a classical sequent's normal forms, and its clauses
+  refuted by resolution, by DPLL or step by step, each step checked;
+  a lambda-term read and checked with its typing derivation drawn, and a
+  type's terms found, listed and counted; modal logic's decision, countermodels and a model
   checked against a sequent; the review of a tableau written by hand;
   the protocol's description of each suite; and the workspace. Its defaults fit a browser tab. The flake builds it as
   a package and tests it under Node. The library's checker and memo are
@@ -436,8 +450,14 @@ in use.
   countermodel of a goal that is not valid, the truth table and the
   tableau of classical logic. It proves in natural deduction (NK, NJ
   and NM, as a tree or as Fitch's lines) and in a rule file of your
-  own, translates a classical sequent and finds an interpolant, and
-  links the tabs made from one sequent into a workspace. Its modal tab
+  own, translates a classical sequent and finds an interpolant, steps
+  through its normal forms one law at a time and refutes its clauses by
+  resolution, as a list and as a graph, or by DPLL with its trace,
+  checks a lambda-term and draws its typing derivation, finds a type's
+  terms, and
+  links the tabs made from one sequent into a workspace. A switch
+  applies the invertible rules by themselves, in linear and in LK and
+  LJ tabs alike. Its modal tab
   decides a sequent in any of the fifteen systems, draws its derivation
   or countermodel and proves it step by step in the labelled calculus.
   A model editor changes a countermodel, or builds one, and checks it
@@ -488,9 +508,6 @@ in use.
 
 The collection grows by a suite at a time, release by release:
 
-- 0.7.0: normal forms (NNF, CNF and DNF, and CNF by Tseitin's encoding)
-  and propositional resolution at teaching scale, and the simply typed
-  lambda calculus, its typing derivations checked and built.
 - 0.8.0: first-order ordinary logic: classical, intuitionistic and
   minimal, proved step by step and searched, with finite countermodels;
   prenex form, Skolem form, clausal form and Herbrand's theorem, each
