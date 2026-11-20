@@ -366,7 +366,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   large stack), its first line the message; a model is correct where it
   refutes (`refuted`: `check_model`'s exit 1). A script runs through
   `interact::session` with `Input::Script` (`interact`'s defaults built
-  by clap, `session_args`): `close`, `save` and `load` are refused
+  by clap, `session_args`, the setting `interactive.invertible` off):
+  `close`, `invertible`, `save` and `load` are refused
   (`BARRED`), the commands that only show are passed over (`SHOWING`),
   and the first failing line is kept (`Ran::failed`).
 - `interact/rules.rs`: `interact --calculus CALCULUS SEQUENT

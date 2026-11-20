@@ -111,33 +111,43 @@ pub(crate) fn grade(args: &GradeArgs, given: &Given) -> Result<Status> {
     if from_stdin && args.answer.is_none() {
         bail!("the sequent and the answer cannot both come from standard input: give --answer");
     }
-    // The sequent read once, as text, so that a session reads it again as
-    // its argument.
-    let text = match &args.input.sequent {
-        Some(text) => text.clone(),
-        None => args
-            .input
-            .text_of(args.logic.is_some(), limits.memory_bytes)?,
+    // A sequent from standard input is read once, as text in the format
+    // the flags name, so that a session reads it again as its argument; a
+    // file is read where it is needed, in the format its name says.
+    let input = if from_stdin {
+        SequentInput {
+            sequent: Some(
+                args.input
+                    .text_of(args.logic.is_some(), limits.memory_bytes)?,
+            ),
+            file: Vec::new(),
+            ..args.input.clone()
+        }
+    } else {
+        args.input.clone()
     };
-    let input = SequentInput {
-        sequent: Some(text.clone()),
-        file: Vec::new(),
-        ..args.input.clone()
-    };
-    let problem = if let Some(logic) = args.logic {
-        Problem::Ordinary(Box::new(input.ordinary(&limits)?), logic.into())
+    // The problem, and its sequent as text for the checks that read it so:
+    // a model's and a derivation's in a calculus given as data.
+    let (problem, text) = if let Some(logic) = args.logic {
+        let sequent = input.ordinary(&limits)?;
+        let text = sequent.to_string();
+        (Problem::Ordinary(Box::new(sequent), logic.into()), text)
     } else if let Some(system) = args.system {
-        Problem::Modal(Box::new(input.modal(&limits)?), system)
+        let sequent = input.modal(&limits)?;
+        let text = sequent.to_string();
+        (Problem::Modal(Box::new(sequent), system), text)
     } else if args.calculus.is_some() {
         // The session reads the sequent in the calculus, and refuses it there.
-        Problem::Calculus
+        let Some(text) = input.sequent.clone() else {
+            bail!("with --calculus, give the sequent to derive as the argument");
+        };
+        (Problem::Calculus, text)
     } else {
         let mode = input.mode(args.mode.mode());
         mode.check()?;
-        Problem::Linear(
-            Box::new(input.sequent(&limits, &settings.input, mode)?),
-            mode,
-        )
+        let sequent = input.sequent(&limits, &settings.input, mode)?;
+        let text = sequent.to_string();
+        (Problem::Linear(Box::new(sequent), mode), text)
     };
     let answer = io::read(args.answer.as_deref(), "answer", limits.memory_bytes)?;
     let graded = graded(
@@ -337,6 +347,19 @@ fn document(
                     ),
                 ));
             }
+            if let ordinary::Verdict::Valid(evidence) = &outcome.verdict
+                && let Ok(derivation) = evidence.derivation()
+                && !proves_in(derivation.logic(), *logic)
+            {
+                return Ok(Graded::incorrect(
+                    "outcome",
+                    format!(
+                        "the outcome's derivation is of {} logic, which proves nothing of {logic} \
+                         logic",
+                        derivation.logic()
+                    ),
+                ));
+            }
             let about = match (&outcome.verdict, &outcome.countermodel) {
                 (ordinary::Verdict::Valid(evidence), _) => evidence.derivation().ok().map(|d| {
                     let (left, right) = d.sequent();
@@ -370,6 +393,15 @@ fn document(
                 .map(|status| verdict_of("outcome", (status, first_line(&held.text()))))
         }
         (Document::Derivation(derivation), Problem::Ordinary(sequent, logic)) => {
+            if !proves_in(derivation.logic(), *logic) {
+                return Ok(Graded::incorrect(
+                    "derivation",
+                    format!(
+                        "the derivation is of {} logic, which proves nothing of {logic} logic",
+                        derivation.logic()
+                    ),
+                ));
+            }
             let (left, right) = derivation.sequent();
             let about = (
                 texts(derivation.formulas(), left),
@@ -654,6 +686,18 @@ fn session_args(args: &GradeArgs, input: &SequentInput) -> Result<InteractArgs> 
     interact.calculus.clone_from(&args.calculus);
     interact.assume.clone_from(&args.assume);
     Ok(interact)
+}
+
+/// Returns whether a derivation of logic `derivation` proves its sequent
+/// in logic `problem`: minimal logic's derivations are intuitionistic
+/// ones, and intuitionistic logic's classical ones.
+fn proves_in(derivation: Logic, problem: Logic) -> bool {
+    derivation == problem
+        || matches!(
+            (derivation, problem),
+            (Logic::Minimal, Logic::Intuitionistic | Logic::Classical)
+                | (Logic::Intuitionistic, Logic::Classical)
+        )
 }
 
 /// Returns the first line of a check's output, its verdict line.

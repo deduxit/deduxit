@@ -69,15 +69,22 @@ target`.
 
 To grade a proof or a refutation a model writes, give it the sequent
 and its logic, and pass its answer to `deduxit grade` with the
-problem's flags:
+problem's flags, each its own argument:
 
-```sh
-deduxit grade "$flags" "$sequent" --answer answer.txt
+```python
+import subprocess
+
+meta = record["metadata"]
+graded = subprocess.run(
+    ["deduxit", "grade", *meta["flags"], meta["sequent"], "--answer", "answer.txt"]
+)
+correct = graded.returncode == 0
 ```
 
 The answer can be a script of `deduxit interact`'s commands, the JSON of
 a proof or outcome, a Kripke model, or a signed tableau. The exit status
-is the verdict: 0 correct, 1 incorrect, 3 unknown. The manual's
+is the verdict: 0 correct, 1 incorrect, 3 unknown (a limit stopped the
+check, or the answer holds nothing to check). The manual's
 [Grade an answer](https://deduxit.github.io/deduxit/manual/grading.html)
 says what each kind of answer looks like. In Inspect, a custom scorer
 calls it with the sample's `metadata`; in lm-evaluation-harness, a
@@ -122,8 +129,8 @@ The problems come from four sources:
 
 - deduxit's generated families (`core/src/linear/families.rs`), each at
   its smallest default size, whose verdicts are known by construction;
-- deduxit's problem files of cyclic linear logic and the Lambek calculus
-  (`bench/problems`);
+- deduxit's problem files (`bench/problems`): cyclic linear logic, the
+  Lambek calculus, and Partition's tables in classical linear logic;
 - the problem stores of deduxit's web page
   ([deduxit.github.io](https://github.com/deduxit/deduxit.github.io)),
   some of them taken from the literature, which `source` cites;

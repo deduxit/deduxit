@@ -662,14 +662,17 @@ read from its shape:
 - a signed tableau (section 13) for `--logic classical`, its first line
   starting with a number;
 - otherwise a session script (section 10). It must finish the proof by
-  its own steps: `close`, `save` and `load` are refused, and `goals`,
+  its own steps: `close`, `invertible`, `save` and `load` are refused,
+  and `goals`,
   `rules`, `show`, `proof`, `lambda`, `help`, blank lines, `#` comments
   and a Markdown code block's fences are passed over.
 
 A proof or an outcome must be of the problem's sequent, in its logic.
 The verdict is `correct` (exit 0), `incorrect` (exit 1, also for an
 answer that does not read; for a script, the first line that failed) or
-`unknown` (exit 3, a limit stopped the check). Exit 2 is an error of the
+`unknown` (exit 3, a limit stopped the check, or the answer holds
+nothing to check, such as a refutation only the search vouches for).
+Exit 2 is an error of the
 problem or the flags. `--format json` writes `{"version", "verdict",
 "answer", "message"}`, `answer` the kind read, and `line` for a script.
 

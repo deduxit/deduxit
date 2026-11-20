@@ -14,7 +14,8 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 - `deduxit grade SEQUENT` grades an answer to a problem, read from
   standard input or `--answer FILE`, by its shape: a session script that
-  must finish the proof by its own steps, a proof or an outcome as
+  must finish the proof by its own steps (`close` and `invertible`
+  refused), a proof or an outcome as
   `prove --format json` writes it, a Kripke model that refutes the
   sequent, a signed tableau, or a derivation in a calculus given as
   data. The answer must be about the problem's sequent, in its logic.

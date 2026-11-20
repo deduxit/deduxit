@@ -243,8 +243,9 @@ fn from_stdin(session: &mut impl Commands, first: Option<String>) -> Result<Ran>
 /// hold them, and they are passed over.
 const SHOWING: [&str; 6] = ["help", "goals", "rules", "show", "proof", "lambda"];
 
-/// The commands a script may not hold: a search, and files.
-const BARRED: [&str; 3] = ["close", "save", "load"];
+/// The commands a script may not hold: a search, the invertible rules
+/// applied by themselves, and files.
+const BARRED: [&str; 4] = ["close", "invertible", "save", "load"];
 
 /// Runs a script's lines, an answer to grade, until `quit` or their end:
 /// blank lines, `#` comments and the fences of a Markdown code block are
@@ -267,8 +268,8 @@ fn script(session: &mut impl Commands, text: &str) -> Ran {
                 }
                 if BARRED.contains(&command) {
                     Some(format!(
-                        "`{command}` is not part of an answer: every step must be the answer's own, \
-                         and an answer reads and writes no file"
+                        "`{command}` is not part of an answer: every step must be the answer's \
+                         own, and an answer reads and writes no file"
                     ))
                 } else {
                     ran.commands += 1;

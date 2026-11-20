@@ -114,6 +114,40 @@ fn grade_reads_each_kind_of_answer() {
         out.starts_with("incorrect: the model does not refute the sequent"),
         "{out}"
     );
+    // An LK derivation proves nothing intuitionistic, and the invertible
+    // rules applied by themselves are no steps of the answer's.
+    let (_, lem, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--format",
+            "json",
+            "|- a \\/ ~a",
+        ],
+        "",
+    );
+    let lem: serde_json::Value = serde_json::from_str(&lem).unwrap();
+    let derivation = lem["derivation"].to_string();
+    assert_eq!(
+        grade(&["--logic", "classical", "|- a \\/ ~a"], &derivation).0,
+        0
+    );
+    let (status, out) = grade(&[&logic[..], &["|- a \\/ ~a"]].concat(), &derivation);
+    assert_eq!(status, 1);
+    assert!(
+        out.contains("which proves nothing of intuitionistic logic"),
+        "{out}"
+    );
+    let (status, out) = grade(
+        &["--logic", "classical", "|- ((p -> q) -> p) -> p"],
+        "invertible on\n",
+    );
+    assert_eq!(status, 1);
+    assert!(
+        out.contains("`invertible` is not part of an answer"),
+        "{out}"
+    );
     let tableau = "1 T p\n2 F q\nopen\n";
     assert_eq!(grade(&["--logic", "classical", "p |- q"], tableau).0, 0);
     assert_eq!(

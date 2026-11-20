@@ -4,7 +4,9 @@
 that someone else wrote, a student or a language model. You give the
 problem's sequent and its logic, as to `prove`, and the answer on
 standard input or with `--answer FILE`. The exit status is the verdict:
-0 correct, 1 incorrect, 3 unknown (a limit stopped the check), 2 an
+0 correct, 1 incorrect, 3 unknown (a limit stopped the check, or the
+answer holds nothing to check, such as a refutation only the search
+vouches for), 2 an
 error in the problem or the flags.
 
 ## A proof step by step
@@ -19,7 +21,8 @@ correct: the script's 3 commands finish the proof, which checks
 ```
 
 Every step must be the answer's own, so `close`, which lets the search
-finish a goal, is refused, and so are `save` and `load`. An incorrect
+finish a goal, is refused, and so are `invertible` (which applies the
+invertible rules by themselves), `save` and `load`. An incorrect
 script names the first line that failed:
 
 ```console

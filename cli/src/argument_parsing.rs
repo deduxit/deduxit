@@ -177,7 +177,8 @@ pub(crate) enum Command {
     /// - a signed tableau of classical logic as `check --tableau` reads it,
     ///   its first line starting with a line number;
     /// - otherwise, a script of `interact`'s commands, one per line, which
-    ///   must end with the proof finished. `close`, `save` and `load` are
+    ///   must end with the proof finished. `close`, `invertible`, `save` and
+    ///   `load` are
     ///   refused, since the steps must be the answer's own, and the
     ///   commands that only show the session are passed over, as are blank
     ///   lines, `#` comments and a Markdown code block's fences.
@@ -186,7 +187,9 @@ pub(crate) enum Command {
     /// logic. The verdict is `correct`, `incorrect` (with the first step
     /// that failed, for a script) or `unknown`. The exit status is 0 for
     /// correct, 1 for incorrect (an answer that does not read is
-    /// incorrect), 3 for unknown (a limit stopped the check) and 2 for an
+    /// incorrect), 3 for unknown (a limit stopped the check, or the answer
+    /// holds nothing to check, such as a refutation only the search vouches
+    /// for) and 2 for an
     /// error of the problem or the flags. With `--format json` the verdict
     /// is `{"version", "verdict", "answer", "message"}`, `answer` the kind
     /// read, and `line` the script's line that failed first.

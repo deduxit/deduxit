@@ -65,3 +65,5 @@ CLAUDE.local.md
 /docs/book
 /docs/src/figures
 !/docs/src/results/
+# ILTP's problems decided by dataset/build.py --iltp, for local use only
+/dataset/iltp.jsonl
