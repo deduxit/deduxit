@@ -216,6 +216,8 @@
             "invalid_derivation",
             "zones",
             "step_refused",
+            "invalid_clause_refutation",
+            "clause_file",
             "step_needs",
             "not_fitch",
             "no_term",

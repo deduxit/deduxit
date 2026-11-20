@@ -65,9 +65,9 @@
 //! ```
 
 mod classical;
-mod drup;
+pub(crate) mod drup;
 mod read_back;
-mod solver;
+pub(crate) mod solver;
 
 pub use drup::ClausalProof;
 

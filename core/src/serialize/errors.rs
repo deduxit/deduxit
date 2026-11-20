@@ -169,6 +169,10 @@ impl Serialize for Details<'_> {
             }
             Zones { found, zones } => entries!(s; "found" => found; "zones" => zones),
             StepRefused { reason } | NotFitch { reason } => entries!(s; "reason" => reason),
+            InvalidRefutation { step, reason } => {
+                entries!(s; "step" => step; "reason" => reason)
+            }
+            ClauseFile { at, reason } => entries!(s; "at" => at; "reason" => reason),
             StepNeeds { needs } => entries!(s; "needs" => needs),
             #[cfg(feature = "interactive")]
             ForeignProof | GoalMismatch => entries!(s),

@@ -37,6 +37,7 @@
 //! | 19 | a workspace of linked values: the values, each its kind's document whole; the nodes, given or made by a recipe; the records of runs; the log of edits | a workspace (`workspace`, feature `protocol`) |
 //! | 20 | the forms of modal logic: a sequent with the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic, and the outcome of deciding one | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is); every modal outcome |
 //! | 21 | a classical sequent's normal form with its steps and the claims of its promise decided, each outcome nested without `version` and `deduxit`; written only | a normal form |
+//! | 22 | resolution: a set of clauses with the resolvents of a refutation, and a set decided by saturation or DPLL with its evidence and DPLL's trace (written only) | a refutation of [`ordinary::resolution`](crate::ordinary::resolution), a clause set decided |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -250,6 +251,15 @@
 //!   "outcome"}, …]}`, the steps' numbers indices of the result's
 //!   `formulas`; see
 //!   [`ordinary::normal::NormalForm`](crate::ordinary::normal::NormalForm).
+//! - **Refutation**: `{"version": 22, "atoms": ["a", "b"], "clauses":
+//!   [[1, 2], [-1], [-2]], "resolvents": [{"first": 0, "second": 1,
+//!   "atom": 1, "clause": [2]}, …]}`, the literals as DIMACS writes them;
+//!   see [`ordinary::resolution::Refutation`](crate::ordinary::resolution::Refutation).
+//! - **Clause set decided** (written only): `{"version": 22, "deduxit":
+//!   "0.6.0", "method": "dpll", "verdict": "unsatisfiable", "atoms", "clauses",
+//!   "resolvents", "trace": [{"event": "unit", "literal": -1, "clause":
+//!   1}, …], "statistics"}`; see
+//!   [`ordinary::resolution::Resolution`](crate::ordinary::resolution::Resolution).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -276,7 +286,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 21;
+pub const LEVEL: u32 = 22;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -470,6 +480,9 @@ pub(crate) const TRANSFORMS: u32 = 16;
 
 /// The level of a normal form with its steps, which is written only.
 pub(crate) const FORMS: u32 = 21;
+
+/// The level of a refutation by resolution and of a clause set decided.
+pub(crate) const CLAUSES: u32 = 22;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

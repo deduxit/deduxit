@@ -74,6 +74,7 @@ pub mod negative;
 pub mod normal;
 #[cfg(feature = "parse")]
 mod parse;
+pub mod resolution;
 /// The certificates over `Prop`.
 #[cfg(feature = "rocq")]
 pub(crate) mod rocq;

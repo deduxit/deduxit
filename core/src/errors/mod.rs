@@ -662,6 +662,27 @@ pub enum Error {
         /// Why.
         reason: String,
     },
+    /// A refutation of clauses is wrong: a resolvent that is not one, an
+    /// addition that does not follow by unit propagation, or no empty
+    /// clause.
+    #[error("the refutation is wrong{}: {reason}", step.map_or(String::new(), |s| format!(" at step {s}")))]
+    #[non_exhaustive]
+    InvalidRefutation {
+        /// The step, counted from 1, where one is at fault.
+        step: Option<u64>,
+        /// What is wrong.
+        reason: String,
+    },
+    /// A file of clauses or of a clausal proof (DIMACS, DRAT, LRAT) is not
+    /// of its format.
+    #[error("line {at}: {reason}")]
+    #[non_exhaustive]
+    ClauseFile {
+        /// The line, counted from 1, or for a binary proof the byte.
+        at: u64,
+        /// What is wrong.
+        reason: String,
+    },
     /// A step of a proof in progress in a calculus given as data needs
     /// values the goal leaves open: the variables and contexts named.
     #[error("the step needs {} given: what the goal leaves open", .needs.join(", "))]
@@ -835,6 +856,8 @@ impl Error {
         "invalid_derivation",
         "zones",
         "step_refused",
+        "invalid_clause_refutation",
+        "clause_file",
         "step_needs",
         "not_fitch",
         "no_term",
@@ -887,7 +910,8 @@ impl Error {
                 Invalid
             }
             Self::InvalidCalculus { .. } | Self::Zones { .. } | Self::StepNeeds { .. } => Malformed,
-            Self::StepRefused { .. } => Invalid,
+            Self::StepRefused { .. } | Self::InvalidRefutation { .. } => Invalid,
+            Self::ClauseFile { .. } => Malformed,
             Self::NotFitch { .. } => Unsupported,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
@@ -1013,6 +1037,8 @@ impl Error {
             Self::InvalidDerivation { .. } => "invalid_derivation",
             Self::Zones { .. } => "zones",
             Self::StepRefused { .. } => "step_refused",
+            Self::InvalidRefutation { .. } => "invalid_clause_refutation",
+            Self::ClauseFile { .. } => "clause_file",
             Self::StepNeeds { .. } => "step_needs",
             Self::NotFitch { .. } => "not_fitch",
             Self::NoCut { .. } => "no_cut",
@@ -1380,6 +1406,14 @@ mod tests {
             },
             Error::Zones { found: 1, zones: 2 },
             Error::StepRefused { reason: message() },
+            Error::InvalidRefutation {
+                step: Some(1),
+                reason: message(),
+            },
+            Error::ClauseFile {
+                at: 1,
+                reason: message(),
+            },
             Error::StepNeeds {
                 needs: vec!["C".to_owned()],
             },
@@ -1594,6 +1628,8 @@ mod tests {
             | Error::InvalidDerivation { .. }
             | Error::Zones { .. }
             | Error::StepRefused { .. }
+            | Error::InvalidRefutation { .. }
+            | Error::ClauseFile { .. }
             | Error::StepNeeds { .. }
             | Error::NotFitch { .. }
             | Error::NoCut { .. }

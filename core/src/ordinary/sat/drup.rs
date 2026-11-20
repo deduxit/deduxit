@@ -90,11 +90,13 @@ pub(crate) enum Rejection {
     Refused(Refusal),
 }
 
-/// A clausal proof that a classical sequent is valid, which this crate's
-/// checker accepted: the clauses of the sequent's negation (every
-/// hypothesis true, every formula right of `⊢` false) have no model,
-/// since the proof's steps derive the empty clause from them, each added
-/// clause by unit propagation.
+/// A clausal proof that a set of clauses has no model, which this crate's
+/// checker accepted: the proof's steps derive the empty clause from them,
+/// each added clause by unit propagation. In a classical outcome the
+/// clauses are those of the sequent's negation (every hypothesis true,
+/// every formula right of `⊢` false), so the sequent is valid; from
+/// [`resolution::check_proof`](crate::ordinary::resolution::check_proof)
+/// they are the set given.
 ///
 /// It holds what was checked, not the proof itself. Only the check makes
 /// one, so a value of this type is a proof that passed it.
@@ -103,8 +105,7 @@ pub(crate) enum Rejection {
 ///
 /// With the feature `serialize` it is written (never read) as
 /// `{"variables": 7, "clauses": 12, "steps": 3}`: the variables and the
-/// clauses of the negation, and the proof's steps, the clauses it adds and
-/// deletes.
+/// clauses, and the proof's steps, the clauses it adds and deletes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct ClausalProof {
@@ -119,7 +120,7 @@ pub struct ClausalProof {
 impl ClausalProof {
     /// Checks `proof` against the clauses `formula` as [`check`] does and
     /// returns what was checked when the check accepts it.
-    pub(super) fn checked(
+    pub(crate) fn checked(
         variables: u32,
         formula: &[Vec<Lit>],
         proof: &[Step],

@@ -92,6 +92,8 @@ mod nets;
 mod ordinary;
 /// Serde for `Proof`, through a proxy with short tags.
 mod proofs;
+/// Serde for resolution: a refutation and a clause set decided.
+mod resolution;
 /// Serde for `rules::Calculus` and `rules::Derivation`: the rule file
 /// and the derivation in a calculus given as data.
 pub(crate) mod rules;
