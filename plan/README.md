@@ -7692,3 +7692,5 @@ move (D26).
     the calculus popover (a term checked and drawn, or a type with a term found, listed and counted;
     the link keeps the text and calculus; nothing new before the button). Module 3 846 685 under
     3 900 000. fresh-reviewer (Fable) findings answered. Both flake checks passed.
+- 2026-11-20, about 18:40: **Step 71 complete**: 71c's client chain and its lock update (`xtyxnrsy`)
+  are on the client's `main` after its flake check passed.
