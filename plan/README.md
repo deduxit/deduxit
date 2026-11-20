@@ -7740,3 +7740,11 @@ move (D26).
   refuses it with 401. So the first run of each `main` builds cold, once. The author deleted
   the cache `linlog-prover` the same evening, so `main`'s workflows (still naming it) fail until
   the switch is pushed.
+- 2026-11-20, about 20:20: **the cache switch landed, and the client's red CI fixed.** deduxit,
+  rocq-deduxit and the client on `main` with the cache `deduxit` (deduxit's run fetched all in
+  2 min). The client had been red since 71c's push (the lock at 0.7.0): `packs.spec.ts:237`, the
+  invertible switch in a pack that bars the search. A background agent (Opus, high) found the
+  cause: `setInvertible` was `guard`ed, so a click while the pack was still opening was dropped
+  with the box drawn checked; the larger module made the opening slow enough on CI to hit it
+  every time. Fixed by `queued` (`vyxlolom`), reproduced with the module's load delayed by 3 s,
+  pushed; CI green and Pages deployed, so 71c's page is live.
