@@ -763,6 +763,7 @@ const fn kind(document: &Document) -> &'static str {
         Document::Ordinary(_) | Document::Modal(_) | Document::Unchecked(_) => "outcome",
         Document::Derivation(_) | Document::Rules(_) => "derivation",
         Document::Model(_) => "countermodel",
+        Document::Resolution(_) => "resolution",
     }
 }
 
@@ -777,6 +778,7 @@ const fn what(document: &Document) -> &'static str {
         Document::Model(_) => "a Kripke model",
         Document::Rules(_) => "a derivation in a calculus given as data",
         Document::Modal(_) => "an outcome of modal logic",
+        Document::Resolution(_) => "a refutation by resolution",
     }
 }
 

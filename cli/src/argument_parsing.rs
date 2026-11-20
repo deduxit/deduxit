@@ -299,6 +299,37 @@ pub(crate) enum Command {
     /// outcome.
     #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
     Interpolate(InterpolateArgs),
+    /// Refute a set of clauses by resolution or DPLL, and check the
+    /// refutation
+    ///
+    /// The input is a classical sequent, whose negation is turned into
+    /// clauses (--clauses), or a file of clauses in the DIMACS CNF format
+    /// (--dimacs). A sequent is valid exactly when the clauses of its
+    /// negation are unsatisfiable. A clause is a disjunction of atoms and
+    /// negated atoms; resolution derives from a clause with an atom p and
+    /// one with ¬p the rest of both, and a refutation derives the empty
+    /// clause □.
+    ///
+    /// --method saturation (the default) resolves the shortest clause not
+    /// yet used with every clause used, leaving out tautologies and
+    /// clauses another one contains, until □ appears or nothing new does.
+    /// --method dpll assigns the literals of unit clauses, then pure
+    /// literals, then decides an atom and backtracks at a conflict, and
+    /// prints every step; the refutation is read off its steps.
+    ///
+    /// The command prints the clauses, numbered from 1, then the
+    /// refutation, each resolvent with the clauses and the atom it comes
+    /// from, or a model of the clauses. Every refutation is checked step
+    /// by step before it is printed, and every model against each clause.
+    /// The exit status is 0 for unsatisfiable clauses (a valid sequent),
+    /// 1 for satisfiable ones, 3 where --clause-limit or --step-limit or
+    /// the time limit ended the search, and 2 for an error. With `--format
+    /// json` the answer is the record `{"version", "deduxit", "method",
+    /// "verdict", "atoms", "clauses", "resolvents", "true_atoms", "bound",
+    /// "trace", "statistics"}`, clauses numbered from 0 and literals as
+    /// DIMACS writes them.
+    #[command(after_help = ORDINARY)]
+    Resolve(ResolveArgs),
     /// Print a sequent, convert it to JSON, name its fragment, translate it
     /// from classical logic, or rewrite it into a normal form
     Seq {
@@ -539,6 +570,7 @@ impl Command {
                 command: SeqCommand::Fragment { input, .. },
             } => Some((&["seq", "fragment"], input, false)),
             Command::Interpolate(args) => Some((&["interpolate"], &args.common.input, true)),
+            Command::Resolve(args) => Some((&["resolve"], &args.common.input, true)),
             Command::Grade(args) => Some((&["grade"], &args.input, args.logic.is_some())),
             Command::Seq {
                 command: SeqCommand::Translate(args),
@@ -573,7 +605,8 @@ impl Command {
             | Command::Workspace { .. }
             | Command::Check(_)
             | Command::Eliminate(_)
-            | Command::Interpolate(_) => false,
+            | Command::Interpolate(_)
+            | Command::Resolve(_) => false,
         }
     }
 }
@@ -1218,6 +1251,19 @@ pub(crate) struct CheckArgs {
     /// open, and 1 for one with a fault or not finished.
     #[arg(help_heading = INPUT, long, conflicts_with_all = ["logic", "system", "calculus", "world"])]
     pub(crate) tableau: bool,
+    /// The file is an outside SAT solver's proof that the clauses of this
+    /// DIMACS CNF file are unsatisfiable, in the DRAT or LRAT format
+    ///
+    /// Every clause the proof adds must follow by unit propagation from
+    /// the clauses kept, and the proof must add the empty clause. The
+    /// exit status is 0 for a proof that holds and 1 for one that does
+    /// not.
+    #[arg(help_heading = INPUT, long, value_name = "PATH", conflicts_with_all = ["logic", "system", "calculus", "world", "tableau"])]
+    pub(crate) dimacs: Option<PathBuf>,
+    /// The format of the proof --dimacs checks: drat (text or binary) or
+    /// lrat; by default lrat for a file ending in .lrat, else drat
+    #[arg(help_heading = INPUT, long, value_enum, value_name = "FORMAT", requires = "dimacs")]
+    pub(crate) proof_format: Option<ProofFormatArg>,
     /// With a derivation in a calculus given as data, the calculus to
     /// check it in: a rule file, or one built in (LK, LJ, LM, LL,
     /// tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM,
@@ -1644,6 +1690,68 @@ impl From<FormArg> for deduxit::ordinary::normal::Form {
             FormArg::PlaistedGreenbaum => Self::PlaistedGreenbaum,
         }
     }
+}
+
+/// The arguments of `resolve`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct ResolveArgs {
+    /// The sequent, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// Read the clauses from this file in the DIMACS CNF format, or from
+    /// standard input with `-`, in place of a sequent
+    ///
+    /// Comment lines start with c, the header is `p cnf VARIABLES
+    /// CLAUSES`, and each clause is its literals, k for the variable k and
+    /// -k for its negation, ended by 0. The variable k is the atom xk.
+    #[arg(help_heading = INPUT, long, value_name = "PATH", conflicts_with_all = ["sequent", "file"])]
+    pub(crate) dimacs: Option<PathBuf>,
+    /// How to search
+    #[arg(help_heading = SEARCH, long, value_enum, value_name = "METHOD", default_value_t = ResolutionArg::Saturation)]
+    pub(crate) method: ResolutionArg,
+    /// How a sequent's negation is turned into clauses: cnf, conjunctive
+    /// normal form by distribution, or the encodings tseitin and
+    /// plaisted-greenbaum (see `seq normalize`)
+    ///
+    /// The formulas right of ⊢ move left negated. The rewriting is checked
+    /// as `seq normalize` checks it.
+    #[arg(help_heading = INPUT, long, value_enum, value_name = "FORM", default_value_t = ClausesArg::Cnf, conflicts_with = "dimacs")]
+    pub(crate) clauses: ClausesArg,
+    /// The most clauses saturation keeps, the input's included, or `none`
+    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_CLAUSES)))]
+    pub(crate) clause_limit: Count<u64>,
+    /// The most steps, resolvents made or steps of DPLL, or `none`
+    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_STEPS)))]
+    pub(crate) step_limit: Count<u64>,
+}
+
+/// How `resolve` searches.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ResolutionArg {
+    /// Saturation by resolution, the shortest clause first
+    Saturation,
+    /// DPLL: unit clauses, pure literals, decisions and backtracking
+    Dpll,
+}
+
+/// How a sequent's negation becomes clauses.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ClausesArg {
+    /// Conjunctive normal form by distribution
+    Cnf,
+    /// Tseitin's encoding
+    Tseitin,
+    /// Plaisted and Greenbaum's encoding
+    PlaistedGreenbaum,
+}
+
+/// The format of an outside solver's proof.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ProofFormatArg {
+    /// DRAT, as text or binary
+    Drat,
+    /// LRAT, as text
+    Lrat,
 }
 
 /// A negative translation of classical logic.

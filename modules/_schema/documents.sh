@@ -168,6 +168,12 @@ run comparison-not-valid 1 "$deduxit" seq translate "${t[@]}" --by godel-gentzen
 run interpolation-classical 0 "$deduxit" interpolate "${t[@]}" --format json 'a /\ b |- b \/ c'
 run interpolation-intuitionistic 0 "$deduxit" interpolate "${t[@]}" --logic intuitionistic --first L1 --format json 'a, a -> b |- b'
 run interpolation-not-valid 1 "$deduxit" interpolate "${t[@]}" --format json 'a |- b'
+# Clause sets decided: refuted by saturation and by DPLL, satisfiable,
+# and unknown at a bound.
+run clause_resolution-saturation 0 "$deduxit" resolve "${t[@]}" --format json 'a -> b, a |- b'
+run clause_resolution-dpll 0 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b, ~a |- b'
+run clause_resolution-satisfiable 1 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b |- a'
+run clause_resolution-unknown 3 "$deduxit" resolve "${t[@]}" --step-limit 1 --format json 'a -> b, b -> c |- a -> c'
 # Normal forms: an equivalent one and an encoding.
 run normal_form-cnf 0 "$deduxit" seq normalize "${t[@]}" --format json '~(a -> b /\ c)'
 run normal_form-tseitin 0 "$deduxit" seq normalize "${t[@]}" --to tseitin --format json 'a /\ b |- a'

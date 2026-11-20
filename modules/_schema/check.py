@@ -38,6 +38,9 @@ UNWRITTEN = {
     "modal_statement": "only the protocol writes it",
     # Nested in every modal outcome; no command writes a bare one.
     "modal_sequent": "the command writes it only nested",
+    # `check` reads it; `resolve --format json` writes its resolvents
+    # inside the answer.
+    "clause_refutation": "the command reads it, and writes its parts nested",
 }
 
 

@@ -35,6 +35,8 @@ mod ordinary;
 /// The `prove` command, and what it shares with the batch and a session:
 /// the search's thread, its verdict line and its statistics.
 mod prove;
+/// `resolve`, and `check` of clausal refutations.
+mod resolve;
 /// The `seq` commands.
 mod seq;
 /// The settings of a command, from its defaults, a file and its flags.
@@ -311,6 +313,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
         Command::Eliminate(args) => eliminate::eliminate(args, given),
         Command::Interact(args) => interact::interact(args, given),
         Command::Interpolate(args) => transform::interpolate(args, given),
+        Command::Resolve(args) => resolve::resolve(args, given),
         Command::Seq { command } => seq::run(command, given),
         Command::Workspace { command } => workspace::run(command, given),
     }

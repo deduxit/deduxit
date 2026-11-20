@@ -45,6 +45,12 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     if args.tableau {
         return crate::tableau::check(args, (&settings, &show), &deadline);
     }
+    if args.dimacs.is_some() {
+        if show.format != Format::Text {
+            bail!("check --dimacs writes text");
+        }
+        return crate::resolve::check_outside(args, &settings, &deadline);
+    }
     // The file is read and parsed within the time limit, as `prove` reads
     // its sequent: a large proof file takes seconds to parse.
     let (source, limits) = (args.source(), settings.limits);
@@ -147,6 +153,23 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 out.finish()?;
             }
             return Ok(status);
+        }
+        Document::Resolution(refutation) => {
+            if args.mode.given() || args.logic.is_some() {
+                bail!(
+                    "a refutation by resolution is of classical clauses: leave out the mode \
+                     flags and --logic"
+                );
+            }
+            if show.format != Format::Text {
+                bail!("check of a refutation by resolution writes text");
+            }
+            return crate::resolve::check_refutation(
+                &refutation,
+                &settings,
+                path.as_deref(),
+                &deadline,
+            );
         }
         Document::Modal(outcome) => {
             if args.mode.given() || args.logic.is_some() {
@@ -282,6 +305,8 @@ pub(crate) enum Document {
     Rules(Box<deduxit::rules::Derivation>),
     /// The outcome of deciding a modal sequent.
     Modal(Box<deduxit::modal::Outcome>),
+    /// A refutation of clauses by resolution.
+    Resolution(Box<deduxit::ordinary::resolution::Refutation>),
 }
 
 /// Reads a proof file, or failing that a disproof, which an unprovable
@@ -309,6 +334,8 @@ pub(crate) fn read_document(text: &str, limits: &Limits) -> Result<Document> {
         calculus: Option<serde::de::IgnoredAny>,
         /// The system of a modal outcome.
         system: Option<serde::de::IgnoredAny>,
+        /// The resolvents of a refutation by resolution.
+        resolvents: Option<serde::de::IgnoredAny>,
     }
     let keys = serde_json::from_str::<Keys>(text).ok();
     if keys.as_ref().is_some_and(|keys| keys.calculus.is_some()) {
@@ -320,6 +347,18 @@ pub(crate) fn read_document(text: &str, limits: &Limits) -> Result<Document> {
             .end()
             .context("not a derivation in JSON: more follows it")?;
         return Ok(Document::Rules(Box::new(derivation)));
+    }
+    if keys.as_ref().is_some_and(|keys| keys.resolvents.is_some()) {
+        let mut document = serde_json::Deserializer::from_str(text);
+        let refutation = deduxit::wire::upgrade::<deduxit::ordinary::resolution::Refutation, _>(
+            &mut document,
+            limits,
+        )
+        .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+        document
+            .end()
+            .context("not a refutation in JSON: more follows it")?;
+        return Ok(Document::Resolution(Box::new(refutation)));
     }
     if keys.as_ref().is_some_and(|keys| keys.system.is_some()) {
         let mut document = serde_json::Deserializer::from_str(text);

@@ -3183,6 +3183,217 @@
         }
       }
     },
+    "clause_literal": {
+      "description": "A literal as DIMACS writes it: the atom k (counted from 1) for itself, -k for its negation.",
+      "type": "integer",
+      "not": {
+        "const": 0
+      },
+      "minimum": -2147483648,
+      "maximum": 2147483648
+    },
+    "clause": {
+      "description": "A clause: its literals, sorted, each once; the empty clause has none.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clause_literal"
+      }
+    },
+    "resolvent": {
+      "description": "A resolvent: the clauses it comes from by number (the set's from 0, then the resolvents), the first holding the atom and the second its negation, the atom counted from 1, and the clause derived.",
+      "type": "object",
+      "required": [
+        "first",
+        "second",
+        "atom",
+        "clause"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/index"
+        },
+        "second": {
+          "$ref": "#/$defs/index"
+        },
+        "atom": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "clause": {
+          "$ref": "#/$defs/clause"
+        }
+      }
+    },
+    "clause_refutation": {
+      "description": "A refutation by resolution (level 22, read by `check`; `resolve --format json` writes its resolvents inside its answer): the atom names, the clauses, and the resolvents. deduxit checks every resolvent when it checks the refutation.",
+      "type": "object",
+      "required": [
+        "version",
+        "atoms",
+        "clauses",
+        "resolvents"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 22
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clauses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clause"
+          }
+        },
+        "resolvents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resolvent"
+          }
+        }
+      }
+    },
+    "dpll_event": {
+      "description": "A step of DPLL: a unit clause's literal made true, a pure literal, a decision or a backtrack with its level, or a conflict at a clause.",
+      "type": "object",
+      "required": [
+        "event"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "enum": [
+            "unit",
+            "pure",
+            "decide",
+            "conflict",
+            "backtrack"
+          ]
+        },
+        "literal": {
+          "$ref": "#/$defs/clause_literal"
+        },
+        "clause": {
+          "$ref": "#/$defs/index"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "clause_resolution": {
+      "description": "A set of clauses decided (level 22, `resolve --format json`, written only): the method, the verdict, the atoms and clauses, the refutation's resolvents for unsatisfiable clauses, the atoms a checked model makes true (counted from 1) for satisfiable ones, the bound that ended an unknown search, DPLL's steps, and the counts.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "method",
+        "verdict",
+        "atoms",
+        "clauses",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 22
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "method": {
+          "enum": [
+            "saturation",
+            "dpll"
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "unsatisfiable",
+            "satisfiable",
+            "unknown"
+          ]
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clauses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clause"
+          }
+        },
+        "resolvents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resolvent"
+          }
+        },
+        "true_atoms": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "bound": {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "clauses",
+                "steps",
+                "stopped"
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "trace": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dpll_event"
+          }
+        },
+        "statistics": {
+          "type": "object",
+          "required": [
+            "clauses",
+            "steps"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "clauses": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "steps": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
     "half": {
       "description": "A half of an interpolation: the sequent and its outcome.",
       "type": "object",
