@@ -19,7 +19,11 @@
       packages = builtins.length (builtins.fromTOML (builtins.readFile ../Cargo.lock)).package;
 
       # The module the web page loads, in bytes at `gzip -9', what a
-      # browser downloads: 3 831 827 on 2026-11-20 with the suite of
+      # browser downloads: 3 903 905 on 2026-11-20 with first-order
+      # ordinary formulas (the arena's binders and instances, the native
+      # and TPTP parsers' and the JSON reader's first-order paths, the
+      # printer's renaming, every method's refusal); 3 831 827 that day
+      # with the suite of
       # lambda-terms (the term's parser and checker and the enumeration
       # of a type's terms, which the workspace's runs link; 3 741 399
       # before it, with normal forms and resolution); 3 622 968 on
@@ -30,7 +34,7 @@
       # workspace, whose runs and checks link every suite's operations;
       # 3 166 704 before that; 3 111 006 on 2026-11-15, with calculi
       # given as data; 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
-      mostModuleBytes = 3900000;
+      mostModuleBytes = 3950000;
     in
     {
       checks.budget =
