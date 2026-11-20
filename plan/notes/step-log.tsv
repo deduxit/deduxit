@@ -81,7 +81,7 @@ fix-band	client	opus-5-5	high	-	local_fe155f72	2026-11-16 18:55	2026-11-16 19:10
 54x8	small	opus-5-5	high	-	local_fe155f72	2026-11-20 09:09	2026-11-20 09:50	ordinary auto-reverse on the page, a Rocq comment
 70a	panel	opus-5-5	high	panel argument (fable), reviewer (fable)	local_b8490613	2026-11-20 09:50	2026-11-20 11:45	the normal forms
 72	small	opus-5-5	high	research (sonnet), reviewer (fable)	local_fe155f72	2026-11-20 09:52	2026-11-20 11:20	verified problems for models
-ci-speed	small	opus-5-5	high	reviewer (fable)	local_739ba359	2026-11-20 10:33		no test run twice, CI in parallel (the author's request)
+ci-speed	small	opus-5-5	high	reviewer (fable)	local_739ba359	2026-11-20 10:33	2026-11-20 11:50	no test run twice, CI in parallel (the author's request)
 69	step	-	-	-	-	-	2026-11-20 11:10	complete: 0.6.0 released
 72	step	-	-	-	-	-	2026-11-20 11:25	complete: problems with verified answers, grade
 70b	panel	opus-5-5	high	panel (counterexamples opus, argument fable, integers sonnet), reviewer (fable)	local_b8490613	2026-11-20 11:55		resolution and DPLL

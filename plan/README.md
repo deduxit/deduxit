@@ -7605,3 +7605,22 @@ move (D26).
     (a cubic freshness check among them), all fixed with tests. Module +17 KB (3 690 645 under
     3 750 000). Gate and `nix flake check` passed.
   - **70b** (resolution, DPLL, the refutation checker, with the panel) started in the same worker.
+- 2026-11-20, 12:00: **ci-speed reviewed and pushed (the author's request of 10:30).**
+  - **ci-speed** (`uktnswln`, `zrkvumso`, `uspksmlk`, report `ymoomvxv`): CI's 46 checks run as
+    twelve parallel groups from a matrix the flake defines (`modules/ci.nix`, in
+    nix-community/nix-github-actions' shape) in a reusable `checks.yml`, with `nix flake check
+    --no-build` beside them; on the same change 9 min 32 s against 55 min 30 s for the old single
+    job. Pages deploys from CI after every group passed (`docs.yml` gone: the site was built
+    twice); the release calls the same checks (a cache lookup after `main`'s run) with its
+    packages beside them; Install after a release tests the release's own files instead of
+    building them again; `ci/NAME` branches run CI and upload to Cachix (departs: only `main`
+    uploaded), so `plan/push-ci.sh` checks a stack on GitHub's runners. Locally the gate is
+    skipped at a head that gets the full check (its five parts are all in the flake check).
+    fresh-reviewer (Fable) found nothing uncaught; four findings, fixed. The client's CI is left
+    as it is (its e2e is 6.4 of 7.2 min; sharding it is the change if it grows).
+  - **For the author:** let this machine read the Cachix cache (a NixOS setting), the last
+    duplicate the repository cannot remove; Cachix uploads from `ci/` branches; Pages now deploys
+    only a checked `main`. The probe branches `ci-speed-probe`, `ci-speed-before` and
+    `ci/ci-speed` are the author's to delete.
+  - **Follow-up:** Install's "from the release" job fails on GitHub's API rate limit (an
+    unauthenticated `curl`): pass `GH_TOKEN`.
