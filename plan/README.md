@@ -7563,3 +7563,9 @@ move (D26).
   fresh-reviewer (Fable) three findings, fixed. Gate and `nix flake check` passed. The tag
   follows CI at `b3d33553`.
   - **70's prompt finished**; **70a** (the normal forms) started in 69's slot.
+- 2026-11-20, 09:55: **54x8 reviewed and pushed** (the client `twpqkvlu`, `wmkvwwoy`, `okwokwwv`;
+  rocq-deduxit `twvrwvrk`, pushed earlier; deduxit `lstszmrm`, report `yrrtpwuu`): "Apply invertible
+  rules by themselves" acts on ordinary tabs as on linear ones (68d's pack bar held), undo goes
+  past the automatic steps; a race of the tableau editor fixed (departs: not in the brief, found by
+  the sandbox); Calculus.v's comment says deduxit's `Ser` asks `x ≠ y` from 0.6.0. The client's
+  flake check passed (704 unit, 342 e2e).
