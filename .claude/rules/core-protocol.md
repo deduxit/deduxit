@@ -103,6 +103,20 @@ workspace graph builds on it.
   `decides` is `Outcome::check` (`Recorded` for a not-valid outcome
   whose model was too large to check, `None` for an unknown). Its
   kinds' forms are the schema's `modal_statement` and `modal_outcome`.
+- **The normal forms** (`ordinary.nnf`, `cnf`, `dnf`, `tseitin`,
+  `plaisted_greenbaum`) take a classical statement to a classical
+  statement (`InvalidOption` key `logic` otherwise), instant, reading
+  the sizes, `limits.work`, `limits.memory_bytes` and
+  `limits.form_occurrences`. Each check fails part `logic` first for an
+  output claimed in another logic (`a ∨ ¬a` claimed intuitionistically
+  is no normal form of the classical one). The check of `equivalent` holds the given
+  output to the input (`normal::NormalForm::claims` copies the input into
+  the output's arena); the check of `equisatisfiable` makes the form
+  again, since the output carries no definitions, compares the texts
+  (part `form`), then decides the remade form's claims (`extends`,
+  `restricts`). Each claim is asked as `ordinary.decide` with `{"method":
+  "sat"}` where the build has `sat`, so a cache that answers it holds the
+  clausal proof's verdict.
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

@@ -496,7 +496,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   the command and a program to agree on (the lock's counters are the same as under `auto`, which with
   one job happened to take turns as well).
 - `seq.rs`: `seq print`, `seq json` and `seq fragment`.
-- `transform.rs`: `seq translate` (`TranslateArgs`: `--by`, `--to`) and
+- `transform.rs`: `seq normalize` (`NormalizeArgs`: `--to` a form, cnf
+  by default, and `--form-limit` for `limits.form_occurrences`, whose
+  refusal names the flag and `--to tseitin`; its settings are
+  `TransformArgs::settings` and that key; text is the form's title and
+  result, a line per step (a rewrite with its law and the sequent after
+  it, the left side with the clauses so far; `Negate` and `Define` as one
+  line each, the clauses a definition adds), and a line per claim
+  decided; JSON the library's level-21 document; exit 0 checked, 3 where
+  a claim is unknown or a stop ended it, 2 an error; no exit 1, since a
+  form has no verdict of its own), `seq translate` (`TranslateArgs`: `--by`, `--to`) and
   `interpolate` (`InterpolateArgs`: `--logic`, classical by default, and
   `--first` positions `L0`/`R1`, the session's addresses, every
   hypothesis by default), sharing `TransformArgs` (the input, `--format

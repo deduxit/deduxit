@@ -31,7 +31,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`export::rocq::write_countermodel`, core-export.md); `model.rs`: the check of a Kripke model
   (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
   `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
-  transformations, below; `interactive.rs` (behind `interactive`): the
+  transformations, below; `normal.rs`: the normal forms, below; `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below. Its JSON forms and those of the
   sequent, the derivation and the outcome are in
   `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
@@ -995,6 +995,78 @@ what fails it is `Error::ClaimFails` (kind defect, code `claim_fails`).
 - **At first order** the tables gain the quantifier rows, and
   Maehara's method needs the eigenvariable condition kept in the
   interpolant: a term of one half only is quantified over.
+
+## Normal forms (`normal.rs`)
+
+Public as `ordinary::normal`; the command's `seq normalize`, the
+protocol's `ordinary.nnf`, `cnf`, `dnf`, `tseitin` and
+`plaisted_greenbaum`. Each promise is checked, never assumed: a claim
+decided not valid is `Error::ClaimFails` (kind defect).
+
+- **Two tables, no recursion.** `law` (per phase and node: which law
+  applies at a node's root) and `apply` (what each law makes) are the
+  rewriting; `definition` (per connective and direction) is the
+  encodings'. A change of a law is a change of these tables alone.
+  Every walk is a pass over the nodes a sequent reaches, collected by a
+  stack and sorted by id (`Passes::reach`; the arena's order puts
+  operands first), or a stack of its own (`in_form`, `nnf`).
+- **A step rewrites every occurrence of its subformula at once**: equal
+  formulas are one node, so `substitute` maps the node wherever it
+  occurs. The redex is the leftmost outermost of the phase (`redex`:
+  `found` marks a node at or above a redex, then a descent from the
+  first root that has one). Phases in order: arrows, negations,
+  constants (CNF and DNF only; NNF keeps `⊤` and `⊥` but rewrites `¬⊤`
+  and `¬⊥`), distribution. Within a phase no law makes a redex of an
+  earlier phase, so the result is in the form (`in_form` checks it;
+  failing is `ClaimFails`).
+- **Every step's ids index the result's arena**, which is the input's
+  arena grown: the input's ids stay valid there, and every intermediate
+  formula is kept, so the JSON's step numbers index the result's
+  `formulas` (the sequent's writer writes the arena whole). A step
+  stores the input's formulas after it (`left`, `right`) and the clauses
+  it `added`; the sequent after step k is `left` with the clauses of
+  steps 1 to k, so storage is linear in the steps for an encoding too.
+- **The bound** is `limits.form_occurrences` (default 10 000, a
+  teaching scale like `table_atoms`): every sequent on the way, the
+  input included, unfolded, else `Refusal::Form`. Each pass is charged
+  to `limits.work` (a unit a node reached), the steps and new nodes to
+  `limits.memory_bytes` (`NODE_BYTES`, `STEP_BYTES`, estimates), and the
+  stop is asked once per step. Steps are linear in the bound (each phase
+  changes the unfolded size one way: arrows and distribution grow it,
+  constants shrink it, De Morgan and double negation move a measure of
+  the negations' depth), each costs a pass over the reached nodes, so a
+  form near the bound costs about the bound squared: 1.4 s for 512
+  clauses of 17 literals in a debug build.
+- **The encodings** move each formula right of `⊢` left negated (a
+  `Negate` step), then name every compound subformula the negation
+  reaches, innermost first (`order` ascending), by `t1`, `t2`, … (`prefix`
+  adds `_` until no input atom is the prefix and digits). A subformula
+  whose current form is a literal (`¬t` after its operand was named) is
+  not named. Plaisted–Greenbaum's polarity is computed on the input's
+  nodes (`polarities`, the classical encoder's rule: flipped under `¬`
+  and left of `→`, both under `↔`); full Tseitin takes both directions.
+  A clause with `⊤` (or `¬⊥`) is dropped, `⊥` (or `¬⊤`) removed, an
+  empty clause is `⊥`; the input's formulas, literals at the end, are
+  unit clauses: a negated constant is rewritten (`NotTrue`, `NotFalse`)
+  and `⊤` left out (`TrueHypothesis`), each a step, so that the sequent
+  after the last step is the result (the generated test holds every
+  form to that).
+- **The checks** (`NormalForm::claims`, `check`): equivalent forms
+  decide `⊢ ∧ᵢ (Aᵢ ↔ Aᵢ')`; encodings check `fresh` (each definition's
+  atom new, its formula over the input's atoms and earlier new atoms,
+  so every assignment of the input's atoms extends uniquely; one pass
+  ranks the atoms, one gives each formula its highest rank, so it is
+  linear: an `atoms_of` per definition was cubic on a deep chain, 15 s
+  at depth 1 500) and decide
+  `N, t ↔ G… ⊢ ∧C` (Extends) and `C ⊢ ∧N` (Restricts), `N` the input's
+  negation. Together: the clauses are satisfiable exactly when `N` is,
+  so the result is valid exactly when the input is. The claims copy the
+  input into the result's arena by atom names (`transfer`), so a result
+  from elsewhere (the protocol's output, a test's) is judged as it is.
+  They are decided by `Method::Sat` (its clausal proof checked) where
+  `sat` is on, else the classical default; the classical default with
+  `sat` would also run the embedding for a derivation, which costs the
+  embedding's search.
 
 ## Decisions
 

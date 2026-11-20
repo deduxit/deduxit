@@ -94,7 +94,7 @@ of those names),
 `lambda` (the term's data in `mod.rs`, the read-backs `linear` and
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
-feature of that name, `translate`, `derivation` with the read-back and
+feature of that name, `translate`, the normal forms `normal`, `derivation` with the read-back and
 its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` and its invertible rules `invert` behind that
 feature), `modal` (the arena, `system`, `parse` behind the feature of
 that name, the model check `model`, and behind `serialize` the labelled
@@ -148,7 +148,8 @@ Each entry point is described in the file of its module:
   engine with its checked `Model`, `export::rocq::ordinary`, and the goal state
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
   `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
-  `Tableau::of`, `WrittenTableau::parse_within` and `review` (`core-ordinary.md`);
+  `Tableau::of`, `WrittenTableau::parse_within` and `review`,
+  `ordinary::normal::rewrite` and `normalize` (`core-ordinary.md`);
 - `modal`: `"…".parse::<modal::Sequent>()`, `Sequent::parse_within`,
   `System` (the fifteen constants, `with`, `has`, `extends`, `FromStr`)
   and `Condition`; `modal::decide(&sequent, &Options)` and
@@ -395,7 +396,9 @@ the commit that lands it rewrites that bullet.
   Closed, Context, Hint, Needs, Step, StepError}`;
   `ordinary::interpolant::{Interpolant, Interpolation, Partition}` and
   `ordinary::negative::{Agreement, Comparison, Options,
-  Translation}` (added at step 63t); `ordinary::ljt::{Outcome,
+  Translation}` (added at step 63t);
+  `ordinary::normal::{Checked, Claim, Form, NormalForm, Options,
+  Promise, Rule, Step}` (added at step 70a); `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
