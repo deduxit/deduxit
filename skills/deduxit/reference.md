@@ -1937,6 +1937,19 @@ library's `ordinary::Interactive` at wire level 8:
   `ordinary_interpolate(sequent, logic, partition, settings)`,
   `partition` being `{"left": [0], "right": []}` or `""`, answer the
   documents `seq translate` and `interpolate` write as JSON.
+- `ordinary_normalize(sequent, options, settings)`, `options` being
+  `{"form": "cnf"}` or `""`, and `ordinary_resolve(sequent, options,
+  settings)`, `options` being `{"form": "cnf", "method": "dpll",
+  "clauses": 2000, "steps": 100000}` (every key optional) or `""`,
+  answer the documents `seq normalize` and `resolve` write as JSON.
+- A refutation by hand: `ordinary_clauses(sequent, form, settings)`
+  starts one from the clauses of the sequent's negation,
+  `ordinary_resolve_step(refutation, first, second, atom, settings)`
+  adds the resolvent of clauses `first` and `second` (from 0) on the
+  atom `atom` (from 1), answering `{"refutation", "added", "finished"}`,
+  and `ordinary_refutation_check(refutation, settings)` checks every
+  step, answering `{"finished"}`; a step the clauses do not allow is
+  refused (`step_refused`).
 - `ordinary_tableau_review(text, sequent, settings)` checks a tableau
   written by hand, as `check --tableau` does (`sequent` `""` for none),
   and answers the review `check --tableau --format json` writes.

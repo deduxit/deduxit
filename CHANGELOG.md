@@ -60,6 +60,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   `invalid_clause_refutation`) and `ClauseFile` (code `clause_file`). In the
   protocol, the operation `ordinary.resolve` and the kind
   `ordinary.resolution`.
+- In the web bindings, `ordinary_normalize`, `ordinary_resolve`, and a
+  refutation by hand: `ordinary_clauses`, `ordinary_resolve_step` and
+  `ordinary_refutation_check`; in the library `Refutation::check_steps`,
+  which checks a refutation in progress.
 - Wire level 22: a refutation by resolution and a clause set decided.
   Level 22 is now the highest the library reads.
 

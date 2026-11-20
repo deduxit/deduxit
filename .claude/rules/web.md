@@ -337,6 +337,26 @@ for `THIRD-PARTY-NOTICES.txt`.
   `translations` with each `target`, or the `logics`), which the page
   and the workspace graph read. A disagreement or an interpolant that
   fails its check is the library's `claim_fails` (kind defect), thrown.
+- **Normal forms and resolution** (`ordinary_normalize(sequent,
+  options, settings)`, `ordinary_resolve(sequent, options, settings)`):
+  the library's `normal::normalize` and `resolution::clauses_of` with
+  `decide`, answering their level-21 and level-22 documents; `options`
+  `{"form"}` and `{"form", "method", "clauses", "steps"}` (each key
+  optional, `""` for CNF and saturation within the library's bounds).
+  `about` lists them under `transformations` as `normal` (its `forms`)
+  and `resolution` (its `methods` and `clauses`), and the tab's
+  `settings` names `limits.form_occurrences`. **A refutation by hand**:
+  `ordinary_clauses(sequent, form, settings)` starts one (the level-22
+  refutation with no resolvent), `ordinary_resolve_step(refutation,
+  first, second, atom, settings)` adds a resolvent (clauses from 0, the
+  atom from 1 as the document numbers atoms, each through
+  `calls::index`; an atom 0 is no atom, which `resolve` refuses) after
+  checking every step the page sent (`Refutation::check_steps`, the
+  library's: the bindings build no error of their own), answering
+  `{"refutation", "added", "finished"}`, and
+  `ordinary_refutation_check(refutation, settings)` checks one,
+  answering `{"finished"}`. They add about 20 KB at gzip (3 741 399
+  bytes on 2026-11-20, 8.6 KB under the ceiling).
 - **A countermodel on the page** (`ordinary_close`, `ordinary_hint`):
   a session decides a goal through the embedding, which has no Kripke
   model in intuitionistic and minimal logic, so a `not_valid` outcome
