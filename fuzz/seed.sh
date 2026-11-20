@@ -15,7 +15,8 @@ cd "$(dirname "$(realpath "$0")")/.."
 deduxit=${DEDUXIT:-target/debug/deduxit}
 corpus=fuzz/corpus
 for t in sequent_text ordinary_text tptp lltp spec json_sequent json_proof json_structure json_session json_disproof \
-  session_steps proof_views ordinary_decide rule_file json_derivation modal_text json_modal modal_decide; do
+  session_steps proof_views ordinary_decide rule_file json_derivation modal_text json_modal modal_decide \
+  lambda_text lambda_inhabit; do
   mkdir -p "$corpus/$t"
 done
 seed() { # TARGET NAME: standard input into the corpus
@@ -114,6 +115,33 @@ for s in '[]p -> [][]p' '[](p -> q) -> []p -> []q' '<>p |- []<>p' '[]p, <>q |- <
     { "$deduxit" prove --system "$system" --format json "$s" || true; } |
       seed json_modal "small-$i-$system"
   done
+done
+# Lambda-terms: a text in each calculus (the first byte its index in
+# Calculus::ALL: 0 linear, 1 affine, 2 simple), the documents `term
+# check` writes, and types for lambda_inhabit (the first byte the depth in
+# its low three bits, the terms listed above them).
+for t in '\x:a. x' '\f:a -> b. \x:a. f x' 'x : a, f : a -o b |- f x' \
+  '\p:a * b. let p be x * y in y * x' '\x:a & b. <snd(x), fst(x)>' '\x:!a. promote x for y in derelict(y)'; do
+  i=$((i + 1))
+  for b in 0 1 2; do
+    {
+      printf '%b' "\\00$b"
+      printf '%s' "$t"
+    } | seed lambda_text "small-$i-$b"
+  done
+  {
+    printf '%b' '\002'
+    "$deduxit" term check --format json --calculus linear "$t" || true
+  } |
+    seed lambda_text "json-$i"
+done
+for t in 'a -> a -> a' '(a -> a) -> a -> a' 'a /\ b -> b /\ a' '(a -> b) -> (b -> c) -> a -> c' \
+  'a, a |- a' '(a <-> b) -> b -> a' '((a -> b) -> a) -> a' 'a \/ b -> b \/ a'; do
+  i=$((i + 1))
+  {
+    printf '%b' '\103'
+    printf '%s' "$t"
+  } | seed lambda_inhabit "small-$i"
 done
 # The modal documents the wire level's test keeps: a sequent and an
 # outcome of each verdict.

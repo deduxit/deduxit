@@ -26,7 +26,8 @@ stall=${STALL:-900}
 cap=${CAP:-5400}
 targets=(json_proof json_session json_structure json_sequent json_disproof
   sequent_text ordinary_text tptp lltp spec session_steps proof_views
-  ordinary_decide rule_file json_derivation modal_text json_modal modal_decide)
+  ordinary_decide rule_file json_derivation modal_text json_modal modal_decide
+  lambda_text lambda_inhabit)
 bin=fuzz/target/x86_64-unknown-linux-gnu/release
 out=target/fuzz
 

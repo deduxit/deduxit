@@ -101,6 +101,16 @@ browser or a stranger's file would.
   checked in the built-in calculus it names under small bounds, its
   root printed), seeded with the built-in rule files and
   `core/tests/wire/level-15.txt`.
+- Lambda-terms have two: `lambda_text` (the first byte the calculus,
+  the rest a term's text and a term's JSON document: whatever reads and
+  checks prints with its types as a text that reads back, checks and
+  prints the same, and a document writes back to the same bytes) and
+  `lambda_inhabit` (the first byte the enumeration's depth, low three
+  bits, and its list's length, the rest an ordinary sequent: `inhabit`
+  and `enumerate` under small bounds, no error of kind `defect`, every
+  term found checks, an exact count lists all its terms up to the
+  length asked for), seeded with texts of each calculus, `term check`'s
+  JSON and a few types.
 - Three targets drive what a reader hands on, past the readers: a
   session step by step (`session_steps`: the mode, the sequent, then
   steps of three bytes that apply a rule, undo or close a goal; a refused

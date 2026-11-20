@@ -152,3 +152,17 @@ path = "fuzz_targets/modal_decide.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "lambda_text"
+path = "fuzz_targets/lambda_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lambda_inhabit"
+path = "fuzz_targets/lambda_inhabit.rs"
+test = false
+doc = false
+bench = false
