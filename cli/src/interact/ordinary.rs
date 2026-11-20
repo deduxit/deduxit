@@ -9,8 +9,8 @@
 //! refusals name it.
 
 use super::{
-    Commands, Saved, load, no_standard_input, proof_target, proof_written, run, show_target,
-    so_far, written,
+    Commands, Input, Ran, Saved, load, no_standard_input, proof_target, proof_written, run,
+    show_target, so_far, written,
 };
 use crate::argument_parsing::{Format, InteractArgs};
 use crate::io::{Most, refused};
@@ -18,7 +18,7 @@ use crate::limit::{Deadline, Notice};
 use crate::prove::{Ended, NOTICE_AFTER, notice_line, on_large_stack, stopped};
 use crate::settings::Threads;
 use crate::show::{Show, Shown, bytes_text};
-use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io, style};
+use crate::{catch_interrupt, clear_interrupt, interrupted, io, style};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Styles, latex, svg, typst};
 use deduxit::linear::search::Options;
@@ -63,8 +63,9 @@ quit                end the session";
 
 /// Runs `interact` on a sequent of an ordinary logic (`--logic`), or on
 /// the session of LK or LJ that `saved` holds: starts the session, then
-/// reads commands from standard input until `quit` or the end of input,
-/// on a thread whose stack fits the search's recursion limit.
+/// runs the commands of `input` until `quit` or their end, on a thread
+/// whose stack fits the search's recursion limit, and returns how it
+/// ended.
 ///
 /// # Errors
 ///
@@ -76,7 +77,8 @@ pub(super) fn interact(
     args: &InteractArgs,
     settings: Settings,
     saved: Option<Interactive>,
-) -> Result<Status> {
+    input: Input,
+) -> Result<Ran> {
     let mode = &args.mode;
     if mode.intuitionistic || mode.affine || mode.mix {
         bail!("the logic's translation decides the mode: leave out -i, -a and --mix");
@@ -126,7 +128,11 @@ pub(super) fn interact(
         } else {
             None
         };
-        run(&mut session, first.map(|taken| format!("applied {taken}")))
+        run(
+            &mut session,
+            first.map(|taken| format!("applied {taken}")),
+            input,
+        )
     })?
 }
 

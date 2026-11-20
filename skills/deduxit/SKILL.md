@@ -11,7 +11,7 @@ compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit
 
 `deduxit COMMAND --help` documents every flag, and [reference.md](reference.md) everything, with examples.
 
-**Commands.** `deduxit prove SEQUENT` decides a sequent and prints a proof; `deduxit check FILE` checks a proof that `prove --format json` wrote; `deduxit eliminate FILE` eliminates its cuts step by step; `deduxit interact SEQUENT` applies proof steps read from standard input; `deduxit seq print|json|fragment SEQUENT` prints the sequent, writes its JSON or names its fragment (MLL, MALL, MELL, LL, …); `deduxit workspace` keeps a sequent and what is made of it.
+**Commands.** `deduxit prove SEQUENT` decides a sequent and prints a proof; `deduxit check FILE` checks a proof that `prove --format json` wrote; `deduxit eliminate FILE` eliminates its cuts step by step; `deduxit interact SEQUENT` applies proof steps read from standard input; `deduxit seq print|json|fragment SEQUENT` prints the sequent, writes its JSON or names its fragment (MLL, MALL, MELL, LL, …); `deduxit workspace` keeps a sequent and what is made of it; `deduxit grade SEQUENT` grades an answer to it from standard input (a session script, `prove`'s JSON, a countermodel or a tableau), exit 0 correct, 1 incorrect.
 
 **Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). After a common mistake the command's tips say what to write (reference.md, section 19). Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
 
@@ -85,7 +85,7 @@ valid proof (classical)
   ⊢ ~A, ~B, A ⊗ B
 ```
 
-**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::linear::Sequent>()`, `deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns. `Options::default()` bounds the copies at 3; the command's own stop is `settings.stop(|| start.elapsed())` (reference.md, section 16).
+**The library** is the Rust crate `deduxit`: `deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())` returns an `Outcome` (reference.md, section 16).
 
 ## Docs
 

@@ -8,6 +8,7 @@
 - [Decide a sequent](commands.md)
 - [Avoid the common mistakes](mistakes.md)
 - [Check a proof or a refutation](check.md)
+- [Grade an answer](grading.md)
 - [Check a derivation in your own rules](rules.md)
 - [Check a proof in natural deduction](natural-deduction.md)
 - [Write rules as hypotheses](theories.md)

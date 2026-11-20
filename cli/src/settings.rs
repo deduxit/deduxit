@@ -6,8 +6,8 @@
 //! the flags given on the command line, each the spelling of one key.
 
 use crate::argument_parsing::{
-    CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, RunArgs,
-    SearchArgs, TransformArgs, WorkspaceArgs,
+    CheckArgs, CoresArg, EliminateArgs, GradeArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs,
+    RunArgs, SearchArgs, TransformArgs, WorkspaceArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -394,6 +394,38 @@ impl TransformArgs {
     }
 }
 
+impl GradeArgs {
+    /// Returns the settings `grade` runs under: the bounds of the check
+    /// and of the sequent.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = read(self.settings.as_deref())?;
+        let apply = Apply {
+            file: self.settings.is_some(),
+            given,
+        };
+        if apply.set("memory_limit") {
+            settings.limits.memory_bytes = self.memory_limit.0;
+        }
+        if apply.set("timeout") {
+            settings.clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        if apply.set("work_limit") {
+            settings.limits.work = self.work_limit.0;
+        }
+        if apply.set("occurrence_limit") {
+            settings.limits.occurrences = self.input.occurrence_limit.0;
+        }
+        if apply.set("term_limit") {
+            settings.limits.terms = self.input.term_limit.0;
+        }
+        Ok(settings)
+    }
+}
+
 impl WorkspaceArgs {
     /// Returns the settings a workspace's command runs under: the limits a
     /// node it makes or changes keeps, and the time limit of its runs.
@@ -647,6 +679,7 @@ mod tests {
             Command::Prove(args) => args.settings(&given).unwrap(),
             Command::Interact(args) => args.settings(&given).unwrap(),
             Command::Check(args) => args.settings(&given).unwrap(),
+            Command::Grade(args) => args.settings(&given).unwrap(),
             Command::Eliminate(args) => args.settings(&given).unwrap(),
             Command::Seq {
                 command:
@@ -781,6 +814,7 @@ mod tests {
             (&["seq", "print"], "A |- A", PRINT.to_owned()),
             (&["seq", "translate"], "a", TRANSFORM.to_owned()),
             (&["interpolate"], "a |- a", TRANSFORM.to_owned()),
+            (&["grade"], "a |- a", TRANSFORM.to_owned()),
         ] {
             let cases: Vec<(Vec<&str>, &str, Value, Value)> = table
                 .lines()
@@ -888,6 +922,7 @@ mod tests {
             &["deduxit", "prove", "A |- A"][..],
             &["deduxit", "interact", "A |- A"],
             &["deduxit", "check", "proof.json"],
+            &["deduxit", "grade", "A |- A"],
             &["deduxit", "eliminate", "proof.json"],
             &["deduxit", "seq", "print", "A |- A"],
             &["deduxit", "seq", "translate", "a"],
@@ -908,6 +943,7 @@ mod tests {
                 Command::Prove(args) => drop(args.settings(&given).unwrap()),
                 Command::Interact(args) => drop(args.settings(&given).unwrap()),
                 Command::Check(args) => drop(args.settings(&given).unwrap()),
+                Command::Grade(args) => drop(args.settings(&given).unwrap()),
                 Command::Eliminate(args) => drop(args.settings(&given).unwrap()),
                 Command::Interpolate(args) => drop(args.common.settings(&given).unwrap()),
                 Command::Seq {

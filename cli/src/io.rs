@@ -463,6 +463,17 @@ impl SequentInput {
         Ok((text, format))
     }
 
+    /// Reads the one input as text from the argument, the file or
+    /// standard input, a `.p` file being a TPTP problem when `ordinary` is
+    /// set.
+    ///
+    /// # Errors
+    ///
+    /// An input that cannot be read, or a format of many sequents.
+    pub(crate) fn text_of(&self, ordinary: bool, memory: Option<u64>) -> Result<String> {
+        Ok(self.text(ordinary, memory)?.0)
+    }
+
     /// Reads the one sequent from the argument, the file or standard
     /// input, in the format the flag or the file's extension names, within
     /// `limits.occurrences` and a text within `limits.memory_bytes`.
@@ -644,6 +655,64 @@ pub(crate) fn write(path: Option<&Path>, text: &str) -> Result<()> {
     let mut out = Output::open(path, false)?;
     out.stream().write_all(text.as_bytes())?;
     out.finish()
+}
+
+/// The bytes an output kept in memory holds, shared between the output
+/// that writes them (on another thread, perhaps) and the caller that
+/// reads them once it is finished.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Held(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl Held {
+    /// Returns what was written, as text.
+    pub(crate) fn text(&self) -> String {
+        let bytes = self.0.lock().map(|bytes| bytes.clone()).unwrap_or_default();
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+}
+
+impl Write for Held {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0
+            .lock()
+            .map_err(|_| io::Error::other("the held output's lock was poisoned"))?
+            .extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Where an output goes: a file or standard output (`None`), or memory.
+/// It is opened where it is written, since an [`Output`] stays on its
+/// thread.
+#[derive(Clone, Debug)]
+pub(crate) enum Sink {
+    /// The file at the path, or standard output.
+    Path(Option<PathBuf>),
+    /// Memory, which the caller reads.
+    Held(Held),
+}
+
+impl Sink {
+    /// Opens the output; a binary one ends without a newline.
+    ///
+    /// # Errors
+    ///
+    /// A file that cannot be made beside the path.
+    pub(crate) fn open(&self, binary: bool) -> Result<Output> {
+        match self {
+            Self::Path(path) => Output::open(path.as_deref(), binary),
+            Self::Held(held) => Ok(Output {
+                sink: Some(io::BufWriter::new(Box::new(held.clone()))),
+                rename: None,
+                error: None,
+                binary,
+            }),
+        }
+    }
 }
 
 /// Where a command's output goes while it is written: standard output, or

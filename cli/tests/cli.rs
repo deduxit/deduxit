@@ -49,6 +49,95 @@ fn deduxit_as_is(args: &[&str], stdin: &str) -> (i32, String, String) {
     )
 }
 
+/// `grade` reads an answer's kind from its shape and checks it against
+/// the problem: a script must finish the proof by its own steps, a proof
+/// or a refutation must be of the problem's sequent, a countermodel must
+/// refute it, and an answer that does not read is incorrect, never an
+/// error; the problem's own faults are errors.
+#[test]
+fn grade_reads_each_kind_of_answer() {
+    let grade = |args: &[&str], answer: &str| {
+        let mut line = vec!["grade"];
+        line.extend_from_slice(args);
+        let (status, out, err) = deduxit(&line, answer);
+        assert_eq!(err, "", "{args:?}");
+        (status, out)
+    };
+    let script = "# the split\napply 0 2 * 0\n```\napply 1 1 ax\napply 2 1 ax\nproof\n";
+    assert_eq!(
+        grade(&["A, B |- A * B"], script),
+        (
+            0,
+            "correct: the script's 3 commands finish the proof, which checks\n".to_owned()
+        )
+    );
+    assert_eq!(
+        grade(&["A, B |- A * B"], "apply 0 2 * 0\nclose\n"),
+        (
+            1,
+            "incorrect: the script's 1 command leaves the proof unfinished; the first that \
+             failed: `close` is not part of an answer: every step must be the answer's own, \
+             and an answer reads and writes no file (line 2)\n"
+                .to_owned()
+        )
+    );
+    let (_, proof, _) = deduxit(&["prove", "--format", "json", "A * B |- B * A"], "");
+    assert_eq!(
+        grade(&["A * B |- B * A"], &proof),
+        (
+            0,
+            "correct: valid proof of ⊢ ~A ⅋ ~B, B ⊗ A (classical)\n".to_owned()
+        )
+    );
+    assert_eq!(grade(&["-i", "A * B |- B * A"], &proof).0, 1);
+    assert_eq!(grade(&["A |- A"], &proof).0, 1);
+    let (_, refuted, _) = deduxit(&["prove", "--format", "json", "A |- B"], "");
+    assert_eq!(grade(&["A |- B"], &refuted).0, 0);
+    let logic = ["--logic", "intuitionistic"];
+    let (_, outcome, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "json",
+            "~~a -> a",
+        ],
+        "",
+    );
+    let outcome: serde_json::Value = serde_json::from_str(&outcome).unwrap();
+    let model = outcome["countermodel"]["model"].to_string();
+    assert_eq!(grade(&[&logic[..], &["~~a -> a"]].concat(), &model).0, 0);
+    let (status, out) = grade(&[&logic[..], &["a -> a"]].concat(), &model);
+    assert_eq!(status, 1);
+    assert!(
+        out.starts_with("incorrect: the model does not refute the sequent"),
+        "{out}"
+    );
+    let tableau = "1 T p\n2 F q\nopen\n";
+    assert_eq!(grade(&["--logic", "classical", "p |- q"], tableau).0, 0);
+    assert_eq!(
+        grade(
+            &logic.iter().copied().chain(["p |- q"]).collect::<Vec<_>>(),
+            tableau
+        )
+        .0,
+        1
+    );
+    assert_eq!(
+        grade(&["--format", "json", "A |- A"], "{\"x\": 1}"),
+        (
+            1,
+            "{\"version\":1,\"verdict\":\"incorrect\",\"answer\":\"none\",\"message\":\"the \
+             answer does not read: not a proof of deduxit's wire form: missing field `sequent` \
+             at line 1 column 8\"}\n"
+                .to_owned()
+        )
+    );
+    let (status, _, err) = deduxit(&["grade", "A |-- A"], "apply 0 1 ax\n");
+    assert_eq!(status, 2, "{err}");
+}
+
 /// A parse error shows the line it is in with a caret under the character
 /// that cannot go on a sequent. Of a long line it shows the part around
 /// that character, cut between characters, and says which character it

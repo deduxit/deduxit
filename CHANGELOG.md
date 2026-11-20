@@ -10,6 +10,17 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### Added
+
+- `deduxit grade SEQUENT` grades an answer to a problem, read from
+  standard input or `--answer FILE`, by its shape: a session script that
+  must finish the proof by its own steps, a proof or an outcome as
+  `prove --format json` writes it, a Kripke model that refutes the
+  sequent, a signed tableau, or a derivation in a calculus given as
+  data. The answer must be about the problem's sequent, in its logic.
+  The exit status is 0 for correct, 1 for incorrect, 3 for unknown;
+  `--format json` writes the verdict as one object.
+
 ## [0.6.0] - 2026-11-20
 
 Modal logic, and tools for teachers. deduxit decides a sequent of

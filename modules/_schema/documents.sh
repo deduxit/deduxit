@@ -176,6 +176,12 @@ printf '1 T a -> b\n2 F b -> a\n3 T b 2\n4 F a 2\n- 5 F a 1\n  open\n- 6 T b 1\n
 run tableau_review-open 0 "$deduxit" check "${t[@]}" --tableau --format json open.txt
 printf '1 T p /\\ q\n2 F p\n3 T r 1\n' >wrong.txt
 run tableau_review-wrong 1 "$deduxit" check "${t[@]}" --tableau --format json wrong.txt
+# An answer graded: a script that finishes the proof, and one with a step
+# that fails.
+printf 'apply 0 2 * 0\napply 1 1 ax\napply 2 1 ax\n' >script.txt
+run graded-correct 0 "$deduxit" grade "${t[@]}" --format json --answer script.txt 'A, B |- A * B'
+printf 'apply 0 0 par\n' >failing.txt
+run graded-incorrect 1 "$deduxit" grade "${t[@]}" --format json --answer failing.txt 'A, B |- A * B'
 
 # Calculi given as data: derivations, sessions and their check.
 keep rules_session-backward 0 session.json "$deduxit" interact --calculus LK "a /\ b |- b /\ a" <<<$'apply 0 ∧R 1\napply 1 ∧L₂ 0\nsave session.json\napply 2 ∧L₁ 0\napply 3 ax\napply 4 ax\nproof swap.json'

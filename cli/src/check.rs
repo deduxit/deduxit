@@ -163,7 +163,13 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         Document::Ordinary(outcome) => {
             return check_ordinary(
-                *outcome, &args.mode, &settings, show, quiet, &deadline, path,
+                *outcome,
+                &args.mode,
+                &settings,
+                show,
+                quiet,
+                &deadline,
+                io::Sink::Path(path),
             );
         }
         Document::Derivation(d) => {
@@ -257,7 +263,7 @@ pub(crate) fn proof_mode(proof: &Proof, flags: &ModeArgs) -> Result<Mode> {
 
 /// What `check` reads: a proof, or a disproof, which an unprovable
 /// outcome holds too, or an outcome or a derivation of ordinary logic.
-enum Document {
+pub(crate) enum Document {
     /// A proof.
     Proof(Box<Proof>),
     /// A disproof.
@@ -284,7 +290,7 @@ enum Document {
 /// # Errors
 ///
 /// A document that is neither, or past the limit.
-fn read_document(text: &str, limits: &Limits) -> Result<Document> {
+pub(crate) fn read_document(text: &str, limits: &Limits) -> Result<Document> {
     /// The keys that tell the documents apart; serde skips the rest
     /// without holding it.
     #[derive(serde::Deserialize)]
@@ -398,7 +404,7 @@ fn limit_advice(error: Error) -> std::result::Result<anyhow::Error, Error> {
 /// invalid 1, unknown 3 for a refutation that rests on the search, the
 /// time limit or a limit of the sequent) and whether the output is to be
 /// finished.
-fn check_disproof(
+pub(crate) fn check_disproof(
     disproof: Disproof,
     show: &Show,
     deadline: &Deadline,
@@ -484,14 +490,14 @@ fn check_disproof(
 /// # Errors
 ///
 /// A mode flag beside it; an output that cannot be made.
-fn check_ordinary(
+pub(crate) fn check_ordinary(
     outcome: ordinary::Outcome,
     flags: &ModeArgs,
     settings: &deduxit::Settings,
     show: Show,
     quiet: bool,
     deadline: &Deadline,
-    path: Option<std::path::PathBuf>,
+    sink: io::Sink,
 ) -> Result<Status> {
     if flags.given() {
         bail!(
@@ -506,7 +512,7 @@ fn check_ordinary(
             ordinary::Search::Embedding { linear, .. } => Some(&**linear),
             _ => None,
         };
-        let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+        let mut out = sink.open(show.format.is_binary())?;
         let (status, keep) = match (&outcome.verdict, image) {
             (ordinary::Verdict::Valid(ordinary::Evidence::Derivation(d)), image) => {
                 let proof = image.and_then(|linear| match &linear.verdict {
@@ -661,7 +667,7 @@ fn unchecked_into(
 /// # Errors
 ///
 /// An output that cannot be written.
-fn check_derivation(
+pub(crate) fn check_derivation(
     d: &ordinary::Derivation,
     proof: Option<(&Proof, Mode)>,
     show: &Show,
@@ -869,7 +875,7 @@ fn check_countermodel(
 ///
 /// A sequent that cannot be read, a model that is not one of the logic, a
 /// world the model does not have, an output that cannot be written.
-fn check_model(
+pub(crate) fn check_model(
     model: &deduxit::kripke::Model,
     (text, logic): (&str, ordinary::Logic),
     world: Option<u32>,
@@ -1116,7 +1122,7 @@ pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
 /// finished ([`Show::close`]); the time limit and a closed standard
 /// output stop the check and the derivation after it (Ctrl-C ends the
 /// command: `check` installs `exit_on_interrupt`).
-fn check_into(
+pub(crate) fn check_into(
     proof: &Proof,
     mode: Mode,
     show: &Show,

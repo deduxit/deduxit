@@ -37,16 +37,44 @@ pub(crate) fn check(
     }
     let limits = settings.limits;
     let text = io::read(args.source().as_deref(), "tableau", limits.memory_bytes)?;
+    let mut out = io::Output::open(args.output.output.as_deref(), false)?;
+    let (status, keep) = review(
+        &text,
+        args.sequent.as_deref(),
+        (settings, show),
+        deadline,
+        &mut out,
+    )?;
+    if keep {
+        out.finish()?;
+    }
+    Ok(status)
+}
+
+/// Reviews a tableau's text against the built-in rule file of the
+/// tableau and, where `expected` is given, against that sequent, and
+/// writes what the review found or its JSON into `out`. Returns the
+/// status, as [`check`] says, and whether the output is to be finished.
+///
+/// # Errors
+///
+/// A text that is no tableau, and a sequent that cannot be read.
+pub(crate) fn review(
+    text: &str,
+    expected: Option<&str>,
+    (settings, show): (&deduxit::Settings, &Show),
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let limits = settings.limits;
     if text.trim().is_empty() {
         bail!("the tableau is empty: write its first lines, the sequent's formulas signed T and F");
     }
-    let tableau = WrittenTableau::parse_within(&text, &limits).map_err(|error| match error {
-        Error::Parse(_) => crate::parse_error_in(&text, error, "the tableau"),
+    let tableau = WrittenTableau::parse_within(text, &limits).map_err(|error| match error {
+        Error::Parse(_) => crate::parse_error_in(text, error, "the tableau"),
         error => error.into(),
     })?;
-    let expected = args
-        .sequent
-        .as_deref()
+    let expected = expected
         .map(|given| {
             ordinary::Sequent::parse_within(given, &limits).map_err(|error| match error {
                 Error::Parse(_) => crate::parse_error(given, error),
@@ -56,7 +84,6 @@ pub(crate) fn check(
         .transpose()?;
     let calculus = crate::calculus::named("tableau".as_ref(), &limits)?;
     let over = || interrupted() || deadline.passed() || io::closed();
-    let mut out = io::Output::open(args.output.output.as_deref(), false)?;
     let review = match tableau.review(&calculus, expected.as_ref(), &limits, |_| over()) {
         Ok(review) => review,
         Err(error) if error.is_refusal() => {
@@ -66,13 +93,11 @@ pub(crate) fn check(
             );
             if show.format == Format::Json {
                 eprintln!("{line}");
-            } else {
-                show.open(&mut out, Some(&line))?;
-                if show.close(&mut out, Shown::Nothing, Some(&line))? {
-                    out.finish()?;
-                }
+                return Ok((Status::Unknown, false));
             }
-            return Ok(Status::Unknown);
+            show.open(out, Some(&line))?;
+            let keep = show.close(out, Shown::Nothing, Some(&line))?;
+            return Ok((Status::Unknown, keep));
         }
         Err(error) => return Err(error.into()),
     };
@@ -82,8 +107,7 @@ pub(crate) fn check(
     };
     if show.format == Format::Json {
         serde_json::to_writer(out.stream(), &review)?;
-        out.finish()?;
-        return Ok(status);
+        return Ok((status, true));
     }
     let mut line = format!(
         "{} tableau of {}: {}",
@@ -101,11 +125,9 @@ pub(crate) fn check(
         }
         _ => {}
     }
-    show.open(&mut out, Some(&line))?;
-    if show.close(&mut out, Shown::Nothing, Some(&line))? {
-        out.finish()?;
-    }
-    Ok(status)
+    show.open(out, Some(&line))?;
+    let keep = show.close(out, Shown::Nothing, Some(&line))?;
+    Ok((status, keep))
 }
 
 /// Returns a refusal's message with the flag that raises its bound.

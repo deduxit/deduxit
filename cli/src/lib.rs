@@ -16,6 +16,8 @@ mod calculus;
 mod check;
 /// The `eliminate` command.
 mod eliminate;
+/// `grade`: an answer to a problem, checked by its kind.
+mod grade;
 /// Hints on the errors a newcomer meets first, each saying what to write.
 mod hint;
 /// The `interact` command.
@@ -305,6 +307,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
     match &cli.command {
         Command::Prove(args) => prove::prove(args, given),
         Command::Check(args) => check::check(args, given),
+        Command::Grade(args) => grade::grade(args, given),
         Command::Eliminate(args) => eliminate::eliminate(args, given),
         Command::Interact(args) => interact::interact(args, given),
         Command::Interpolate(args) => transform::interpolate(args, given),

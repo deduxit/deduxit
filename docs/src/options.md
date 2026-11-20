@@ -9,13 +9,13 @@ names the key in parentheses, such as `(search.copies)`
 
 ## Exit statuses
 
-| status | `prove` | `check` | `interact` |
-|---|---|---|---|
-| 0 | provable (valid under `--logic`) | valid | the session ends with a finished proof that checks |
-| 1 | unprovable (not valid) | invalid | the session ends otherwise |
-| 2 | an error | an error | an error |
-| 3 | unknown | unknown: a limit stopped the check, or a refutation has no check | |
-| 130 | a second Ctrl-C | | |
+| status | `prove` | `check` | `interact` | `grade` |
+|---|---|---|---|---|
+| 0 | provable (valid under `--logic`) | valid | the session ends with a finished proof that checks | correct |
+| 1 | unprovable (not valid) | invalid | the session ends otherwise | incorrect, or an answer that does not read |
+| 2 | an error | an error | an error | an error in the problem or the flags |
+| 3 | unknown | unknown: a limit stopped the check, or a refutation has no check | | unknown: a limit stopped the check |
+| 130 | a second Ctrl-C | | | |
 
 The first Ctrl-C stops the search, and the verdict is unknown. A
 reader that closes the pipe early, as `deduxit prove … | head -1` does,

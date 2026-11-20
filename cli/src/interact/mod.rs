@@ -72,6 +72,48 @@ quit                end the session";
 /// the session goes on.
 pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
     let settings = args.settings(given)?;
+    let ran = session(args, settings, Input::Stdin)?;
+    Ok(if ran.finished {
+        Status::Yes
+    } else {
+        Status::No
+    })
+}
+
+/// Where a session's commands come from.
+pub(crate) enum Input {
+    /// Standard input, each command's output printed.
+    Stdin,
+    /// The lines of an answer to grade: their output is dropped, and the
+    /// commands that search or read or write a file are refused, so that
+    /// every step is the answer's own.
+    Script(String),
+}
+
+/// How a session ended.
+#[derive(Debug, Default)]
+pub(crate) struct Ran {
+    /// Whether the proof is finished and checks.
+    pub(crate) finished: bool,
+    /// The commands run.
+    pub(crate) commands: usize,
+    /// The first command of a script that failed or was refused: its line,
+    /// from 1, and why.
+    pub(crate) failed: Option<(usize, String)>,
+}
+
+/// Starts or resumes the session `args` describe under `settings` and
+/// runs the commands of `input` on it, on a thread whose stack fits the
+/// recursion limit.
+///
+/// # Errors
+///
+/// As [`interact`].
+pub(crate) fn session(
+    args: &InteractArgs,
+    settings: deduxit::Settings,
+    input: Input,
+) -> Result<Ran> {
     let saved = match &args.state {
         Some(path) => Some(load(path, &settings.limits)?),
         None => None,
@@ -79,15 +121,17 @@ pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
     // `--state` conflicts with `--logic`, so a session is saved or has a
     // logic, never both.
     if args.logic.logic.is_some() {
-        return ordinary::interact(args, settings, None);
+        return ordinary::interact(args, settings, None, input);
     }
     if args.calculus.is_some() && saved.is_none() {
-        return rules::interact(args, settings, None);
+        return rules::interact(args, settings, None, input);
     }
     let state = match saved {
         Some(Saved::Linear(state)) => *state,
-        Some(Saved::Ordinary(state)) => return ordinary::interact(args, settings, Some(*state)),
-        Some(Saved::Rules(state)) => return rules::interact(args, settings, Some(*state)),
+        Some(Saved::Ordinary(state)) => {
+            return ordinary::interact(args, settings, Some(*state), input);
+        }
+        Some(Saved::Rules(state)) => return rules::interact(args, settings, Some(*state), input),
         None => {
             no_standard_input(args)?;
             let sequent =
@@ -127,7 +171,11 @@ pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
         } else {
             None
         };
-        run(&mut session, first.map(|taken| format!("applied {taken}")))
+        run(
+            &mut session,
+            first.map(|taken| format!("applied {taken}")),
+            input,
+        )
     })?
 }
 
@@ -140,10 +188,21 @@ trait Commands {
     fn finished(&self) -> bool;
 }
 
-/// Prints `first` if given, then reads and runs commands until `quit` or
-/// the end of input, and returns whether the proof was finished and
-/// checks.
-fn run(session: &mut impl Commands, first: Option<String>) -> Result<Status> {
+/// Runs the commands of `input` until `quit` or their end, and returns
+/// how the session ended. From standard input it prints `first`, if
+/// given, and each command's output; a script's output is dropped.
+fn run(session: &mut impl Commands, first: Option<String>, input: Input) -> Result<Ran> {
+    let mut ran = match input {
+        Input::Stdin => from_stdin(session, first)?,
+        Input::Script(text) => script(session, &text),
+    };
+    ran.finished = session.finished();
+    Ok(ran)
+}
+
+/// Prints `first` if given, then reads and runs commands from standard
+/// input until `quit` or the end of input.
+fn from_stdin(session: &mut impl Commands, first: Option<String>) -> Result<Ran> {
     let stdin = std::io::stdin();
     let prompt = stdin.is_terminal();
     let mut stdout = io::Stdout::lock();
@@ -151,6 +210,7 @@ fn run(session: &mut impl Commands, first: Option<String>) -> Result<Status> {
         writeln!(stdout, "{first}")?;
     }
     let mut input = stdin.lock();
+    let mut ran = Ran::default();
     // A reader that closed the pipe ends the session as the end of its
     // input does.
     while !io::closed() {
@@ -165,6 +225,7 @@ fn run(session: &mut impl Commands, first: Option<String>) -> Result<Status> {
             Ok(words) if words.first().is_some_and(|w| w == "quit") => break,
             Ok(words) => {
                 let words: Vec<&str> = words.iter().map(String::as_str).collect();
+                ran.commands += 1;
                 session
                     .command(&words)
                     .unwrap_or_else(|e| format!("error: {e:#}"))
@@ -175,11 +236,55 @@ fn run(session: &mut impl Commands, first: Option<String>) -> Result<Status> {
             writeln!(stdout, "{text}")?;
         }
     }
-    Ok(if session.finished() {
-        Status::Yes
-    } else {
-        Status::No
-    })
+    Ok(ran)
+}
+
+/// The commands of a script that only show the session: an answer may
+/// hold them, and they are passed over.
+const SHOWING: [&str; 6] = ["help", "goals", "rules", "show", "proof", "lambda"];
+
+/// The commands a script may not hold: a search, and files.
+const BARRED: [&str; 3] = ["close", "save", "load"];
+
+/// Runs a script's lines, an answer to grade, until `quit` or their end:
+/// blank lines, `#` comments and the fences of a Markdown code block are
+/// passed over, and so are the commands that only show the session.
+/// Records the first command that fails or is barred, and goes on.
+fn script(session: &mut impl Commands, text: &str) -> Ran {
+    let mut ran = Ran::default();
+    for (index, line) in text.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("```") {
+            continue;
+        }
+        let failed = match words(line) {
+            Ok(words) if words.first().is_some_and(|w| w == "quit") => break,
+            Ok(words) => {
+                let words: Vec<&str> = words.iter().map(String::as_str).collect();
+                let command = words.first().copied().unwrap_or_default();
+                if SHOWING.contains(&command) {
+                    continue;
+                }
+                if BARRED.contains(&command) {
+                    Some(format!(
+                        "`{command}` is not part of an answer: every step must be the answer's own, \
+                         and an answer reads and writes no file"
+                    ))
+                } else {
+                    ran.commands += 1;
+                    session.command(&words).err().map(|e| format!("{e:#}"))
+                }
+            }
+            Err(e) => Some(format!("{e:#}")),
+        };
+        if let (Some(why), None) = (failed, &ran.failed) {
+            ran.failed = Some((index + 1, why));
+        }
+        if interrupted() {
+            break;
+        }
+    }
+    ran
 }
 
 /// Refuses a session whose sequent would come from standard input, which

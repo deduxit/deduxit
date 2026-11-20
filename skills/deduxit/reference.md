@@ -647,6 +647,42 @@ unknown: the refutation of A & B ⊢ A ⊗ B (classical) is not checked: a refut
 exit 3
 ```
 
+### Grading an answer: `grade`
+
+`deduxit grade SEQUENT` checks an answer to the problem SEQUENT, read
+from `--answer FILE` or standard input. The logic is linear by default,
+or the one `-i` and the other mode flags, `--logic`, `--system` or
+`--calculus` name, as for `prove` and `interact`. The answer's kind is
+read from its shape:
+
+- a JSON document: a proof or an outcome as `prove --format json` or a
+  session's `proof FILE` writes it, a Kripke model that refutes the
+  sequent (`prove`'s `countermodel`, its `model` for modal logic), or a
+  derivation in a calculus given as data;
+- a signed tableau (section 13) for `--logic classical`, its first line
+  starting with a number;
+- otherwise a session script (section 10). It must finish the proof by
+  its own steps: `close`, `save` and `load` are refused, and `goals`,
+  `rules`, `show`, `proof`, `lambda`, `help`, blank lines, `#` comments
+  and a Markdown code block's fences are passed over.
+
+A proof or an outcome must be of the problem's sequent, in its logic.
+The verdict is `correct` (exit 0), `incorrect` (exit 1, also for an
+answer that does not read; for a script, the first line that failed) or
+`unknown` (exit 3, a limit stopped the check). Exit 2 is an error of the
+problem or the flags. `--format json` writes `{"version", "verdict",
+"answer", "message"}`, `answer` the kind read, and `line` for a script.
+
+```console
+$ printf 'apply 0 2 * 0\napply 1 1 ax\napply 2 1 ax\n' | deduxit grade "A, B |- A * B"
+correct: the script's 3 commands finish the proof, which checks
+$ printf 'apply 0 2 * 0\nclose\n' | deduxit grade "A, B |- A * B"; echo "exit $?"
+incorrect: the script's 1 command leaves the proof unfinished; the first that failed: `close` is not part of an answer: every step must be the answer's own, and an answer reads and writes no file (line 2)
+exit 1
+$ deduxit prove --logic intuitionistic --format json "~~a -> a" | deduxit grade --logic intuitionistic "~~a -> a"
+correct: valid refutation of ⊢ ¬¬a → a (intuitionistic logic): a Kripke model of 4 worlds refutes it at world 0
+```
+
 ### First-order proofs
 
 A proof of a first-order sequent (wire level 7) adds the steps

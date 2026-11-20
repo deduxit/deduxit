@@ -3744,6 +3744,49 @@
         }
       ]
     },
+    "graded": {
+      "description": "The verdict of `grade --format json` (level 1, the command's own form, written only): `correct`, `incorrect` or `unknown`; the kind of answer read (`script`, `proof`, `refutation`, `outcome`, `countermodel`, `derivation`, `tableau`, or `none` for one that does not read); why, in a sentence; and for a script, its line, from 1, that failed first.",
+      "type": "object",
+      "required": [
+        "version",
+        "verdict",
+        "answer",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verdict": {
+          "enum": [
+            "correct",
+            "incorrect",
+            "unknown"
+          ]
+        },
+        "answer": {
+          "enum": [
+            "script",
+            "proof",
+            "refutation",
+            "outcome",
+            "countermodel",
+            "derivation",
+            "tableau",
+            "none"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
     "checked": {
       "description": "The verdict of `check --format json` (level 1, the command's own form, written only): `valid`, `invalid` or `unknown`; the mode of a proof of linear logic, the logic of an ordinary derivation, outcome or model, the calculus of a derivation in a calculus given as data, or the system of a modal outcome or model; for an invalid or unknown verdict the library's error and its message with formulas, or why the check was not made; `lambda` under `--lambda`; and where a Kripke model fails a sequent, the world and what it forces of each subformula.",
       "type": "object",

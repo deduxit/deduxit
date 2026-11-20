@@ -4,8 +4,7 @@
 //! `interact --calculus`: a session of step-by-step proving in a calculus
 //! given as data, over `deduxit::rules::Interactive`.
 
-use super::{Commands, Saved, load, run};
-use crate::Status;
+use super::{Commands, Input, Ran, Saved, load, run};
 use crate::argument_parsing::InteractArgs;
 use crate::io;
 use anyhow::{Context, Result, bail};
@@ -50,8 +49,8 @@ struct Session {
 }
 
 /// Runs `interact --calculus` on the sequent and assumptions the
-/// arguments give, or on the session `saved` holds, until `quit` or the
-/// end of standard input.
+/// arguments give, or on the session `saved` holds: runs the commands of
+/// `input` until `quit` or their end, and returns how it ended.
 ///
 /// # Errors
 ///
@@ -61,7 +60,8 @@ pub(super) fn interact(
     args: &InteractArgs,
     settings: Settings,
     saved: Option<Interactive>,
-) -> Result<Status> {
+    input: Input,
+) -> Result<Ran> {
     if args.mode.given() || args.logic.logic.is_some() {
         bail!(
             "a session in a calculus given as data has its calculus's rules: leave out the mode flags and --logic"
@@ -91,7 +91,7 @@ pub(super) fn interact(
         limits,
         rocq: styles.rocq,
     };
-    run(&mut session, None)
+    run(&mut session, None, input)
 }
 
 impl Session {

@@ -163,6 +163,35 @@ pub(crate) enum Command {
     /// formulas.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
     Check(CheckArgs),
+    /// Grade an answer to a problem: whether it proves or refutes the
+    /// sequent given, checked as `check` and `interact` check
+    ///
+    /// The problem is the sequent, in linear logic by default, or in the
+    /// logic --logic, --system or --calculus names. The answer is read from
+    /// --answer or standard input, and its kind from its shape:
+    ///
+    /// - a JSON document: a proof or an outcome as `prove --format json`
+    ///   or a session's `proof FILE` writes it, a Kripke model that refutes
+    ///   the sequent (`prove`'s `countermodel`), or a derivation in a
+    ///   calculus given as data;
+    /// - a signed tableau of classical logic as `check --tableau` reads it,
+    ///   its first line starting with a line number;
+    /// - otherwise, a script of `interact`'s commands, one per line, which
+    ///   must end with the proof finished. `close`, `save` and `load` are
+    ///   refused, since the steps must be the answer's own, and the
+    ///   commands that only show the session are passed over, as are blank
+    ///   lines, `#` comments and a Markdown code block's fences.
+    ///
+    /// A proof or a refutation must be of the problem's sequent, in its
+    /// logic. The verdict is `correct`, `incorrect` (with the first step
+    /// that failed, for a script) or `unknown`. The exit status is 0 for
+    /// correct, 1 for incorrect (an answer that does not read is
+    /// incorrect), 3 for unknown (a limit stopped the check) and 2 for an
+    /// error of the problem or the flags. With `--format json` the verdict
+    /// is `{"version", "verdict", "answer", "message"}`, `answer` the kind
+    /// read, and `line` the script's line that failed first.
+    #[command(after_help = EVERY_OPTION, after_long_help = "")]
+    Grade(GradeArgs),
     /// Eliminate the cuts of a proof read from JSON, step by step
     ///
     /// The proof is first checked in the mode its file states, or the
@@ -507,6 +536,7 @@ impl Command {
                 command: SeqCommand::Fragment { input, .. },
             } => Some((&["seq", "fragment"], input, false)),
             Command::Interpolate(args) => Some((&["interpolate"], &args.common.input, true)),
+            Command::Grade(args) => Some((&["grade"], &args.input, args.logic.is_some())),
             Command::Seq {
                 command: SeqCommand::Translate(args),
             } => Some((&["seq", "translate"], &args.common.input, true)),
@@ -523,6 +553,7 @@ impl Command {
         match self {
             Command::Prove(args) => plain(&args.mode),
             Command::Interact(args) => plain(&args.mode),
+            Command::Grade(args) => plain(&args.mode),
             Command::Seq {
                 command:
                     SeqCommand::Print {
@@ -1230,6 +1261,63 @@ impl CheckArgs {
     pub(crate) fn source(&self) -> Option<PathBuf> {
         self.file.clone().or_else(|| self.proof.clone())
     }
+}
+
+/// The arguments of `grade`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct GradeArgs {
+    /// The problem's sequent.
+    #[command(flatten)]
+    pub(crate) input: SequentInput,
+    /// The answer to grade, a file; standard input when absent
+    #[arg(help_heading = INPUT, long, value_name = "PATH")]
+    pub(crate) answer: Option<PathBuf>,
+    /// The linear logic the problem is in.
+    #[command(flatten)]
+    pub(crate) mode: ModeArgs,
+    /// The problem is a sequent of this ordinary logic
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
+    pub(crate) logic: Option<LogicArg>,
+    /// The problem is a sequent of this modal system: K, D, T, B, S4, S5,
+    /// or K or D followed by axiom letters, such as KB4
+    #[arg(help_heading = LOGIC, long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
+    pub(crate) system: Option<deduxit::modal::System>,
+    /// The problem is a sequent to derive in this calculus given as data: a
+    /// rule file, or one built in (LK, LJ, LM, LL, tableau, NJ, NK, NM, …)
+    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "system", "intuitionistic", "affine", "mix"])]
+    pub(crate) calculus: Option<PathBuf>,
+    /// With --calculus, a sequent the derivation may assume; repeat it for
+    /// more
+    #[arg(help_heading = LOGIC, long, value_name = "SEQUENT", requires = "calculus")]
+    pub(crate) assume: Vec<String>,
+    /// The output format: text, or json for the verdict as one object
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+    pub(crate) format: AnswerFormat,
+    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
+    /// (clock.time_limit_ms)
+    ///
+    /// The check counts against it, from the start of the command. When
+    /// the time runs out, the verdict is unknown (exit status 3).
+    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
+    pub(crate) timeout: Time,
+    /// The most memory the check may hold: a number of bytes with a unit
+    /// such as 512MiB or 4GiB, or `none` for no limit
+    /// (limits.memory_bytes)
+    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
+    pub(crate) memory_limit: Bytes,
+    /// The most units of work the check may do, or `none` (limits.work)
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
+    pub(crate) work_limit: Count<u64>,
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"limits": {"work": 100000}}`. A field
+    /// left out keeps the command's default, and a misspelt one is an
+    /// error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
 }
 
 /// The arguments of `eliminate`.

@@ -346,6 +346,29 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   names the flag), 2 for a text that is no tableau (`parse_error_in`,
   "cannot parse the tableau"). Mode flags, a format other than text or
   JSON, `--logic`, `--system`, `--calculus` and `--world` are refused.
+- `grade.rs`: `grade SEQUENT [--answer FILE]`, one call that checks a
+  model's or a student's answer to a problem and exits 0 correct, 1
+  incorrect, 3 unknown, 2 for the problem's or the flags' faults (an
+  answer that does not read is incorrect, never 2). The problem is
+  linear (mode flags), `--logic`, `--system` or `--calculus`
+  (`--assume`); its sequent is read once as text (`text_of`) and handed
+  on as the argument. The answer's kind is its shape (`graded`): JSON
+  is `check`'s `read_document` (a proof, a disproof, an ordinary or
+  modal outcome, a bare LK/LJ derivation, a Kripke model, a rules
+  derivation), a first line starting with a digit is a tableau
+  (`tableau::review`, classical logic only), anything else a session
+  script. A document must be of the problem's sequent first: linear by
+  `Display` and mode, ordinary by each side's formula texts as a
+  multiset (outside classical logic `Γ ⊢` matches `Γ ⊢ ⊥`), modal by
+  text and system, a rules derivation by its root's text in the
+  calculus and its assumptions among `--assume`'s. Then `check`'s own
+  function runs into a held output (`io::Sink::Held`, `kept`, on the
+  large stack), its first line the message; a model is correct where it
+  refutes (`refuted`: `check_model`'s exit 1). A script runs through
+  `interact::session` with `Input::Script` (`interact`'s defaults built
+  by clap, `session_args`): `close`, `save` and `load` are refused
+  (`BARRED`), the commands that only show are passed over (`SHOWING`),
+  and the first failing line is kept (`Ran::failed`).
 - `interact/rules.rs`: `interact --calculus CALCULUS SEQUENT
   [--assume SEQUENT…]`, a session over `rules::Interactive` (the
   calculus by `calculus::named`, the sequent the argument's text), or
