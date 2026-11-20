@@ -1,0 +1,8 @@
+$ deduxit seq normalize --to dnf '(a \/ b) /\ ~c'
+--- status 0
+--- stdout
+Disjunctive normal form: ⊢ (a ∧ ¬c) ∨ (b ∧ ¬c)
+1. A ∧ (B ∨ C) ≡ (A ∧ B) ∨ (A ∧ C), at (a ∨ b) ∧ ¬c:
+   ⊢ (a ∧ ¬c) ∨ (b ∧ ¬c)
+every formula is equivalent to its normal form: valid, a checked clausal proof
+--- stderr

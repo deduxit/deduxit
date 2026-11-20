@@ -1,0 +1,5 @@
+$ deduxit seq normalize --form-limit 8 'a /\ b \/ c /\ d'
+--- status 2
+--- stdout
+--- stderr
+error: the normal form would grow to 11 occurrences, more than the limit of 8; raise the limit with --form-limit, or take --to tseitin, whose clauses grow with the sequent

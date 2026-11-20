@@ -1,0 +1,11 @@
+$ deduxit seq normalize --to plaisted-greenbaum 'a -> b |- ~(b /\ c)'
+--- status 0
+--- stdout
+Plaisted and Greenbaum's encoding: t1, t3, (¬t1 ∨ ¬a) ∨ b, ¬t2 ∨ b, ¬t2 ∨ c, ¬t3 ∨ t2 ⊢
+1. ¬(b ∧ c) moves left of ⊢ as ¬¬(b ∧ c)
+2. t1 names a → b: (¬t1 ∨ ¬a) ∨ b
+3. t2 names b ∧ c: ¬t2 ∨ b, ¬t2 ∨ c
+4. t3 names ¬¬t2: ¬t3 ∨ t2
+wherever the sequent is false, the clauses hold with the new atoms as defined: valid, a checked clausal proof
+wherever the clauses hold, the sequent is false: valid, a checked clausal proof
+--- stderr

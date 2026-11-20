@@ -373,6 +373,43 @@ const CASES: &[Case] = &[
         &["seq", "translate", "--by", "godel-gentzen", "a |- b"],
     ),
     call("interpolate", &["interpolate", "a /\\ b |- b \\/ c"]),
+    call("normalize", &["seq", "normalize", "~(a -> b /\\ c)"]),
+    call(
+        "normalize-dnf",
+        &["seq", "normalize", "--to", "dnf", "(a \\/ b) /\\ ~c"],
+    ),
+    call(
+        "normalize-plaisted-greenbaum",
+        &[
+            "seq",
+            "normalize",
+            "--to",
+            "plaisted-greenbaum",
+            "a -> b |- ~(b /\\ c)",
+        ],
+    ),
+    call(
+        "normalize-json",
+        &[
+            "seq",
+            "normalize",
+            "--to",
+            "tseitin",
+            "--format",
+            "json",
+            "a |- a",
+        ],
+    ),
+    call(
+        "normalize-limit",
+        &[
+            "seq",
+            "normalize",
+            "--form-limit",
+            "8",
+            "a /\\ b \\/ c /\\ d",
+        ],
+    ),
     // A workspace written by the command, read back.
     call("workspace-show", &["workspace", "show", "workspace.json"]),
     call("workspace-log", &["workspace", "log", "workspace.json"]),

@@ -6,5 +6,10 @@ ordinary.start  ordinary.sequent -> ordinary.session: A proof step by step
 ordinary.translate  ordinary.sequent -> ordinary.sequent: A negative translation
 ordinary.interpolate  ordinary.sequent -> ordinary.interpolant: A Craig interpolant
 ordinary.embed  ordinary.sequent -> linear.sequent: The embedding into linear logic
+ordinary.nnf  ordinary.sequent -> ordinary.sequent: Negation normal form
+ordinary.cnf  ordinary.sequent -> ordinary.sequent: Conjunctive normal form
+ordinary.dnf  ordinary.sequent -> ordinary.sequent: Disjunctive normal form
+ordinary.tseitin  ordinary.sequent -> ordinary.sequent: Tseitin's clauses
+ordinary.plaisted_greenbaum  ordinary.sequent -> ordinary.sequent: Plaisted and Greenbaum's clauses
 ordinary.duplicate  ordinary.sequent -> ordinary.sequent: A copy
 --- stderr

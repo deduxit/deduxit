@@ -13,7 +13,7 @@ Commands:
   eliminate    Eliminate the cuts of a proof read from JSON, step by step
   interact     Prove a sequent step by step, reading commands from standard input
   interpolate  Find a Craig interpolant of a valid sequent of ordinary logic, and check it
-  seq          Print a sequent, convert it to JSON, name its fragment, or translate it from classical logic
+  seq          Print a sequent, convert it to JSON, name its fragment, translate it from classical logic, or rewrite it into a normal form
   workspace    Keep sequents and what is made from them in a workspace file
   help         Print this message or the help of the given subcommand(s)
 
