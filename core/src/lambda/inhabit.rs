@@ -1038,9 +1038,14 @@ impl<'a> Search<'a> {
                 });
             }
             Type::Top => {
-                let unit = self.add(Lnf::Unit)?;
+                // Listed within `max_terms`, as every list is.
+                let terms = if self.options.max_terms > 0 {
+                    vec![self.add(Lnf::Unit)?]
+                } else {
+                    Vec::new()
+                };
                 results.push(Found {
-                    terms: vec![unit],
+                    terms,
                     count: 1,
                     overflow: false,
                 });
@@ -1410,6 +1415,16 @@ mod tests {
             matches!(refused, Err(Error::Refused(crate::Refusal::Memory { .. }))),
             "{refused:?}"
         );
+    }
+
+    #[test]
+    fn no_term_is_listed_when_none_is_asked_for() {
+        let none = InhabitOptions::default().with_max_terms(0);
+        for text in ["|- true", "|- a -> a", "|- a -> a /\\ true"] {
+            let (count, terms) = listed(text, &none);
+            assert_eq!(count, Count::Exactly { count: 1 }, "{text}");
+            assert!(terms.is_empty(), "{text}");
+        }
     }
 
     #[test]
