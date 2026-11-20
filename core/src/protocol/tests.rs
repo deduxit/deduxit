@@ -175,6 +175,44 @@ fn a_normal_form_keeps_its_promise_and_its_check_says_so() {
     ));
 }
 
+/// A resolution decides a sequent's clauses by either method; its check
+/// holds the clauses to the input's and the refutation or model to the
+/// clauses, and fails a refutation changed after it was made.
+#[test]
+fn a_resolution_is_checked() {
+    let classical = crate::ordinary::Logic::Classical;
+    let limits = settings().limits;
+    let valid = ordinary("a -> b, a |- b", classical);
+    for parameters in ["", r#"{"method": "dpll", "form": "tseitin"}"#] {
+        let output = ran("ordinary.resolve", &[&valid], parameters);
+        assert_eq!(
+            summary("ordinary.resolution", &output, &limits).unwrap(),
+            "Unsatisfiable"
+        );
+        let check = checked("ordinary.resolve", &[&valid], parameters, &output);
+        assert_eq!(check.status, Status::Held, "{parameters}");
+        let broken = output.replace(r#""clause":[]"#, r#""clause":[1]"#);
+        assert_ne!(broken, output);
+        let check = checked("ordinary.resolve", &[&valid], parameters, &broken);
+        assert_eq!(check.status, Status::Failed, "{parameters}");
+    }
+    let not_valid = ordinary("a \\/ b |- a", classical);
+    let output = ran("ordinary.resolve", &[&not_valid], "");
+    assert_eq!(
+        summary("ordinary.resolution", &output, &limits).unwrap(),
+        "Satisfiable"
+    );
+    assert_eq!(
+        checked("ordinary.resolve", &[&not_valid], "", &output).status,
+        Status::Held
+    );
+    let other = ran("ordinary.resolve", &[&valid], "");
+    assert_eq!(
+        checked("ordinary.resolve", &[&not_valid], "", &other).status,
+        Status::Failed
+    );
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);

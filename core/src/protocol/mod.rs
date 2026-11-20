@@ -454,6 +454,7 @@ const OPERATIONS: &[&str] = &[
     "ordinary.dnf",
     "ordinary.tseitin",
     "ordinary.plaisted_greenbaum",
+    "ordinary.resolve",
     "ordinary.term",
     #[cfg(feature = "svg")]
     "ordinary.draw",
@@ -493,6 +494,7 @@ const KINDS: &[&str] = &[
     "ordinary.outcome",
     "ordinary.derivation",
     "ordinary.interpolant",
+    "ordinary.resolution",
     "rules.calculus",
     "rules.sequent",
     "rules.session",

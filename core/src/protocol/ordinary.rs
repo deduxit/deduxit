@@ -16,6 +16,7 @@ use super::{
 use crate::ordinary::interpolant::{self, Partition};
 use crate::ordinary::{
     self, Derivation, Interactive, Logic, Method, Outcome, Sequent, Translation, negative, normal,
+    resolution,
 };
 use crate::{Error, ErrorKind, Limits, Progress};
 
@@ -26,7 +27,7 @@ pub(super) static ORDINARY: Ordinary = Ordinary;
 pub(super) struct Ordinary;
 
 /// Its kinds.
-static KINDS: [Kind; 5] = [
+static KINDS: [Kind; 6] = [
     Kind {
         name: "ordinary.sequent",
         role: Role::Statement,
@@ -66,6 +67,14 @@ static KINDS: [Kind; 5] = [
         level: None,
         stored: true,
         label: "A Craig interpolant with its two halves",
+    },
+    Kind {
+        name: "ordinary.resolution",
+        role: Role::Evidence,
+        form: "clause_resolution",
+        level: Some(22),
+        stored: true,
+        label: "The clauses of a sequent's negation decided: a refutation by resolution or a model",
     },
 ];
 
@@ -185,6 +194,47 @@ fn classical(value: &str, limits: &Limits) -> Result<Sequent, Error> {
     }
     Ok(sequent)
 }
+
+/// The parameters of a resolution.
+static RESOLVE_PARAMETERS: [Parameter; 4] = [
+    Parameter {
+        name: "method",
+        values: &["saturation", "dpll"],
+        default: Some("saturation"),
+        description: "How to search: saturation by resolution, or DPLL with its steps",
+    },
+    Parameter {
+        name: "form",
+        values: &["cnf", "tseitin", "plaisted-greenbaum"],
+        default: Some("cnf"),
+        description: "How the sequent's negation becomes clauses",
+    },
+    Parameter {
+        name: "clauses",
+        values: &[],
+        default: Some("2000"),
+        description: "The most clauses saturation keeps, or null",
+    },
+    Parameter {
+        name: "steps",
+        values: &[],
+        default: Some("100000"),
+        description: "The most steps, resolvents made or steps of DPLL, or null",
+    },
+];
+
+/// The settings keys a resolution reads: a normal form's, and the
+/// searches' that check its promise.
+static RESOLVE_READS: [&str; 8] = [
+    "limits.memory_bytes",
+    "limits.occurrences",
+    "limits.terms",
+    "limits.work",
+    "limits.form_occurrences",
+    "limits.derivation_bytes",
+    "limits.recursion_depth",
+    "search",
+];
 
 /// The settings keys a session's derivation reads.
 static FINISH_READS: [&str; 5] = [
@@ -335,6 +385,17 @@ static OPERATIONS: &[Operation] = &[
         &EQUISATISFIABLE,
         "Plaisted and Greenbaum's clauses",
     ),
+    Operation {
+        name: "ordinary.resolve",
+        from: &[&["ordinary.sequent"]],
+        to: "ordinary.resolution",
+        class: Class::Derived,
+        cost: Cost::Search,
+        parameters: &RESOLVE_PARAMETERS,
+        reads: &RESOLVE_READS,
+        promise: &DECIDES,
+        label: "A refutation by resolution",
+    },
     Operation {
         name: "ordinary.term",
         from: &[&["ordinary.session", "ordinary.derivation"]],
@@ -767,6 +828,21 @@ impl Suite for Ordinary {
                 let derivation: Derivation = document(value, limits)?;
                 format!("A derivation of {}", derivation.logic().calculus())
             }
+            "ordinary.resolution" => {
+                let keys: ResolvedKeys = object(value, "clause resolution")?;
+                let refutation = serde_json::json!({
+                    "version": crate::wire::LEVEL,
+                    "atoms": keys.atoms,
+                    "clauses": keys.clauses,
+                    "resolvents": keys.resolvents.unwrap_or_else(|| serde_json::json!([])),
+                });
+                document::<resolution::Refutation>(&refutation.to_string(), limits)?;
+                match keys.verdict.as_str() {
+                    "unsatisfiable" => "Unsatisfiable".to_owned(),
+                    "satisfiable" => "Satisfiable".to_owned(),
+                    _ => "Not decided".to_owned(),
+                }
+            }
             _ => {
                 let read = interpolated(value, limits)?;
                 match read.interpolant {
@@ -886,6 +962,29 @@ impl Suite for Ordinary {
                 let half = written(&half)?;
                 statement(&half, limits)?;
                 half
+            }
+            "ordinary.resolve" => {
+                let sequent = classical(call.input(0), limits)?;
+                let p: Resolve = parameters(call)?;
+                let (clauses, _) =
+                    resolution::clauses_of(&sequent, p.form, &settings.search, limits, &mut *stop)?;
+                let options = p.options();
+                let answer = resolution::decide(&clauses, &options, limits, &mut *stop)?;
+                let limit = match &answer.verdict {
+                    resolution::Verdict::Unknown(bound) => Some(Limit {
+                        reason: match bound {
+                            resolution::Bound::Clauses { .. } => "clause_limit",
+                            resolution::Bound::Steps { .. } => "step_limit",
+                            _ => "stopped",
+                        },
+                        setting: None,
+                    }),
+                    _ => None,
+                };
+                return Ok(Produced {
+                    value: written(&answer)?,
+                    limit,
+                });
             }
             name if form_of(name).is_some() => {
                 let sequent = classical(call.input(0), limits)?;
@@ -1015,6 +1114,9 @@ impl Suite for Ordinary {
         let promise = call.operation.promise;
         let limits = &call.settings.limits;
         match promise.name {
+            "decides" if call.operation.name == "ordinary.resolve" => {
+                resolved(call, output, limits, stop)
+            }
             "decides" => decides(output, limits, stop),
             "proves" => {
                 let derivation: Derivation = document(output, limits)?;
@@ -1163,6 +1265,139 @@ fn normal_check(
         let statement = write_statement(&sequent, Logic::Classical)?;
         let verdict = verdict_of(&ask("ordinary.decide", &[&statement], CLAIMS)?)?;
         parts.push(part(claim.name(), verdict, Verdict::Valid));
+    }
+    Ok(Check::of(promise, parts))
+}
+
+/// The parameters of a resolution.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Resolve {
+    /// The method.
+    #[serde(default)]
+    method: resolution::Method,
+    /// The form that makes the clauses.
+    #[serde(default)]
+    form: normal::Form,
+    /// The bound on clauses, `null` for none.
+    #[serde(default = "clauses_bound", with = "crate::serialize::exact")]
+    clauses: Option<u64>,
+    /// The bound on steps, `null` for none.
+    #[serde(default = "steps_bound", with = "crate::serialize::exact")]
+    steps: Option<u64>,
+}
+
+impl Default for Resolve {
+    /// The defaults of every parameter.
+    fn default() -> Self {
+        Self {
+            method: resolution::Method::default(),
+            form: normal::Form::default(),
+            clauses: clauses_bound(),
+            steps: steps_bound(),
+        }
+    }
+}
+
+/// The default bound on clauses.
+const fn clauses_bound() -> Option<u64> {
+    Some(resolution::Options::DEFAULT_CLAUSES)
+}
+
+/// The default bound on steps.
+const fn steps_bound() -> Option<u64> {
+    Some(resolution::Options::DEFAULT_STEPS)
+}
+
+impl Resolve {
+    /// Returns the search's options.
+    fn options(&self) -> resolution::Options {
+        resolution::Options::default()
+            .with_method(self.method)
+            .with_clauses(self.clauses)
+            .with_steps(self.steps)
+    }
+}
+
+/// The keys of a clause set decided that its check reads.
+#[derive(Deserialize)]
+struct ResolvedKeys {
+    /// `unsatisfiable`, `satisfiable` or `unknown`.
+    verdict: String,
+    /// The atom names.
+    atoms: Vec<String>,
+    /// The clauses, as DIMACS writes them.
+    clauses: Vec<Vec<i64>>,
+    /// The refutation's resolvents.
+    resolvents: Option<serde_json::Value>,
+    /// The atoms a model makes true, counted from 1.
+    true_atoms: Option<Vec<u64>>,
+}
+
+/// Checks a resolution's evidence: its clauses are the input's negation's
+/// by the form named, and its refutation passes the check or its model
+/// satisfies every clause.
+fn resolved(
+    call: &Call<'_>,
+    output: &str,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Check, Error> {
+    let promise = call.operation.promise;
+    let keys: ResolvedKeys = object(output, "clause resolution")?;
+    // The refutation's document, with no resolvent for another verdict:
+    // its reader checks the atoms and clauses.
+    let refutation = serde_json::json!({
+        "version": crate::wire::LEVEL,
+        "atoms": keys.atoms,
+        "clauses": keys.clauses,
+        "resolvents": keys.resolvents.clone().unwrap_or_else(|| serde_json::json!([])),
+    });
+    let refutation: resolution::Refutation = document(&refutation.to_string(), limits)?;
+    let input = classical(call.input(0), limits)?;
+    let p: Resolve = parameters(call)?;
+    let options = normal::Options::default().with_form(p.form);
+    let rewritten = match p.form {
+        normal::Form::Cnf => {
+            let mut formulas = input.formulas().clone();
+            let mut left = input.left().to_vec();
+            for &d in input.right() {
+                left.push(formulas.add(ordinary::Node::Not(d))?);
+            }
+            Sequent::new(formulas, left, Vec::new())?
+        }
+        _ => input,
+    };
+    let made = match normal::rewrite(&rewritten, &options, limits, &mut *stop) {
+        Ok(made) => made,
+        Err(error) => return Ok(Check::of(promise, vec![checked("clauses", Err(error))?])),
+    };
+    let same = resolution::Clauses::of_sequent(&made.result)
+        .is_ok_and(|clauses| &clauses == refutation.clauses());
+    let mut parts = vec![Part {
+        name: "clauses".to_owned(),
+        status: if same { Status::Held } else { Status::Failed },
+        verdict: None,
+    }];
+    match keys.verdict.as_str() {
+        "unsatisfiable" => {
+            parts.push(checked("refutation", refutation.check(limits, &mut *stop))?);
+        }
+        "satisfiable" => {
+            let atoms = keys.true_atoms.unwrap_or_default();
+            let count = refutation.clauses().atoms().len() as u64;
+            let model: Option<Vec<u32>> = atoms
+                .iter()
+                .map(|&a| (a >= 1 && a <= count).then(|| (a - 1) as u32))
+                .collect();
+            let holds = model.is_some_and(|m| refutation.clauses().falsified(&m).is_none());
+            parts.push(Part {
+                name: "model".to_owned(),
+                status: if holds { Status::Held } else { Status::Failed },
+                verdict: None,
+            });
+        }
+        _ => return Ok(Check::whole(promise, Status::None)),
     }
     Ok(Check::of(promise, parts))
 }
