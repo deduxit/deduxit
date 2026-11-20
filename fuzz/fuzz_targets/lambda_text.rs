@@ -4,11 +4,12 @@
 //! Lambda-terms as text and as JSON: no text panics the parser in any
 //! calculus and no document the JSON reader; a term either reads checks
 //! or is refused without a panic, and a term that checks prints with its
-//! types as a text that reads back and checks as the same text.
+//! types as a text that reads back and checks as the same text, unless a
+//! bound refuses the longer text.
 #![no_main]
 
 use deduxit::lambda::{Calculus, Options, Term};
-use deduxit::{Limits, wire};
+use deduxit::{ErrorKind, Limits, wire};
 use libfuzzer_sys::fuzz_target;
 
 /// Checks a term, and where it is well typed, that its text with types
@@ -25,10 +26,19 @@ fn round_trip(term: &Term, limits: &Limits) {
     {
         return;
     }
-    let again = Term::parse(&text, term.calculus(), limits).expect("a printed term reads back");
-    again
-        .check(limits, |_| false)
-        .expect("a printed term checks");
+    // The text writes every type out, a shared `↔` as its two
+    // implications, so it may pass a limit the term kept within: a bound's
+    // refusal is no fault, any other error is.
+    let again = match Term::parse(&text, term.calculus(), limits) {
+        Ok(again) => again,
+        Err(error) if error.kind() == ErrorKind::Limit => return,
+        Err(error) => panic!("a printed term reads back: {error:?}"),
+    };
+    match again.check(limits, |_| false) {
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::Limit => return,
+        Err(error) => panic!("a printed term checks: {error:?}"),
+    }
     let mut twice = String::new();
     again
         .write_judgement(&mut twice, &options, limits, |_| false)
