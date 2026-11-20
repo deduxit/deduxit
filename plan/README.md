@@ -7624,3 +7624,7 @@ move (D26).
     `ci/ci-speed` are the author's to delete.
   - **Follow-up:** Install's "from the release" job fails on GitHub's API rate limit (an
     unauthenticated `curl`): pass `GH_TOKEN`.
+- 2026-11-20, about 12:20: **The first parallel CI run on `main` passed in 10 minutes** (run
+  44722429110: every group, `nix flake check --no-build`, the advisories and the Pages deployment).
+  ci-speed's follow-up `musnrzko` pushed: Install's "from the release" job asks for the latest
+  release with the job's token (`gh release view`), where an anonymous `curl` met the rate limit.
