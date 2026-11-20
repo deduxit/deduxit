@@ -7538,3 +7538,6 @@ move (D26).
   (`1ab69571`, CI green, not yet tagged) and its deduxit chain's Rocq checks passing. Both resumed
   at 04:15. The release is re-dated to its tag day: 69 moves rocq-deduxit's and deduxit's 0.6.0
   dates to 2026-11-20 before the tags.
+- 2026-11-20, about 04:45: **rocq-deduxit 0.6.0 tagged**: CI green at the re-dated release commit
+  `03f0af20` (`nmklslnu`); the signed tag object `41dac0af` (verified "true valid") and
+  `refs/tags/v0.6.0`, on the author's yes. deduxit's tag follows 69's chain and its CI.
