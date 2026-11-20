@@ -38,7 +38,7 @@ evaluating language models on deciding sequents, and on proving them
 when a model's answer is graded by `deduxit grade`.
 
 Version 1.0.0, made by deduxit 0.6.0 and `deduxit grade`, which comes
-with the release after 0.6.0. It lives in deduxit's repository and is
+with 0.7.0. It lives in deduxit's repository and is
 uploaded to no hub.
 
 ## Use it

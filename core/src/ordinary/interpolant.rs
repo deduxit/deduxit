@@ -203,7 +203,7 @@ impl Interpolant {
 /// # JSON
 ///
 /// With the feature `serialize` an interpolation is the document
-/// `{"version": 16, "deduxit": "0.6.0", "logic": "classical",
+/// `{"version": 16, "deduxit": "0.7.0", "logic": "classical",
 /// "partition": {"left": [0], "right": []}, "outcome": {…},
 /// "interpolant": {…}}` ([`wire`](crate::wire)), written only: the
 /// outcome of the sequent (in the form of an [`Outcome`], without a

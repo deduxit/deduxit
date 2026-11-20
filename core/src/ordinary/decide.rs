@@ -18,7 +18,7 @@ use crate::{Error, Refusal};
 /// # JSON
 ///
 /// With the feature `serialize` an outcome is the document
-/// `{"version": 12, "deduxit": "0.6.0", "verdict": "valid", "logic":
+/// `{"version": 12, "deduxit": "0.7.0", "verdict": "valid", "logic":
 /// "classical", "search": {"method": "embedding", "translation": "affine",
 /// "image": {…}}, "derivation": {…}}` ([`wire`](crate::wire)). It is
 /// written at level 12, or 14 when a truth table or a tableau decided it.

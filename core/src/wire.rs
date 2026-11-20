@@ -170,7 +170,7 @@
 //!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
-//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.6.0",
+//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.7.0",
 //!   "verdict": "valid", "logic": "classical", "search": {"method":
 //!   "embedding", "translation": "affine", "image": {…}}, "derivation":
 //!   {…}}`, `verdict` one of `valid`, `not_valid` and `unknown` (with a
@@ -231,14 +231,14 @@
 //!   `Derivation::check` its rules; see
 //!   [`rules::Derivation`](crate::rules::Derivation).
 //! - **Negative translation** (written only): `{"version": 16,
-//!   "deduxit": "0.6.0", "translation": "kolmogorov", "target": "minimal",
+//!   "deduxit": "0.7.0", "translation": "kolmogorov", "target": "minimal",
 //!   "agreement": "valid", "sequent": {…}, "translated": {…}, "classical":
 //!   {…}, "decided": {…}}`: the classical sequent and its translation, in
 //!   the form of an ordinary sequent, each decided, in the form of an
 //!   ordinary outcome, none with a `version`; `agreement` is `valid`,
 //!   `not_valid` or `unknown`; see
 //!   [`ordinary::negative::Comparison`](crate::ordinary::negative::Comparison).
-//! - **Interpolation** (written only): `{"version": 16, "deduxit": "0.6.0",
+//! - **Interpolation** (written only): `{"version": 16, "deduxit": "0.7.0",
 //!   "logic": "classical", "partition": {"left": [0], "right": []},
 //!   "outcome": {…}, "interpolant": {"text": "b", "first": {"sequent": {…},
 //!   "outcome": {…}}, "second": {…}}}`: the positions of the first half,
@@ -246,7 +246,7 @@
 //!   halves decided, the interpolant last right of `⊢` in the first and
 //!   first left of `⊢` in the second; see
 //!   [`ordinary::interpolant::Interpolation`](crate::ordinary::interpolant::Interpolation).
-//! - **Normal form** (written only): `{"version": 21, "deduxit": "0.6.0",
+//! - **Normal form** (written only): `{"version": 21, "deduxit": "0.7.0",
 //!   "form": "cnf", "promise": "equivalent", "checked": true, "sequent":
 //!   {…}, "result": {…}, "steps": [{"rule", "law", "before", "after",
 //!   "left", "right", "added"}, …], "checks": [{"claim", "sequent",
@@ -258,7 +258,7 @@
 //!   "atom": 1, "clause": [2]}, …]}`, the literals as DIMACS writes them;
 //!   see [`ordinary::resolution::Refutation`](crate::ordinary::resolution::Refutation).
 //! - **Clause set decided** (written only): `{"version": 22, "deduxit":
-//!   "0.6.0", "method": "dpll", "verdict": "unsatisfiable", "atoms", "clauses",
+//!   "0.7.0", "method": "dpll", "verdict": "unsatisfiable", "atoms", "clauses",
 //!   "resolvents", "trace": [{"event": "unit", "literal": -1, "clause":
 //!   1}, …], "statistics"}`; see
 //!   [`ordinary::resolution::Resolution`](crate::ordinary::resolution::Resolution).

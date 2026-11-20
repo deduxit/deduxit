@@ -394,7 +394,7 @@ pub struct Checked {
 /// # JSON
 ///
 /// With the feature `serialize` a normal form is the document
-/// `{"version": 21, "deduxit": "0.6.0", "form": "cnf", "promise":
+/// `{"version": 21, "deduxit": "0.7.0", "form": "cnf", "promise":
 /// "equivalent", "checked": true, "sequent": {…}, "result": {…},
 /// "steps": [{"rule": "implication", "law": "A → B ≡ ¬A ∨ B", "before":
 /// 2, "after": 4, "left": [], "right": [4], "added": []}, …],

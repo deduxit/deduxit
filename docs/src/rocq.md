@@ -287,7 +287,7 @@ logic is under the logical path `Deduxit.Linear`, intuitionistic
 and minimal logic with their Kripke models under
 `Deduxit.Intuitionistic`, and the modal systems from K to S5 under
 `Deduxit.Modal`. The library is released beside deduxit, under
-deduxit's version number, when it changes: deduxit 0.6.0's
+deduxit's version number, when it changes: deduxit 0.7.0's
 certificates compile against rocq-deduxit 0.6.0
 (`deduxit::export::rocq::DEDUXIT` names it), and a release of deduxit
 without one takes the latest before it.
