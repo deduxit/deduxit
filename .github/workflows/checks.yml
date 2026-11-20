@@ -1,0 +1,103 @@
+# deduxit © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# What `nix flake check' checks, on many runners at once: the flake's
+# checks in the groups `modules/ci.nix' gives (`githubActions.matrix'),
+# one job each, and every other output evaluated in a job beside them. A
+# group's builds fill one runner's cores; side by side they end in about
+# the time of the longest group instead of the sum of all. The jobs share
+# their builds through the Cachix cache: on `main' each pushes what it
+# built, so a check whose derivation did not change is fetched, not rerun.
+# Called by ci.yml and by release.yml.
+name: Checks
+
+on:
+  workflow_call:
+    inputs:
+      pages:
+        description: Upload the published site (the check `doc') as the Pages artifact.
+        type: boolean
+        default: false
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        description: A write token of the cache, given on `main' alone.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: the groups of checks
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          # Fetching the `github:` inputs anonymously runs into rate limits.
+          github_access_token: ${{ github.token }}
+      - id: matrix
+        run: echo "matrix=$(nix eval --json .#githubActions.matrix)" >>"$GITHUB_OUTPUT"
+
+  # The part of `nix flake check' that builds nothing: every output of the
+  # flake evaluates (the packages no check builds among them, and the
+  # assertions at evaluation) and has the form its kind asks for.
+  evaluate:
+    name: nix flake check --no-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          github_access_token: ${{ github.token }}
+      - run: nix flake check --no-build
+
+  check:
+    name: ${{ matrix.name }}
+    needs: matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Every group runs to its end, so one run reports every failure.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: linlog-prover
+          # Only what `main` builds is uploaded. A pull request, a fork's
+          # among them, and a tag only download.
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          # The toolchain's download tarballs are only the inputs of the
+          # unpacked toolchain, which is uploaded itself.
+          pushFilter: '\.tar\.xz$'
+      - name: nix build the group's checks
+        env:
+          CHECKS: ${{ join(matrix.checks, ' ') }}
+          SYSTEM: ${{ matrix.system }}
+        run: |
+          read -ra checks <<<"$CHECKS"
+          nix build --print-build-logs --keep-going --no-link "${checks[@]/#/.#checks.$SYSTEM.}"
+      # The site the check `doc' built, for ci.yml's deployment, which
+      # waits for every group to pass.
+      - name: The published site
+        if: inputs.pages && contains(matrix.checks, 'doc')
+        env:
+          SYSTEM: ${{ matrix.system }}
+        run: nix build --out-link site ".#checks.$SYSTEM.doc"
+      - if: inputs.pages && contains(matrix.checks, 'doc')
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/share/doc

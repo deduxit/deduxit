@@ -2,7 +2,10 @@
 # Licensed under the EUPL
 
 # Everything runs through the flake, so CI checks exactly what `nix flake
-# check` checks locally, with the tools and toolchain flake.lock pins.
+# check` checks locally, with the tools and toolchain flake.lock pins: the
+# checks in groups on runners side by side (checks.yml). On `main', once
+# every check passed, the rustdoc and the manual (the check `doc') go to
+# GitHub Pages.
 name: CI
 
 on:
@@ -22,8 +25,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: nix flake check
+  checks:
+    name: checks
+    uses: ./.github/workflows/checks.yml
+    with:
+      pages: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+  # The one check that needs the network, so `nix flake check` cannot run it.
+  advisories:
+    name: cargo deny check advisories
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,25 +55,26 @@ jobs:
           # The toolchain's download tarballs are only the inputs of the
           # unpacked toolchain, which is uploaded itself.
           pushFilter: '\.tar\.xz$'
-      - run: nix flake check --print-build-logs --keep-going
-
-  # The one check that needs the network, so `nix flake check` cannot run it.
-  advisories:
-    name: cargo deny check advisories
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
-        with:
-          github_access_token: ${{ github.token }}
-      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
-        with:
-          name: linlog-prover
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
-          pushFilter: '\.tar\.xz$'
       - run: nix develop --command cargo deny check advisories
       # The fuzz targets are a workspace of their own, with their own lock.
       - run: nix develop --command cargo deny --manifest-path fuzz/Cargo.toml check advisories
+
+  # Publishes the site the group with the check `doc' uploaded, once every
+  # check passed; the only job given the rights to deploy Pages. The site
+  # is `main`'s alone, replaced whole at every deployment. A newer push
+  # cancels this run, a deployment under way included (Pages keeps the
+  # site it had), and deploys itself.
+  pages:
+    name: deploy the docs to GitHub Pages
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
