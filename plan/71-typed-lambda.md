@@ -41,3 +41,33 @@ Three to four sessions: the first (the term model) on Fable 5.2 at
 `high`, the rest on Opus 5.5 at `high`; the panel for the type checker.
 Deliverables: the commits, the client's commits,
 `plan/reports/71-typed-lambda.md`.
+
+## What steps 50 to 70 left you (the review of 69, written 2026-11-20)
+
+- **Step 50's terms** (`deduxit::lambda`): the linear lambda-terms read
+  back from a proof; this step's term model takes them.
+- **Calculi given as data** (60 to 62): a typing derivation can be a
+  `rules::Derivation` in a rule file of the typing rules, checked by
+  step 60's checker and built by 61's sessions (backward and forward,
+  62b), drawn by 62c's trees; decide whether STLC's typing rules are
+  such a file, as natural deduction's are.
+- **The protocol and the workspace** (63a, 63g): a term, a type and a
+  typing derivation are kinds; checking, inhabitation and its
+  enumeration are operations with their promises.
+- **The SAT engine and LJT** (54, 54s) decide intuitionistic
+  implicational logic: inhabitation of a simple type is provability of
+  its formula, so an inhabitant is a proof read back as a term.
+- **Wire levels**: 22 is the last (70b); take the next free.
+- **No kernel crate** (67): step 74 later reshapes the ordinary arena;
+  keep the term model beside it, not in it.
+
+## The sessions (planned 2026-11-20)
+
+- **71a, the term model** (Fable 5.2 at `high`): the design
+  (`plan/notes/typed-lambda-design.md`) and the code as far as it
+  reaches: terms and types, Church-style typing, the typing rules as a
+  rule file or a checker of its own (decided and said), the linear
+  terms of step 50 under the same model.
+- **71b, inhabitation** (Opus 5.5): enumeration and counting within a
+  bound, uniqueness, through the engines; the panel on the type checker.
+- **71c, the page** (Opus 5.5, the client).
