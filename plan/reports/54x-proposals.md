@@ -850,3 +850,156 @@ Its question on 3 670 575 against 3 670 553: the first is this
 measurement's rebuild (`wasm-opt -O3` of the named build), the second
 the package's. The ceiling's comment now names the package's trimmed
 size, 3 541 980, which the flake check printed.
+
+## Session 54x7: three loose ends before 0.6.0
+
+Opus 5.5 at `high` (the 68a worker, its conversation kept), in the
+workspace `../deduxit-wt-step-58b-8c0bbc`, from the brief
+`/tmp/linlog-handoff/start-54x7.md`, on 2026-11-16, cores 10 to 12 and
+the fuzz run on 12 to 15.
+
+### Outcome
+
+- **Seriality with one new label is refused** at the cause, with the
+  rule language's existing `fresh`: a name a rule asks to be new must
+  also differ from every other variable of the rule. A `G3…` derivation
+  or session no longer takes `Ser` with `w1 R w1` for a new `w1`.
+- **The ordinary suite applies its invertible rules by itself**:
+  `ordinary::Interactive::invert`, `invert_all`, `is_invertible`; the
+  command's `--invertible` and `invertible on|off` under `--logic`; the
+  bindings' `interactive.invertible`, `ordinary_invert_all` and the
+  view's `invertible`. The page's switch is a later client step.
+- **The modal fuzz targets ran**, `json_modal` seeded with the level-20
+  documents and the command's modal outcomes.
+
+The commits on `main@origin` (`smyxwoln`): `xvpnroyr` (item 1),
+`opwrroou` (item 2), `yorxttur` (its behaviour lock: `interact --help`),
+`oxlxvppv` (the seeding), `losmmunn` (the review's findings), and this
+report's.
+
+### 1. Seriality with one new label
+
+- **The cause**: `Ser`'s `x` is bound from its premise alone, so the
+  checker's `fresh` on `y` (new to the conclusion and the hypotheses in
+  force) held for `x = y = w1`.
+- **The change, with no new side condition**: a name a rule asks to be
+  new must also differ from the atom any other variable of the rule is
+  bound to (`Checker::conditions`, checked after the conclusion and the
+  hypotheses, so a name in the conclusion is still said as such). A
+  variable bound from the conclusion already made such a name occur
+  there, so only a variable bound from a premise alone is affected:
+  `Ser`'s `x`, in no other rule of the built-in files or the fifteen
+  modal calculi (`R□` and `L◇` bind `x` from their conclusion). No
+  syntax and no wire level change: the rule file's `fresh` now says
+  "and that no other variable of the rule matches" (the schema's
+  description, the manual's rules chapter). A session goes through the
+  same checker, so `apply 0 Ser x=w1 y=w1` is refused with "a name the
+  rule asks to be new is one another of its variables names".
+- **The Rocq library**: its `g3`'s `ser` takes any `x` and a fresh `y`
+  (66b proved it sound for that wider rule, `beside_*` in
+  `Soundness.v`); deduxit now accepts a subset of those instances, so
+  every derivation it accepts still has a term `mcheck` accepts. No
+  Rocq change. The header comment of `theories/Modal/Calculus.v` still
+  says deduxit's rule allows `y` itself (the reviewer read it): a line
+  for that repository, not this step.
+- Test: `seriality_s_new_world_is_not_the_one_that_sees_it`
+  (`core/tests/rules.rs`), a derivation file in G3D with `w0 R w1`
+  (passes) and `w1 R w1` (refused).
+
+### 2. Auto-reverse for the ordinary suite
+
+- **The library** (`core/src/ordinary/invert.rs`): `invert(goal,
+  &limits)`, `invert_all(&limits)`, `is_invertible((left, right),
+  &step)` and `invertible_steps()` on `ordinary::Interactive`, the
+  linear session's shape (`Inverted` reused). The set: the axiom, and
+  in LK every rule of a connective with a shared context (`⊤L` and `⊥R`
+  among them); in LJ and minimal logic not `→L`, `¬L`, `∨R₁`, `∨R₂`;
+  minimal logic has no `⊥L`; partial and structural rules never. A
+  closing step first, then the first formula's, the hypotheses first;
+  every step through `apply`, so the checker's rule checks each.
+- **Tests**: on 200 generated sequents in each logic, every goal of a
+  valid sequent stays valid after the run, the run ends, and each step
+  is one undo; LJ leaves `→L`, `¬L`, `∨R` and minimal logic `⊥L`; the
+  memory bound stops a run, an axiom's weakenings counted; the steps
+  are listed by their goal, a split never.
+- **The command**: `interact --logic … --invertible` and `invertible
+  on|off`, `undo` taking a step back with the invertible steps after
+  it, as the linear session (`cli/tests/cli.rs`, the manual's example).
+- **The bindings**: `interactive.invertible` in `ordinary_start` and
+  `ordinary_apply` (`inverted`, `inverted_refused`), `ordinary_invert_all`,
+  the view's `invertible` (`Interactive::invertible_steps`), and `about`
+  lists `interactive.invertible` among the ordinary suite's settings.
+  **The page's switch is a later client step** (the client's ordinary
+  tab has no toggle yet).
+
+### 3. The modal fuzz targets
+
+- **Seeds**: `json_modal` from the command's outcomes of seven modal
+  sequents in K and S4 and the four documents of
+  `core/tests/wire/level-20.txt` (18 seeds); `modal_text` 7,
+  `modal_decide` 63. `fuzz/seed.sh` had stopped at the TPTP file and the
+  Lambek list that now sit in `bench/problems/`; it reads the two
+  commutative lists now.
+- **The run** (`fuzz/run.sh --inside json_modal modal_text
+  modal_decide` as the user unit `deduxit-fuzz`, cores 12 to 14, debug
+  assertions, `STALL` 900 s, `CAP` 5 400 s; the build ran beforehand on
+  cores 10 to 12, so `run.sh`'s own build on 2 to 5 was skipped):
+
+  | target | time | ended | coverage | corpus | finds |
+  |---|---|---|---|---|---|
+  | `json_modal` | 5 401 s | cap | 8 217 | 5 483 | 0 |
+  | `modal_text` | 5 401 s | cap | 1 887 | 2 627 | 0 |
+  | `modal_decide` | 5 401 s | cap | 5 909 | 3 451 | 0 |
+
+  Nothing found. All three reached the cap with their coverage still
+  growing slowly, none stalled (departs from the design: "until their
+  coverage stops growing"); their corpora stay under `fuzz/corpus/` in
+  this workspace for a longer run.
+
+### The reviewer's findings
+
+`fresh-reviewer` once (Fable 5.2; stopped by the weekly limit on
+2026-11-16 and resumed on 2026-11-20 with its work kept). **Item 1
+held**: `Ser` with one new label is refused in G3D, G3KD45, G3KDB,
+G3KD4 and G3KD5, by derivation and by session; `Ser` with a label of
+the conclusion, `R□`, `L◇` and the search's `Ser` still pass; the Rocq
+argument covers it. **Item 2's rule set and command held.** Its three
+findings, all fixed in `losmmunn`:
+
+1. **The view's `invertible` named a split step**: the bindings' test
+   for a shared context allowed each premise one formula fewer. The
+   list is now the library's `invertible_steps`, which asks every
+   premise to keep as many formulas as its goal.
+2. **An axiom step was named by its drawn inference, not its goal**
+   (`a, b |- a` gave `[1]`, `undo` reopened 0): `invertible_steps`
+   reads the steps off the history, an axiom step as its goal's chain
+   of weakenings ending in the axiom.
+3. **The memory bound did not count an axiom's weakenings**: 100 atoms
+   under 256 KiB made 2.2 MB, and the page's session was then too large
+   to draw. Every inference a step adds is now charged by the
+   derivation's own estimate; the witness is a test.
+
+### Checks
+
+- Clippy on the workspace with `--deny warnings`, and the tests of the
+  areas touched as they were made: `core/tests/rules.rs` (25, the new
+  test among them), the modal and ordinary unit tests, the bindings'
+  `web/tests/ordinary.rs` and `protocol.rs` natively, the command's
+  `cli.rs`, README's, the manual's and the guide's examples, the
+  behaviour lock (`interact --help` reblessed, `yorxttur`).
+- The gate (`nix develop -c gate`) at `oxlxvppv` (cores 10 and 11,
+  beside the fuzz run) and again at `losmmunn` after the review's fixes
+  (cores 10 to 12): passed both times (clippy, every crate's tests, both
+  `cargo hack` runs, the ratchet; its note on `render-svg`'s cache
+  misses, "not a failure", as before this step).
+- `nix flake check --keep-going` (under the machine lock, `--max-jobs 4
+  --cores 8`) at `losmmunn` on `main@origin` `smyxwoln`: passed, the
+  bindings' tests under Node among its checks. This report's commit,
+  plan files alone, is the only change after it.
+
+### Departures
+
+- The fuzz targets stopped at the cap, not at a stall (above).
+- No new side condition in the rule language: `fresh` was sharpened,
+  which is no API change (no syntax, no wire level); a stored derivation
+  of `Ser` with `x = y` is now refused, which was the point.
