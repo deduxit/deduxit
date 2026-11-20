@@ -335,10 +335,13 @@ jobs:
     steps:
       - env:
           RUNNER: ${{ matrix.runner }}
+          # The API's anonymous limit is shared by every job on the runner's
+          # address and was spent (403) after 0.4.0 and 0.5.0; the job's
+          # token has its own.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eux
-          tag=$(curl -sSf https://api.github.com/repos/deduxit/deduxit/releases/latest |
-            sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+          tag=$(gh release view --repo deduxit/deduxit --json tagName --jq .tagName)
           version=${tag#v}
           # Up to 0.2.0 the files carry the name the command had, linlog.
           case $version in 0.1.* | 0.2.*)

@@ -307,8 +307,12 @@ are as `ci.md` asks; `push-ci.sh`'s flags exist in jj 0.47.1 and gh
   deploys from GitHub Actions, the `github-pages` environment already
   allows `main`, and every job runs on `ubuntu-latest` as before (twelve
   at once for the checks, within the free plan's twenty).
-- **A follow-up, not done here:** the after-release job "from the
-  release" of `install.yml` fails on GitHub's API rate limit (`curl` of
+- **Fixed after the review:** the after-release job "from the
+  release" of `install.yml` failed on GitHub's API rate limit (`curl` of
   `api.github.com/…/releases/latest` without a token: 403 in runs
-  43904365236 and 43735074378, after 0.4.0 and 0.5.0). Passing
-  `GH_TOKEN` to that request, or `gh release view`, would fix it.
+  43904365236 and 43735074378, after 0.4.0 and 0.5.0). It now asks
+  `gh release view --json tagName` with the job's token (`GH_TOKEN`),
+  which answers `v0.6.0` today; the chapter's own commands download from
+  `github.com/…/releases/download/`, not the API, and are unchanged.
+  Checked by actionlint and the flake check `actionlint`; the job runs
+  next at the weekly Install run or the next release.
