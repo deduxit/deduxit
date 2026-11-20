@@ -80,8 +80,14 @@ nodes as today.
   ordinary arena holds one; its binders' names are the ordinary arena's
   own (keyed by `NodeId`).
   - Taken from step 42, not copied a third time: the plan fixes it, and
-    the unifier, the term printer, the term JSON and the limit
-    `limits.terms` come with the table.
+    the unifier, the term JSON and the limit `limits.terms` come with the
+    table.
+  - What 74 extends: the term printer, the atom key and the sequent
+    form's reader take a sequent's arena to hold `Bound` and `App` alone
+    (`FirstOrder::write` has `unreachable!` on `Eigen` and `Meta`, and
+    the JSON reader refuses `{"E": k}`). An ordinary derivation's and
+    session's arena holds both, so all three learn to write and read
+    them, an eigenvariable by its name and an open witness as `?k`.
   - The move of `fo.rs` from `linear::sequents` to the crate's root is
     kernel-boundary item 1's case ("move to the root what other suites
     use from under `linear`"). It changes no public path (the linear
@@ -97,6 +103,16 @@ nodes as today.
   nodes, hash-consed, by an iterative walk memoised per node and binder
   depth (a node shared at two depths is substituted at each). The
   checker then compares premises as multisets of ids, unchanged.
+  - Witnesses are closed terms and sequent formulas are closed, so no
+    de Bruijn shift is needed. A derivation read from JSON gets the
+    scope pass `Sequent::check` has, so that every formula is closed.
+  - **The checker builds nothing**: `Derivation::check` takes `&self`,
+    and today's arms look a node up and fail where it is missing (the
+    implications of `↔`). So `instantiate` has a find-only form: the
+    premise's node exists if the inference is right, and a miss is the
+    fault. That form needs the interner's lookup maps (terms, lists, the
+    atom key) kept in `Formulas` beside the tables, and `Interner` made
+    `Clone`, as `Formulas` is.
 - **Alternatives weighed.**
   - *A first-order arena beside the propositional one*, as the modal
     suite is a copy (65a). Every rule, checker arm, export and session
@@ -148,6 +164,10 @@ nodes as today.
   `(∀x. p(x)) ∧ q`. The reader follows TPTP's grammar, not the native
   one. `=` and `!=` are refused with a hint (step 78), as are `$i`,
   `tff` and `thf`, as today.
+- **TPTP refuses an upper-case word that no quantifier binds**: in TPTP
+  it is a variable, which `fof` does not allow free. Read as a constant
+  (the native syntax's rule), `p(X) ⊢ p(a)` would turn from a theorem
+  into a non-theorem once step 75 decides.
 - **ILTP's first-order problems** (Raths, Otten and Kreitz, "The ILTP
   Problem Library for Intuitionistic Logic", JAR 38, 2007; v1.1.2) are
   TPTP files. A package of their own, as `iltp` is for the 274
@@ -160,6 +180,25 @@ nodes as today.
   and `{"∃": body}`), so one reader of terms serves both suites. The
   level is read from the content: a propositional sequent stays at 8,
   as a modal sequent without `□` does.
+
+## 4a. The shared code: kernel-boundary section 6, items 2, 3 and 5
+
+The prompt asks this step to decide three of the items:
+- **Item 2, one arena core `Arena<N>`: deferred, not in step 74.** The
+  ordinary arena now holds a first-order table, an interner and binder
+  names, which the modal arena has none of. A core over the nodes alone
+  (operands, hash-consing, the foreign-id check, the `u32` refusal)
+  still fits both, but it is a refactoring with D17's measurement of
+  its own, and nothing in steps 74 to 79 needs it. It is taken when a
+  third arena of this shape comes (the item's own trigger), or by a
+  step that rewrites both `add`s anyway.
+- **Item 3, one parser over tables: no.** The ordinary parser gains
+  binders and terms (out of line, as the linear parser's are) and its
+  TPTP dialect; the modal parser has neither. The two loops no longer
+  share their shape, and a parser generic over its tables would carry
+  the first-order paths into the modal one. Each keeps its loop.
+- **Item 5, the goal tree's free functions: taken in 74c**, with the
+  session's terms (the lifted unifier and its trail), as section 6 says.
 
 ## 5. The calculi
 
@@ -205,6 +244,12 @@ In LJ and LM the right side holds one formula, so `∃R`'s premise is
   wait for it.
 - **Cut**: LJ's cut stays as it is (Gentzen's), and the checker takes it
   at first order.
+- **The admissible view keeps a weakening whose formula holds the
+  eigenvariable of the rule above it** (`Derivation::admissible` moves a
+  `WL`'s conclusion onto the rule above): otherwise a `∀R` on `y` under
+  a `WL` of `B(y)` would be drawn with `y` in its conclusion. The session
+  makes no such derivation, but a JSON derivation or step 75's read-back
+  can.
 
 ## 6. Sessions
 
@@ -216,6 +261,22 @@ today.
   sequent's symbols and the eigenvariables in the goal's scope, or leave
   it open: a metavariable `$1` that a later axiom fills by unification,
   as step 42e's linear session does. `undo` unbinds what its step bound.
+- **An open witness is a term `Meta(k)` in the session's arena**, so
+  `p($1)` is a node of its own, and binding `$1 := a` changes no node.
+  The linear session never builds instances (it reads them through
+  frames and resolves metavariables as it compares); this one does. So:
+  - **a bind substitutes**: every stored sequent of the session that
+    holds the metavariable is rebuilt with its binding (nodes of the
+    arena, hash-consed), and the step records the ids it replaced, so
+    that `undo` restores them;
+  - `check_inference` then sees the axiom `p(a) ⊢ p(a)` and every
+    inference above it with the binding in place, so the rule that every
+    step passes it before the state changes holds unchanged;
+  - an inference that still holds an open witness is checked as any
+    other, the metavariable an unknown term;
+  - a finished derivation (`proof`, `derivation_within`) holds none: an
+    open witness left there becomes the domain's element (below), and
+    the checker refuses `Meta` in a derivation read from JSON.
 - **The scope**: an open witness never takes an eigenvariable made after
   it (levels, as in 42e and in the linear search: Shankar's and
   Paulson's unification with levels), and an eigenvariable of a sibling
@@ -237,6 +298,13 @@ today.
   `f(x, a)`, an eigenvariable by its name, an open witness `?1`.
 - Bracketing: a quantified formula as an operand is bracketed, since it
   reaches right.
+- **The printer renames.** A node is shared by every formula equal up
+  to bound names, and its binder keeps the first name written, so
+  `∀y. ∃x. r(y, x)` and `∃x. ∃z. r(x, z)` share `∃x. r(#1, #0)` and the
+  second would print `∃x. ∃x. r(x, x)`. Every target's printer does
+  what the linear one does (`notation.rs`, `Scope::enter`): a binder
+  whose name a symbol, an eigenvariable or an enclosing binder has is
+  printed under a fresh name (`x1`, …).
 - The rule labels: `∀L`, `∀R`, `∃L`, `∃R`.
 
 ## 8. The Rocq certificates
@@ -251,9 +319,16 @@ module of rocq-deduxit)
   symbol `D -> … -> D`. `∀x. A` is Rocq's `forall x : D, A`, and `∃x. A`
   is `exists x : D, A`.
 - The proof is a term: `∀R` a `fun y : D => …`, `∀L` an application to
-  the witness, `∃R` `ex_intro`, `∃L` `ex_ind` (or a `match`). The
-  eigenvariable condition is Rocq's own scoping. LK uses `NNPP`, as the
-  propositional classical certificates do.
+  the witness, `∃R` `ex_intro`, `∃L` `ex_ind` (or a `match`). LK uses
+  `NNPP`, as the propositional classical certificates do.
+- **An eigenvariable is its rule's variable inside the subtree of the
+  inference that introduces it, and `d` everywhere else.** The local
+  condition lets a checked derivation use `Eigen(k)` where no `fun y :
+  D` is in scope: in a sibling branch, below its `∀R`, or as the
+  constant an open witness became (`∀x. p(x) ⊢ ∃x. p(x)` in a sequent
+  with no constant has no other witness). The writer tracks the scope
+  and writes `d` there. It is sound: where `y` is bound, the conclusion
+  holds no `y`, so no hypothesis in use reads `y` as `d`.
 - Why not a library module: the propositional ordinary certificates
   already need no library, so Rocq's kernel is all a reader trusts, and
   the shallow statement is the formula as a mathematician reads it. A
