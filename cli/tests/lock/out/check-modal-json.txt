@@ -1,6 +1,6 @@
 $ deduxit check --format json
 --- stdin
-{"version":20,"deduxit":"0.6.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}
+{"version":20,"deduxit":"0.7.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}
 
 --- status 0
 --- stdout
