@@ -7694,3 +7694,10 @@ move (D26).
     3 900 000. fresh-reviewer (Fable) findings answered. Both flake checks passed.
 - 2026-11-20, about 18:40: **Step 71 complete**: 71c's client chain and its lock update (`xtyxnrsy`)
   are on the client's `main` after its flake check passed.
+- 2026-11-20, 18:25: **73 reviewed: 0.7.0 prepared and pushed (`qrkqxmol` to `znqrprxu`); the tags
+  held for the author.** Version 0.7.0, dated 2026-11-20; `breaks 0.6.0`: 71a's variable names (a
+  0.y break, named in the changelog's "What breaks" with what to do); five new error codes; 21 new
+  marked types; levels 22 and 23 kept under `core/tests/wire/`; status, README, CITATION and the
+  crates' descriptions; 71c folded in. No rocq-deduxit release (only a comment moved since v0.6.0).
+  Its report ends with the state of every item `later.md` keeps for after 0.7.0. The tags wait for
+  the author's yes (unattended), then CI at `1fb4ee2b` green, then the crates.io approval.
