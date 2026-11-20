@@ -38,6 +38,7 @@
       # proof's check, not its search, runs out of memory (on 32 bits the
       # check fits).
       core32Skipped = [
+        "lambda::tests::any_depth_is_read_and_checked_on_a_small_stack"
         "lambda::tests::any_height_reads_back_on_a_small_stack"
         "linear::nets::sequentialize::tests::a_high_derivation_needs_no_stack"
         "linear::proofs::derivation::tests::any_height_on_a_small_stack"
