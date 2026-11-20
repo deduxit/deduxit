@@ -104,13 +104,18 @@ browser or a stranger's file would.
 - Lambda-terms have two: `lambda_text` (the first byte the calculus,
   the rest a term's text and a term's JSON document: whatever reads and
   checks prints with its types as a text that reads back, checks and
-  prints the same, and a document writes back to the same bytes) and
+  prints the same, unless a bound refuses that text, and a document
+  writes back to the same bytes) and
   `lambda_inhabit` (the first byte the enumeration's depth, low three
   bits, and its list's length, the rest an ordinary sequent: `inhabit`
   and `enumerate` under small bounds, no error of kind `defect`, every
   term found checks, an exact count lists all its terms up to the
   length asked for), seeded with texts of each calculus, `term check`'s
-  JSON and a few types.
+  JSON, level 23's documents, the manual's terms (each with the
+  calculi whose syntax has it) and types, and the judgements `term
+  inhabit` and `term enumerate` print for them. The fuzz build has no
+  `sat`, so `inhabit` decides by the other default method there: one
+  input took 61 ms in a release build, 1.2 s under the fuzzer.
 - Three targets drive what a reader hands on, past the readers: a
   session step by step (`session_steps`: the mode, the sequent, then
   steps of three bytes that apply a rule, undo or close a goal; a refused
@@ -148,3 +153,26 @@ browser or a stranger's file would.
   target stops when no new edge came for `STALL` seconds or at `CAP`.
   `target/fuzz/summary.tsv` has a line per finished target, and the
   corpora under `fuzz/corpus/` stay for the next run.
+- **A suspend of the machine makes false finds.** libFuzzer's clock and
+  `run.sh`'s `SECONDS` go on while it sleeps, so the input running at
+  the suspend is filed as a timeout or a slow unit at the resume, and
+  the sleep counts toward `CAP`. Replay every timeout and slow unit
+  (`TARGET -runs=1 FILE`, its time on the `Executed` line) before
+  counting it, and subtract the sleep (`journalctl`'s `Suspending` and
+  resume lines) from a run's time.
+- The last run of the lambda and modal targets (2026-11-20, one core
+  each among 12 to 15, `STALL` 1 200 s, `CAP` 7 200 s, the time without
+  a 26-minute suspend; the modal three went on from the corpora of
+  their first run, 90 minutes each, which had reached 8 217, 1 887 and
+  5 909):
+
+  | target | time | ended | coverage | corpus | finds |
+  |---|---|---|---|---|---|
+  | `lambda_text` | 6 811 s | cap | 7 373 | 5 392 | 1: a harness claim |
+  | `lambda_inhabit` | 6 630 s | cap | 9 943 | 3 429 | 1: `max_terms` 0 listed ⊤'s term |
+  | `modal_decide` | 6 811 s | cap | 5 945 | 3 807 | 0 |
+  | `json_modal` | 6 811 s | cap | 8 787 | 6 258 | 0 |
+  | `modal_text` | 2 251 s | stalled | 1 889 | 2 710 | 0 |
+
+  The four that reached the cap still grew in their last 12 minutes, by
+  3 edges (`modal_decide`) to 57 (`lambda_text`).
