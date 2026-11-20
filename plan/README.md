@@ -7578,3 +7578,18 @@ move (D26).
   GitHub release, docs.rs and Zenodo to be checked when the run ends. Step 69 complete.
 - 2026-11-20: **0.6.0 complete**: the release run passed (17 assets on the GitHub release), docs.rs
   built 0.6.0, Zenodo archived it as 10.5281/zenodo.24393820.
+- 2026-11-20, 11:25: **72 reviewed and pushed; step 72 complete.**
+  - **72** (`rnulnstu` to `xvxrqpur`): `deduxit grade SEQUENT` reads an answer (a proof or
+    refutation document, a derivation, a Kripke model, a signed tableau, or an `interact` session
+    script that must finish by its own steps) and exits 0 correct, 1 incorrect, 3 unknown, 2 for a
+    fault; `--format json` writes the schema's new `graded`. The dataset `dataset/` (843 problems
+    in every suite with a licensed source: the families, the problem files, the client's stores, 16
+    modal schemas in 15 systems; each with deduxit's verdict under a work bound and an answer
+    `grade` accepted; LLTP and ILTP out), Inspect's field names, a Hugging Face card following
+    the datasheet questions, Croissant 1.1, a canary GUID, checksums, reproducible builds; the
+    flake check `dataset` decides and grades every tenth again. fresh-reviewer (Fable) found an
+    unsound grade (a classical derivation accepted for an intuitionistic problem), fixed, and
+    three more, fixed. Three departures marked (`grade` a subcommand of its own; the data
+    compressed; no rules-suite problems). Gate and `nix flake check` passed.
+  - **For the author:** ILTP stays out unless its maintainers give a word; the dataset is CC BY
+    4.0; a hub upload is the author's act. `grade` is a new command (an addition).
