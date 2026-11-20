@@ -209,9 +209,11 @@ design, with its sources and the alternatives weighed, is
 - **The counts saturate** at `u64::MAX` (`Found::overflow`), which
   makes the answer "at least"; the lists stop at `max_terms` while the
   counts go on (`product`, `Join`). The search is a task stack
-  (`Task`), no recursion; work and the arena's bytes
-  (`NODE_BYTES` per node) are held to `limits.work` and
-  `limits.memory_bytes`. Each engine call takes the caller's whole
+  (`Task`), no recursion; work and the bytes held (`Search::held`:
+  the arena, the variables and contexts, the lists and tasks waiting,
+  the terms built) are held to `limits.work` and `limits.memory_bytes`.
+  The arena alone was counted at first, and the panel's witness took
+  1.1 GB under a bound of 100 MB; a new growing structure joins `held`. Each engine call takes the caller's whole
   `limits`, so the work of a call is bounded per shape decided, not in
   total.
 - **A cut list keeps the shortest terms**: the search fills a list in

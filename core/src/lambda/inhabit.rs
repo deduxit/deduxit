@@ -516,9 +516,13 @@ enum Decided {
     Unknown,
 }
 
-/// The bytes a long normal form and an elimination take, for the memory
-/// bound.
-const NODE_BYTES: u64 = 16;
+/// The bytes a variable's name takes besides its entry, for the memory
+/// bound: a short name's allocation.
+const NAME_BYTES: u64 = 16;
+
+/// The bytes a node of a term built takes besides its entry: its share
+/// of the term's tables.
+const TERM_NODE_BYTES: u64 = 16;
 
 /// How often the stop is asked, in units of work.
 const POLL: u64 = 1024;
@@ -565,6 +569,12 @@ struct Search<'a> {
     cut: bool,
     /// Whether the engines left a goal undecided.
     undecided: bool,
+    /// The terms the lists waiting on the stack hold.
+    listed: usize,
+    /// The tasks waiting.
+    pending: usize,
+    /// The bytes of the terms built for the answer.
+    built: u64,
     /// The work done.
     work: u64,
     /// The work at which the stop is asked next.
@@ -636,6 +646,9 @@ impl<'a> Search<'a> {
             infinite: false,
             cut: false,
             undecided: false,
+            listed: 0,
+            pending: 0,
+            built: 0,
             work: 0,
             next: POLL,
         };
@@ -701,6 +714,22 @@ impl<'a> Search<'a> {
         vars
     }
 
+    /// Returns the bytes the search holds: its arena of long normal forms
+    /// and their eliminations, its variables and contexts, the lists of
+    /// terms and the tasks waiting, and the terms built.
+    fn held(&self) -> u64 {
+        let bytes = |count: usize, each: usize| (count as u64).saturating_mul(each as u64);
+        bytes(self.lnf.len(), size_of::<Lnf>())
+            .saturating_add(bytes(self.elims.len(), size_of::<Elim>()))
+            .saturating_add(
+                (self.vars.len() as u64).saturating_mul(size_of::<Var>() as u64 + NAME_BYTES),
+            )
+            .saturating_add(bytes(self.ctxs.len(), size_of::<Ctx>()))
+            .saturating_add(bytes(self.listed, size_of::<u32>()))
+            .saturating_add(bytes(self.pending, size_of::<Task>()))
+            .saturating_add(self.built)
+    }
+
     /// Counts `units` of work, and refuses past the limit, past the
     /// memory bound or when the stop fires.
     fn tick(&mut self, units: usize) -> Result<(), Error> {
@@ -708,7 +737,7 @@ impl<'a> Search<'a> {
         if let Some(limit) = self.limits.work.filter(|&most| self.work > most) {
             return Err(Error::Refused(Refusal::Work { limit }));
         }
-        let held = ((self.lnf.len() + self.elims.len()) as u64).saturating_mul(NODE_BYTES);
+        let held = self.held();
         if let Some(limit) = self.limits.memory_bytes.filter(|&limit| held > limit) {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Search,
@@ -831,6 +860,8 @@ impl<'a> Search<'a> {
         self.elims.clear();
         self.shapes.clear();
         self.on_way.clear();
+        self.listed = 0;
+        self.pending = 0;
         self.infinite = false;
         self.cut = false;
         self.undecided = false;
@@ -847,6 +878,10 @@ impl<'a> Search<'a> {
         }];
         let mut results: Vec<Found> = Vec::new();
         while let Some(task) = tasks.pop() {
+            // The stack holds the lists along the way from the root, a
+            // few per goal on it.
+            self.listed = results.iter().map(|f| f.terms.len()).sum();
+            self.pending = tasks.len();
             self.tick(1)?;
             match task {
                 Task::Solve { ctx, ty, depth } => {
@@ -1191,6 +1226,11 @@ impl<'a> Search<'a> {
         }
         let (root_id, size) = made[&root];
         let term = builder.finish(Calculus::Simple, context, self.goal, root_id);
+        let parts = term.nodes().len() + term.variables().len() + term.types().len();
+        self.built = self.built.saturating_add(
+            (parts as u64).saturating_mul(size_of::<Node>() as u64 + TERM_NODE_BYTES),
+        );
+        self.tick(1)?;
         Ok((size, term))
     }
 }
@@ -1259,6 +1299,20 @@ mod tests {
         assert_eq!(terms.len(), 5);
         assert_eq!(terms[0], "λf. λx. x");
         assert_eq!(terms[1], "λf. λx. f x x");
+    }
+
+    #[test]
+    fn a_search_past_the_memory_bound_is_refused() {
+        let sequent: ordinary::Sequent = "|- ((((a /\\ a) /\\ a) -> ((a -> a) -> a)) -> (a -> a))"
+            .parse()
+            .expect("a sequent");
+        let options = InhabitOptions::default().with_depth(7).with_max_terms(3000);
+        let small = Limits::default().with_memory_bytes(Some(20_000_000));
+        let refused = enumerate(&sequent, &options, &small, |_| false);
+        assert!(
+            matches!(refused, Err(Error::Refused(crate::Refusal::Memory { .. }))),
+            "{refused:?}"
+        );
     }
 
     #[test]
