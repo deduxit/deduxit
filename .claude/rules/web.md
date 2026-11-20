@@ -290,8 +290,8 @@ for `THIRD-PARTY-NOTICES.txt`.
   answer `inverted`, `ordinary_invert_all` applies them whatever the
   settings say, and the view's `invertible` is the library's
   `Interactive::invertible_steps`, the goals the steps closed by an
-  invertible rule (the ids `ordinary_undo` answers in `reopened`). The page's
-  switch is a later client step.
+  invertible rule (the ids `ordinary_undo` answers in `reopened`), which the
+  page's undo goes past as in a linear tab.
   `tests/ordinary.rs` holds their tests.
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,
