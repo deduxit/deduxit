@@ -63,8 +63,8 @@ What the model is:
   `name`. Nothing read the old keys: the form was written only.)
 - **Types are the term's own arena** (as step 50), hash-consed: equal
   types are one id, so the checker compares types as numbers. The JSON
-  reader interns what it reads, so a document that writes a type twice
-  reads as one.
+  reader interns what it reads, atoms and types, so a document that
+  writes one twice reads it as one.
 - **Church-style: every annotation a unique type needs is in the
   data.** `Lambda` has its variable's type, `Left` and `Right` their sum
   type, `False` its goal's (step 50 chose these fields for this). A
@@ -178,7 +178,9 @@ term's data; not a rule file.** Section 6 says why no rule file.
   A pair's components and a case's branches share their variables:
   equal counts in the linear calculus, the larger otherwise. `true` and
   `false` use up their arguments. A `promote`'s body uses only its own
-  variables. At the root the free variables are the context's.
+  variables. At the root the free variables are the context's. A
+  pattern's later variable and a later declaration are the inner ones,
+  as the text reads them.
   - A node shared by several is counted at every place: a node's map
     is moved to its last user and copied for the others, each copy
     counted against `limits.work` and the maps held against

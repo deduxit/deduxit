@@ -15,6 +15,7 @@ use super::{
 };
 use crate::Error;
 use crate::errors::ParseError;
+use crate::hash::HashMap;
 use crate::limits::{Limits, Refusal};
 use crate::linear::sequents::name;
 
@@ -169,9 +170,11 @@ struct Parser<'a> {
     builder: Builder,
     /// The type of every node of the builder.
     of: Vec<TypeId>,
-    /// The variables in scope, the innermost last: each with its name
-    /// and the node that uses it.
-    scope: Vec<(Box<str>, VarId, TermId)>,
+    /// The variables in scope by name, each name's innermost last, with
+    /// the node that uses it.
+    scope: HashMap<Box<str>, Vec<(VarId, TermId)>>,
+    /// The names of the variables in scope, the innermost last.
+    bound: Vec<Box<str>>,
     /// What waits for a subterm, the innermost last.
     frames: Vec<Frame>,
     /// How many nodes, waiting constructs and type operators were made.
@@ -321,7 +324,11 @@ impl<'a> Parser<'a> {
     /// Makes a variable and puts it in scope.
     fn bind(&mut self, ty: TypeId, name: Box<str>) -> Result<VarId, Error> {
         let (variable, node) = self.variable(ty, &name)?;
-        self.scope.push((name, variable, node));
+        self.scope
+            .entry(name.clone())
+            .or_default()
+            .push((variable, node));
+        self.bound.push(name);
         Ok(variable)
     }
 
@@ -511,8 +518,7 @@ impl<'a> Parser<'a> {
             _ if ENDS.contains(&word) => return Err(self.unexpected(self.at, TERM)),
             _ => {
                 let name = self.name()?;
-                let Some(&(_, variable, id)) =
-                    self.scope.iter().rev().find(|(known, ..)| *known == name)
+                let Some(&(variable, id)) = self.scope.get(&name).and_then(|known| known.last())
                 else {
                     return Err(ParseError::spanning(
                         self.input,
@@ -602,7 +608,12 @@ impl<'a> Parser<'a> {
         const CLOSE: &[&str] = &["`)`"];
         const IN: &[&str] = &["`in`"];
         let unscoped = |parser: &mut Self, variables: usize| {
-            parser.scope.truncate(parser.scope.len() - variables);
+            for _ in 0..variables {
+                let name = parser.bound.pop().expect("a binder's variable is in scope");
+                if let Some(known) = parser.scope.get_mut(&name) {
+                    known.pop();
+                }
+            }
         };
         match frame {
             Frame::Run { left, function } => {
@@ -1093,8 +1104,8 @@ impl Term {
     /// Application groups to the left, and a `λ`'s body runs as far to
     /// the right as it can. Every `λ` says its variable's type, and
     /// `inl`, `inr` and `abort` the type they give, since no type is
-    /// inferred. A type after `_` is an atom, a constant, or a type in
-    /// brackets.
+    /// inferred. A type after `_` is an atom or a constant, with `!`
+    /// before it or not, or a type in brackets.
     ///
     /// The linear and the affine calculus have, besides, `M ⊗ N` (`M *
     /// N`), `let M be x ⊗ y in N`, `∗` (`()`), `let M be ∗ in N`,
@@ -1149,7 +1160,8 @@ impl Term {
             calculus,
             builder: Builder::new(),
             of: Vec::new(),
-            scope: Vec::new(),
+            scope: HashMap::default(),
+            bound: Vec::new(),
             frames: Vec::new(),
             made: 0,
             limit: limits.occurrences,

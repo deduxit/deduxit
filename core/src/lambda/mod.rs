@@ -848,17 +848,21 @@ pub(crate) struct Types {
 }
 
 impl Types {
-    /// Returns the arena of a term's types, which holds no type twice.
-    fn of(types: &[Type]) -> Self {
-        Self {
-            list: types.to_vec(),
-            ids: types
+    /// Returns the arena of a term's types, which holds no type twice,
+    /// with room for `more`, so that adding them moves nothing.
+    fn of(types: &[Type], more: usize) -> Self {
+        let room = types.len().saturating_add(more);
+        let mut list = Vec::with_capacity(room);
+        list.extend_from_slice(types);
+        let mut ids = HashMap::with_capacity_and_hasher(room, Default::default());
+        // A term's types are fewer than 2³²: its ids are `u32`.
+        ids.extend(
+            types
                 .iter()
-                // A term's types are fewer than 2³²: its ids are `u32`.
                 .enumerate()
-                .map(|(i, &ty)| (ty, TypeId(i as u32)))
-                .collect(),
-        }
+                .map(|(i, &ty)| (ty, TypeId(i as u32))),
+        );
+        Self { list, ids }
     }
 
     /// Returns the id of a type, added if new.

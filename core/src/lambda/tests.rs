@@ -1359,6 +1359,50 @@ fn a_document_that_is_no_term_is_refused() {
     ));
 }
 
+/// A document whose printed text would name another variable is refused
+/// by the check, whatever binds the variables, and names spelt two ways
+/// are one name.
+#[cfg(feature = "serialize")]
+#[test]
+fn a_capture_is_refused_whatever_binds() {
+    let limits = Limits::default();
+    let read = |json: &str| {
+        let mut document = serde_json::Deserializer::from_str(json);
+        crate::wire::upgrade::<Term, _>(&mut document, &limits).unwrap()
+    };
+    let reason = |term: &Term| {
+        let Err(Error::IllTyped { reason, .. }) = term.check(&limits, never) else {
+            panic!("{term} is refused");
+        };
+        reason
+    };
+    // `z : a ⊗ b ⊢ let z be x ⊗ x in x`, the first `x` meant: the text
+    // names the second.
+    let pattern = |left: u32, right: u32| {
+        format!(
+            r#"{{"version":23,"calculus":"affine","atoms":["a","b"],"types":[{{"kind":"atom","atom":0}},{{"kind":"atom","atom":1}},{{"kind":"tensor","left":0,"right":1}},{{"kind":"tensor","left":0,"right":0}}],"variables":[{{"type":2,"name":"z"}},{{"type":0,"name":"x"}},{{"type":1,"name":"x"}},{{"type":3,"name":"w"}}],"context":[{context}],"goal":0,"nodes":[{{"kind":"var","variable":{context}}},{{"kind":"var","variable":1}},{{"kind":"let_tensor","term":0,"left":{left},"right":{right},"body":1}}],"root":2}}"#,
+            context = if left == right { 3 } else { 0 }
+        )
+    };
+    assert!(
+        reason(&read(&pattern(1, 2)))
+            .starts_with("the variable x is used under a binder of another variable named x")
+    );
+    assert_eq!(
+        reason(&read(&pattern(1, 1))),
+        "a pattern names the variable x for two of its parts"
+    );
+    // `λé:a. λé:b. é`, the outer one meant, the inner one's name written
+    // with a combining accent.
+    let spelt = r#"{"version":23,"calculus":"simple","atoms":["a","b"],"types":[{"kind":"atom","atom":0},{"kind":"atom","atom":1},{"kind":"lollipop","from":1,"to":0},{"kind":"lollipop","from":0,"to":2}],"variables":[{"type":0,"name":"\u00e9"},{"type":1,"name":"e\u0301"}],"context":[],"goal":3,"nodes":[{"kind":"var","variable":0},{"kind":"lambda","variable":1,"body":0},{"kind":"lambda","variable":0,"body":1}],"root":2}"#;
+    assert!(reason(&read(spelt)).starts_with("the variable é is used under a binder"));
+    // An atom written twice is one atom: `f : a → a, x : a ⊢ f x`.
+    let twice = r#"{"version":23,"calculus":"simple","atoms":["a","a"],"types":[{"kind":"atom","atom":0},{"kind":"atom","atom":1},{"kind":"lollipop","from":0,"to":1}],"variables":[{"type":2,"name":"f"},{"type":1,"name":"x"}],"context":[0,1],"goal":0,"nodes":[{"kind":"var","variable":0},{"kind":"var","variable":1},{"kind":"apply","function":0,"argument":1}],"root":2}"#;
+    let term = read(twice);
+    term.check(&limits, never).unwrap();
+    assert_eq!(text(&term, true), "f : a → a, x : a ⊢ f x : a");
+}
+
 /// The bounds refuse: a text past the bound on occurrences, a check past
 /// its work, and a stop.
 #[test]
@@ -1380,6 +1424,17 @@ fn the_reader_and_the_checker_keep_their_bounds() {
         term.check(&memory, never),
         Err(Error::Refused(Refusal::Memory { .. }))
     ));
+    // Every variable counts, used or not.
+    let many = format!("{}x", r"\x:a. ".repeat(1000));
+    let term = Term::parse(&many, Calculus::Simple, &Limits::default()).unwrap();
+    let Err(Error::Refused(Refusal::Memory {
+        needed_bytes: Some(needed),
+        ..
+    })) = term.check(&memory, never)
+    else {
+        panic!("past the bound");
+    };
+    assert!(needed >= 1000 * 64, "{needed}");
     // A term past a thousand units of work asks the stop.
     let long = format!(r"\x:a. {}x", r"(\y:a. y) (".repeat(400)) + &")".repeat(400);
     let term = Term::parse(&long, Calculus::Simple, &Limits::default()).unwrap();

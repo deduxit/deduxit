@@ -8,6 +8,7 @@
 
 use super::{Calculus, Node, Term, TermId, Type, TypeId, Types, VarId, Variable, names_variable};
 use crate::Error;
+use crate::hash::HashMap;
 use crate::limits::{Limits, Refusal};
 use crate::linear::sequents::name;
 
@@ -144,12 +145,25 @@ impl Term {
         if count >= u64::from(u32::MAX) {
             return Err(malformed("it has 2³² parts or more".to_owned()));
         }
+        // The atoms, one index per name: `merged` maps the document's
+        // index. A name is composed as the parsers compose it, so that
+        // two spellings of one name are one atom.
+        let mut indices: HashMap<Box<str>, u32> = HashMap::default();
+        let mut merged: Vec<u32> = Vec::with_capacity(atoms.len());
+        let mut names: Vec<Box<str>> = Vec::new();
         for atom in &atoms {
             if calculus == Calculus::Simple {
                 name::check_ordinary(atom)?;
             } else {
                 name::check(atom)?;
             }
+            let composed: Box<str> = name::normalized(atom).into();
+            let index = *indices.entry(composed.clone()).or_insert_with(|| {
+                names.push(composed);
+                // Fewer names than the parts counted above.
+                (names.len() - 1) as u32
+            });
+            merged.push(index);
         }
         // The types, one id per type: `ids` maps the document's index.
         let mut interned = Types::default();
@@ -157,9 +171,23 @@ impl Term {
         for (i, &ty) in types.iter().enumerate() {
             let mut fits = true;
             type_operands(ty, |operand| fits &= operand.index() < i);
-            if let Type::Atom { atom } = ty {
-                fits &= (atom as usize) < atoms.len();
-            }
+            let ty = match ty {
+                Type::Atom { atom } => match merged.get(atom as usize) {
+                    Some(&atom) => Type::Atom { atom },
+                    None => {
+                        fits = false;
+                        ty
+                    }
+                },
+                Type::One
+                | Type::Top
+                | Type::Zero
+                | Type::Tensor { .. }
+                | Type::With { .. }
+                | Type::Plus { .. }
+                | Type::Lollipop { .. }
+                | Type::Bang { .. } => ty,
+            };
             if !fits {
                 return Err(malformed(format!(
                     "type {i} names a type that does not come before it, or an atom past the list"
@@ -183,7 +211,7 @@ impl Term {
                 }
                 Ok(Variable {
                     ty: known(ty, "a variable")?,
-                    name: name.into(),
+                    name: name::normalized(&name).into(),
                 })
             })
             .collect::<Result<Vec<_>, Error>>()?;
@@ -234,7 +262,7 @@ impl Term {
         }
         Ok(Self {
             calculus,
-            atoms: atoms.into_iter().map(String::into_boxed_str).collect(),
+            atoms: names,
             goal: known(goal, "`goal`")?,
             types: interned.list,
             variables,

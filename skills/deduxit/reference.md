@@ -1664,7 +1664,7 @@ occurrences by id, and `describe(&forest)` names them by formula.
 - A `lambda::Term` prints with `Display`, in the default notation and
   within the default limits, so `term.to_string()` is its text.
 - `lambda::Term::parse(text, calculus, &limits)` reads a term from the
-  text that `--lambda-types` prints (`\x:a. x`, `x : a |- f x : b`;
+  text that `--lambda-types` prints (`\x:a. x`, `f : a -> b, x : a |- f x : b`;
   every `λ` with its variable's type, since no type is inferred), and
   `term.check(&limits, |_| false)` type-checks it in its calculus
   (`Calculus::Simple`, `Linear` or `Affine`) and returns the type of

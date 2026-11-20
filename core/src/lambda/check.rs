@@ -93,6 +93,11 @@ pub(crate) enum Fault {
         /// The part's type.
         expected: TypeId,
     },
+    /// A pattern names one variable for two of its parts.
+    Twice {
+        /// The variable.
+        variable: VarId,
+    },
     /// The branches of a case have different types.
     Branches {
         /// The first branch's type.
@@ -254,6 +259,10 @@ pub(crate) fn describe(fault: Fault, names: Names<'_>) -> String {
             names.ty(names.variables[variable.index()].ty()),
             names.ty(expected)
         ),
+        Fault::Twice { variable } => format!(
+            "a pattern names the variable {} for two of its parts",
+            names.variable(variable)
+        ),
         Fault::Branches { left, right } => format!(
             "the branches of a `case` have the types {} and {}, which differ",
             names.ty(left),
@@ -336,6 +345,13 @@ pub(crate) fn rule(
             })
         }
     };
+    let apart = |left: VarId, right: VarId| {
+        if left == right {
+            Err(Fault::Twice { variable: left })
+        } else {
+            Ok(())
+        }
+    };
     match node {
         Node::Var { variable: v } => Ok(variable(*v)),
         Node::Lambda { variable: v, body } => Ok(types.add(Type::Lollipop {
@@ -382,6 +398,7 @@ pub(crate) fn rule(
                     found,
                 });
             };
+            apart(*left, *right)?;
             pattern(*left, a)?;
             pattern(*right, b)?;
             Ok(of(*body))
@@ -510,6 +527,11 @@ pub(crate) fn rule(
                     variables: variables.len(),
                 });
             }
+            let mut sorted = variables.to_vec();
+            sorted.sort_unstable();
+            if let Some(twice) = sorted.windows(2).find(|pair| pair[0] == pair[1]) {
+                return Err(Fault::Twice { variable: twice[0] });
+            }
             for (&t, &v) in terms.iter().zip(variables.iter()) {
                 let found = banged(types, of(t), "a term a `promote` takes")?;
                 pattern(v, found)?;
@@ -537,6 +559,7 @@ pub(crate) fn rule(
         } => {
             foreign("a `copy`")?;
             let found = banged(types, of(*term), "the term a `copy` takes")?;
+            apart(*left, *right)?;
             pattern(*left, found)?;
             pattern(*right, found)?;
             Ok(of(*body))
@@ -559,7 +582,7 @@ fn banged(types: &Types, found: TypeId, of: &'static str) -> Result<TypeId, Faul
 
 /// Returns the first type of an arena that the simple calculus does not
 /// have, in words.
-pub(crate) fn foreign_type(types: &[Type]) -> Option<&'static str> {
+fn foreign_type(types: &[Type]) -> Option<&'static str> {
     types.iter().find_map(|ty| match ty {
         Type::Tensor { .. } => Some("a pair type `A ⊗ B`"),
         Type::One => Some("the type `1`"),
@@ -586,12 +609,17 @@ type Uses = HashMap<VarId, u64>;
 const NODE_BYTES: u64 = 64;
 
 /// What the check counts per type, in bytes: the type twice, in the
-/// list and in the table of ids.
+/// list and in the table of ids, a hash table at its least load.
 const TYPE_BYTES: u64 = 48;
 
+/// What the check counts per variable, in bytes: its name's entry in
+/// the table that finds equal names, at a hash table's least load, and
+/// its flag.
+const VARIABLE_BYTES: u64 = 64;
+
 /// What the check counts per use it keeps, in bytes: a variable with its
-/// count, at a hash table's load.
-const USE_BYTES: u64 = 32;
+/// count, in a hash table at its least load and while it grows.
+const USE_BYTES: u64 = 64;
 
 /// How many units of work pass between two asks of the stop.
 const POLL: u64 = 1024;
@@ -662,8 +690,10 @@ struct Pass<'t, 'm> {
     /// Per variable, whether another variable has its name.
     twin: Vec<bool>,
     /// Per node, how many places still name it and have not taken its
-    /// uses: its users, and one more for the root.
-    waiting: Vec<u32>,
+    /// uses: its users, and one more for the root. A count is at most
+    /// the operands of all nodes and one, which a `u64` holds for any
+    /// term in memory.
+    waiting: Vec<u64>,
     /// Per node, the uses of its free variables, until its last user
     /// takes them.
     uses: Vec<Option<Uses>>,
@@ -809,8 +839,10 @@ impl Pass<'_, '_> {
             } => {
                 let taken = self.take(*term)?;
                 let mut uses = self.take(*body)?;
-                sound!(self.bind(&mut uses, *left));
+                // The later variable of a pattern is the inner one, as
+                // the text reads it.
                 sound!(self.bind(&mut uses, *right));
+                sound!(self.bind(&mut uses, *left));
                 self.sum(taken, uses)?
             }
             Node::Pair { left, right } => {
@@ -864,7 +896,8 @@ impl Pass<'_, '_> {
                     uses = self.sum(uses, taken)?;
                 }
                 let mut inner = self.take(*body)?;
-                for &v in variables.iter() {
+                // The later variable is the inner one.
+                for &v in variables.iter().rev() {
                     sound!(self.bind(&mut inner, v));
                 }
                 if let Some(&variable) = inner.keys().min() {
@@ -898,9 +931,9 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
     let needed = (nodes as u64)
         .saturating_mul(NODE_BYTES)
         .saturating_add((term.types.len() as u64).saturating_mul(TYPE_BYTES))
-        // A type per node at most is made, and a flag per variable.
+        // A type per node at most is made.
         .saturating_add((nodes as u64).saturating_mul(TYPE_BYTES))
-        .saturating_add(term.variables.len() as u64);
+        .saturating_add((term.variables.len() as u64).saturating_mul(VARIABLE_BYTES));
     if let Some(limit) = limits.memory_bytes.filter(|&limit| needed > limit) {
         return Err(Error::Refused(Refusal::Memory {
             phase: Phase::Check,
@@ -908,28 +941,26 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
             needed_bytes: Some(needed),
         }));
     }
-    let mut types = Types::of(&term.types);
+    let mut types = Types::of(&term.types, nodes);
     let root = term.root.index();
     if term.calculus == Calculus::Simple
         && let Some(what) = foreign_type(&term.types)
     {
         return Err(ill_typed(term, &types, root, Fault::Foreign { what }));
     }
-    let mut names: HashMap<&str, u32> = HashMap::default();
+    // How many variables have each name. The table is made at its full
+    // size, so that it holds what the estimate counted.
+    let mut names: HashMap<&str, u32> =
+        HashMap::with_capacity_and_hasher(term.variables.len(), Default::default());
     for variable in &term.variables {
-        *names.entry(variable.name()).or_default() += 1;
+        let count = names.entry(variable.name()).or_default();
+        *count = count.saturating_add(1);
     }
-    let mut waiting = vec![0u32; nodes];
-    // A node is named at most once per operand of every node, and the
-    // operands of all nodes are fewer than the document's bytes, which a
-    // reader bounds; a count that still passed 2³² would saturate, and
-    // its node's uses would then be copied where they could be moved.
+    let mut waiting = vec![0u64; nodes];
     for node in &term.nodes {
-        super::operands(node, |t| {
-            waiting[t.index()] = waiting[t.index()].saturating_add(1);
-        });
+        super::operands(node, |t| waiting[t.index()] += 1);
     }
-    waiting[root] = waiting[root].saturating_add(1);
+    waiting[root] += 1;
     let mut pass = Pass {
         term,
         twin: term

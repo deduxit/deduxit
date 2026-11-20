@@ -56,7 +56,18 @@ design, with its sources and the alternatives weighed, is
   body. Without it a document could hold `λx:a. λx:b. x` with the outer
   `x` meant, well typed as `a → b → a`, and print a text that reads as
   another term. Only variables whose name another has (`twin`) pay for
-  the scan.
+  the scan. The order of binding is the text's: a pattern's later
+  variable and a later declaration of the context are the inner ones,
+  so `bind` takes them first (the review of 71a: taken left first, an
+  affine `let z be x ⊗ x in x` with the first `x` meant passed). A
+  pattern that names one variable twice is `Fault::Twice`. Names are
+  compared as stored, so every way in composes them (NFC): the parser,
+  and `from_parts`, which also makes two atoms of one name one atom.
+- **The check's memory estimate counts what it makes at full size**
+  (`NODE_BYTES`, `TYPE_BYTES`, `VARIABLE_BYTES`, `USE_BYTES`): the
+  tables of types and of names are made with their room, so that no
+  growth holds two copies; a table left to grow held 39 times the
+  bound for a million variables (the review of 71a).
 - **The simple calculus has fewer nodes and types** (`Fault::Foreign`):
   no `⊗`, `1`, `!`, no `let`, `promote`, `derelict`, `discard`, `copy`,
   and `true` and `false` without arguments. The linear and the affine
@@ -70,7 +81,9 @@ design, with its sources and the alternatives weighed, is
 - **Types are parsed here, not by the sequents' parsers** (one cursor,
   exact places), with their tokens and strengths copied from
   `ordinary/parse.rs` and the manual's "Syntax"; a change there is made
-  here too.
+  here too. A variable in scope is found by its name in a table, each
+  name's innermost last: a scan of the scope made a text of `n` binders
+  and `n` uses cost `n²`.
 - **No rule file for STLC**: step 60's `fresh` reads any occurrence in
   the conclusion and a connective cannot bind, so the abstraction's side
   condition cannot be said (the design note, section 6). The typing
