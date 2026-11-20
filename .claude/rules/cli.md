@@ -523,6 +523,19 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   valid, 3 unknown, 2 an error, a disagreement or a failed check
   included (the library's `claim_fails`, a defect). Neither has a
   derivation drawing: the JSON holds the derivations.
+- `resolve.rs`: `resolve` (`ResolveArgs`: `TransformArgs` with
+  `--dimacs FILE`, `--method`, `--clauses`, `--clause-limit`,
+  `--step-limit`; the bounds are options of the call, so no settings
+  key) through `resolution::clauses_of` and `decide` on the large stack;
+  text is the verdict line, how a sequent's clauses were made, the
+  clauses numbered from 1, DPLL's steps indented by their decisions,
+  and the resolvents with their parents and atom; JSON the level-22
+  document. Exit 0 unsatisfiable, 1 satisfiable, 3 unknown. `check`
+  branches to `check_outside` for `--dimacs` (a DRAT or LRAT proof read
+  as bytes within the memory limit, `--proof-format` or the extension
+  `.lrat`) and to `check_refutation` for a JSON document with
+  `resolvents` (`Document::Resolution`; `grade` names it and refuses
+  it as an answer); both write text only.
 - `workspace.rs`: `deduxit workspace …` over the library's `workspace`
   (`core-workspace.md`), its file read through `wire::upgrade` within
   `limits.workspace` and written whole (`io::write`, beside and

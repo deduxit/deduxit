@@ -117,6 +117,13 @@ workspace graph builds on it.
   `restricts`). Each claim is asked as `ordinary.decide` with `{"method":
   "sat"}` where the build has `sat`, so a cache that answers it holds the
   clausal proof's verdict.
+- **`ordinary.resolve`** (a classical statement to `ordinary.resolution`,
+  the `resolve --format json` document, form `clause_resolution`):
+  parameters `method`, `form` (cnf, tseitin, plaisted-greenbaum),
+  `clauses`, `steps` (bounds, `null` for none). The check of `decides`
+  makes the clauses again from the input without the normal form's
+  check (`normal::rewrite`), compares them (part `clauses`), then checks
+  the refutation (read through the level-22 reader) or the model.
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

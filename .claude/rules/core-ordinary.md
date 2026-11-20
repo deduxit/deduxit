@@ -511,7 +511,9 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   bounded by the vector's length; literal codes `2·var + sign` fit a
   `u32` since `var < MOST_VARIABLES`. A failed check is
   `Error::ReadBack` (calculus LK), a defect: the stream is the engine's
-  own. Step 70's outside proofs will need an error of kind `invalid`.
+  own. An outside proof's flaw (`resolution::check_proof`) is
+  `Error::InvalidRefutation`, kind invalid; `ClausalProof::checked` and
+  the modules `drup` and `solver` are `pub(crate)` for it.
 - **The setup polls too**: the encoder asks the stop every `POLL`
   formulas, and the solver is asked (`Solver::poll`: stop, work, memory)
   every `POLL` clauses it is given, since it copies them and
@@ -1067,6 +1069,61 @@ decided not valid is `Error::ClaimFails` (kind defect).
   `sat` is on, else the classical default; the classical default with
   `sat` would also run the embedding for a derivation, which costs the
   embedding's search.
+
+## Resolution and DPLL (`resolution/`)
+
+Public as `ordinary::resolution`; the command's `resolve` and `check`
+of a refutation or (`--dimacs`) of an outside proof, the protocol's
+`ordinary.resolve`. Teaching scale: bounded by `Options::clauses` and
+`steps` (2 000 and 100 000), unknown past them.
+
+- **The checker is the trust** (`Refutation::check`): each resolvent's
+  two clauses come before it, `first` holds the atom and `second` its
+  negation, the clause is exactly `first ∖ {p}` joined with `second ∖
+  {¬p}`, and some clause is empty. Only the pivot's own literal leaves
+  each clause: a parent that holds both `p` and `¬p` keeps the other one.
+  Dropping both from both (the first version) let `{a ∨ ¬a}` be "refuted"
+  in one step; the panel's counterexamples and argument members found it
+  (`a_tautology_is_no_way_to_the_empty_clause`). `resolve` (by hand) and
+  saturation's own `resolve` use the same rule.
+- **`decide` checks before it answers**: a refutation by `check` and
+  against the input set, a model by evaluating every clause
+  (`Clauses::falsified`); a failure is `ClaimFails`, a defect. The
+  searches are untrusted.
+- **Saturation**: shortest clause first, tautologies and clauses a used
+  one subsumes left out (forward subsumption only), resolution only on
+  pairs with exactly one clashing atom (two give tautologies). Saturated
+  without `□` means satisfiable, and DPLL then finds the model, whose
+  verdict (or unknown) is the answer.
+- **DPLL** is classic: no learning, every decision's second branch tried
+  (chronological backtracking), units first, then pure literals, then
+  the first atom of an open clause decided true. Its refutation is read
+  off going back (`back`): a conflict clause resolved with the unit
+  reasons above the decision, and at a decision both branches' clauses
+  combined (`Reason::Flipped` keeps the first branch's). The invariant:
+  the clause carried is false under the trail that remains. Every scan
+  is over all clauses per step (teaching scale).
+- **Literals** are `2·atom + sign` in a `u32`: a set holds at most
+  `Literal::MOST_ATOMS` atoms, `Literal::new` answers `None` from there,
+  and the crate's `Literal::of` is used only for atoms of a set (the
+  integers member found the wrap: `resolve` with atom 2³¹ aliased atom 0).
+- **Memory**: `from_dimacs` refuses a header past `memory_bytes` at
+  `ATOM_BYTES` an atom before making names (a 32-byte header once held
+  7 GB); `decide` charges the set and per-atom arrays first, saturation
+  its clauses, DPLL its events and resolvents; the LRAT reader charges
+  each clause twice (the step and its numbering).
+- **Outside proofs** (`outside.rs`, feature `sat`): the readers only
+  turn text or bytes into `drup::Step`s; every addition is checked by
+  RUP, deletions only weaken, so a misread can lose a valid proof but not
+  accept a wrong one. A binary DRAT proof starts with `a` or holds a
+  control byte among its first 64 (drat-trim's rule; letters of a
+  comment are text). LRAT hints are ignored; RAT steps fail.
+- **Wire level 22** (`serialize/resolution.rs`): a refutation is read
+  and written (`check` reads one), a clause set decided is written only;
+  literals as DIMACS writes them, clauses numbered from 0, atoms from 1.
+- **Where quantifiers go**: first-order resolution needs unification on
+  `sequents::fo` terms and a TPTP `cnf` reader (`plan/later.md`); the
+  types here are propositional.
 
 ## Decisions
 
