@@ -7593,3 +7593,15 @@ move (D26).
     compressed; no rules-suite problems). Gate and `nix flake check` passed.
   - **For the author:** ILTP stays out unless its maintainers give a word; the dataset is CC BY
     4.0; a hub upload is the author's act. `grade` is a new command (an addition).
+- 2026-11-20, 11:55: **70a reviewed and pushed; 70b started.**
+  - **70a** (`pruxoxoo` to `oqtkunso`): `ordinary::normal`: NNF, CNF and DNF by one law per step
+    (leftmost outermost, phases: implications, negations, constants, distribution), Tseitin's and
+    Plaisted and Greenbaum's clauses of the sequent's negation; every step shown as data; each
+    promise checked by the SAT engine with its clausal proof checked (equivalence per formula;
+    for an encoding, fresh definitions, then "extends" and "restricts"); the bound
+    `limits.form_occurrences` (10 000) with `Refusal::Form`; `seq normalize --to …`; wire level
+    21; five protocol operations with promises `equivalent` and `equisatisfiable`. The panel's
+    argument member (Fable) found four gaps at the edges, the fresh reviewer (Fable) four more
+    (a cubic freshness check among them), all fixed with tests. Module +17 KB (3 690 645 under
+    3 750 000). Gate and `nix flake check` passed.
+  - **70b** (resolution, DPLL, the refutation checker, with the panel) started in the same worker.
