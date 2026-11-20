@@ -7655,3 +7655,8 @@ move (D26).
     scrolls). Both flake checks passed.
 - 2026-11-20, about 14:40: **Step 70 complete**: 70c's client chain and its lock update (`onkumrvo`)
   are on the client's `main` after its flake check passed.
+- 2026-11-20, about 15:05: **Unattended from now** (the author). Decisions that would go to the
+  author are taken by research and idiom and reported here. Held for the author: the tags of 0.7.0
+  (the yes of 2026-11-16 covered 0.6.0), the crates.io approval, and any session that needs a switch
+  to Fable (it prompts and would block): such a session runs on Opus with "(departs from the plan:
+  Opus in place of Fable, unattended)" or waits.
