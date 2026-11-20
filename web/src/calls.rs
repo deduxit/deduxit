@@ -87,7 +87,7 @@ pub fn about() -> String {
                         "default": deduxit::ordinary::Options::default().logic,
                     },
                 ],
-                "settings": ["interactive.invertible", "lambda", "limits.table_atoms", "ordinary.translation", "view.structural"],
+                "settings": ["interactive.invertible", "lambda", "limits.form_occurrences", "limits.table_atoms", "ordinary.translation", "view.structural"],
                 "term": "ordinary_term",
                 "methods": [
                     {"method": "table", "call": "ordinary_table", "logics": ["classical"]},
@@ -106,6 +106,17 @@ pub fn about() -> String {
                         "transformation": "interpolant",
                         "call": "ordinary_interpolate",
                         "logics": deduxit::ordinary::Logic::NAMES,
+                    },
+                    {
+                        "transformation": "normal",
+                        "call": "ordinary_normalize",
+                        "forms": deduxit::ordinary::normal::Form::NAMES,
+                    },
+                    {
+                        "transformation": "resolution",
+                        "call": "ordinary_resolve",
+                        "methods": deduxit::ordinary::resolution::Method::NAMES,
+                        "clauses": ["cnf", "tseitin", "plaisted-greenbaum"],
                     },
                 ],
             },

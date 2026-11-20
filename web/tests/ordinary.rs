@@ -480,3 +480,52 @@ fn a_sequent_is_translated_and_interpolated() {
     assert_eq!(transformations[0]["translations"][1]["target"], "minimal");
     assert_eq!(transformations[1]["call"], "ordinary_interpolate");
 }
+
+/// A normal form answers its steps and checks; a resolution its checked
+/// refutation, by either method, or a model; a refutation by hand grows a
+/// step at a time to the empty clause, refuses a step the clauses do not
+/// allow and a document changed by hand; `about` names the calls.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_sequent_is_normalized_and_resolved() {
+    let cnf = value(&ordinary::normalize("a -> b /\\ c", "", "").unwrap());
+    assert_eq!(cnf["version"], 21);
+    assert_eq!(cnf["checked"], true);
+    assert_eq!(cnf["steps"][0]["rule"], "implication");
+    let encoded = ordinary::normalize("a", r#"{"form": "tseitin"}"#, "").unwrap();
+    assert_eq!(value(&encoded)["promise"], "equisatisfiable");
+
+    let resolved = value(&ordinary::resolve("a -> b, a |- b", "", "").unwrap());
+    assert_eq!(resolved["version"], 22);
+    assert_eq!(resolved["verdict"], "unsatisfiable");
+    let dpll = value(&ordinary::resolve("a \\/ b |- a", r#"{"method": "dpll"}"#, "").unwrap());
+    assert_eq!(dpll["verdict"], "satisfiable");
+    assert!(dpll["trace"].as_array().is_some_and(|t| !t.is_empty()));
+
+    // `¬a ∨ b`, `a`, `¬b`: resolve 0 with 1 on a, then that with 2 on b.
+    let start = ordinary::clauses("a -> b, a |- b", "", "").unwrap();
+    assert_eq!(
+        value(&start)["clauses"],
+        serde_json::json!([[-1, 2], [1], [-2]])
+    );
+    let refused = ordinary::resolve_step(&start, 0.0, 2.0, 1.0, "");
+    assert_eq!(failure(&refused.unwrap_err())["code"], "step_refused");
+    let one = value(&ordinary::resolve_step(&start, 0.0, 1.0, 1.0, "").unwrap());
+    assert_eq!(one["added"], 3);
+    assert_eq!(one["finished"], false);
+    let one = one["refutation"].to_string();
+    let two = value(&ordinary::resolve_step(&one, 3.0, 2.0, 2.0, "").unwrap());
+    assert_eq!(two["finished"], true);
+    let checked = ordinary::refutation_check(&two["refutation"].to_string(), "").unwrap();
+    assert_eq!(value(&checked)["finished"], true);
+    let changed = one.replace(r#""clause":[2]"#, r#""clause":[]"#);
+    let refused = ordinary::refutation_check(&changed, "");
+    assert_eq!(
+        failure(&refused.unwrap_err())["code"],
+        "invalid_clause_refutation"
+    );
+
+    let about = value(&calls::about());
+    let transformations = &about["suites"][1]["transformations"];
+    assert_eq!(transformations[2]["call"], "ordinary_normalize");
+    assert_eq!(transformations[3]["call"], "ordinary_resolve");
+}

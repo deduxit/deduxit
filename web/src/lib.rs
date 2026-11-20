@@ -395,6 +395,50 @@ mod exports {
         ordinary::translate(sequent, options, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::normalize`].
+    #[wasm_bindgen]
+    pub fn ordinary_normalize(
+        sequent: &str,
+        options: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::normalize(sequent, options, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::resolve`].
+    #[wasm_bindgen]
+    pub fn ordinary_resolve(
+        sequent: &str,
+        options: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::resolve(sequent, options, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::clauses`].
+    #[wasm_bindgen]
+    pub fn ordinary_clauses(sequent: &str, form: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::clauses(sequent, form, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::resolve_step`].
+    #[wasm_bindgen]
+    pub fn ordinary_resolve_step(
+        refutation: &str,
+        first: f64,
+        second: f64,
+        atom: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::resolve_step(refutation, first, second, atom, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::refutation_check`].
+    #[wasm_bindgen]
+    pub fn ordinary_refutation_check(refutation: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::refutation_check(refutation, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::interpolate`].
     #[wasm_bindgen]
     pub fn ordinary_interpolate(

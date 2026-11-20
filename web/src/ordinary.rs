@@ -21,6 +21,7 @@ use deduxit::ordinary::{
     self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side,
     Step, WrittenTableau,
 };
+use deduxit::ordinary::{normal, resolution};
 use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
 
@@ -677,6 +678,185 @@ pub fn interpolate(
     )
     .map_err(Failure::from)?;
     written(&found)
+}
+
+/// Rewrites a sequent of classical logic into a normal form step by step
+/// and checks the form's promise, answering the normal form: `{"version":
+/// 21, "form", "promise", "checked", "sequent", "result", "steps":
+/// [{"rule", "law", "before", "after", "left", "right", "added"}, …],
+/// "checks"}`, the steps' numbers indices of `result.formulas`, the
+/// sequent after a step its `left` with the clauses `added` by it and by
+/// every step before it. `options` is `{"form": "cnf"}` (`nnf`, `cnf`, `dnf`, `tseitin`,
+/// `plaisted-greenbaum`), or `""` for conjunctive normal form.
+///
+/// # Errors
+///
+/// A sequent or options that cannot be read, a form past
+/// `limits.form_occurrences` (code `form_too_large`), and a promise found
+/// false (code `claim_fails`, a defect).
+pub fn normalize(sequent: &str, options: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let options: normal::Options = if options.trim().is_empty() {
+        normal::Options::default()
+    } else {
+        serde_json::from_str(options).map_err(Failure::json)?
+    };
+    let search = deduxit::linear::search::Options::default();
+    let made = normal::normalize(&sequent, &options, &search, &settings.limits, never)
+        .map_err(Failure::from)?;
+    written(&made)
+}
+
+/// How [`resolve`] makes and decides the clauses.
+#[derive(Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct Resolving {
+    /// The form that turns the sequent's negation into clauses.
+    form: normal::Form,
+    /// The method.
+    method: resolution::Method,
+    /// The bound on clauses, `null` for none.
+    clauses: Option<u64>,
+    /// The bound on steps, `null` for none.
+    steps: Option<u64>,
+}
+
+impl Default for Resolving {
+    /// Conjunctive normal form, saturation, the library's bounds.
+    fn default() -> Self {
+        let options = resolution::Options::default();
+        Self {
+            form: normal::Form::Cnf,
+            method: options.method,
+            clauses: options.clauses,
+            steps: options.steps,
+        }
+    }
+}
+
+/// Turns a sequent of classical logic's negation into clauses and decides
+/// them, answering the clause set decided: `{"version": 22, "method",
+/// "verdict", "atoms", "clauses", "resolvents", "true_atoms", "bound",
+/// "trace", "statistics"}`, `verdict` `unsatisfiable` (the sequent is
+/// valid) with the checked refutation's `resolvents` (each `{"first",
+/// "second", "atom", "clause"}`: the clauses by number from 0, the atom
+/// from 1), `satisfiable` with a checked model's `true_atoms`, or
+/// `unknown` with the `bound`; `trace` DPLL's steps. `options` is
+/// `{"form": "cnf", "method": "saturation", "clauses": 2000, "steps":
+/// 100000}`, every key optional, or `""` for those defaults.
+///
+/// # Errors
+///
+/// A sequent or options that cannot be read, a form past
+/// `limits.form_occurrences`, and an answer or a rewriting that fails its
+/// check (code `claim_fails`, a defect).
+pub fn resolve(sequent: &str, options: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let options: Resolving = if options.trim().is_empty() {
+        Resolving::default()
+    } else {
+        serde_json::from_str(options).map_err(Failure::json)?
+    };
+    let search = deduxit::linear::search::Options::default();
+    let (clauses, _) =
+        resolution::clauses_of(&sequent, options.form, &search, &settings.limits, never)
+            .map_err(Failure::from)?;
+    let decide = resolution::Options::default()
+        .with_method(options.method)
+        .with_clauses(options.clauses)
+        .with_steps(options.steps);
+    let answer =
+        resolution::decide(&clauses, &decide, &settings.limits, never).map_err(Failure::from)?;
+    written(&answer)
+}
+
+/// Starts a refutation by hand: the clauses of a classical sequent's
+/// negation by `form` (`cnf`, `tseitin` or `plaisted-greenbaum`; `""` for
+/// `cnf`), as a refutation with no resolvent yet: `{"version": 22,
+/// "atoms", "clauses", "resolvents": []}`.
+///
+/// # Errors
+///
+/// A sequent or form that cannot be read, a form that gives no clauses
+/// (code `invalid_option`), and a rewriting that fails its check.
+pub fn clauses(sequent: &str, form: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let form: normal::Form = if form.trim().is_empty() {
+        normal::Form::Cnf
+    } else {
+        form.parse().map_err(Failure::from)?
+    };
+    let search = deduxit::linear::search::Options::default();
+    let (clauses, _) = resolution::clauses_of(&sequent, form, &search, &settings.limits, never)
+        .map_err(Failure::from)?;
+    written(&resolution::Refutation::new(clauses))
+}
+
+/// Reads a refutation the page holds, checking its numbers.
+fn refutation_of(refutation: &str, settings: &Settings) -> Result<resolution::Refutation, Failure> {
+    let mut json = serde_json::Deserializer::from_str(refutation);
+    wire::upgrade(&mut json, &settings.limits).map_err(Failure::from)
+}
+
+/// Takes a step of a refutation by hand: resolves the clauses numbered
+/// `first` and `second` (from 0) on the atom numbered `atom` (from 1, as
+/// the document numbers atoms), one holding the atom and the other its
+/// negation, and answers `{"refutation": {…}, "added": n, "finished":
+/// bool}`: the refutation with the resolvent added as clause `n`, and
+/// whether the empty clause is derived. The refutation read is checked
+/// again first, so a document changed by hand is refused.
+///
+/// # Errors
+///
+/// A refutation that cannot be read or does not check
+/// (`invalid_clause_refutation`), a number that is no integer, and a step
+/// the clauses do not allow (code `step_refused`).
+pub fn resolve_step(
+    refutation: &str,
+    first: f64,
+    second: f64,
+    atom: f64,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut refutation = refutation_of(refutation, &settings)?;
+    refutation
+        .check_steps(&settings.limits, never)
+        .map_err(Failure::from)?;
+    let first = crate::calls::index(first, "first")?;
+    let second = crate::calls::index(second, "second")?;
+    let atom = crate::calls::index(atom, "atom")?;
+    // Atoms are counted from 1; a 0 names no atom, which `resolve` refuses.
+    let atom = atom.checked_sub(1).unwrap_or(u32::MAX);
+    let added = refutation
+        .resolve(first as usize, second as usize, atom)
+        .map_err(Failure::from)?;
+    let answer = serde_json::json!({
+        "refutation": refutation,
+        "added": added,
+        "finished": refutation.is_finished(),
+    });
+    Ok(answer.to_string())
+}
+
+/// Checks a refutation the page holds and answers `{"finished": bool}`:
+/// whether the empty clause is derived. Every step is checked, finished
+/// or not.
+///
+/// # Errors
+///
+/// A refutation that cannot be read, and one whose step does not hold
+/// (code `invalid_clause_refutation`).
+pub fn refutation_check(refutation: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let refutation = refutation_of(refutation, &settings)?;
+    refutation
+        .check_steps(&settings.limits, never)
+        .map_err(Failure::from)?;
+    Ok(serde_json::json!({"finished": refutation.is_finished()}).to_string())
 }
 
 /// Decides a sequent of classical logic by `method` and answers the

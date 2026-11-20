@@ -243,6 +243,31 @@ pub const SUITES: [Speaks; 4] = [
                 does: "finds a Craig interpolant and checks it",
             },
             Extra {
+                export: "ordinary_normalize",
+                takes: &["sequent", "options", "settings"],
+                does: "rewrites a classical sequent into a normal form step by step and checks it",
+            },
+            Extra {
+                export: "ordinary_resolve",
+                takes: &["sequent", "options", "settings"],
+                does: "refutes the clauses of a classical sequent's negation by resolution or DPLL",
+            },
+            Extra {
+                export: "ordinary_clauses",
+                takes: &["sequent", "form", "settings"],
+                does: "starts a refutation by hand from a classical sequent's clauses",
+            },
+            Extra {
+                export: "ordinary_resolve_step",
+                takes: &["refutation", "first", "second", "atom", "settings"],
+                does: "adds a resolvent to a refutation by hand",
+            },
+            Extra {
+                export: "ordinary_refutation_check",
+                takes: &["refutation", "settings"],
+                does: "checks a refutation by hand, finished or not",
+            },
+            Extra {
                 export: "ordinary_model",
                 takes: &["model", "sequent", "logic", "world", "settings"],
                 does: "checks a Kripke model the page gives",
