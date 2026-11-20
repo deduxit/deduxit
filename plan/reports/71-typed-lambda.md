@@ -298,3 +298,369 @@ are fixed and one is left open.
   later System F and first-order natural deduction, be rule files with
   sessions for free. It changes step 60's trusted checker and its wire
   level, so it is a step of its own.
+
+## Session 71b: inhabitation
+
+Opus 5.5 at `high`, the worker of 70a to 70c keeping its conversation,
+from the brief `start-71b.md` on 2026-11-20, cores 7 to 9, in the jj
+workspace `../deduxit-wt-step-58a-610ed3`, started on 71a's `typqovru`
+before it landed and rebased onto `main@origin` once 71a was reviewed
+and pushed (`ruywkzzp`, its review's fixes `llytnxyx` and `slsolovt`).
+
+### Outcome
+
+A simple type's terms are found, listed and counted, through the
+engines deduxit already has, and the command and the protocol offer it.
+
+- `lambda::inhabit` decides `Γ ⊢ A` in intuitionistic logic
+  (`ordinary::decide_within`, LJT again where the default method gives
+  no derivation), reads the derivation back as a term and checks it
+  (`Term::check`), or answers that the type has none, with the
+  engine's checked Kripke countermodel where it gave one.
+- `lambda::enumerate` lists a type's terms up to βη-equality, as long
+  normal forms, and counts them: exactly n, infinitely many, or at
+  least n where a bound cut the search. Every term listed is checked.
+  Uniqueness is `Inhabitants::unique` (exactly one).
+- The command `term`: `term check TERM` (the judgement with every type,
+  or why the term is ill typed), `term inhabit TYPE`, `term enumerate
+  TYPE`.
+- The protocol's suite `lambda` and its four kinds; the JSON at wire
+  level 24; the manual, the guide, the changelog, the schema and the
+  schema check.
+- Two fuzz targets: the term's text and JSON readers, and inhabitation.
+- The panel on the type checker and the enumeration found two real gaps
+  in 71a's checker and reader and smaller points in the enumeration;
+  all fixed.
+
+The chain, on `main@origin`:
+
+| change | what |
+|---|---|
+| `wwwzyquq` | the library (`core/src/lambda/inhabit.rs`, `Error::NotEnumerable`, wire level 24, the forms) and the protocol's suite `lambda`, the schema's forms |
+| `oympyqtm` | the command `term`, the manual's sections, the guide, the changelog, the schema check's documents |
+| `qkyomwul` | the behaviour lock: the term command's calls, and two listings that name the new command and suite |
+| `wovprokx` | the fuzz targets `lambda_text` and `lambda_inhabit`, their seeds |
+| `wsxxlomu` | the panel's fixes in the enumeration: a cut list keeps the shortest terms; the protocol's checks ask for the simple calculus |
+| `nwkpmoks` | the panel's fix: everything the enumeration holds counted against `limits.memory_bytes` |
+| `wnnpvwqm` | the panel's fix: the depth of a cut list found by halving |
+| `xsuxsnuq` | the web module's budget: 3 831 827 bytes at gzip with the suite `lambda`, the ceiling raised from 3 750 000 to 3 900 000 |
+| `onyzmrnt` | the reviewer's findings: the ways to an atom and the tables' keys held against the memory bound; the help, the wire table, the fuzz target's header and the "at least" wording |
+| (this report) | `plan/reports/71-typed-lambda.md` |
+
+### What was built, and its sources
+
+- **Deciding** goes through the ordinary engines, as the design note's
+  section 7 planned: a simple type built from atoms, `→`, `∧`, `∨`, `⊤`
+  and `⊥` is an ordinary formula, and a closed term of it is a proof
+  in intuitionistic logic (*Proofs and Types*, ch. 3). The type is the
+  ordinary formula itself, typed by the read-back's own conversion
+  (`simple::type_of`, factored out of `simple.rs` for it), so `¬A` is
+  `A → ⊥` and `A ↔ B` a pair of implications in both. Statman (TCS 9,
+  1979) makes it PSPACE-complete, so every answer is within bounds.
+- **Enumeration** is a search of its own over long normal forms
+  (C.-B. Ben-Yelles, *Type Assignment in the Lambda-Calculus: Syntax &
+  Semantics*, PhD thesis, Swansea, 1979; J. R. Hindley, *Basic Simple
+  Type Theory*, CUP 1997, ch. 8, "Counting a type's inhabitants"; both
+  checked against the publishers' listings this session): a function's
+  term is a `λ`, a pair's a pair, `⊤`'s the unit, an atom's a variable
+  taken apart down to it. The count's argument:
+  - every goal's shape (the set of types in scope and the goal) is
+    decided by the engines before the search enters it, and a head is
+    taken only when every argument's shape has a term, so every goal
+    entered lies in some inhabitant;
+  - a shape met again inside itself means infinitely many terms (the
+    outer goal's term stands for the inner one, a longer term each
+    time);
+  - without such a repeat the pruned tree is finite, so a search that
+    met no depth bound and no undecided shape met every term: the count
+    is exact.
+
+  Hindley's chapter decides finiteness by bounds on a term's depth; the
+  repeat test here is a sufficient condition the engines' decisions make
+  exact, and the panel's argument member checked both halves.
+- **The fragment** is atoms, `→`, `∧`, `↔` and `⊤`. With `∨` or `⊥`
+  (so `¬`), βη-equality identifies terms that long normal forms tell
+  apart (G. Scherer and D. Rémy, "Which simple types have a unique
+  inhabitant?", ICFP 2015, pp. 243-255; checked), so a count there would
+  be wrong: `enumerate` refuses such a type with `Error::NotEnumerable`
+  (code `not_enumerable`, kind unsupported); `inhabit` takes every type.
+- **Bounds and options (D15, D16)**: `lambda::InhabitOptions { depth,
+  max_terms }` (8 and 32 by default), with serde; `limits.work` and
+  `limits.memory_bytes`. The counts are saturating `u64`; a saturated
+  count is "at least". A list cut at `max_terms` keeps the shortest
+  terms (every term of the deepest depth whose terms all fit, found by
+  running again at smaller depths with the engines' decisions kept).
+- **JSON** (wire level 24, `wire::INHABITANTS`, written only):
+  `Inhabitants` is `{"version", "deduxit", "count": {"kind":
+  "exactly"|"infinite"|"at_least", "count"}, "terms": [term documents]}`,
+  `Inhabitation` `{"version", "deduxit", "verdict":
+  "inhabited"|"empty"|"unknown", "term"|"countermodel"|"reason"}`;
+  `Typing` serializes as `{"types", "nodes"}`.
+- **The command** (`cli/src/term.rs`): `term check` reads the term as
+  an argument, `--file` or standard input, in `--calculus simple`
+  (default), `linear` or `affine`, and prints `well typed` and the
+  judgement with types (so it reads back), or `ill typed: …` with exit
+  1; its JSON is the term's document, its keys first, so the record
+  reads back as the term, then `deduxit`, `verdict`, `typing`,
+  `judgement`. `term inhabit` and `term enumerate` take the type as an
+  ordinary formula (`TransformArgs`: text or file, the limits, the time
+  limit); `enumerate` has `--depth` and `--max-terms`. Exit 0 for a
+  type with a term, 1 for none, 3 when a bound or the time ran out.
+- **The protocol** (`core/src/protocol/lambda.rs`): kinds `lambda.term`
+  (a statement, form `typed_term`; `protocol::statement("lambda", text,
+  calculus, …)` makes one), `lambda.typing`, `lambda.inhabitation`,
+  `lambda.inhabitants`; operations `lambda.check` (promise
+  `well_typed`, new: the output's term equals the input's and its
+  typing the checker's), `lambda.inhabit` (`decides`: the term checked
+  and held to the type by `has_type`, an `empty` answer `Recorded`),
+  `lambda.enumerate` (`well_typed` of every term listed) and
+  `lambda.duplicate`. A type is an `ordinary.sequent` claimed in
+  intuitionistic logic. The schema has the forms `lambda_typing`,
+  `lambda_ill_typed`, `lambda_inhabitation`, `lambda_inhabitants`, and
+  the error codes `ill_typed` (71a's, missing from it) and
+  `not_enumerable`; the schema check writes a document of each.
+- **Fuzzing**: `lambda_text` (the first byte the calculus; a text or a
+  JSON document; whatever reads and checks prints with types as a text
+  that reads back, checks and prints the same; a document writes back
+  to its bytes) and `lambda_inhabit` (the first byte the depth and the
+  list's length; no defect, every term found checks, an exact count
+  lists all its terms up to the length). They build (`cargo check
+  --manifest-path fuzz/Cargo.toml --bins` in the fuzz shell); no run
+  was made this session.
+
+### The panel's and the reviewer's findings
+
+The panel ran on the type checker (71a's `check.rs`, `parse.rs`,
+`read.rs`) and on the enumeration, each member from a fresh context:
+`panel-counterexamples` (Opus 5.5, high), `panel-argument` (Fable 5.2,
+high), `panel-integers` (Sonnet 5.5, high). The tree changed under them
+as the findings were fixed; each re-ran its witnesses on the fixed
+tree.
+
+**Found and fixed:**
+
+1. **The capture check bound a pattern's variables outermost first**
+   (argument and counterexamples, both with witnesses). `let z be x₁ ⊗
+   x₂ in x₁`, both named `x`, was accepted in the affine calculus and
+   printed a text that reads as `x₂`; `promote` likewise; the parser's
+   own `let z be x * x in x` was refused. 71a's review found and fixed
+   the same in `llytnxyx` (the later variable bound first, a pattern
+   naming one variable twice refused); this session's fix of it,
+   `qmmnvkyt`, was abandoned at the rebase. The counterexamples member's
+   checker fuzz gave 24 accepted mismatches on the old order and 0 on
+   the fixed one.
+2. **`has_type` held a term of another type when a document named an
+   atom twice** (argument and counterexamples): `from_parts` took
+   `["a", "a", "b"]`, and the protocol's check of `lambda.inhabit`
+   answered "held" for `b ⊢ b` with a term printed `x : a ⊢ x : a`.
+   71a's review (`llytnxyx`) makes the reader merge equal names, which
+   closes it; this session's refusal of them was abandoned with
+   `qmmnvkyt`.
+3. **The enumeration overran `limits.memory_bytes`**
+   (counterexamples, integers): only the arena of long normal forms was
+   counted; `|- ((((a ∧ a) ∧ a) → ((a → a) → a)) → (a → a))` at depth 7
+   with 3 000 terms listed held 1.1 GB under a bound of 100 MB, and at
+   the default bound the process passed 3 GiB. Fixed in `nwkpmoks`:
+   `Search::held` counts the arena, the variables and contexts, the
+   lists and tasks waiting and the terms built; the peak is now 102 MB
+   at 100 MiB, 342 MB at 400 MiB, 840 MB at 1 GiB, each refused with
+   `Refusal::Memory` (`a_search_past_the_memory_bound_is_refused`).
+4. **A cut list held the deepest terms** (argument): `Join` filled the
+   list from the first candidate, the outermost variable, deep terms
+   first, so `|- (a → a → a) → a → a` with five terms listed lacked
+   `λf. λx. x`. Fixed in `wsxxlomu`: where the count passes `max_terms`,
+   every term of the deepest depth whose terms all fit is listed first
+   (`terms_come_shortest_first_and_the_count_goes_past_the_list`).
+5. **That fix ran a search per depth step** (integers): a loop down from
+   the depth made `--depth 4294967295 --max-terms 1 'a -> a -> a'` take
+   some 25 minutes where it answered at once before. Fixed in
+   `wnnpvwqm`: the depth is found by halving, some 32 searches at
+   `u32::MAX` (`a_cut_list_at_the_largest_depth_costs_a_few_searches`).
+6. **The protocol's checks took a term of a linear calculus**
+   (argument): sound for inhabitation, but not the simple term promised.
+   `holds` now fails part `calculus` for one (`wsxxlomu`).
+7. **`inhabit` did not hold its term to the sequent** (argument): a
+   trusted step of the read-back; a `debug_assert!` of `has_type` now
+   states it (`wsxxlomu`), and the protocol's check holds it for real.
+
+**Answered, not changed:**
+
+- **A count past 2⁵³ is a plain JSON number** (integers), which a
+  JavaScript reader rounds. The crate's decision on wire numbers
+  (`core-sequents.md`, "Numbers on the wire") lets a written-only count
+  pass 2⁵³, `u64::MAX` meaning "at least"; `Count`'s doc says so now.
+- **The checker refuses two well-typed documents by design**
+  (argument): one whose simple calculus lists an unused linear type,
+  and one with an ill-typed node the root does not reach. Both are
+  71a's choices and refuse, never accept.
+- **After a repeat the search goes on to the depth** (argument): the
+  numerals at depth 80 end in `Refusal::Memory`, not `Infinite`. A
+  refusal, not a wrong answer; stopping at the first repeat would lose
+  the list.
+- **The checker's `waiting` comment claimed the reverse of the code**
+  (argument): 71a's review made the counts `u64` and rewrote it.
+- **`run` sums the lists waiting at each task** (integers): quadratic in
+  the stack of lists along one way, which is a few per goal on it.
+
+**What the panel ran and found sound:**
+
+- **Counterexamples**: a reference enumerator of long normal forms and
+  a G4ip prover of its own, a checker of all three calculi that unfolds
+  the DAG and resolves names; about 11 000 random sequents (1 to 3
+  atoms, 0 to 2 hypotheses, depths 1 to 8), every `Exactly n` equal to
+  the reference at the depth and ten deeper, no `Infinite` where the
+  reference levels off, every `AtLeast n` equal within the depth, 10 590
+  listed sets compared (each term checks, none twice, none deeper, no
+  list short); 10 500 sequents with `∨`, `⊥`, `¬`, `↔`, `⊤` for
+  `inhabit`, every verdict as G4ip's, every term of the right judgement;
+  1 954 terms and about 104 800 mutants for the checker, 0
+  disagreements on the fixed tree.
+- **Argument**: every typing rule against Bierman fig. 3.2 and the
+  simple calculus, the use counts and `share`/`bind`, saturation, the
+  capture condition at `λ`, `case` and the context; the enumeration's
+  three claims (every goal entered is inhabited, `on_way` exact,
+  `Infinite`/`Exactly`/`AtLeast` sound), the stack discipline, caps and
+  saturation, `term`, `has_type` with distinct names; 2 000 random
+  sequents against a brute-force count, 0 mismatches.
+- **Integers**: the counts saturating at 2⁶⁴ (`∧` of 63 to 200 parts),
+  `max_terms` 0 and `u32::MAX`, depth 0, `limits.work` and
+  `memory_bytes` from 0 up, the stop; types shared as a DAG (`↔` nested
+  to 1 001) and nested 20 000 deep on a 256 KiB stack; 70 000
+  hypotheses; the checker's counts driven by 2¹²⁹ uses; 400 000
+  token-soup texts, 1.5 million mutated texts and 300 000 mutated
+  documents with ids at every limit, 0 panics; the command's flags at
+  their limits.
+
+`fresh-reviewer` once, on Fable 5.2 at medium, after the panel's
+fixes and the rebase. It found no wrong count, no ill-typed term and no
+wrong `Infinite`, and four faults, all fixed in `onyzmrnt`:
+
+1. **The memory bound was overrun still**, by the ways down to a head's
+   atom: a type shared as a DAG has exponentially many, each a list of
+   its own, and neither they nor the tables' keys were counted. Its
+   621-byte JSON sequent (`((a ∧ a) ∧ (a ∧ a))…` sixteen deep, sixty
+   times left of `⊢`) held 2.3 GB under the default 1 GiB for 400 s.
+   Now they are counted as they grow, by capacity (a count by length
+   still reached 1.9 GB, the vectors' doubling): the witness is refused
+   at 1.08 GB under 1 GiB and at 304 MB under 300 MB
+   (`a_type_shared_as_a_dag_is_held_to_the_memory_bound`).
+2. **`term check`'s help named a key `term`** the record does not
+   write (the term's keys come first, flattened). Reworded.
+3. **The fuzz target `lambda_inhabit` claimed to check a term's type**
+   against the sequent, which it cannot (`has_type` is crate-private);
+   its header now says what it checks, and that the library's debug
+   assertion holds the type in a debug build, which the fuzz run makes.
+4. **The wire module's table of levels stopped at 23.** Level 24 has
+   its row.
+
+Its two questions are answered in the same commit: "at least" comes
+from the depth or a limit (a saturated count, an undecided shape), so
+the command's line, the help, the manual and the guide say both; and
+the schema's `lambda_ill_typed` no longer mentions a parse error, which
+`term check` answers with exit 2 and no document.
+
+### Checks
+
+All on cores 7 to 9, capped; the flake check under the machine lock.
+
+- **Between commits**: clippy with warnings denied and `cargo test
+  --workspace` after each unit (the gate's parts but the two `cargo
+  hack` runs and the ratchet, which the full check holds); the core's
+  576 unit tests and every other target passed on the rebased chain.
+- **`nix flake check --keep-going` at the head**, the gate's five parts
+  with it: every check passed on the second run. Its first run failed `budget` alone: the web module
+  at 3 831 827 bytes at gzip, 82 KB over the ceiling of 3 750 000, since
+  the protocol's suite `lambda` links the term's parser and checker and
+  the enumeration into the workspace's runs, which the module carries.
+  The ceiling is 3 900 000 in `xsuxsnuq`, a commit of its own with the
+  figure (`budget.nix`: "the budget says when a cost grew, not whether
+  it may"); the planning session may prefer to keep the suite out of
+  the module instead.
+- **The schema check's documents**, written by the command and
+  validated against `docs/src/wire.schema.json` with Python's
+  `jsonschema` before the flake check ran `wire-schema`: the seven new
+  documents passed, and no unknown key passes.
+- **The README's, the manual's and the guide's examples**
+  (`cli/tests/readme.rs`): the three new sections run, every command,
+  flag and key they name exists.
+- **The behaviour lock**: nine new calls and two listings, blessed in
+  `qkyomwul`, a commit of its own.
+- **The fuzz targets** build in the fuzz shell; they were not run.
+- **The panel and the reviewer** ran their own probes (above): about
+  11 000 sequents against a reference enumerator, 10 500 against G4ip,
+  104 800 checker mutants, 2 000 more sequents against a brute-force
+  count, and the integers to their limits.
+
+### Departures
+
+- **No `lambda::Derivation` yet** (departs from the design): the design
+  note's section 6 has 71b build the typing derivation as a view
+  behind the exports' `Drawn`, and 71a's list put it second. It needs a
+  judgement writer per subterm in every target's notation, an arm of
+  `export::Drawable` in every exporter and its size bound; it is left
+  for 71c, which the planning session gave it (on the exports, from
+  `Typing`).
+- **Linear types are not inhabited** (departs from the design): section
+  7 has a linear type go "the same way" through `linear::prove`; the
+  brief names simple types, and this session did not build the linear
+  path.
+- **No settings key `inhabit`** (departs from the design): the depth and
+  the list's length are options of the call, as `resolve`'s bounds are,
+  so no settings key holds them; the command has flags and the protocol
+  parameters.
+- **No kind `lambda.type`** (departs from the design): a type is an
+  `ordinary.sequent` statement in intuitionistic logic, which a front
+  end already makes, and its left formulas are the free variables.
+- **`enumerate` refuses `∨` and `⊥`**: the design's section 7 promised
+  counting up to βη without saying the fragment; with sums the long
+  normal forms are not the βη-classes (Scherer and Rémy), so the
+  refusal is the honest answer.
+- **The guide's summary does not name `term`**: it was at its budget of
+  8 000 bytes; the reference has a section.
+
+### What the next sessions must know
+
+**For 71c (the page, and the typing derivation's drawing):**
+
+- The bindings need these calls: `term check` as the protocol's
+  `lambda.check` writes it (the term's document, its keys first, with
+  `typing` and `judgement`), `lambda::inhabit` and `lambda::enumerate`
+  over an ordinary sequent in intuitionistic logic. Their JSON is
+  level 24 (`Inhabitation`, `Inhabitants`); `Count` is tagged by `kind`.
+- `enumerate` refuses `∨`, `⊥` and `¬` with `Error::NotEnumerable`
+  (code `not_enumerable`): the page says the type is outside the
+  counted fragment and still offers `inhabit`, which takes every type.
+- A list cut at `max_terms` keeps the shortest terms; the count is
+  the full search's. `Inhabitants::unique` is `Some(true)` only for
+  exactly one.
+- The terms' names follow the read-back's letters (`f`, `g`, `h` for
+  functions, `x`, `y`, `z`, … otherwise), distinct along a path.
+- The typing derivation is yours: `Typing` gives every node's type, and
+  the judgement's printer is `Term::write_judgement`; the design note's
+  section 6 says what the view is.
+- The module's size: this session adds no binding, so it measured
+  nothing; the five calls of 70c left 8.6 KB under the 3 750 000-byte
+  ceiling, and the enumeration and the term checker will not fit in
+  that without the ceiling raised.
+
+**For 73 (the release of 0.7.0):**
+
+- Wire level 24 is new (`wire::INHABITANTS`, written only); `LEVEL` is
+  24. The schema has `lambda_typing`, `lambda_ill_typed`,
+  `lambda_inhabitation`, `lambda_inhabitants` and the error codes
+  `ill_typed` and `not_enumerable`.
+- New public items for the marked list (`core.md` names them):
+  `lambda::{Count, InhabitOptions, Inhabitation, Inhabitants}`, the
+  functions `lambda::inhabit` and `lambda::enumerate`,
+  `Error::NotEnumerable`. The changelog has them under "Unreleased".
+- The protocol has a fifth suite, `lambda`, with the promise
+  `well_typed`; `catalogue()` lists five suites.
+- The fuzz targets `lambda_text` and `lambda_inhabit` build but have not
+  run; the next fuzz run takes them (`fuzz/seed.sh` seeds them, so run it
+  after a build of the command).
+- `term check`'s judgement brackets every compound type of a `λ` and
+  the right operand of `→` (`λf:(a → b). … : (a → b) → (a → b)`):
+  that is the printer's (step 50's and 71a's), shown as it is in the
+  manual and the lock; a printer that leaves out redundant brackets
+  changes both.
+
