@@ -7725,3 +7725,18 @@ move (D26).
   commit `1fb4ee2b` (`znqrprxu`); the signed tag object `a15e22d5` (verified "true valid") and
   `refs/tags/v0.7.0`, on the author's word "Tag 0.7.0". The release workflow runs (its first run
   through `checks.yml`); its `cargo publish` waits for the author's approval.
+- 2026-11-20, about 19:15: **deduxit 0.7.0 published** on the author's approval: the release run
+  green (checks, six platforms' archives, `cargo publish`, the GitHub release with 17 assets);
+  `deduxit` and `deduxit-cli` 0.7.0 on crates.io, docs.rs builds 0.7.0, Zenodo record 24404649.
+  The author deleted the three CI probe branches (`ci-speed-probe`, `ci-speed-before`,
+  `ci/ci-speed`); their local bookmarks forgotten and probe commits abandoned.
+- 2026-11-20, about 19:20: **the Cachix cache renamed to `deduxit`**, on the author's request:
+  Cachix cannot rename, so the author made the public cache `deduxit` (key
+  `deduxit.cachix.org-1:lmDetRhVfKUBvhBRlkLv1Qp7ABrtHxZe8hOoIQ36Oek=`) and its write token as
+  `CACHIX_AUTH_TOKEN` in all three repositories (rocq-deduxit and the client upload `main`'s
+  builds from now on); every workflow of the three reads and writes `deduxit` alone. Reading
+  `linlog-prover` beside it failed two `ci/` runs (`extraPullNames`, then `extra_nix_config`):
+  `cachix-action` hands Nix the new token for every `*.cachix.org` host and the old cache
+  refuses it with 401. So the first run of each `main` builds cold, once. The author deleted
+  the cache `linlog-prover` the same evening, so `main`'s workflows (still naming it) fail until
+  the switch is pushed.
