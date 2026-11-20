@@ -90,3 +90,4 @@ ci-speed	small	opus-5-5	high	reviewer (fable)	local_739ba359	2026-11-20 10:33	20
 70	step	-	-	-	-	-	2026-11-20 14:30	complete: normal forms and resolution
 71b	panel	opus-5-5	high	panel (counterexamples opus, argument fable, integers sonnet), reviewer (fable)	local_b8490613	2026-11-20 14:43	2026-11-20 16:25	inhabitation
 71c	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-20 15:40		typing derivations drawn, the typed lambda calculus on the page
+73	release	opus-5-5	high	reviewer	local_b8490613	2026-11-20 16:28		the 0.7.0 release, prepared (tags held)
