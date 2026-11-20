@@ -30,6 +30,7 @@ const fn mode_of(intuitionistic: bool) -> Mode {
 pub(crate) fn run(command: &SeqCommand, given: &Given) -> Result<Status> {
     match command {
         SeqCommand::Translate(args) => return crate::transform::translate(args, given),
+        SeqCommand::Normalize(args) => return crate::transform::normalize(args, given),
         SeqCommand::Print {
             input,
             intuitionistic,

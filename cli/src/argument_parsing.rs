@@ -299,8 +299,8 @@ pub(crate) enum Command {
     /// outcome.
     #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
     Interpolate(InterpolateArgs),
-    /// Print a sequent, convert it to JSON, name its fragment, or translate
-    /// it from classical logic
+    /// Print a sequent, convert it to JSON, name its fragment, translate it
+    /// from classical logic, or rewrite it into a normal form
     Seq {
         /// What to do with the sequent.
         #[command(subcommand)]
@@ -543,6 +543,9 @@ impl Command {
             Command::Seq {
                 command: SeqCommand::Translate(args),
             } => Some((&["seq", "translate"], &args.common.input, true)),
+            Command::Seq {
+                command: SeqCommand::Normalize(args),
+            } => Some((&["seq", "normalize"], &args.common.input, true)),
             Command::Check(_) | Command::Eliminate(_) | Command::Workspace { .. } => None,
         }
     }
@@ -1448,6 +1451,38 @@ pub(crate) enum SeqCommand {
     /// evidence.
     #[command(after_help = ORDINARY)]
     Translate(TranslateArgs),
+    /// Rewrite a classical sequent into a normal form step by step, and
+    /// check that it keeps what the form promises
+    ///
+    /// nnf is negation normal form: no → or ↔, and ¬ before atoms alone.
+    /// cnf (the default) is conjunctive normal form, a conjunction of
+    /// clauses (disjunctions of atoms and negated atoms), and dnf
+    /// disjunctive normal form, a disjunction of conjunctions; both are
+    /// made by distribution. These three rewrite each formula of the
+    /// sequent by equivalence laws, one law per step, and each formula
+    /// stays equivalent to its normal form.
+    ///
+    /// tseitin and plaisted-greenbaum turn the sequent into clauses that
+    /// can all be true exactly when the sequent can be false: each formula
+    /// right of ⊢ moves left negated, then a new atom (t1, t2, …) names
+    /// each compound subformula, innermost first, with the clauses of its
+    /// definition. plaisted-greenbaum keeps only the direction of each
+    /// definition that the subformula's place needs. The result `C1, …, Cn
+    /// ⊢` is valid exactly when the sequent is.
+    ///
+    /// The command prints the normal form, each step with its law and the
+    /// sequent after it (for an encoding, the clauses each new atom adds),
+    /// then the check: deduxit decides, by the SAT solver, that each
+    /// formula is equivalent to its normal form, or that the input with the
+    /// definitions implies the clauses and the clauses imply the input. A
+    /// check that fails would be a defect of deduxit, and is an error. The
+    /// exit status is 0 where the check passes, 3 where a limit stopped it
+    /// and 2 for an error, a form past --form-limit included. With
+    /// `--format json` the answer is the record `{"version", "deduxit",
+    /// "form", "promise", "checked", "sequent", "result", "steps",
+    /// "checks"}`, the steps' numbers indices into the result's formulas.
+    #[command(after_help = ORDINARY)]
+    Normalize(NormalizeArgs),
     /// Print a sequent as JSON, the form `--input-format json` reads
     #[command(after_help = SYNTAX)]
     Json {
@@ -1561,6 +1596,54 @@ pub(crate) struct TranslateArgs {
     /// glivenko
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
     pub(crate) to: Option<LogicArg>,
+}
+
+/// The arguments of `seq normalize`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct NormalizeArgs {
+    /// The sequent, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// The normal form
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "FORM", default_value_t = FormArg::Cnf)]
+    pub(crate) to: FormArg,
+    /// The most subformula occurrences the normal form, and every sequent
+    /// on the way to it, may have, or `none` (limits.form_occurrences)
+    ///
+    /// Distribution can make a formula exponentially longer, so a form past
+    /// the limit is refused (exit status 2) unless this is raised.
+    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_FORM_OCCURRENCES)))]
+    pub(crate) form_limit: Count<u64>,
+}
+
+/// A normal form of classical formulas.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FormArg {
+    /// Negation normal form: ∧, ∨ and ¬ before atoms
+    Nnf,
+    /// Conjunctive normal form by distribution: a conjunction of clauses
+    Cnf,
+    /// Disjunctive normal form by distribution: a disjunction of
+    /// conjunctions of literals
+    Dnf,
+    /// Tseitin's clauses of the sequent's negation, a new atom per compound
+    /// subformula
+    Tseitin,
+    /// Plaisted and Greenbaum's clauses: Tseitin's, each definition in the
+    /// direction its subformula's polarity needs
+    PlaistedGreenbaum,
+}
+
+impl From<FormArg> for deduxit::ordinary::normal::Form {
+    fn from(form: FormArg) -> Self {
+        match form {
+            FormArg::Nnf => Self::Nnf,
+            FormArg::Cnf => Self::Cnf,
+            FormArg::Dnf => Self::Dnf,
+            FormArg::Tseitin => Self::Tseitin,
+            FormArg::PlaistedGreenbaum => Self::PlaistedGreenbaum,
+        }
+    }
 }
 
 /// A negative translation of classical logic.

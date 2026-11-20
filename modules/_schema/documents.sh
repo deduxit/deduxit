@@ -168,6 +168,9 @@ run comparison-not-valid 1 "$deduxit" seq translate "${t[@]}" --by godel-gentzen
 run interpolation-classical 0 "$deduxit" interpolate "${t[@]}" --format json 'a /\ b |- b \/ c'
 run interpolation-intuitionistic 0 "$deduxit" interpolate "${t[@]}" --logic intuitionistic --first L1 --format json 'a, a -> b |- b'
 run interpolation-not-valid 1 "$deduxit" interpolate "${t[@]}" --format json 'a |- b'
+# Normal forms: an equivalent one and an encoding.
+run normal_form-cnf 0 "$deduxit" seq normalize "${t[@]}" --format json '~(a -> b /\ c)'
+run normal_form-tseitin 0 "$deduxit" seq normalize "${t[@]}" --to tseitin --format json 'a /\ b |- a'
 # A tableau written by hand, reviewed: closed, open with the countermodel
 # its branch gives, and wrong at a line.
 printf '1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  x 4, 5\n- 6 T q 1\n  x 3, 6\n' >closed.txt

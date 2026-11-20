@@ -426,6 +426,26 @@ impl GradeArgs {
     }
 }
 
+impl crate::argument_parsing::NormalizeArgs {
+    /// Returns the settings `seq normalize` runs under: those of
+    /// `seq translate` and the bound on the normal form.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = self.common.settings(given)?;
+        let apply = Apply {
+            file: self.common.settings.is_some(),
+            given,
+        };
+        if apply.set("form_limit") {
+            settings.limits.form_occurrences = self.form_limit.0;
+        }
+        Ok(settings)
+    }
+}
+
 impl WorkspaceArgs {
     /// Returns the settings a workspace's command runs under: the limits a
     /// node it makes or changes keeps, and the time limit of its runs.
@@ -701,8 +721,11 @@ mod tests {
             Command::Seq {
                 command: crate::argument_parsing::SeqCommand::Translate(args),
             } => args.common.settings(&given).unwrap(),
+            Command::Seq {
+                command: crate::argument_parsing::SeqCommand::Normalize(args),
+            } => args.settings(&given).unwrap(),
             Command::Seq { .. } => {
-                unreachable!("only `seq print` and `seq translate` read settings")
+                unreachable!("only `seq print`, `seq translate` and `seq normalize` read settings")
             }
             Command::Workspace { command } => workspace_settings(&command, &given),
         }
@@ -801,6 +824,8 @@ mod tests {
             --work-limit 6          /limits/work               5                 6
             --occurrence-limit 12   /limits/occurrences        11                12
             --term-limit 12         /limits/terms              11                12"#;
+        const NORMALIZE: &str = r#"
+            --form-limit 12         /limits/form_occurrences   11                12"#;
         let file = std::env::temp_dir().join(format!(
             "deduxit-settings-flags-{}.json",
             std::process::id()
@@ -813,6 +838,7 @@ mod tests {
             (&["eliminate"], "proof.json", [CHECK, ELIMINATE].concat()),
             (&["seq", "print"], "A |- A", PRINT.to_owned()),
             (&["seq", "translate"], "a", TRANSFORM.to_owned()),
+            (&["seq", "normalize"], "a", [TRANSFORM, NORMALIZE].concat()),
             (&["interpolate"], "a |- a", TRANSFORM.to_owned()),
             (&["grade"], "a |- a", TRANSFORM.to_owned()),
         ] {
@@ -926,6 +952,7 @@ mod tests {
             &["deduxit", "eliminate", "proof.json"],
             &["deduxit", "seq", "print", "A |- A"],
             &["deduxit", "seq", "translate", "a"],
+            &["deduxit", "seq", "normalize", "a"],
             &["deduxit", "interpolate", "a |- a"],
             &[
                 "deduxit",
@@ -949,6 +976,9 @@ mod tests {
                 Command::Seq {
                     command: crate::argument_parsing::SeqCommand::Translate(args),
                 } => drop(args.common.settings(&given).unwrap()),
+                Command::Seq {
+                    command: crate::argument_parsing::SeqCommand::Normalize(args),
+                } => drop(args.settings(&given).unwrap()),
                 Command::Seq { .. } => drop(
                     of_print(None, None, None, deduxit::linear::IllSyntax::Strict, &given).unwrap(),
                 ),

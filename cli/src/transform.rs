@@ -1,19 +1,23 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! `seq translate` and `interpolate`: transformations of ordinary sequents,
-//! each with its claim checked by the library before it is printed.
+//! `seq translate`, `seq normalize` and `interpolate`: transformations of
+//! ordinary sequents, each with its claim checked by the library before it
+//! is printed.
 
-use crate::argument_parsing::{AnswerFormat, InterpolateArgs, TransformArgs, TranslateArgs};
+use crate::argument_parsing::{
+    AnswerFormat, FormArg, InterpolateArgs, NormalizeArgs, TransformArgs, TranslateArgs,
+};
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::{Status, catch_interrupt, interrupted, io};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use deduxit::linear::search::{Jobs, Reason};
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative::{self, Agreement};
-use deduxit::ordinary::{self, Evidence, Logic, Outcome, Verdict};
+use deduxit::ordinary::normal::{self, NormalForm, Rule};
+use deduxit::ordinary::{self, Evidence, Formulas, Logic, NodeId, Outcome, Verdict};
 use deduxit::{Error, Refusal, Settings};
 use std::fmt::Write;
 use std::time::Instant;
@@ -78,6 +82,121 @@ pub(crate) fn translate(args: &TranslateArgs, given: &Given) -> Result<Status> {
     };
     io::write(args.common.output.as_deref(), &text)?;
     Ok(status)
+}
+
+/// Runs `seq normalize`: rewrites the sequent into the normal form step by
+/// step, checks the form's promise and prints the steps and the check.
+/// Returns the exit status: yes where the check passed, unknown where a
+/// limit stopped it.
+///
+/// # Errors
+///
+/// An input that cannot be read, a form past its bound, a check that
+/// fails (a defect), an output that cannot be written.
+pub(crate) fn normalize(args: &NormalizeArgs, given: &Given) -> Result<Status> {
+    let settings = args.settings(given)?;
+    let (settings, sequent, deadline) = start_with(&args.common, settings)?;
+    let options = normal::Options::default().with_form(args.to.into());
+    let made = on_large_stack(settings.limits.stack_bytes(), || {
+        normal::normalize(
+            &sequent,
+            &options,
+            &settings.search,
+            &settings.limits,
+            |_| interrupted() || deadline.passed(),
+        )
+    })?;
+    let made = match made {
+        Ok(made) => made,
+        Err(Error::Refused(Refusal::Stopped { .. })) => {
+            return unknown(&args.common, &Stop::why(stopped(&deadline)));
+        }
+        Err(error @ Error::Refused(Refusal::Form { .. })) => {
+            if matches!(args.to, FormArg::Cnf | FormArg::Dnf) {
+                bail!(
+                    "{error}; raise the limit with --form-limit, or take --to tseitin, whose \
+                     clauses grow with the sequent"
+                )
+            }
+            bail!("{error}; raise the limit with --form-limit")
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let status = if made.is_checked() {
+        Status::Yes
+    } else {
+        Status::Unknown
+    };
+    let text = match args.common.format {
+        AnswerFormat::Json => serde_json::to_string(&made)?,
+        AnswerFormat::Text => steps_text(&made, &deadline)?,
+    };
+    io::write(args.common.output.as_deref(), &text)?;
+    Ok(status)
+}
+
+/// Returns the text of a normal form: the form, a line per step with the
+/// sequent after it, and a line per claim checked.
+///
+/// # Errors
+///
+/// None in practice: writing into a string does not fail.
+fn steps_text(made: &NormalForm, deadline: &Deadline) -> Result<String> {
+    let mut title = made.form.title().to_owned();
+    if let Some(first) = title.get_mut(..1) {
+        first.make_ascii_uppercase();
+    }
+    let mut text = format!("{title}: {}\n", made.result);
+    let formulas = made.result.formulas();
+    let mut added: Vec<NodeId> = Vec::new();
+    for (n, step) in made.steps.iter().enumerate() {
+        let (before, after) = (formulas.formula(step.before), formulas.formula(step.after));
+        let n = n + 1;
+        match step.rule {
+            Rule::Negate => writeln!(text, "{n}. {before} moves left of ⊢ as {after}")?,
+            Rule::Define => {
+                let clauses: Vec<String> = step
+                    .added
+                    .iter()
+                    .map(|&c| formulas.formula(c).to_string())
+                    .collect();
+                writeln!(text, "{n}. {after} names {before}: {}", clauses.join(", "))?;
+            }
+            _ => {
+                writeln!(text, "{n}. {}, at {before}:", step.rule.law())?;
+                writeln!(
+                    text,
+                    "   {}",
+                    sides(formulas, &step.left, &added, &step.right)
+                )?;
+            }
+        }
+        added.extend_from_slice(&step.added);
+    }
+    for check in &made.checks {
+        writeln!(
+            text,
+            "{}: {}",
+            check.claim.description(),
+            verdict(&check.outcome, deadline)
+        )?;
+    }
+    Ok(text.trim_end().to_owned())
+}
+
+/// Returns the sequent `left, added ⊢ right` over `formulas` as text.
+fn sides(formulas: &Formulas, left: &[NodeId], added: &[NodeId], right: &[NodeId]) -> String {
+    let list = |ids: &mut dyn Iterator<Item = &NodeId>| {
+        ids.map(|&id| formulas.formula(id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let (l, r) = (list(&mut left.iter().chain(added)), list(&mut right.iter()));
+    match (l.is_empty(), r.is_empty()) {
+        (true, _) => format!("⊢ {r}").trim_end().to_owned(),
+        (false, true) => format!("{l} ⊢"),
+        (false, false) => format!("{l} ⊢ {r}"),
+    }
 }
 
 /// Runs `interpolate`: decides the sequent, reads its interpolant off the
@@ -165,8 +284,19 @@ pub(crate) fn interpolate(args: &InterpolateArgs, given: &Given) -> Result<Statu
 ///
 /// A settings file or an input that cannot be read.
 fn start(args: &TransformArgs, given: &Given) -> Result<(Settings, ordinary::Sequent, Deadline)> {
+    start_with(args, args.settings(given)?)
+}
+
+/// Reads the sequent under the settings given, and starts the time limit.
+///
+/// # Errors
+///
+/// An input that cannot be read.
+fn start_with(
+    args: &TransformArgs,
+    mut settings: Settings,
+) -> Result<(Settings, ordinary::Sequent, Deadline)> {
     catch_interrupt();
-    let mut settings = args.settings(given)?;
     // These commands run the library's searches, which take every thread
     // from the start under `auto`; one thread is enough for a sequent a
     // person writes, and gives the same derivation every time.

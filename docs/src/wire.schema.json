@@ -2935,7 +2935,7 @@
       ]
     },
     "nested_ordinary_outcome": {
-      "description": "An ordinary outcome nested in a comparison or an interpolation: no `version` and no `deduxit`.",
+      "description": "An ordinary outcome nested in a comparison, an interpolation or a normal form's check: no `version` and no `deduxit`.",
       "$ref": "#/$defs/ordinary_outcome_keys",
       "not": {
         "anyOf": [
@@ -3036,6 +3036,147 @@
           "$ref": "#/$defs/nested_ordinary_outcome"
         },
         "decided": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        }
+      }
+    },
+    "normal_form": {
+      "description": "A classical sequent rewritten into a normal form (level 21, `seq normalize --format json`, written only): the form, what it promises, whether every claim of the promise was decided valid, the input, the result, the steps and the claims decided. A step's numbers are positions in the result's `formulas`.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "form",
+        "promise",
+        "checked",
+        "sequent",
+        "result",
+        "steps",
+        "checks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 21
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "form": {
+          "enum": [
+            "nnf",
+            "cnf",
+            "dnf",
+            "tseitin",
+            "plaisted-greenbaum"
+          ]
+        },
+        "promise": {
+          "enum": [
+            "equivalent",
+            "equisatisfiable"
+          ]
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "result": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/normal_step"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/normal_check"
+          }
+        }
+      }
+    },
+    "normal_step": {
+      "description": "A step of a normal form: the rule and its law, the subformula rewritten (every occurrence at once) and what replaces it, the input's formulas on each side after the step, and the clauses the step adds as hypotheses.",
+      "type": "object",
+      "required": [
+        "rule",
+        "law",
+        "before",
+        "after",
+        "left",
+        "right",
+        "added"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "enum": [
+            "implication",
+            "equivalence",
+            "equivalence-as-cases",
+            "double-negation",
+            "de-morgan-and",
+            "de-morgan-or",
+            "not-true",
+            "not-false",
+            "and-true",
+            "and-false",
+            "or-true",
+            "or-false",
+            "distribute-or",
+            "distribute-and",
+            "negate",
+            "define",
+            "true-hypothesis"
+          ]
+        },
+        "law": {
+          "type": "string"
+        },
+        "before": {
+          "$ref": "#/$defs/index"
+        },
+        "after": {
+          "$ref": "#/$defs/index"
+        },
+        "left": {
+          "$ref": "#/$defs/indices"
+        },
+        "right": {
+          "$ref": "#/$defs/indices"
+        },
+        "added": {
+          "$ref": "#/$defs/indices"
+        }
+      }
+    },
+    "normal_check": {
+      "description": "A claim of a normal form's promise decided: its name, the classical sequent whose validity is the claim, and its outcome.",
+      "type": "object",
+      "required": [
+        "claim",
+        "sequent",
+        "outcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "enum": [
+            "equivalent",
+            "extends",
+            "restricts"
+          ]
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "outcome": {
           "$ref": "#/$defs/nested_ordinary_outcome"
         }
       }
