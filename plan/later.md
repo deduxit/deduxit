@@ -2723,16 +2723,12 @@ terminator and limits) can join behind a feature never on for wasm,
 through `cadical-sys` (no libclang) behind 54s's solver trait. Its costs:
 a C++ build in the flake, one maintainer, and two code paths to test.
 
-## Auto-reverse for the ordinary suite and for calculi given as data (63a, 2026-11-16)
+## Auto-reverse for calculi given as data (63a, 2026-11-16)
 
-Step 38h's switch (`interactive.invertible`) applies the invertible rules in the linear suite only
-(`Interactive::invert_all`). For the other suites:
-- **The ordinary suite**: `is_invertible` and `invert_all` on `ordinary::Interactive` (LK's rules
-  are all invertible; LJ's `→L`, `∨R₁`, `∨R₂` and `¬L` are not), then the bindings' setting as the
-  linear calls have it. 63b found the ordinary course does not need it (each worked step is the
-  visitor's), but a visitor practising would gain from it.
-- **A calculus given as data**: a rule file would say which rules are invertible (an optional key
-  per rule, a wire level); whether a rule so marked is invertible is the file author's claim.
+Step 38h's switch (`interactive.invertible`) applies the invertible rules in the linear suite and,
+since then, in the ordinary one (`ordinary::Interactive::invert_all`, `ordinary/invert.rs`). Left:
+a rule file would say which rules are invertible (an optional key per rule, a wire level); whether
+a rule so marked is invertible is the file author's claim.
 Source: the 63a and 63b sections of `plan/reports/63-suite-protocol.md`.
 
 ## The web module's size after the workspace (63g-c, 2026-11-16; 54x6)
@@ -2770,15 +2766,6 @@ cost is the branching where a system has neither reflexivity nor a cluster and `
 world at every dead end. The answer is a cache of the verdicts of world signatures across
 branches ("global caching", Goré and Nguyen's tableaux for K4-like logics, not yet read), for
 when a user meets it. KD4 is offered with the rest (the author's yes to all fifteen).
-
-## Seriality with one new label (66b, 2026-11-16)
-
-deduxit's generic checker accepts `Ser` with the same new label on both ends (`w1 R w1`): it binds
-`x` and `y` of the rule from the premise's new member and asks only that `y` be fresh. Sound for
-what the calculus derives (a world that sees itself alone can be put beside any model; 66b proves
-it in `Deduxit.Modal`), but a session would accept the step "seriality gives a world that sees
-itself". The answer is a side condition of the rule language ("these variables differ") or a check
-in the modal sessions; a `fresh` on `x` would refuse the wanted instances.
 
 ## The kernel crate: ended at the gate (67a, 2026-11-16)
 

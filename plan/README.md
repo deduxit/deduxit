@@ -7748,3 +7748,15 @@ move (D26).
   with the box drawn checked; the larger module made the opening slow enough on CI to hit it
   every time. Fixed by `queued` (`vyxlolom`), reproduced with the module's load delayed by 3 s,
   pushed; CI green and Pages deployed, so 71c's page is live.
+- 2026-11-20, about 21:40: **54x9 reviewed and pushed; 54x10 started.** 54x9 (Opus, high) ran the
+  five lambda and modal fuzz targets on cores 12-15, up to two hours each (a suspend from 20:23 to
+  20:49 left out): two finds, both fixed with a test or a replayed input (`poyxupyy`: ⊤'s `⟨⟩`
+  listed whatever `max_terms` said; `plmznllv`: the round trip of `lambda_text` lets a bound's
+  refusal end it, since the printed text with every type may pass the occurrence bound), two false
+  finds at the resume replayed clean and `evidence.md` told to replay first. Four targets reached
+  the cap still growing (marked as a departure; the corpora stay in the workspace). The full check
+  passed after the reviewer's three fixes; `main` at `mqqrkknl`. In its slot, after a clear: 54x10,
+  KD4's cost (global caching of world signatures in the modal search; Opus, high, the panel and
+  the reviewer). `later.md`'s seriality item is done (`xvpnroyr`: a name a rule asks to be new is
+  new to its other variables) and its auto-reverse item is narrowed to rule files (the ordinary
+  suite has `invert_all`).
