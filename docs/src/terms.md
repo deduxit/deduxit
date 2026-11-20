@@ -358,7 +358,8 @@ same types in scope, as `f (…)` does for the Church numerals above: a
 term can then be put inside itself as often as wanted. It is "at least"
 when `--depth` cut the search, which counts how deep variables are
 applied inside each other's arguments (8 by default). `--max-terms`
-(32 by default) bounds the list, not the count. Every term listed is
+(32 by default) bounds the list, not the count; a list cut short keeps
+the shortest terms. Every term listed is
 checked.
 
 The type is built from atoms, `->`, `/\`, `<->` and `true`. With `\/`,

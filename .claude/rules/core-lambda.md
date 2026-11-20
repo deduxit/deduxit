@@ -214,6 +214,17 @@ design, with its sources and the alternatives weighed, is
   `limits.memory_bytes`. Each engine call takes the caller's whole
   `limits`, so the work of a call is bounded per shape decided, not in
   total.
+- **A cut list keeps the shortest terms**: the search fills a list in
+  the order it meets terms, the first candidate's (the outermost
+  variable's) deepest first, so where the count passes `max_terms`
+  `enumerate` runs again at smaller depths (`Search::reset`, the
+  engines' decisions kept) and lists every term of the deepest depth
+  whose terms all fit, then the full run's others. The count is the
+  full run's.
+- **`inhabit` holds its term to the sequent** by `has_type` in a
+  `debug_assert!` (the read-back keeps hypotheses and goal); the
+  protocol's checks of `lambda.inhabit` and `lambda.enumerate` hold it
+  for real, and ask for the simple calculus.
 - **Variable names** follow the read-back's letters per kind of type,
   counted along the context (`Ctx::named`), so names on one path are
   distinct and the capture condition of `check` never fires on a term

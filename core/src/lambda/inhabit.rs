@@ -158,9 +158,10 @@ pub enum Count {
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Inhabitants {
-    /// The terms listed, each checked, the shortest first: all of them
-    /// where the count is exact and no more than
-    /// [`InhabitOptions::max_terms`].
+    /// The terms listed, each checked, the shortest first, at most
+    /// [`InhabitOptions::max_terms`]: all the terms the search met where
+    /// they fit, else every term of the deepest depth whose terms all fit,
+    /// then others it met.
     pub terms: Vec<Term>,
     /// How many terms the type has.
     pub count: Count,
@@ -242,6 +243,8 @@ fn inhabit_dyn(
         Verdict::Valid(evidence) => {
             let term = evidence.derivation()?.term(limits, &mut *stop)?;
             term.check(limits, &mut *stop)?;
+            // The read-back keeps the sequent's hypotheses and goal.
+            debug_assert!(has_type(&term, sequent), "{term}");
             Ok(Inhabitation::Inhabited(Box::new(term)))
         }
         Verdict::NotValid => Ok(Inhabitation::Empty {
@@ -325,7 +328,7 @@ fn enumerate_dyn(
             search.undecided = true;
             Found::default()
         }
-        Decided::Inhabited => search.run()?,
+        Decided::Inhabited => search.run(options.depth)?,
     };
     let count = if search.infinite {
         Count::Infinite
@@ -334,7 +337,31 @@ fn enumerate_dyn(
     } else {
         Count::Exactly { count: found.count }
     };
-    let terms = search.terms(&found.terms)?;
+    let mut terms = search.terms(&found.terms)?;
+    if (terms.len() as u64) < found.count || found.overflow {
+        // The list is cut, and the search fills it in the order it meets
+        // the terms, deep ones first: list every term of the deepest
+        // depth whose terms all fit instead, then the rest as met.
+        let most = u64::from(options.max_terms);
+        for depth in (0..options.depth).rev() {
+            search.reset();
+            let shallow = search.run(depth)?;
+            if !shallow.overflow
+                && shallow.count <= most
+                && shallow.terms.len() as u64 == shallow.count
+            {
+                let mut first = search.terms(&shallow.terms)?;
+                let rest: Vec<(u64, Term)> =
+                    terms.into_iter().filter(|t| !first.contains(t)).collect();
+                first.extend(rest);
+                first.truncate(options.max_terms as usize);
+                terms = first;
+                break;
+            }
+        }
+    }
+    terms.sort_by_key(|(size, _)| *size);
+    let terms = terms.into_iter().map(|(_, term)| term).collect();
     Ok(Inhabitants { terms, count })
 }
 
@@ -342,7 +369,6 @@ fn enumerate_dyn(
 /// (`⊥` where there is none) whose free variables are the formulas left
 /// of it, in order: each formula's type is made in the term's own arena,
 /// where equal types are one id, and compared by id.
-#[cfg(feature = "protocol")]
 pub(crate) fn has_type(term: &Term, sequent: &Sequent) -> bool {
     let mut builder = Builder::new();
     for atom in term.atoms() {
@@ -519,6 +545,9 @@ struct Search<'a> {
     goal: TypeId,
     /// The contexts.
     ctxs: Vec<Ctx>,
+    /// How many contexts the sequent's variables make, the first of
+    /// [`ctxs`](Self::ctxs).
+    base_ctxs: usize,
     /// The long normal forms made.
     lnf: Vec<Lnf>,
     /// The eliminations of their spines.
@@ -598,6 +627,7 @@ impl<'a> Search<'a> {
             context: Vec::new(),
             goal,
             ctxs: Vec::new(),
+            base_ctxs: 0,
             lnf: Vec::new(),
             elims: Vec::new(),
             decisions: HashMap::default(),
@@ -622,6 +652,7 @@ impl<'a> Search<'a> {
                 named: [0; 2],
             });
         }
+        search.base_ctxs = search.ctxs.len();
         Ok(search)
     }
 
@@ -791,13 +822,28 @@ impl<'a> Search<'a> {
         Ok(id)
     }
 
-    /// Finds the terms of the goal in the sequent's context.
-    fn run(&mut self) -> Result<Found, Error> {
-        let root = (self.ctxs.len() - 1) as u32;
+    /// Forgets what a run made, but the sequent's variables and contexts
+    /// and the engines' decisions, so that the search can run again.
+    fn reset(&mut self) {
+        self.vars.truncate(self.context.len());
+        self.ctxs.truncate(self.base_ctxs);
+        self.lnf.clear();
+        self.elims.clear();
+        self.shapes.clear();
+        self.on_way.clear();
+        self.infinite = false;
+        self.cut = false;
+        self.undecided = false;
+    }
+
+    /// Finds the terms of the goal in the sequent's context, at most
+    /// `depth` atoms deep.
+    fn run(&mut self, depth: u32) -> Result<Found, Error> {
+        let root = (self.base_ctxs - 1) as u32;
         let mut tasks = vec![Task::Solve {
             ctx: root,
             ty: self.goal,
-            depth: self.options.depth,
+            depth,
         }];
         let mut results: Vec<Found> = Vec::new();
         while let Some(task) = tasks.pop() {
@@ -1041,17 +1087,16 @@ impl<'a> Search<'a> {
         })
     }
 
-    /// Returns the terms of the long normal forms given, each built,
-    /// checked, and the shortest first.
-    fn terms(&mut self, roots: &[u32]) -> Result<Vec<Term>, Error> {
+    /// Returns the terms of the long normal forms given, each built and
+    /// checked, with its size.
+    fn terms(&mut self, roots: &[u32]) -> Result<Vec<(u64, Term)>, Error> {
         let mut sized: Vec<(u64, Term)> = Vec::with_capacity(roots.len());
         for &root in roots {
             let (size, term) = self.term(root)?;
             term.check(self.limits, &mut *self.stop)?;
             sized.push((size, term));
         }
-        sized.sort_by_key(|(size, _)| *size);
-        Ok(sized.into_iter().map(|(_, term)| term).collect())
+        Ok(sized)
     }
 
     /// Builds the term of one long normal form, and returns its size in
@@ -1207,6 +1252,13 @@ mod tests {
         );
         assert_eq!(count, Count::Infinite);
         assert_eq!(terms, ["λf. λx. x", "λf. λx. f x", "λf. λx. f (f x)"]);
+        // A list cut short keeps the shortest terms: x is the first.
+        let five = InhabitOptions::default().with_max_terms(5);
+        let (count, terms) = listed("|- (a -> a -> a) -> a -> a", &five);
+        assert_eq!(count, Count::Infinite);
+        assert_eq!(terms.len(), 5);
+        assert_eq!(terms[0], "λf. λx. x");
+        assert_eq!(terms[1], "λf. λx. f x x");
     }
 
     #[test]

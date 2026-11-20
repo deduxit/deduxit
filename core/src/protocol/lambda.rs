@@ -252,6 +252,13 @@ fn holds(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Part, Error> {
+    if term.calculus() != Calculus::Simple {
+        return Ok(Part {
+            name: "calculus".to_owned(),
+            status: Status::Failed,
+            verdict: None,
+        });
+    }
     let part = checked("typing", term.check(limits, &mut *stop).map(drop))?;
     if part.status != Status::Held {
         return Ok(part);
