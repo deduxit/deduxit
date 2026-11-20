@@ -664,3 +664,241 @@ All on cores 7 to 9, capped; the flake check under the machine lock.
   manual and the lock; a printer that leaves out redundant brackets
   changes both.
 
+
+## Session 71c: drawings and the page
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc` on
+`main@origin`, and in the client's workspace `step71c`
+(`../deduxit.github.io-71c`) on the client's `main@origin`. Nothing was
+pushed.
+
+### Outcome
+
+A well-typed lambda-term's typing derivation is drawn in every export,
+and the web page checks terms and finds a type's terms.
+
+- **The drawing** (`lambda::Drawing`, file `core/src/lambda/draw.rs`):
+  it checks a term and lays its derivation out as a tree, one inference
+  per subterm.
+  - Each inference concludes `Γ ⊢ M : A` under the rule of natural
+    deduction its construction stands for: `ax`, `→I`, `→E`, `∧I`, `∧E₁`,
+    `∨I₁`, `∨E`, `⊤I`, `⊥E`. The linear calculi use `⊸`, `⊗`, `&`, `⊕`,
+    `1`, `0` and the rules of `!` (`!I`, `!E`, `!w`, `!c`).
+  - LaTeX, Typst and SVG take it as a `Drawable` (`Drawable::Lambda`), and
+    so PNG and PDF. Rocq refuses it (`rocq::Unsupported::Typing`).
+- **The protocol**: `lambda.draw` and `lambda.export` take a
+  `lambda.typing` value. The manual's tables of the protocol now list the
+  lambda suite's kinds, operations and the `well_typed` promise; 71b had
+  left them out.
+- **The bindings** (`web/src/lambda.rs`, exported `lambda_…`): read and
+  check a term, draw and export its derivation, read a type, find a term
+  of it, list and count its terms.
+  - Each call runs the protocol's operation of its name, as the modal
+    tab's do.
+  - Every term the type calls answer gets its `text` and `judgement`.
+  - `about` lists the suite.
+- **The page** (client commit `yoqtkorx`): a suite without a segment.
+  - A visitor who never presses the popover's button "Lambda-terms" sees
+    nothing of it (the author's rule). The button opens it, with a select
+    of the three calculi.
+  - The field's text is a term (checked: "Well typed" or "Not well typed"
+    with deduxit's reason, and the derivation drawn) or a type ("Has a
+    term" with the term's derivation, "No term", or "Not decided"). For a
+    type, "List its terms" lists up to 12 and counts them up to
+    βη-equality.
+  - A tab's link keeps the text and the calculus, and the page reads it
+    again on arrival.
+
+The commits:
+
+| repository | change | subject |
+|---|---|---|
+| deduxit | `wwwpmwzl` | Draw a lambda-term's typing derivation in every export |
+| deduxit | `smxtvqxr` | Draw and export a checked lambda-term's typing derivation through the protocol |
+| deduxit | `xzpllnyw` | Check lambda-terms and find a type's terms in the web bindings |
+| client | `yoqtkorx` | Check lambda-terms and find a type's terms on the page |
+| deduxit | `srnwkyxo` | Answer the review of the typing derivation's drawing |
+| client | `mpmrtwpu` | Answer the review of the lambda-terms page |
+
+This report is the deduxit change after them. The client is built
+against this chain (`--override-input deduxit git+file:///…`); its
+`flake.lock` moves once the planning session has pushed the chain.
+
+### Decisions
+
+- **The drawing is `lambda::Drawing`, built from a term, not from a
+  `Typing`.** `Drawing::new(&term, &options, &limits, stop)` checks the
+  term itself, so a drawing never stands for a typing of another term.
+  The design note called the type `lambda::Derivation`; it takes
+  `rules::Drawing`'s name and pattern instead. (departs from the design)
+- **The rules are natural deduction's, not TAPL's `T-Abs` and `T-App`.**
+  A typing derivation is a proof of its type's formula in natural
+  deduction with a term at each step (Girard, Lafont and Taylor,
+  *Proofs and Types*, §3.1; Bierman's thesis, fig. 3.1, for the linear
+  rules). The repository's NJ already names its rules so (`→I`, `∧E₁`,
+  `⊥E`), and the page's sentence draws the same link for students who
+  know natural deduction. A variable is `ax`, as LJ's and ILL's axioms
+  are.
+- **Contexts.**
+  - In the simple calculus a premise has its conclusion's context and the
+    variables the rule binds.
+  - In the linear calculi the context is split as linear logic's rules
+    split it. A variable goes to the premise that uses it. A pair's
+    components and a case's branches share theirs. A `promote`'s body has
+    its own variables alone.
+  - In the affine calculus a variable no premise uses goes to the last
+    premise, so only a leaf weakens (or a `promote` without terms, whose
+    body has its own variables alone). Bierman gives no affine calculus;
+    this is deduxit's own, as step 50's affine reading is.
+- **SVG lowers a term's subscripts and indices** (the SVG spelling's
+  `subscript` and `index` between the drawing's marks), since the math
+  fonts have no subscript digits, which the export check, rendering with
+  Euler Math alone, would fail on. Step 50's `term.svg` and `term-lj.svg`
+  changed with it.
+- **On the page, one field reads a term or a type** (`isTerm`). A term
+  has a `λ` (a `\` that is no half of `/\` or `\/`), a `:` or a pair's
+  bracket (a `<` that is no half of `<->`); a type has none of them. A
+  unit test caught `/\` and `<->` read as terms in the first version.
+  Two fields, or a switch between them, would put a second control on
+  the first view, which the author's rule keeps to the minimum.
+- **The page's text**, checked with the education skill
+  `cognitive-load-analyser`:
+  - the first view has two sentences, and the calculus's rule of use
+    shows only in the linear calculi, where it matters;
+  - a found term's judgement shows only where its drawing does not (the
+    drawing's root says it);
+  - "Well typed" says that the tree is a proof in natural deduction
+    with each step's term beside it, which ties the new notation to
+    what students know.
+- **The ceiling stays 3 900 000 bytes.** 71b raised it to that. With this
+  chain the module is 3 846 685 bytes at `gzip -9` (71b measured
+  3 831 827), so the brief's raise was not needed and the `budget` check
+  passes.
+
+### What was checked, and by what
+
+- **deduxit**:
+  - the workspace's tests at `wwwpmwzl`: 1 022 passed;
+  - `typing_derivations` in `core/tests/export.rs` pins `typing.*` (the
+    simple calculus, `∨E`) and `typing-linear.*` (a `let`, `⊗`, `!` and
+    the split contexts, each judgement asserted), Rocq's refusal, and
+    the drawing's bound;
+  - the protocol test draws and exports a checked term;
+  - `web/tests/lambda.rs` holds the bindings' calls, the refusals' codes
+    and the place of a parse error;
+  - `nix build` of the `export`, `manual` and `manual-links` checks:
+    exit 0 (pdfLaTeX and Typst compiled the new snapshots, resvg rendered
+    them with Euler Math alone);
+  - `web-wasm-tests`, `budget` and the package: exit 0;
+  - the gate passed at `wwwpmwzl`;
+  - the gate passed again on the tree with the review's fixes
+    (`srnwkyxo`): exit 0, `gate: passed`. The ratchet held every journey
+    within its ceiling; the cache misses it noted moved on
+    `search-chain-128` and `check-qbf-20-2`, as at 71a, with the search
+    unchanged;
+  - `nix flake check` runs at the commit that holds this report, so its
+    exit status cannot be in it: it is in the session's last message to
+    `deduxit-orchestrator`.
+- **The client**:
+  - `lint` (Biome, `astro check`: 0 errors);
+  - Vitest, 716 passed (before and after the review's fixes), among them `src/lib/lambda.test.ts` and
+    `suites.test.ts`, whose registry holds the suite to the module's
+    `about`;
+  - the e2e spec `tests/lambda.spec.ts`, 4 passed before the review and
+    again after its fixes: nothing before the
+    button, a term and its drawing, a type's terms, an ill-typed term and
+    a text that is no term, and the link read again after a reload;
+  - the new walk `lambdaing` in `tests/states.ts`, run by
+    `accessibility.spec.ts` and `targets.spec.ts` at 24 and 44 pixels: 6
+    passed;
+  - `nix flake check` at `mpmrtwpu`, built against this chain
+    (`--override-input deduxit git+file:///…`): exit 0, "all checks
+    passed", the full e2e suite among them. A first run, at `yoqtkorx`,
+    failed in `treefmt` alone: it read the tree in the middle of an edit
+    whose formatting came after it; the committed file is formatted.
+- **By hand in the browser**, the page served by `astro dev` against this
+  chain: the first view unchanged, the setup, the example term with its
+  drawing, the example type with its two terms, an ill-typed linear term
+  from a link.
+
+### The reviewer's round
+
+The fresh-context reviewer (`deduxit-review-71c`, Fable 5.2, as the
+brief asked) read the four commits against six criteria. It tested from a
+scratch crate (21 terms drawn and their instances checked, judgement
+lines compiled with typst 0.15.1 and pdfLaTeX, documents built to the
+bounds) and drove the page with a scratch Playwright script on a dev
+server of its own. It found every typing rule's instance correct for
+ordinary terms, the bounds of reachable terms holding, and nothing of
+the suite on the first view. It reported nine findings; all hold. Eight
+are fixed, in deduxit's `srnwkyxo` and the client's `mpmrtwpu`, and one
+was a documentation error:
+
+1. **A stale drawing on the page.** The drawing's resource kept its last
+   value when the tab's checked term went: after `\x:a. x` and then the
+   type `((a -> b) -> a) -> a` in the same tab, "No term" stood over
+   `λx. x`'s derivation. **Fixed**: the drawing shows only while the tab
+   holds a checked term.
+2. **LaTeX and Typst did not compile a variable named by several
+   letters**: `foo` was Typst's unknown variable, and `x_1` was LaTeX's
+   double subscript. These spellings predate the step, but only read-back
+   names (a letter and an index) reached them before. **Fixed**: LaTeX
+   and Typst write a name's letters as they write an atom's
+   (`\mathit{foo}`, `italic("foo")`, `_` escaped), and the digits at
+   its end stay an index. Pinned in `typing_derivations`.
+3. **The free variables were made for unreachable nodes too**, which a
+   document keeps: 30 000 context variables and an unreachable chain
+   took 1.88 GB under a 1 GiB bound. **Fixed**: they are made for the
+   nodes the root reaches. The estimate checked before them bounds those
+   lists by their texts.
+4. **The split of a context was quadratic** in a wide `true(…)` (26.7 s
+   for 80 000 variables), and the stop was not asked inside it.
+   **Fixed**: one pass over the premises' free variables gives each
+   variable its group, and a `promote`'s bound variables are searched
+   sorted. The tree's estimate bounds the rest.
+5. **`isTerm` read closed linear terms as types** (`()`, `true()`,
+   `() * ()`). **Fixed**: a unit, a term keyword or a subscripted
+   `inl_` makes a term. The unit test lists them, beside the types it
+   must not take: `true -> false`, `/\`, `<->`.
+6. **In a linear tab a type was answered in the simple calculus.**
+   **Fixed**: in the linear and the affine calculus every text is a
+   term; terms of a type are found in the simple calculus alone, where
+   the setup offers them.
+7. **The client's rule file said every call set `lambda.types`**; the
+   drawing's call does not, and its contexts show the binders' types.
+   **Fixed in the rule text.**
+8. **An affine `promote` without terms weakens its context itself**, not
+   at a leaf. That is the only place it can: the body has its own
+   variables alone. **Fixed in `Drawing`'s documentation.**
+9. **The link kept the previous text** when a term was ill typed where
+   it is read. **Fixed**: the link follows that verdict too.
+
+Its two questions, answered:
+
+- **A shadowed name in a context** (`x : a, x : b ⊢ x : b`) is intended:
+  a context is a list, and a name is its last declaration, as PLFA's
+  lookup rules have it. The checker's capture condition keeps the
+  shadowed variable unused.
+- **The old answer under a parse error**: a text that does not parse
+  marks the field and leaves the tab's last answer, as the modal tab's
+  does.
+
+### What the next sessions must know
+
+- **73 (the release of 0.7.0)**: the changelog's lines are written
+  (Added: `lambda::Drawing`, `Drawable::Lambda`,
+  `rocq::Unsupported::Typing`; Changed: SVG lowers subscripts). The
+  client's lock must move to the pushed chain before the page is
+  released.
+- **Building the derivation step by step is not built.** The design
+  note's section 6 has the plan: the page holds the term and the open
+  nodes, and asks the library for the typing. Nothing in the library
+  stands in its way.
+- **The drawing's ids**: the SVG's `i<n>` is the `n`th inference, and
+  `Drawing::nodes()` gives each inference's subterm, as
+  `rules::Drawing::nodes()` does. Nothing reads them yet; a page that
+  highlights a subterm would.
+- **A type's countermodel** is in the inhabitation's answer
+  (`countermodel`), but the page does not draw it: "No term" says that
+  a Kripke model shows it. The ordinary suite's drawing of a model
+  could show it.
