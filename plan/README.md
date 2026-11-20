@@ -7701,3 +7701,8 @@ move (D26).
   crates' descriptions; 71c folded in. No rocq-deduxit release (only a comment moved since v0.6.0).
   Its report ends with the state of every item `later.md` keeps for after 0.7.0. The tags wait for
   the author's yes (unattended), then CI at `1fb4ee2b` green, then the crates.io approval.
+- 2026-11-20, about 18:40: **Step 74's prompt written; 74a and 54x9 started.** 74a (the first-order
+  language and calculi's design) runs on Opus in place of the plan's Fable while the planning
+  session is unattended (a switch to Fable would block it on the author's prompt); marked as a
+  departure. 54x9 runs the lambda and modal fuzz targets long. (73's report says the prompts of 74
+  to 79 were written: only 74's is; 75 to 79 are written at the reviews their rows name.)
