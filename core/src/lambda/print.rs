@@ -78,6 +78,10 @@ pub(crate) struct Spelling {
     index: Index,
     /// How an atom's name is written.
     atom: Atoms,
+    /// How a variable's name is written, but the digits at its end:
+    /// LaTeX and Typst write a name of several letters as they write an
+    /// atom's, set apart from the letters around it.
+    variable: Atoms,
     /// The connectives of the linear calculi.
     linear: Connectives,
     /// The connectives of the simple calculus.
@@ -117,6 +121,7 @@ pub(crate) const UNICODE: Spelling = Spelling {
     subscript: ("_", ""),
     index: Index::Subscript,
     atom: Atoms::Plain,
+    variable: Atoms::Plain,
     linear: Connectives {
         tensor: " ⊗ ",
         with: " & ",
@@ -162,6 +167,7 @@ pub(crate) const ASCII: Spelling = Spelling {
     subscript: ("_", ""),
     index: Index::Digits,
     atom: Atoms::Plain,
+    variable: Atoms::Plain,
     linear: Connectives {
         tensor: " * ",
         with: " & ",
@@ -206,6 +212,7 @@ pub(crate) const LATEX: Spelling = Spelling {
     subscript: ("_{", "}"),
     index: Index::Marked("_{", "}"),
     atom: Atoms::Latex,
+    variable: Atoms::Latex,
     linear: Connectives {
         tensor: r" \otimes ",
         with: r" \with ",
@@ -250,6 +257,7 @@ pub(crate) const TYPST: Spelling = Spelling {
     subscript: ("_(", ")"),
     index: Index::Marked("_", ""),
     atom: Atoms::Typst,
+    variable: Atoms::Typst,
     linear: Connectives {
         tensor: " ⊗ ",
         with: " \\& ",
@@ -275,16 +283,22 @@ pub(crate) const SVG: Spelling = Spelling {
     ..UNICODE
 };
 
-/// Writes a variable's name, the digits at its end as an index. A name
-/// of digits alone has none.
-pub(crate) fn write_name(out: &mut impl Write, name: &str, index: Index) -> std::fmt::Result {
+/// Writes a variable's name: what stands before the digits at its end
+/// as `letters` writes it, and those digits as an index. A name of
+/// digits alone has none.
+pub(crate) fn write_name(
+    out: &mut impl Write,
+    name: &str,
+    index: Index,
+    letters: Atoms,
+) -> std::fmt::Result {
     let stem = name.trim_end_matches(|c: char| c.is_ascii_digit());
     let (stem, digits) = if stem.is_empty() {
         (name, "")
     } else {
         name.split_at(stem.len())
     };
-    out.write_str(stem)?;
+    letters.write(out, stem)?;
     if digits.is_empty() {
         return Ok(());
     }
@@ -515,6 +529,7 @@ impl<'t> Printer<'t> {
             out,
             &self.term.variables[v.index()].name,
             self.spelling.index,
+            self.spelling.variable,
         )
     }
 

@@ -219,6 +219,7 @@ impl Names<'_> {
             &mut out,
             self.variables[variable.index()].name(),
             super::print::Index::Subscript,
+            crate::linear::sequents::notation::Atoms::Plain,
         );
         out
     }

@@ -6,6 +6,7 @@
 
 use super::print::{Framing, Spelling, UNICODE, lengths, write_judgement_at};
 use super::{Calculus, Node, Options, Term, TermId, TypeId, VarId};
+use crate::hash::HashMap;
 use crate::linear::InfId;
 use crate::linear::proofs::Labels;
 use crate::linear::proofs::style::Drawn;
@@ -235,21 +236,29 @@ fn premises(node: &Node) -> Vec<Premise> {
     }
 }
 
-/// Returns the free variables of every node, each list sorted: a node's
-/// are its premises' less what it binds in each.
-fn free_variables(term: &Term) -> Vec<Vec<VarId>> {
+/// Returns the free variables of every node the root reaches (`reached`),
+/// each list sorted, and nothing for the others: a node's are its
+/// premises' less what it binds in each. The lists of the nodes reached
+/// are shorter than their texts, which the drawing's estimate bounds.
+fn free_variables(term: &Term, reached: &[bool]) -> Vec<Vec<VarId>> {
     let mut free: Vec<Vec<VarId>> = Vec::with_capacity(term.nodes.len());
-    for node in &term.nodes {
+    for (node, &reached) in term.nodes.iter().zip(reached) {
+        if !reached {
+            free.push(Vec::new());
+            continue;
+        }
         let mut own = if let Node::Var { variable } = node {
             vec![*variable]
         } else {
             Vec::new()
         };
         for premise in premises(node) {
+            let mut binds = premise.binds.clone();
+            binds.sort_unstable();
             own.extend(
                 free[premise.term.index()]
                     .iter()
-                    .filter(|v| !premise.binds.contains(v)),
+                    .filter(|v| binds.binary_search(v).is_err()),
             );
         }
         own.sort_unstable();
@@ -276,7 +285,8 @@ fn free_variables(term: &Term) -> Vec<Vec<VarId>> {
 /// components of a pair and the two branches of a `case` share theirs,
 /// and the body of a `promote` has its own variables alone. In the
 /// affine calculus a variable no premise uses goes to the last, so that
-/// only a leaf weakens.
+/// only a leaf weakens, or a `promote` without terms, whose body has its
+/// own variables alone.
 ///
 /// Every export takes it as it takes a proof's derivation:
 ///
@@ -384,7 +394,7 @@ impl Drawing {
         over(least)?;
         let free = match typed.calculus {
             Calculus::Simple => None,
-            Calculus::Linear | Calculus::Affine => Some(free_variables(&typed)),
+            Calculus::Linear | Calculus::Affine => Some(free_variables(&typed, &reached)),
         };
         let mut stop = crate::limits::counting(stop, crate::limits::Phase::View);
         let declared = |v: VarId| -> u64 {
@@ -521,18 +531,26 @@ fn split(gamma: &[VarId], premises: &[Premise], free: Option<&[Vec<VarId>]>) -> 
             .collect();
     };
     let last = premises.iter().rev().find(|p| !p.closed).map(|p| p.group);
+    // Each variable's group, the first premise's that uses it, in one pass
+    // over the premises' free variables; and each group's premises.
+    let mut first: HashMap<VarId, u32> = HashMap::default();
+    let mut members: HashMap<u32, Vec<usize>> = HashMap::default();
+    for (i, premise) in premises.iter().enumerate() {
+        if premise.closed {
+            continue;
+        }
+        members.entry(premise.group).or_default().push(i);
+        for &v in &free[premise.term.index()] {
+            first.entry(v).or_insert(premise.group);
+        }
+    }
     let mut parts = vec![Vec::new(); premises.len()];
     for &v in gamma {
-        let group = premises
-            .iter()
-            .find(|p| !p.closed && free[p.term.index()].binary_search(&v).is_ok())
-            .map(|p| p.group)
-            .or(last);
-        let Some(group) = group else { continue };
-        for (part, premise) in parts.iter_mut().zip(premises) {
-            if !premise.closed && premise.group == group {
-                part.push(v);
-            }
+        let Some(group) = first.get(&v).copied().or(last) else {
+            continue;
+        };
+        for &i in members.get(&group).map_or(&[][..], Vec::as_slice) {
+            parts[i].push(v);
         }
     }
     parts

@@ -3023,6 +3023,19 @@ fn typing_derivations() {
         rocq::to_string(&linear, &rocq::Options::default()),
         Err(Error::Unsupported(Unsupported::Typing))
     ));
+    // A name of several letters is set apart in LaTeX and Typst, as an
+    // atom's is, and the digits at its end are an index.
+    let named = drawing(r"\foo:a. \x_1:a. foo", Calculus::Simple);
+    let tex = latex::to_string(&named, &latex::Options::default()).unwrap();
+    assert!(
+        tex.contains(r"\mathit{foo} : a, \mathit{x\_}_{1} : a &\vdash \mathit{foo} : a"),
+        "{tex}"
+    );
+    let typ = typst::to_string(&named, &typst::Options::default()).unwrap();
+    assert!(
+        typ.contains(r#"italic("foo") : a, italic("x_")_1 : a ⊢ italic("foo") : a"#),
+        "{typ}"
+    );
     let term = Term::parse(r"\x:a. x", Calculus::Simple, &limits).unwrap();
     let small = Limits::default().with_derivation_bytes(Some(100));
     assert!(matches!(
