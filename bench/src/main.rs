@@ -107,6 +107,18 @@ enum Command {
     },
     /// List the generated families with their default sizes
     Families,
+    /// Print the generated families' instances as JSON Lines: the name,
+    /// the mode, whether the instance is provable by construction, and the
+    /// sequent's JSON, which `deduxit seq print --input-format json`
+    /// writes as text
+    Instances {
+        /// The families, by name; every family when absent
+        #[arg(long, value_name = "NAME")]
+        family: Vec<String>,
+        /// The sizes; each family's smallest default size when absent
+        #[arg(long, value_name = "N", value_delimiter = ',')]
+        size: Vec<u32>,
+    },
     /// Run one problem and print its result as the tail of a CSV row; `run`
     /// starts one for every run
     #[command(hide = true)]
@@ -401,6 +413,7 @@ fn main() -> ExitCode {
             }
             Ok(())
         }
+        Command::Instances { family, size } => instances(&family, &size),
         Command::One(args) => run::one(args),
         Command::Journeys => {
             for journey in journeys::JOURNEYS {
@@ -453,6 +466,52 @@ fn seconds(text: &str) -> Result<f64, String> {
     std::time::Duration::try_from_secs_f64(value)
         .map(|_| value)
         .map_err(|_| format!("{text:?} is not a number of seconds a time limit can be"))
+}
+
+/// Prints the instances of the families named, every family when none
+/// is, at the sizes given or each family's smallest default size, one
+/// JSON object per line.
+///
+/// # Errors
+///
+/// A family that does not exist, a size it has no instance of, or a
+/// sequent that cannot be written.
+fn instances(names: &[String], sizes: &[u32]) -> anyhow::Result<()> {
+    use std::io::Write as _;
+    let families: Vec<&deduxit::linear::families::Family> = if names.is_empty() {
+        deduxit::linear::families::FAMILIES.iter().collect()
+    } else {
+        names
+            .iter()
+            .map(|name| {
+                deduxit::linear::families::find(name)
+                    .ok_or_else(|| anyhow::anyhow!("no family {name}"))
+            })
+            .collect::<anyhow::Result<_>>()?
+    };
+    let mut out = std::io::stdout().lock();
+    for family in families {
+        let sizes = if sizes.is_empty() {
+            &family.sizes[..1]
+        } else {
+            sizes
+        };
+        for &size in sizes {
+            for index in 0..family.instances {
+                let instance = family.instance(size, index)?;
+                let line = serde_json::json!({
+                    "name": instance.name,
+                    "family": family.name,
+                    "size": size,
+                    "mode": instance.mode.name(),
+                    "provable": instance.provable,
+                    "sequent": instance.sequent,
+                });
+                writeln!(out, "{line}")?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

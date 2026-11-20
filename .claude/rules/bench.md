@@ -14,8 +14,11 @@ serde_json, which the CLI and the core's tests already have.
 ## Layout
 
 - `src/main.rs`: the clap tree (`run`, `summary`, `ranking`, `families`,
-  `journeys`, `journey`, `ratchet`, and the hidden `one`); doc comments
-  are the `--help` text, as in the CLI. `--engines` and `--engine` take
+  `instances`, `journeys`, `journey`, `ratchet`, and the hidden `one`); doc comments
+  are the `--help` text, as in the CLI. `instances` prints the families'
+  instances (by default each at its smallest default size) as JSON Lines
+  of the name, family, size, mode's name, verdict by construction and the
+  sequent's JSON, which `dataset/build.py` reads. `--engines` and `--engine` take
   the library's names (`EngineChoice::parser`, from `Engine::NAMES`, and
   `auto`).
 - `src/problems.rs`: the five sources (families, LLTP, `.spec`,
