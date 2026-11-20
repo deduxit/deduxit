@@ -7721,3 +7721,7 @@ move (D26).
     whole); the ratchet baseline recorded. fresh-reviewer (Fable) eight findings, all answered.
   - **74b** (the terms to the root, `Node`'s quantifiers with every arm and the refusals, the
     parser and JSON) started in a cleared worker.
+- 2026-11-20, about 19:10: **deduxit 0.7.0 tagged**: CI, Install and Pages green at the release
+  commit `1fb4ee2b` (`znqrprxu`); the signed tag object `a15e22d5` (verified "true valid") and
+  `refs/tags/v0.7.0`, on the author's word "Tag 0.7.0". The release workflow runs (its first run
+  through `checks.yml`); its `cargo publish` waits for the author's approval.
