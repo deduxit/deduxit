@@ -28,6 +28,24 @@ second number (0.1.x to 0.2.0), anything else the third.
   `input`, `target`, `metadata`), with its card, Croissant metadata and
   the script that builds it. `deduxit-bench instances` prints the
   generated families' instances it reads.
+- Normal forms of classical sequents, every step shown and the result
+  checked: `seq normalize --to nnf|cnf|dnf|tseitin|plaisted-greenbaum`,
+  CNF by default. Negation, conjunctive and disjunctive normal form are
+  made by equivalence laws, one law per step; Tseitin's and Plaisted and
+  Greenbaum's encodings give the clauses of the sequent's negation, a new
+  atom for each compound subformula. The SAT solver checks that each
+  formula is equivalent to its form, or that the clauses can be
+  satisfied exactly when the sequent can be false. `--form-limit`
+  (`limits.form_occurrences`, 10000 by default) bounds the form.
+- In the library, `ordinary::normal` (`rewrite`, `normalize`,
+  `NormalForm` with its `steps` and `checks`), `Limits::form_occurrences`
+  with `Refusal::Form` (code `form_too_large`) and `Phase::Rewrite`.
+- In the protocol, the operations `ordinary.nnf`, `ordinary.cnf`,
+  `ordinary.dnf`, `ordinary.tseitin` and `ordinary.plaisted_greenbaum`,
+  with the promises `equivalent` and `equisatisfiable`, so a workspace
+  takes a normal form as an edge.
+- Wire level 21: the normal form's document, which `seq normalize
+  --format json` writes. Level 21 is now the highest the library reads.
 
 ## [0.6.0] - 2026-11-20
 

@@ -100,6 +100,11 @@ promises something of its output and says what checking that costs.
 | `ordinary.interpolate` | `ordinary.sequent` | `ordinary.interpolant` | interpolates |
 | `ordinary.half` | `ordinary.interpolant` | `ordinary.sequent` | exact |
 | `ordinary.embed` | `ordinary.sequent` | `linear.sequent` | same verdict |
+| `ordinary.nnf` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
+| `ordinary.cnf` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
+| `ordinary.dnf` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
+| `ordinary.tseitin` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
+| `ordinary.plaisted_greenbaum` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
 | `ordinary.term` | a session or a derivation | `term` | renders |
 | `ordinary.draw` | a session, a derivation or an outcome | `drawing` | renders |
 | `ordinary.export` | a session or a derivation | `text` | renders |
@@ -134,6 +139,8 @@ defaults, its plain name, how its output relates to its inputs once made
 | proves | the proof or derivation proves its sequent | instant |
 | same verdict | input and output are valid together or not | two searches |
 | interpolates | the interpolant's atoms occur in both parts, and both halves are valid | two searches |
+| equivalent | each formula of the output is equivalent to the input's in its place | one search |
+| equisatisfiable | the output's clauses can be satisfied exactly when the input can be false | two searches |
 | renders | the drawing or text shows its input | nothing to check |
 | certifies | Rocq accepts the certificate | Rocq checks it |
 

@@ -207,6 +207,14 @@ in use.
   derivation of LK or LJ without cuts by Maehara's method, and checks it
   by deciding both halves and comparing the atoms. The library, the
   web bindings and the web page have both.
+- [Classical sequents are rewritten into normal forms](transformations.md#rewrite-a-sequent-into-a-normal-form)
+  step by step: negation, conjunctive and disjunctive normal form by
+  equivalence laws, and the clauses of Tseitin's and of Plaisted and
+  Greenbaum's encodings. `seq normalize` shows each step and checks with
+  the SAT solver that each form is equivalent to its input, or for an
+  encoding that the clauses can be satisfied exactly when the sequent
+  can be false. The library and the protocol have them; the web page
+  does not yet.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is

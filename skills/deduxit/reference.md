@@ -1325,6 +1325,35 @@ Both take `--format json`, a document at wire level 16: `{"version",
 "logic", "partition", "outcome", "interpolant"}` from `interpolate`, every
 outcome an ordinary outcome without its own `version` and `deduxit`.
 
+### Normal forms
+
+`deduxit seq normalize SEQUENT` rewrites each formula of a classical
+sequent into a normal form, one law per step, prints each step with its
+law and the sequent after it, then checks the result with the SAT
+solver. `--to cnf` (the default) is conjunctive normal form, `dnf`
+disjunctive, `nnf` negation normal form, each formula equivalent to its
+form. `--to tseitin` and `--to plaisted-greenbaum` give clauses of the
+sequent's negation, a new atom (`t1`, `t2`, …) for each compound
+subformula: the result `C1, …, Cn ⊢` is valid exactly when the input is,
+and the check decides that the clauses hold wherever the sequent is
+false (the new atoms as defined) and that the sequent is false wherever
+the clauses hold. `--form-limit N|none` (`limits.form_occurrences`,
+10000 by default) refuses a form or a step past N occurrences, exit
+status 2. Exit 0 where the check holds, 3 where a limit stopped it.
+
+```console
+$ deduxit seq normalize --to dnf '(a \/ b) /\ ~c'
+Disjunctive normal form: ⊢ (a ∧ ¬c) ∨ (b ∧ ¬c)
+1. A ∧ (B ∨ C) ≡ (A ∧ B) ∨ (A ∧ C), at (a ∨ b) ∧ ¬c:
+   ⊢ (a ∧ ¬c) ∨ (b ∧ ¬c)
+every formula is equivalent to its normal form: valid, a checked clausal proof
+```
+
+`--format json` writes a document at wire level 21: `{"version",
+"deduxit", "form", "promise", "checked", "sequent", "result", "steps",
+"checks"}`, each step's `before` and `after` numbers of the result's
+`formulas`.
+
 ### Step by step in LK or LJ
 
 `deduxit interact --logic LOGIC SEQUENT` proves an ordinary sequent step
@@ -1695,6 +1724,15 @@ occurrences by id, and `describe(&forest)` names them by formula.
   `agreement`; verdicts that differ are `Error::ClaimFails` (code
   `claim_fails`). `ordinary::negative::translate` returns the translated
   sequent alone.
+- `ordinary::normal::normalize(&sequent, &options, &search, &limits,
+  stop)` rewrites into the form `ordinary::normal::Options` names
+  (`ordinary::normal::Form`: `Nnf`, `Cnf`, `Dnf`, `Tseitin`,
+  `PlaistedGreenbaum`) and checks its promise; the
+  `ordinary::normal::NormalForm` holds the `steps` (`rule`, `before`,
+  `after` in the result's arena), the `result` and the `checks`, and
+  `is_checked()`. `ordinary::normal::rewrite` makes the steps without
+  the check. Past `limits.form_occurrences` it is `Refusal::Form` (code
+  `form_too_large`); a promise found false is `Error::ClaimFails`.
 - `ordinary::interpolant::interpolate(&sequent, &options, &partition,
   &search, &limits, stop)` decides the sequent and returns an
   `ordinary::interpolant::Interpolation` whose `interpolant` holds both

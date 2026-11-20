@@ -406,7 +406,7 @@ fn guide_examples() {
 
 /// The commands whose help the guide's flags are looked up in, as the
 /// words after `deduxit`.
-const COMMANDS: [&[&str]; 22] = [
+const COMMANDS: [&[&str]; 23] = [
     &["prove"],
     &["check"],
     &["eliminate"],
@@ -417,6 +417,7 @@ const COMMANDS: [&[&str]; 22] = [
     &["seq", "json"],
     &["seq", "fragment"],
     &["seq", "translate"],
+    &["seq", "normalize"],
     &["workspace", "new"],
     &["workspace", "add"],
     &["workspace", "apply"],

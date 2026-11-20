@@ -21,7 +21,7 @@
 - [Prove in first-order logic](first-order.md)
 - [Decide ordinary logic](ordinary-logic.md)
 - [Decide modal logic](modal-logic.md)
-- [Translate a sequent and find its interpolant](transformations.md)
+- [Translate, rewrite and interpolate a sequent](transformations.md)
 - [Keep a sequent and what is made from it](workspace.md)
 - [Read a proof as a program](terms.md)
 - [Prove in cyclic linear logic](cyclic.md)
