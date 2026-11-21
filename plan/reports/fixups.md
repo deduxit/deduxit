@@ -285,3 +285,143 @@ derivation. Three findings:
     when the key's boxes sit at other worlds, which is why it was not built.
   - Neither is in `plan/later.md`: they are for when a user meets one.
 - **The 50-node original** of the panel's witness was not on disk and was not measured.
+
+## Session fixup-11: the renderers' module
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58a-610ed3` and the client's checkout,
+from the brief `/tmp/linlog-handoff/start-fixup-11.md` (`plan/later.md`, "The web module's size
+after the workspace", its second point), on 2026-11-21. Cores 7-9, the client's e2e on 13-15.
+
+### Outcome
+
+- **deduxit** (`nvpuqykz`): the PNG and PDF renderers are a WebAssembly module of their own.
+  - `web-render/` is the crate `deduxit-web-render`, a cdylib with the one call `render(svg,
+    format, font, settings)`, the old `calls::render` moved whole: the same settings read over the
+    same tab's defaults, the same error JSON, its tests moved with it plus one for its failures.
+  - `web-tab/` is `deduxit-web-tab`, a library alone: the tab's defaults and overlay (`tab.rs`
+    less `STACK_BYTES`) and `Failure`, which both modules need. `web/src/tab.rs` re-exports it and
+    keeps `STACK_BYTES`, which its `build.rs` sets.
+  - `web/` drops `render` and the library's `png` and `pdf` features.
+  - `modules/web.nix` builds each module by a cargo of its own (built together, cargo would
+    unify the library's features and compile the bindings with `png` and `pdf`), puts both
+    modules and their glue in the package `deduxit-web` with one `THIRD-PARTY-NOTICES.txt`, a
+    section per module, and runs the three crates' tests under Node and Clippy for wasm32;
+    `web-features` validates both modules. `modules/budget.nix` checks each module under its own
+    ceiling. `modules/workspace.nix` adds the crates to the `web` part and selection, so
+    `clippy-web`, `test-web` and `test-debug-assertions-web` cover them.
+  - Docs: `web.md`, `flake.md`, CLAUDE.md, the manual's architecture table and status page, the
+    guide for AI models, the plan's call table and the changelog.
+- **The client** (`stkwzklo`): the worker imports `deduxit_web_render.js` on the first `render`
+  request and keeps the promise (`loadRenderers`); one that fails to load is dropped, so the next
+  export tries again, and the request is answered with `the PNG and PDF renderers did not load:
+  …`, which the export menu shows as it shows every failure. The service worker puts the
+  renderers' two files in `LATER` (the build fails unless it finds two), so it does not fetch
+  them at install and caches them when first asked, as it does a chosen font. The new e2e test
+  in `tests/offline.spec.ts` exports SVG, LaTeX, Text and Session under the service worker and
+  finds no request for either file and none in its cache; then PNG, PDF and PNG fetch each file
+  once, and the cache holds both. The About dialog's notices line says "modules".
+
+### Why a shared crate
+
+The renderers need the tab's settings reader and the error form. Three ways were tried or
+weighed:
+- **A dependency on `deduxit-web`** would link every `#[wasm_bindgen]` export of the bindings
+  into the renderers' cdylib (rustc exports every upstream `#[no_mangle]` symbol of a cdylib),
+  and gating them behind a feature breaks as soon as cargo unifies features.
+- **`#[path]` includes of `tab.rs` and `failure.rs`** worked, but cargo-shear (the `shear` check)
+  does not follow them: it called `serde_json` a misplaced dependency and listed the bindings'
+  files as unlinked. Dropped.
+- **A crate both depend on** (`deduxit-web-tab`) is the usual way, and the one taken. Its cost
+  is a third manifest and `STACK_BYTES` staying in the bindings.
+
+### Measurements
+
+The modules at `gzip -9`, from the nix packages:
+
+| | the bindings' module | the renderers' module | both |
+|---|---:|---:|---:|
+| before (`main@origin`, `nklpmrvn`) | 3 913 893 | none | 3 913 893 |
+| after (`morwkrov`) | 2 438 116 | 1 639 598 | 4 077 714 |
+
+Raw after `wasm-opt`: 10 979 011 bytes before, 7 192 062 and 4 382 359 after. The two modules
+together are 164 KB more than the one before: what both carry (the standard library, serde and
+serde_json, the reader of the whole settings and the library's error writing). The renderers'
+module was 1 609 148 until the reviewer's finding below made it read every key of the settings.
+It is resvg, usvg, krilla, skrifa, rustybuzz, write-fonts, zune-jpeg, the PNG decoder and the
+filters; the tab's settings reader was 20 KB raw of it before that finding (twiggy). The brief's figure of 3 903 905 is the day before; `main@origin` had 3 913 893.
+
+The budget's ceilings: the bindings' 2 500 000 (from 3 950 000), the renderers' 1 700 000; the
+lock's packages 175 (two crates more), under 180.
+
+The worker's time to its first answer (the island's `about` on mount), by a Playwright script
+(not committed; it wraps `Worker` in an init script and takes the time from the worker's creation
+to its first message), each run a fresh browser context with service workers blocked, Chromium on
+cores 13-15, the sites built by nix (the client at `vyxlolom` with deduxit at `nklpmrvn`, and
+the client at `stkwzklo` with deduxit at `nvpuqykz`). The client has no measure of its own.
+
+| served | before, median of 5 | after, median of 5 |
+|---|---:|---:|
+| from disk, uncompressed (twice) | 102 ms, 105 ms | 84 ms, 86 ms |
+| at gzip -9, 10 Mbit/s per response | 3 176 ms | 1 992 ms |
+
+Runs: from disk 129, 101, 110, 102, 90 and 123, 105, 105, 103, 91 before; 120, 83, 89, 83, 84
+and 108, 86, 82, 86, 84 after. Throttled 3198, 3176, 3176, 3175, 3176 before; 2013, 1990, 1992,
+1990, 1992 after. The throttle is per response, so parallel requests each get 10 Mbit/s; the
+module is the largest by far, so the figure is about its download. The timings were taken at
+`nvpuqykz`; the later commits change only the renderers' module, which the first answer does not
+load.
+
+### Commits
+
+- deduxit: `nvpuqykz` the renderers' module, `unyuwpyu` the same settings in both modules (the
+  reviewer's finding), `morwkrov` the renderers' ceiling, then this report.
+- The client: `stkwzklo`.
+
+### Checks
+
+- deduxit: the gate passed at `nvpuqykz` and at `unyuwpyu` (cores 7-9). `web-package`, `budget`,
+  `web-features`, `web-wasm-tests` and `web-clippy-wasm32` passed at `nvpuqykz`; `web-package`,
+  `web-wasm-tests` and `budget` again at `unyuwpyu`. `nix flake check` passed at `nvpuqykz` and
+  at the head (below).
+- `a_feature_s_keys_are_read` was seen to fail with the tab crate's first feature list
+  (`serialize`, `svg`) and to pass with the bindings' list.
+- The client, against this workspace (`--override-input deduxit git+file:///…`): `lint` (Biome
+  and `astro check`, no errors), `tests` (716 passed), `e2e` in the dev shell on cores 13-15 (365
+  passed, the new test among them), and its `nix flake check` (all checks, `e2e`, `licences` and
+  `csp` among them) at `stkwzklo` with deduxit at `unyuwpyu`.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) on both chains:
+- **Finding: the renderers' module refused settings the old `render` took.** It built the library
+  with `png`, `pdf`, `serialize` and `svg` alone, and `Settings` refuses an unknown key: without
+  `interactive` the key `interactive` is unknown, without `sat` the method `sat`. The tests did not
+  see it, since the renderers' tests depend on the bindings, which turn every feature on.
+  Answered in `unyuwpyu`: `deduxit-web-tab` takes the bindings' features but `png` and `pdf`, and
+  its test `a_feature_s_keys_are_read` runs under Node in a cargo of its own, where the features
+  are the tab crate's alone. The page sends neither key to `render` today.
+- **Question: a failed dynamic `import()` may stay failed for the worker's life** in some
+  browsers, so "the next export tries again" holds for the module's file but perhaps not for its
+  glue. Not tested here; the client's rules and the loader's comment now say so. The worker is
+  never wedged: the request gets its error answer, and a cancel or a crash starts a new worker.
+
+### Departures and what is left
+
+- **The tab's settings and the error form moved to a crate of their own**, `deduxit-web-tab`, a
+  third crate the brief did not name (departs from the design: the brief named a crate beside
+  `web/` or a second target of it). A second cdylib target of one package does not exist in
+  cargo, and the reasons for the shared crate are above.
+- **The renderers' module keeps an 8 MiB stack** (`web-render/build.rs`), the bindings', since
+  the renderers ran on it inside them; it costs nothing at download.
+- Not done: a throttled timing inside a real browser profile with the service worker (the
+  measure blocks it, so every run downloads); a measure on a phone.
+
+### What the client's lock bump needs
+
+The client's commit `stkwzklo` needs deduxit's package with `deduxit_web_render.js` and
+`deduxit_web_render_bg.wasm`: against the pinned deduxit its worker's import fails to resolve
+(`astro check` reports it, and the build fails). So the lock moves to a deduxit `main` that holds
+`nvpuqykz` to `morwkrov` in the same push as `stkwzklo`, or before it: `nix flake update deduxit`
+in the client, then its `nix flake check`. The client's pin is behind deduxit's `main` today
+(`c40a994f`, 0.6.0's package); its checks passed here against 0.7.0 and this chain, so nothing
+else in the bump is known to break.

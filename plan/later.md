@@ -2752,7 +2752,9 @@ busy state on the workspace panel's Undo is in the client. What is left, for the
 - **A module per suite (web-front-end-4) gains little**: the linear suite is 1.40 MB raw of
   deduxit's 3.13 MB, and every suite's module would carry the PNG and PDF renderers (2.69 MB raw,
   27 % of the module) and the protocol it shares. The larger first-load gain is a module of its
-  own for the renderers, loaded on the first PNG or PDF export.
+  own for the renderers, loaded on the first PNG or PDF export. **Done by fixup-11
+  (2026-11-21)**: the bindings' module 2 438 116 bytes at gzip, the renderers' 1 639 598
+  (`plan/reports/fixups.md`).
 - **`linear::search::prove_goal`** is still compiled per stop type (four copies, 23 KB raw); its
   change would be the focused engine's front door, which runs the target set.
 
