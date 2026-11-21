@@ -38,6 +38,37 @@ use super::super::matrix::{Kind, Matrix, NONE, Shape};
 use super::super::terms::Terms;
 use crate::hash::HashMap;
 use crate::ordinary::{Formulas, Node};
+use crate::{Error, Limits, Phase, Progress, Refusal};
+
+/// The build's account: the stop, the memory bound, and the work done.
+struct Budget<'a> {
+    /// The caller's stop.
+    stop: &'a mut dyn FnMut(Progress) -> bool,
+    /// The memory bound, `None` for none.
+    limit: Option<u64>,
+    /// The work done, for the stop's progress.
+    done: u64,
+}
+
+impl Budget<'_> {
+    /// Asks the stop and compares `bytes` with the bound.
+    fn poll(&mut self, work: u64, bytes: usize) -> Result<(), Error> {
+        self.done = self.done.saturating_add(work);
+        if (self.stop)(Progress::new(Phase::Search, work, self.done)) {
+            return Err(Error::Refused(Refusal::Stopped {
+                phase: Phase::Search,
+            }));
+        }
+        match self.limit {
+            Some(limit) if bytes as u64 > limit => Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Search,
+                limit_bytes: limit,
+                needed_bytes: None,
+            })),
+            _ => Ok(()),
+        }
+    }
+}
 
 /// What character a position adds to the prefixes below it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,29 +90,66 @@ pub(super) type Sym = (u32, bool);
 pub(super) struct Prefixes {
     /// Per occurrence, its character.
     pub(super) chars: Vec<Char>,
-    /// Per literal, the occurrences with a character from the root down
-    /// to it, its own included, as `chains[start..start + len]`.
-    lit_chain: Vec<(u32, u32)>,
-    /// The chains.
-    chains: Vec<u32>,
+    /// Per occurrence, the nearest occurrence strictly above it with a
+    /// character, [`NONE`] for none: a prefix is read up these links, so
+    /// prefixes share their beginnings and none is stored.
+    up: Vec<u32>,
+    /// Per occurrence, the nearest occurrence strictly above it with a
+    /// prefix variable, [`NONE`] for none.
+    up_var: Vec<u32>,
     /// Per node of the matrix, the positions with a prefix variable free in
     /// it, sorted; empty but for clauses.
     free: Vec<Vec<u32>>,
     /// The number of every prefix variable read in a copy: by position and
     /// the copy that renames it.
     vars: HashMap<(u32, u32), u32>,
-    /// The number of every prefix constant: by position and the numbers of
+    /// The lists of variable numbers that stand above a constant, each
+    /// interned as its last number and the list before it ([`EMPTY`] for
+    /// none), so that a list is one number.
+    contexts: HashMap<(u32, u32), u32>,
+    /// The number of every prefix constant: by position and the list of
     /// the variables above it.
-    consts: HashMap<(u32, Vec<u32>), u32>,
-    /// The numbers given so far.
+    consts: HashMap<(u32, u32), u32>,
+    /// The numbers given so far, contexts' and characters' apart.
     count: u32,
+    /// The characters read since [`Prefixes::take_read`] last asked, the
+    /// work the search counts for them.
+    read: u64,
+    /// The bytes the lists of free variables held when they were built.
+    free_bytes: usize,
 }
+
+/// The first number of [`unify`]'s auxiliary variables, past every
+/// position's.
+pub(super) const AUXILIARY: u32 = 1 << 31;
+
+/// The context of a constant with no variable above it.
+const EMPTY: u32 = u32::MAX;
+
+/// How many nodes the build takes between two asks of the stop.
+const POLL: usize = 1 << 10;
+
+/// How many entries of the lists of free variables the build makes
+/// between two asks of the stop.
+const POLL_ENTRIES: usize = 1 << 16;
 
 impl Prefixes {
     /// Returns the characters of `matrix`'s positions over `formulas`.
-    pub(super) fn of(matrix: &Matrix, formulas: &Formulas) -> Self {
+    /// The lists of free variables hold every variable above each literal,
+    /// which a deep nest makes quadratic: they are charged to the memory
+    /// bound, and the stop is asked every [`POLL`] nodes, either one
+    /// refusing ([`Refusal::Memory`], [`Refusal::Stopped`]).
+    pub(super) fn of(
+        matrix: &Matrix,
+        formulas: &Formulas,
+        limits: &Limits,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<Self, Error> {
         let n = matrix.occs.len();
         let mut chars = vec![Char::No; n];
+        let mut up = vec![NONE; n];
+        let mut up_var = vec![NONE; n];
+        // Occurrences are in preorder, so a parent's link is set first.
         for (o, occ) in matrix.occs.iter().enumerate() {
             let special = match occ.kind {
                 Kind::Atom(_) | Kind::Not | Kind::Implies | Kind::Part { .. } => true,
@@ -95,87 +163,151 @@ impl Prefixes {
                 (true, true) => Char::Var,
                 (true, false) => Char::Const,
             };
-        }
-        let mut chains = Vec::new();
-        let mut lit_chain = Vec::with_capacity(matrix.literals.len());
-        for literal in &matrix.literals {
-            let start = chains.len() as u32;
-            let mut o = literal.occ;
-            let mut chain = Vec::new();
-            while o != NONE {
-                if chars[o as usize] != Char::No {
-                    chain.push(o);
-                }
-                o = matrix.occs[o as usize].parent;
+            let parent = occ.parent;
+            if parent != NONE {
+                let p = parent as usize;
+                up[o] = if chars[p] == Char::No { up[p] } else { parent };
+                up_var[o] = if chars[p] == Char::Var {
+                    parent
+                } else {
+                    up_var[p]
+                };
             }
-            chain.reverse();
-            chains.extend_from_slice(&chain);
-            lit_chain.push((start, chain.len() as u32));
         }
         let mut prefixes = Self {
             chars,
-            lit_chain,
-            chains,
+            up,
+            up_var,
             free: Vec::new(),
             vars: HashMap::default(),
+            contexts: HashMap::default(),
             consts: HashMap::default(),
             count: 0,
+            read: 0,
+            free_bytes: 0,
         };
-        prefixes.free = prefixes.free_vars(matrix);
-        prefixes
+        let mut budget = Budget {
+            stop,
+            limit: limits.memory_bytes,
+            done: 0,
+        };
+        prefixes.free = prefixes.free_vars(matrix, &mut budget)?;
+        Ok(prefixes)
+    }
+
+    /// Returns the positions with a character from the root down to
+    /// occurrence `o`, its own included, outermost first.
+    fn chain(&self, o: u32) -> Vec<u32> {
+        let mut chain = Vec::new();
+        let mut at = if self.chars[o as usize] == Char::No {
+            self.up[o as usize]
+        } else {
+            o
+        };
+        while at != NONE {
+            chain.push(at);
+            at = self.up[at as usize];
+        }
+        chain.reverse();
+        chain
     }
 
     /// Returns, per node of the matrix, the prefix variables free in it,
     /// as the classical matrix finds its free slots: those of its literals
     /// that no other element of a clause above it holds.
-    fn free_vars(&self, matrix: &Matrix) -> Vec<Vec<u32>> {
+    fn free_vars(
+        &mut self,
+        matrix: &Matrix,
+        budget: &mut Budget<'_>,
+    ) -> Result<Vec<Vec<u32>>, Error> {
         let n = matrix.nodes.len();
+        let mut tally = Tally {
+            held: self.held_bytes(),
+            unpolled: 0,
+        };
         let mut below: Vec<Vec<u32>> = vec![Vec::new(); n];
         for i in (0..n).rev() {
-            below[i] = match matrix.nodes[i].shape {
+            let (set, work) = match matrix.nodes[i].shape {
                 Shape::Literal(l) => {
-                    let (start, len) = self.lit_chain[l as usize];
-                    let mut set: Vec<u32> = self.chains[start as usize..(start + len) as usize]
-                        .iter()
-                        .copied()
-                        .filter(|&o| self.chars[o as usize] == Char::Var)
-                        .collect();
+                    let o = matrix.literals[l as usize].occ;
+                    let mut at = if self.chars[o as usize] == Char::Var {
+                        o
+                    } else {
+                        self.up_var[o as usize]
+                    };
+                    let mut set = Vec::new();
+                    while at != NONE {
+                        set.push(at);
+                        at = self.up_var[at as usize];
+                    }
                     set.sort_unstable();
-                    set
+                    let work = set.len();
+                    (set, work)
                 }
                 Shape::Matrix | Shape::Clause => {
-                    let mut set = Vec::new();
-                    for &k in matrix.kids(i as u32) {
-                        set = union(&set, &below[k as usize]);
-                    }
-                    set
+                    let mut set: Vec<u32> = matrix
+                        .kids(i as u32)
+                        .iter()
+                        .flat_map(|&k| below[k as usize].iter().copied())
+                        .collect();
+                    let work = set.len();
+                    set.sort_unstable();
+                    set.dedup();
+                    (set, work)
                 }
             };
+            tally.add(budget, set.len(), work, i)?;
+            below[i] = set;
         }
         let mut barred: Vec<Vec<u32>> = vec![Vec::new(); n];
         for i in 0..n {
             if matrix.nodes[i].shape != Shape::Clause {
                 continue;
             }
-            let kids = matrix.kids(i as u32).to_vec();
-            let mut after: Vec<Vec<u32>> = vec![Vec::new(); kids.len() + 1];
-            for j in (0..kids.len()).rev() {
-                after[j] = union(&after[j + 1], &below[kids[j] as usize]);
+            let kids = matrix.kids(i as u32);
+            if kids
+                .iter()
+                .all(|&k| matrix.nodes[k as usize].shape != Shape::Matrix)
+            {
+                continue;
             }
-            let mut before = barred[i].clone();
-            for (j, &k) in kids.iter().enumerate() {
+            // Every variable of the kids, with how many kids hold it: a
+            // matrix kid's clauses are barred from those another kid holds.
+            let mut counted: Vec<(u32, u32)> = Vec::new();
+            {
+                let mut all: Vec<u32> = kids
+                    .iter()
+                    .flat_map(|&k| below[k as usize].iter().copied())
+                    .collect();
+                tally.add(budget, 0, all.len(), i)?;
+                all.sort_unstable();
+                for v in all {
+                    match counted.last_mut() {
+                        Some((last, count)) if *last == v => *count += 1,
+                        _ => counted.push((v, 1)),
+                    }
+                }
+            }
+            let above = barred[i].clone();
+            for &k in kids {
                 if matrix.nodes[k as usize].shape != Shape::Matrix {
-                    before = union(&before, &below[k as usize]);
                     continue;
                 }
-                let set = union(&before, &after[j + 1]);
-                before = union(&before, &below[k as usize]);
+                let own = &below[k as usize];
+                let others: Vec<u32> = counted
+                    .iter()
+                    .filter(|&&(v, count)| count > u32::from(own.binary_search(&v).is_ok()))
+                    .map(|&(v, _)| v)
+                    .collect();
+                let set = union(&above, &others);
+                tally.add(budget, 0, counted.len() + set.len(), k as usize)?;
                 for &c in matrix.kids(k) {
                     barred[c as usize].clone_from(&set);
+                    tally.add(budget, set.len(), set.len(), c as usize)?;
                 }
             }
         }
-        (0..n)
+        let free: Vec<Vec<u32>> = (0..n)
             .map(|i| {
                 if matrix.nodes[i].shape == Shape::Clause {
                     below[i]
@@ -187,7 +319,25 @@ impl Prefixes {
                     Vec::new()
                 }
             })
-            .collect()
+            .collect();
+        self.free_bytes = free.iter().map(|f| f.capacity() * size_of::<u32>()).sum();
+        Ok(free)
+    }
+
+    /// Returns the bytes the tables hold, by capacity, for the search's
+    /// memory bound.
+    pub(super) fn held_bytes(&self) -> usize {
+        let entry = size_of::<((u32, u32), u32)>();
+        (self.chars.capacity() + self.up.capacity() + self.up_var.capacity()) * size_of::<u32>()
+            + self.free.capacity() * size_of::<Vec<u32>>()
+            + self.free_bytes
+            + (self.vars.capacity() + self.contexts.capacity() + self.consts.capacity()) * entry
+    }
+
+    /// Returns the characters read since the last call, and starts the
+    /// count again.
+    pub(super) fn take_read(&mut self) -> u64 {
+        std::mem::take(&mut self.read)
     }
 
     /// Returns whether a copy of clause `clause` renames a prefix variable.
@@ -211,13 +361,20 @@ impl Prefixes {
 
     /// Returns a new number.
     fn next(&mut self) -> u32 {
-        self.count += 1;
-        self.count - 1
+        let n = self.count;
+        self.count = self.count.saturating_add(1);
+        n
+    }
+
+    /// Returns whether the numbers given reached the auxiliary variables'
+    /// (from [`AUXILIARY`]), so that two characters may share one.
+    pub(super) const fn exhausted(&self) -> bool {
+        self.count >= AUXILIARY
     }
 
     /// Returns the character of position `o` read in copy `copy`, where
-    /// `above` are the numbers of the prefix variables above it.
-    fn sym(&mut self, terms: &Terms, copy: u32, o: u32, above: &[u32]) -> Sym {
+    /// `above` is the interned list of the prefix variables above it.
+    fn sym(&mut self, terms: &Terms, copy: u32, o: u32, above: u32) -> Sym {
         if self.chars[o as usize] == Char::Var {
             let owner = self.owner(terms, copy, o);
             let number = match self.vars.get(&(o, owner)) {
@@ -230,7 +387,7 @@ impl Prefixes {
             };
             (number, true)
         } else {
-            let key = (o, above.to_vec());
+            let key = (o, above);
             let number = match self.consts.get(&key) {
                 Some(&n) => n,
                 None => {
@@ -246,12 +403,20 @@ impl Prefixes {
     /// Returns the characters of the positions `chain`, outermost first,
     /// read in copy `copy`.
     fn read(&mut self, terms: &Terms, copy: u32, chain: &[u32]) -> Vec<Sym> {
+        self.read = self.read.saturating_add(chain.len() as u64);
         let mut out = Vec::with_capacity(chain.len());
-        let mut above: Vec<u32> = Vec::new();
+        let mut above = EMPTY;
         for &o in chain {
-            let sym = self.sym(terms, copy, o, &above);
+            let sym = self.sym(terms, copy, o, above);
             if sym.1 {
-                above.push(sym.0);
+                above = match self.contexts.get(&(above, sym.0)) {
+                    Some(&c) => c,
+                    None => {
+                        let c = self.next();
+                        self.contexts.insert((above, sym.0), c);
+                        c
+                    }
+                };
             }
             out.push(sym);
         }
@@ -266,9 +431,7 @@ impl Prefixes {
         lit: u32,
         copy: u32,
     ) -> Vec<Sym> {
-        let _ = matrix;
-        let (start, len) = self.lit_chain[lit as usize];
-        let chain: Vec<u32> = self.chains[start as usize..(start + len) as usize].to_vec();
+        let chain = self.chain(matrix.literals[lit as usize].occ);
         self.read(terms, copy, &chain)
     }
 
@@ -281,21 +444,47 @@ impl Prefixes {
         o: u32,
         copy: u32,
     ) -> Vec<Sym> {
-        let mut chain = Vec::new();
-        let mut at = o;
-        while at != NONE {
-            if self.chars[at as usize] != Char::No {
-                chain.push(at);
-            }
-            at = matrix.occs[at as usize].parent;
-        }
-        chain.reverse();
+        let _ = matrix;
+        let chain = self.chain(o);
         self.read(terms, copy, &chain)
     }
 
     /// Returns a fresh variable, which no position has.
     pub(super) fn fresh(&mut self) -> Sym {
         (self.next(), true)
+    }
+}
+
+/// What the build of the lists of free variables holds, and the entries
+/// it made since the stop was last asked.
+struct Tally {
+    /// The bytes held.
+    held: usize,
+    /// The entries made since the last ask.
+    unpolled: usize,
+}
+
+impl Tally {
+    /// Counts a list of `held` entries kept and `work` entries made at node
+    /// `i`, and asks the stop every [`POLL`] nodes and every
+    /// [`POLL_ENTRIES`] entries made.
+    fn add(
+        &mut self,
+        budget: &mut Budget<'_>,
+        held: usize,
+        work: usize,
+        i: usize,
+    ) -> Result<(), Error> {
+        self.held = self
+            .held
+            .saturating_add(held.saturating_mul(size_of::<u32>()));
+        self.unpolled = self.unpolled.saturating_add(work);
+        if i.is_multiple_of(POLL) || self.unpolled >= POLL_ENTRIES {
+            let work = std::mem::take(&mut self.unpolled);
+            budget.poll(work as u64, self.held)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -390,6 +579,18 @@ impl State {
         out
     }
 
+    /// Returns the characters the state holds, one per binding beside its
+    /// image's.
+    fn size(&self) -> usize {
+        let current = self
+            .current
+            .as_ref()
+            .map_or(0, |e| e.s.len() + e.z.len() + e.t.len());
+        self.bound
+            .iter()
+            .fold(current, |n, (_, image)| n + 1 + image.len())
+    }
+
     /// Binds `v` to `image` and reads the current equation under it.
     fn bind(&mut self, v: u32, image: Vec<Sym>) {
         self.bound.push((v, image));
@@ -403,6 +604,13 @@ impl State {
     }
 }
 
+/// The characters the states waiting in [`unify`]'s stack may hold before
+/// it gives the proof up (8 MiB).
+const UNIFY_HELD: usize = 1 << 20;
+
+/// The characters [`unify`] handles between two asks of the stop.
+const UNIFY_POLL: usize = 1 << 14;
+
 /// Why the search for a unifier gave no answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum NoUnifier {
@@ -415,8 +623,9 @@ pub(super) enum NoUnifier {
 /// Searches a substitution of strings for prefix variables that makes
 /// every pair of `equations` equal, by the ten rules of T-string
 /// unification, trying their alternatives depth first. Fresh auxiliary
-/// variables are numbered from `next`. It takes at most `budget` steps
-/// and asks `stop` every 256.
+/// variables are numbered from `next`. It takes at most `budget` steps,
+/// asks `stop` every [`UNIFY_POLL`] characters handled, and gives up
+/// where its waiting states hold more than [`UNIFY_HELD`].
 pub(super) fn unify(
     equations: &[(Vec<Sym>, Vec<Sym>)],
     next: u32,
@@ -429,16 +638,24 @@ pub(super) fn unify(
         bound: Vec::new(),
         next,
     };
-    let mut stack = vec![start];
-    let mut steps = 0u64;
-    while let Some(mut state) = stack.pop() {
+    let mut stack = vec![(start, 0usize)];
+    // The characters the stack's states hold, and those handled since the
+    // stop was last asked: a step costs its state's size, which long
+    // prefixes make dear.
+    let mut held = 0usize;
+    let mut since = 0usize;
+    while let Some((mut state, size)) = stack.pop() {
+        held = held.saturating_sub(size);
         if *budget == 0 {
             return Err(NoUnifier::Failed);
         }
         *budget -= 1;
-        steps += 1;
-        if steps.is_multiple_of(256) && stop() {
-            return Err(NoUnifier::Stopped);
+        since = since.saturating_add(size + 1);
+        if since >= UNIFY_POLL {
+            if stop() {
+                return Err(NoUnifier::Stopped);
+            }
+            since = 0;
         }
         if state.current.is_none() {
             let Some((s, t)) = equations.get(state.next_equation) else {
@@ -454,7 +671,14 @@ pub(super) fn unify(
         // The successors, pushed so that the first rule is tried first.
         let mut next_states = successors(state);
         next_states.reverse();
-        stack.extend(next_states);
+        for state in next_states {
+            let size = state.size();
+            held = held.saturating_add(size);
+            if held > UNIFY_HELD {
+                return Err(NoUnifier::Failed);
+            }
+            stack.push((state, size));
+        }
     }
     Err(NoUnifier::Failed)
 }

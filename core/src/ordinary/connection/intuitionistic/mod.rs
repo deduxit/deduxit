@@ -76,15 +76,18 @@ fn decide_counting(
         logic,
         statistics: Statistics::default(),
     };
-    let matrix = match Matrix::of(sequent, limits, &mut *stop) {
-        Ok(matrix) => matrix,
+    let built = Matrix::of(sequent, limits, &mut *stop).and_then(|matrix| {
+        let prefixes = prefix::Prefixes::of(&matrix, sequent.formulas(), limits, &mut *stop)?;
+        Ok((matrix, prefixes))
+    });
+    let (matrix, mut prefixes) = match built {
+        Ok(built) => built,
         Err(Error::Refused(Refusal::Stopped { .. })) => return Ok((unknown(Reason::Stopped), 0)),
         Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => {
             return Ok((unknown(Reason::MemoryLimit { limit_bytes }), 0));
         }
         Err(error) => return Err(error),
     };
-    let mut prefixes = prefix::Prefixes::of(&matrix, sequent.formulas());
     let config = Config {
         path_length: options.path_length,
         restricted: options.restricted_backtracking,

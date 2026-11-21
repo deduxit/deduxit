@@ -36,8 +36,20 @@ use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule
 /// The rules the search tries before it gives a proof up.
 const STEPS: u64 = 1 << 20;
 
-/// How many rules the search tries between two asks of the stop.
+/// How many units of work the search does between two asks of the stop:
+/// a rule tried, and a unit per [`HYPOTHESES_PER_UNIT`] hypotheses of its
+/// sequent, which a level copies.
 const POLL: u64 = 1 << 10;
+
+/// The hypotheses a level of the search handles per unit of work.
+const HYPOTHESES_PER_UNIT: usize = 1 << 6;
+
+/// The bytes a level of the search holds per hypothesis while it is open:
+/// the formula, its node, and the branch's key.
+const LEVEL_BYTES: usize = size_of::<Formula>() + 2 * size_of::<NodeId>();
+
+/// The bytes an instance in the memo holds, its key's terms apart.
+const INSTANCE_BYTES: usize = 64;
 
 /// A term of the proof: a symbol of the matrix applied to terms, or a
 /// variable no connection bound, which stands for any term.
@@ -119,10 +131,18 @@ struct Search<'m, 's> {
     steps: Vec<Step>,
     /// The rules tried.
     tried: u64,
+    /// The work since the stop was last asked.
+    since: u64,
+    /// The bytes the open levels and the steps hold.
+    held: usize,
+    /// The memory bound, `None` for none.
+    memory: Option<u64>,
     /// The deepest branch the search may take.
     depth: u32,
     /// Whether the search gave up at a bound.
     gave_up: bool,
+    /// Whether the eigenvariables' numbers ran out, so that two may be one.
+    out_of_numbers: bool,
     /// Every instance built: a formula and the terms put in for its
     /// binders' variables, innermost first.
     instances: HashMap<(NodeId, Box<[FoTermId]>), NodeId>,
@@ -173,8 +193,15 @@ pub(super) fn read_back(
         branch: HashSet::default(),
         steps: Vec::new(),
         tried: 0,
-        depth: limits.recursion_depth.min(1 << 14),
+        since: 0,
+        held: 0,
+        memory: limits.memory_bytes,
+        // A level of `prove` takes up to 15 KiB of stack unoptimized,
+        // against the 13 KiB a level of `recursion_depth` is sized for
+        // (1.5 KiB optimized, against 3 KiB): half the levels fit.
+        depth: (limits.recursion_depth / 2).min(1 << 14),
         gave_up: false,
+        out_of_numbers: first == u32::MAX,
         instances: HashMap::default(),
     };
     search.collect_candidates(terms);
@@ -201,6 +228,9 @@ pub(super) fn read_back(
     let Some(root) = search.prove(&set, goal, 0)? else {
         return Ok(None);
     };
+    if search.out_of_numbers {
+        return Ok(None);
+    }
     let written: Vec<NodeId> = sequent.left().to_vec();
     let Search {
         formulas, steps, ..
@@ -222,11 +252,17 @@ pub(super) fn read_back(
 
 impl Search<'_, '_> {
     /// Returns the proof term of `t`, read in the substitution, each once.
-    fn tm_of(&mut self, terms: &Terms, t: (u32, u32)) -> u32 {
+    /// `memo` holds the terms read so far by pattern and copy: bindings
+    /// share terms, which read as trees would be exponential.
+    fn tm_of(&mut self, terms: &Terms, t: (u32, u32), memo: &mut HashMap<(u32, u32), u32>) -> u32 {
         // Each entry: a term and whether its arguments are made.
         let mut stack: Vec<((u32, u32), bool)> = vec![(t, false)];
         let mut made: Vec<u32> = Vec::new();
         while let Some((u, done)) = stack.pop() {
+            if !done && let Some(&tm) = memo.get(&u) {
+                made.push(tm);
+                continue;
+            }
             match terms.head(self.matrix, u) {
                 Head::Var(_) => made.push(self.intern(Tm::Free)),
                 Head::App(f, (s, len), c) => {
@@ -238,7 +274,9 @@ impl Search<'_, '_> {
                         continue;
                     }
                     let args = made.split_off(made.len() - len as usize);
-                    made.push(self.intern(Tm::App(f, args.into_boxed_slice())));
+                    let tm = self.intern(Tm::App(f, args.into_boxed_slice()));
+                    memo.insert(u, tm);
+                    made.push(tm);
                 }
             }
         }
@@ -260,6 +298,7 @@ impl Search<'_, '_> {
     /// Gathers, per slot, the terms the substitution gave the variables of
     /// the slot in every copy.
     fn collect_candidates(&mut self, terms: &Terms) {
+        let mut memo = HashMap::default();
         for k in 0..terms.copies.len() {
             let c = terms.copies[k];
             let made: Vec<(u32, u32)> = if c.clause == NONE {
@@ -278,7 +317,7 @@ impl Search<'_, '_> {
                 let tm = if pat == NONE {
                     self.intern(Tm::Free)
                 } else {
-                    self.tm_of(terms, (pat, copy))
+                    self.tm_of(terms, (pat, copy), &mut memo)
                 };
                 if !self.candidates[slot as usize].contains(&tm) {
                     self.candidates[slot as usize].push(tm);
@@ -314,15 +353,19 @@ impl Search<'_, '_> {
     fn constants(&mut self, tm: u32) -> usize {
         let mut given = 0;
         let mut stack = vec![tm];
+        // Proof terms share their parts: each is visited once.
+        let mut seen = HashSet::default();
         while let Some(t) = stack.pop() {
+            if !seen.insert(t) {
+                continue;
+            }
             if let Tm::App(f, args) = self.tms[t as usize].clone() {
                 if matches!(
                     self.matrix.symbols.get(f as usize),
                     Some(Symbol::Skolem(_)) | None
                 ) && self.eigen_of(t).is_none()
                 {
-                    let e = self.next_eigen;
-                    self.next_eigen = self.next_eigen.saturating_add(1);
+                    let e = self.fresh_eigen();
                     self.eigens.push((t, e, false));
                     given += 1;
                 }
@@ -333,11 +376,16 @@ impl Search<'_, '_> {
     }
 
     /// Returns the candidates of `slot`, those whose Skolem terms all have
-    /// their eigenvariables on the branch first.
+    /// their eigenvariables on the branch first, the variable left unbound
+    /// last: it fits any proof, so it is the choice of last resort.
     fn ordered(&self, slot: u32) -> Vec<u32> {
         let list = &self.candidates[slot as usize];
-        let (mut ready, rest): (Vec<u32>, Vec<u32>) = list.iter().partition(|&&tm| self.ready(tm));
+        let (mut ready, rest): (Vec<u32>, Vec<u32>) = list
+            .iter()
+            .filter(|&&tm| self.tms[tm as usize] != Tm::Free)
+            .partition(|&&tm| self.ready(tm));
         ready.extend(rest);
+        ready.extend(list.iter().filter(|&&tm| self.tms[tm as usize] == Tm::Free));
         ready
     }
 
@@ -345,7 +393,11 @@ impl Search<'_, '_> {
     /// the branch.
     fn ready(&self, tm: u32) -> bool {
         let mut stack = vec![tm];
+        let mut seen = HashSet::default();
         while let Some(t) = stack.pop() {
+            if !seen.insert(t) {
+                continue;
+            }
             if let Tm::App(f, args) = &self.tms[t as usize] {
                 if matches!(
                     self.matrix.symbols.get(*f as usize),
@@ -366,7 +418,13 @@ impl Search<'_, '_> {
     fn term(&mut self, tm: u32) -> FoTermId {
         let mut stack: Vec<(u32, bool)> = vec![(tm, false)];
         let mut made: Vec<FoTermId> = Vec::new();
+        // Proof terms share their parts: each is made once.
+        let mut memo: HashMap<u32, FoTermId> = HashMap::default();
         while let Some((t, done)) = stack.pop() {
+            if !done && let Some(&id) = memo.get(&t) {
+                made.push(id);
+                continue;
+            }
             let made_term = match self.tms[t as usize].clone() {
                 Tm::Free => FoTerm::Eigen(Eigen::new(self.anonymous)),
                 Tm::App(f, args) => match self.matrix.symbols.get(f as usize).copied() {
@@ -392,7 +450,9 @@ impl Search<'_, '_> {
                     }
                 },
             };
-            made.push(self.formulas.interner().term(made_term));
+            let id = self.formulas.interner().term(made_term);
+            memo.insert(t, id);
+            made.push(id);
         }
         made.pop()
             .unwrap_or_else(|| unreachable!("the term is made"))
@@ -534,38 +594,77 @@ impl Search<'_, '_> {
             Some((_, true)) if self.matrix.occs[f.occ as usize].left => None,
             // A constant the branch took, or one in use: a fresh one.
             _ => {
-                let e = self.next_eigen;
-                self.next_eigen = self.next_eigen.saturating_add(1);
+                let e = self.fresh_eigen();
                 Some((key, e, true))
             }
         }
+    }
+
+    /// Returns a new eigenvariable's number. Past the last number it gives
+    /// up the search: an arena may hold eigenvariables up to it.
+    fn fresh_eigen(&mut self) -> u32 {
+        let e = self.next_eigen;
+        match self.next_eigen.checked_add(1) {
+            Some(next) => self.next_eigen = next,
+            None => self.out_of_numbers = true,
+        }
+        e
     }
 
     /// Counts a unit of the search's work, and asks the stop every
     /// [`POLL`] units.
     fn tick(&mut self) -> Result<(), Error> {
         self.tried += 1;
-        if self.tried.is_multiple_of(POLL)
-            && (self.stop)(Progress::new(Phase::ReadBack, POLL, self.tried))
-        {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
+        self.work(1)
+    }
+
+    /// Counts `units` of work, and asks the stop once [`POLL`] units
+    /// passed since it was last asked.
+    fn work(&mut self, units: u64) -> Result<(), Error> {
+        self.since = self.since.saturating_add(units);
+        if self.since >= POLL {
+            let since = std::mem::take(&mut self.since);
+            if (self.stop)(Progress::new(Phase::ReadBack, since, self.tried)) {
+                return Err(Error::Refused(Refusal::Stopped {
+                    phase: Phase::ReadBack,
+                }));
+            }
         }
         Ok(())
     }
 
-    /// Adds a step and returns its index.
-    fn step(&mut self, step: Step) -> u32 {
+    /// Adds `bytes` to what the search holds, refusing past the memory
+    /// bound ([`Refusal::Memory`]).
+    fn charge(&mut self, bytes: usize) -> Result<(), Error> {
+        self.held = self.held.saturating_add(bytes);
+        let total = self
+            .held
+            .saturating_add(self.instances.len().saturating_mul(INSTANCE_BYTES));
+        match self.memory {
+            Some(limit) if total as u64 > limit => Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: limit,
+                needed_bytes: None,
+            })),
+            _ => Ok(()),
+        }
+    }
+
+    /// Adds a step and returns its index; the step is charged to the
+    /// memory bound.
+    fn step(&mut self, step: Step) -> Result<u32, Error> {
+        let ids =
+            step.left.len() + step.added.iter().map(Vec::len).sum::<usize>() + step.premises.len();
+        self.charge(size_of::<Step>() + ids * size_of::<NodeId>())?;
         self.steps.push(step);
-        (self.steps.len() - 1) as u32
+        Ok((self.steps.len() - 1) as u32)
     }
 
     /// Searches a derivation of `left ⊢ goal` (`left` each formula once)
     /// and returns its last step, `None` where there is none within the
     /// bounds.
     fn prove(&mut self, left: &[Formula], goal: Formula, depth: u32) -> Result<Option<u32>, Error> {
-        if self.gave_up {
+        if self.gave_up || self.out_of_numbers {
             return Ok(None);
         }
         self.tick()?;
@@ -591,19 +690,24 @@ impl Search<'_, '_> {
         };
         // The leaves.
         if nodes.contains(&goal.node) {
-            return Ok(Some(self.step(leaf(Rule::Axiom, None))));
+            return Ok(Some(self.step(leaf(Rule::Axiom, None))?));
         }
         if self.logic != Logic::Minimal && nodes.contains(&self.falsity) {
             let s = leaf(Rule::FalseLeft, Some((Side::Left, self.falsity)));
-            return Ok(Some(self.step(s)));
+            return Ok(Some(self.step(s)?));
         }
         if self.kind(goal) == Kind::True {
             let s = leaf(Rule::TrueRight, Some((Side::Right, goal.node)));
-            return Ok(Some(self.step(s)));
+            return Ok(Some(self.step(s)?));
         }
+        // A level copies its sequent: work and memory by its size.
+        self.work((left.len() / HYPOTHESES_PER_UNIT) as u64)?;
+        let frame = left.len().saturating_mul(LEVEL_BYTES);
+        self.charge(frame)?;
         self.branch.insert(key.clone());
         let found = self.rules(left, &nodes, goal, depth);
         self.branch.remove(&key);
+        self.held = self.held.saturating_sub(frame);
         found
     }
 
@@ -666,7 +770,7 @@ impl Search<'_, '_> {
                         added: vec![vec![a.node], vec![b.node]],
                         premises: ds,
                     };
-                    return Ok(Some(self.step(s)));
+                    return Ok(Some(self.step(s)?));
                 }
                 Kind::Delta(k) => {
                     let Some((tm, e, map)) = self.eigen_for(f, k, left, goal) else {
@@ -726,7 +830,7 @@ impl Search<'_, '_> {
                     added: vec![Vec::new(), Vec::new()],
                     premises: ds,
                 };
-                return Ok(Some(self.step(s)));
+                return Ok(Some(self.step(s)?));
             }
             Kind::Implies | Kind::Part { .. } | Kind::Not => {
                 let a = self.child(goal, 0, None)?;
@@ -768,7 +872,10 @@ impl Search<'_, '_> {
             }
             Kind::Atom(_) | Kind::True | Kind::False | Kind::Or | Kind::Gamma(_) => {}
         }
-        // The choices: the goal's, then each hypothesis's.
+        // The choices: the goal's whose witnesses the branch has, then each
+        // hypothesis's, then the goal's whose witnesses name a Skolem term
+        // the branch has not met. That one becomes a constant here, so a
+        // hypothesis whose instance would bring its δ-rule in comes first.
         match self.kind(goal) {
             Kind::Or => {
                 for (k, rule) in [(0, Rule::OrRight1), (1, Rule::OrRight2)] {
@@ -781,24 +888,8 @@ impl Search<'_, '_> {
                 }
             }
             Kind::Gamma(slot) => {
-                for tm in self.ordered(slot) {
-                    let given = self.constants(tm);
-                    let a = self.child(goal, 0, Some(tm))?;
-                    let term = self.instance_term(tm);
-                    let found = self.right_unary(
-                        nodes,
-                        left,
-                        goal,
-                        Rule::ExistsRight,
-                        &[],
-                        a,
-                        Some(term),
-                        depth,
-                    );
-                    self.eigens.truncate(self.eigens.len() - given);
-                    if let Some(d) = found? {
-                        return Ok(Some(d));
-                    }
+                if let Some(d) = self.exists_right(nodes, left, goal, slot, true, depth)? {
+                    return Ok(Some(d));
                 }
             }
             Kind::Atom(_)
@@ -853,7 +944,7 @@ impl Search<'_, '_> {
                                 added: vec![vec![a.node]],
                                 premises: vec![d],
                             };
-                            return Ok(Some(self.step(s)));
+                            return Ok(Some(self.step(s)?));
                         }
                     }
                 }
@@ -868,6 +959,49 @@ impl Search<'_, '_> {
                 | Kind::Or
                 | Kind::Iff
                 | Kind::Delta(_) => {}
+            }
+        }
+        if let Kind::Gamma(slot) = self.kind(goal) {
+            return self.exists_right(nodes, left, goal, slot, false, depth);
+        }
+        Ok(None)
+    }
+
+    /// Tries `∃R` on `goal`, the γ-formula of `slot`, with each candidate
+    /// whose Skolem terms all have their eigenvariables on the branch
+    /// (`ready`), or with each of the others, the variable left unbound
+    /// last.
+    fn exists_right(
+        &mut self,
+        nodes: &[NodeId],
+        left: &[Formula],
+        goal: Formula,
+        slot: u32,
+        ready: bool,
+        depth: u32,
+    ) -> Result<Option<u32>, Error> {
+        let candidates: Vec<u32> = self
+            .ordered(slot)
+            .into_iter()
+            .filter(|&tm| (self.tms[tm as usize] != Tm::Free && self.ready(tm)) == ready)
+            .collect();
+        for tm in candidates {
+            let given = self.constants(tm);
+            let a = self.child(goal, 0, Some(tm))?;
+            let term = self.instance_term(tm);
+            let found = self.right_unary(
+                nodes,
+                left,
+                goal,
+                Rule::ExistsRight,
+                &[],
+                a,
+                Some(term),
+                depth,
+            );
+            self.eigens.truncate(self.eigens.len() - given);
+            if let Some(d) = found? {
+                return Ok(Some(d));
             }
         }
         Ok(None)
@@ -906,7 +1040,7 @@ impl Search<'_, '_> {
             added: vec![added.iter().map(|x| x.node).collect()],
             premises: vec![d],
         };
-        Ok(Some(self.step(s)))
+        Ok(Some(self.step(s)?))
     }
 
     /// A rule on the goal with one premise: `left` and `added` left of
@@ -936,7 +1070,7 @@ impl Search<'_, '_> {
             added: vec![added.iter().map(|x| x.node).collect()],
             premises: vec![d],
         };
-        Ok(Some(self.step(s)))
+        Ok(Some(self.step(s)?))
     }
 
     /// G3i's `→L` (or `¬L`) on hypothesis `at`, `a → b`: `left ⊢ a`, the
@@ -976,7 +1110,7 @@ impl Search<'_, '_> {
             added: vec![Vec::new(), vec![b.node]],
             premises: vec![first, second],
         };
-        Ok(Some(self.step(s)))
+        Ok(Some(self.step(s)?))
     }
 }
 

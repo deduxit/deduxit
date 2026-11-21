@@ -688,10 +688,25 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   clause where no other element of a clause above holds a literal with
   it, so a copy of a clause α-related to its other literals renames it.
   A constant is a Skolem term over the prefix variables above it
-  (`consts`, keyed by the position and their numbers): a copy renames
-  it exactly where it renames one of them. Renaming by "every literal
-  inside the clause" and a constant per copy left `⊢ ¬¬(a ∨ ¬a)`
-  unprovable: the root's constant differed between copies.
+  (`consts`, keyed by the position and the list of their numbers,
+  interned as one number in `contexts`): a copy renames it exactly
+  where it renames one of them. Renaming by "every literal inside the
+  clause" and a constant per copy left `⊢ ¬¬(a ∨ ¬a)` unprovable: the
+  root's constant differed between copies.
+- **Nothing in `Prefixes` is quadratic unless charged**: a prefix is
+  read up parent links (`up`, the nearest position above with a
+  character; `up_var`, with a variable), never stored per literal, and
+  a constant's key is its interned context, not the list (copied
+  chains and keys took 4.8 GB on `⊢ ¬…¬p` with 100 000 negations under
+  64 MiB). The free variables' lists are what a deep nest of variables
+  makes quadratic: `Prefixes::of` charges every list it makes to the
+  memory bound and asks the stop every `POLL` nodes and every
+  `POLL_ENTRIES` entries (`Tally`), the barred sets counted per
+  variable across a clause's kids, never as suffix unions (those were
+  quadratic in a clause's width: 100 000 hypotheses took 7 s at a 1 s
+  limit, the panel's finding). The search counts the prefix characters
+  it reads (`take_read`, `PREFIX_CHARS` a step) towards its polls, and
+  its `held_bytes` holds the prefixes' tables and the equations.
 - **What the search checks, and when** (`prove.rs`): each connection's
   prefixes must pass Otten and Kreitz's test (Lemma 8, binding nothing),
   and its equation is kept; once every path holds a connection, all the
@@ -712,8 +727,11 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   the current equation and the bindings; the equations not taken up yet
   are read under the bindings when they are. Cloning the whole system
   at each step ran 8 s past a 2 s limit on ILTP's SYN070. `UNIFY_STEPS`
-  bounds it per proof (past it the proof is given up), and it asks the
-  stop every 256 steps.
+  bounds it per proof, `UNIFY_HELD` the characters its waiting states
+  hold (past either the proof is given up), and it asks the stop every
+  `UNIFY_POLL` characters handled, since a step costs its state's size.
+  Past `AUXILIARY` prefix numbers (`Prefixes::exhausted`) no proof is
+  unified: a number would collide with an auxiliary variable's.
 - **The reduction ordering's cycles are not checked apart**: the
   classical Skolem terms do not take the prefix variables, so the occurs
   check does not cover `<J`. A proof whose ordering has a cycle does not
@@ -733,9 +751,28 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   introduces (`anonymous`), tried last. Invertible rules first, then the
   choices; a sequent repeated on its branch (as a set) is cut; a
   δ-formula whose introduced eigenvariable is in use is left alone on
-  the left and gets a fresh one on the right. Bounded by `STEPS` rules
-  and the recursion depth, the stop asked every `POLL` rules; the stop
-  there ends the search as `Reason::Stopped`. The emission is LJT's way
+  the left and gets a fresh one on the right. **The order of choices**:
+  the goal's `∨R`, its `∃R` with witnesses whose Skolem terms the branch
+  has met, then each hypothesis's `→L` and `∀L`, then the goal's `∃R`
+  with the other witnesses, the anonymous one last everywhere: a
+  Skolem term met first in the goal becomes a constant of the branch,
+  so the hypothesis whose instance brings in its δ-rule must come first
+  (`∀x ∃y r(x,y) ⊢ ∃y z w. (r(c,y) ∧ r(y,z) ∧ r(z,w))` was lost, the
+  anonymous witness spending `STEPS`). Bounded by `STEPS` rules and half
+  the recursion depth (a level takes up to 15 KiB of stack unoptimized,
+  against the 13 KiB `Limits::stack_bytes` gives a level: a debug build
+  overflowed at 2 000 nested implications), the stop asked every `POLL`
+  units of work (a rule, and a unit per `HYPOTHESES_PER_UNIT`
+  hypotheses a level copies); every open level and every step is
+  charged to the memory bound (`charge`, `LEVEL_BYTES`), whose refusal,
+  like the stop's, ends the search as an unknown (`MemoryLimit`,
+  `Stopped`): a wide sequent copied per level took 725 MiB under
+  64 MiB. Proof terms share parts, so every walk over one visits each
+  part once (`tm_of`'s memo by pattern and copy, `term`, `ready`,
+  `constants`, and the domain equations in `prefixes_unify`): a chain
+  of `f(x, x)` bindings is exponential as a tree. An arena whose
+  eigenvariables reach `u32::MAX` gives no derivation
+  (`out_of_numbers`). The emission is LJT's way
   (`weaken_to`, `contract_to`, `→L` split and contracted, `∀L` keeping
   its principal), checked in `decide`.
 - **A δ-formula whose variable no literal holds** has no Skolem symbol in

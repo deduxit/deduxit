@@ -12,9 +12,15 @@ use crate::ordinary::{Evidence, Logic, Sequent, Verdict};
 fn decided(text: &str) -> Verdict {
     let sequent: Sequent = text.parse().unwrap();
     let options = search::Options::default().with_path_length(Some(8));
-    decide(&sequent, Logic::Intuitionistic, &options, &Limits::default(), &mut |_| false)
-        .unwrap()
-        .verdict
+    decide(
+        &sequent,
+        Logic::Intuitionistic,
+        &options,
+        &Limits::default(),
+        &mut |_| false,
+    )
+    .unwrap()
+    .verdict
 }
 
 /// Intuitionistically valid sequents get a derivation of LJ the checker
@@ -38,6 +44,9 @@ fn intuitionistic_laws_are_proved_and_classical_ones_are_not() {
         "~(exists x. p(x)) |- forall x. ~p(x)",
         "(a <-> b), a |- b",
         "false |- a",
+        // A witness of the goal is a Skolem term of a hypothesis's
+        // instance, which must be taken apart first.
+        "forall x. exists y. r(x, y) |- exists y z w. (r(c, y) /\\ r(y, z) /\\ r(z, w))",
     ];
     for text in valid {
         let verdict = decided(text);
@@ -57,7 +66,10 @@ fn intuitionistic_laws_are_proved_and_classical_ones_are_not() {
     for text in classical_only {
         let verdict = decided(text);
         assert!(
-            matches!(verdict, Verdict::Unknown(Reason::PathLength { .. } | Reason::Incomplete)),
+            matches!(
+                verdict,
+                Verdict::Unknown(Reason::PathLength { .. } | Reason::Incomplete)
+            ),
             "{text}: {verdict:?}"
         );
     }
@@ -78,24 +90,80 @@ fn agrees_with_ljt() {
         if sequent.right().len() > 1 {
             continue;
         }
-        let ljt = crate::ordinary::ljt::decide(&sequent, Logic::Intuitionistic, &Limits::default(), |_| false)
-            .unwrap();
+        let ljt = crate::ordinary::ljt::decide(
+            &sequent,
+            Logic::Intuitionistic,
+            &Limits::default(),
+            |_| false,
+        )
+        .unwrap();
         let expected = matches!(ljt.verdict, Verdict::Valid(_));
-        let (outcome, missed) =
-            super::decide_counting(&sequent, Logic::Intuitionistic, &options, &limits, &mut |_| false)
-                .unwrap();
+        let (outcome, missed) = super::decide_counting(
+            &sequent,
+            Logic::Intuitionistic,
+            &options,
+            &limits,
+            &mut |_| false,
+        )
+        .unwrap();
         unread += missed;
         valid += u32::from(expected);
         match outcome.verdict {
             Verdict::Valid(evidence) => {
                 assert!(expected, "{sequent}: LJT refutes it");
-                evidence.derivation().unwrap().check(&Limits::default(), |_| false).unwrap();
+                evidence
+                    .derivation()
+                    .unwrap()
+                    .check(&Limits::default(), |_| false)
+                    .unwrap();
                 proved += 1;
             }
             Verdict::NotValid => panic!("{sequent}: the prover never refutes"),
             Verdict::Unknown(_) => {}
         }
     }
-    assert_eq!(unread, 0, "proofs whose prefixes unified but did not read back");
+    assert_eq!(
+        unread, 0,
+        "proofs whose prefixes unified but did not read back"
+    );
     assert!(proved * 10 >= valid * 8, "{proved} of {valid}");
+}
+
+/// Decides `text` within `memory` bytes and returns the verdict.
+fn within_memory(text: &str, memory: u64) -> Verdict {
+    let sequent: Sequent = text.parse().unwrap();
+    let options = search::Options::default().with_path_length(Some(8));
+    let limits = Limits::default().with_memory_bytes(Some(memory));
+    decide(
+        &sequent,
+        Logic::Intuitionistic,
+        &options,
+        &limits,
+        &mut |_| false,
+    )
+    .unwrap()
+    .verdict
+}
+
+/// The prefixes' build and the read-back hold to the memory bound: a deep
+/// nest gives every literal every prefix variable above it, and a wide
+/// sequent is copied by every level of the read-back.
+#[test]
+fn the_memory_bound_holds_where_prefixes_and_levels_are_dear() {
+    let bound = 16 << 20;
+    let n = 20_000;
+    let nest: String =
+        (0..n).map(|i| format!("a{i} -> (")).collect::<String>() + "b" + &")".repeat(n);
+    let verdict = within_memory(&format!("{nest} |- b"), bound);
+    assert!(
+        matches!(verdict, Verdict::Unknown(Reason::MemoryLimit { .. })),
+        "{verdict:?}"
+    );
+    let hypotheses: Vec<String> = (0..8_000).map(|i| format!("a{i}")).collect();
+    let goal = hypotheses[..1_000].join(" /\\ ");
+    let verdict = within_memory(&format!("{} |- {goal}", hypotheses.join(", ")), bound);
+    assert!(
+        matches!(verdict, Verdict::Unknown(Reason::MemoryLimit { .. })),
+        "{verdict:?}"
+    );
 }

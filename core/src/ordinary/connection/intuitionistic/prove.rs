@@ -25,8 +25,9 @@
 use super::super::matrix::{Matrix, NONE, Shape, Symbol};
 use super::super::prove::{Config, Counts};
 use super::super::terms::{Head, Mark, Terms};
-use super::prefix::{NoUnifier, Prefixes, Sym, unifiable, unify};
+use super::prefix::{AUXILIARY, NoUnifier, Prefixes, Sym, unifiable, unify};
 use crate::Error;
+use crate::hash::HashSet;
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::Reason;
 use crate::ordinary::Derivation;
@@ -34,13 +35,13 @@ use crate::ordinary::Derivation;
 /// How many steps the search takes between two asks of its stop.
 const POLL: u64 = 1 << 10;
 
+/// The prefix characters read that count as one step between two asks
+/// of the stop.
+const PREFIX_CHARS: u64 = 1 << 6;
+
 /// The steps the unification of a proof's prefixes may take before
 /// the proof is given up.
 const UNIFY_STEPS: u64 = 1 << 16;
-
-/// The number of the first auxiliary prefix variable, above every
-/// position's.
-const AUXILIARY: u32 = 1 << 31;
 
 /// How a search ended.
 pub(super) enum End {
@@ -326,7 +327,9 @@ impl Search<'_, '_> {
         let mut current = self.try_start(0, counts);
         loop {
             counts.steps += 1;
-            *since += 1;
+            // A prefix read costs its length, which a deep nest makes
+            // dear: the stop is asked by that work too.
+            *since += 1 + self.prefixes.take_read() / PREFIX_CHARS;
             if *since >= POLL {
                 self.poll(limits, stop, counts, *since)
                     .map_err(Ended::Reason)?;
@@ -358,8 +361,11 @@ impl Search<'_, '_> {
                 if !unified {
                     self.rejected.0 += 1;
                 } else if let Some(derivation) = accept(&self.terms).map_err(|error| {
-                    // The stop during the read-back ends the search.
-                    if matches!(error, Error::Refused(crate::Refusal::Stopped { .. })) {
+                    // The stop or the memory bound during the read-back ends
+                    // the search, as during the search.
+                    if let Error::Refused(crate::Refusal::Memory { limit_bytes, .. }) = error {
+                        Ended::Reason(Reason::MemoryLimit { limit_bytes })
+                    } else if matches!(error, Error::Refused(crate::Refusal::Stopped { .. })) {
                         Ended::Reason(Reason::Stopped)
                     } else {
                         Ended::Error(error)
@@ -434,6 +440,13 @@ impl Search<'_, '_> {
             + self.used.capacity() * size_of::<(u32, u32)>()
             + self.eclauses.capacity() * size_of::<(u32, u32)>()
             + self.choices.capacity() * size_of::<Choice>()
+            + self.prefixes.held_bytes()
+            + self.eqs.capacity() * size_of::<(Vec<Sym>, Vec<Sym>)>()
+            + self
+                .eqs
+                .iter()
+                .map(|(a, b)| (a.capacity() + b.capacity()) * size_of::<Sym>())
+                .sum::<usize>()
     }
 
     /// Returns how far every structure has grown.
@@ -855,9 +868,21 @@ impl Search<'_, '_> {
                 }
                 let mut skolems = Vec::new();
                 let mut stack = vec![(pat, copy)];
+                // Bindings share terms: each part is visited once, and each
+                // δ-occurrence in a copy gives one equation.
+                let mut seen: HashSet<(u32, u32)> = HashSet::default();
+                let mut deltas: HashSet<(u32, u32)> = HashSet::default();
                 while let Some(t) = stack.pop() {
+                    if !seen.insert(t) {
+                        continue;
+                    }
+                    if seen.len().is_multiple_of(POLL as usize) && stop() {
+                        return Err(NoUnifier::Stopped);
+                    }
                     if let Head::App(f, (s, len), d) = self.terms.head(matrix, t) {
-                        if let Symbol::Skolem(sk) = matrix.symbols[f as usize] {
+                        if let Symbol::Skolem(sk) = matrix.symbols[f as usize]
+                            && deltas.insert((matrix.skolem_occ[sk as usize], d))
+                        {
                             skolems.push((matrix.skolem_occ[sk as usize], d));
                         }
                         for &a in &matrix.pat_args[s as usize..(s + len) as usize] {
@@ -876,6 +901,9 @@ impl Search<'_, '_> {
                     eqs.push((of_var.clone(), of_eigen));
                 }
             }
+        }
+        if self.prefixes.exhausted() {
+            return Ok(false);
         }
         let mut budget = UNIFY_STEPS;
         match unify(&eqs, AUXILIARY, &mut budget, stop) {
