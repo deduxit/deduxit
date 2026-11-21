@@ -79,6 +79,7 @@
           buildPhaseCargoCommand = ''
             ${eachModule (crate: "cargoWithProfile build --locked --package ${crate}")}
             cargo test --locked ${webPackages} --no-run
+            cargo test --locked --package deduxit-web-tab --no-run
           '';
           checkPhaseCargoCommand = "";
           doCheck = false;
@@ -98,7 +99,13 @@
           ];
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = "wasm-bindgen-test-runner";
           WASM_BINDGEN_TEST_TIMEOUT = "300";
-          buildPhaseCargoCommand = "cargo test --locked --target ${target} ${webPackages}";
+          # The tab's crate once more alone, with only the library's features
+          # it asks for, which the renderers' module is built with: tested
+          # beside the bindings, it would have theirs.
+          buildPhaseCargoCommand = ''
+            cargo test --locked --target ${target} ${webPackages}
+            cargo test --locked --target ${target} --package deduxit-web-tab
+          '';
           doInstallCargoArtifacts = false;
         }
       );

@@ -135,7 +135,14 @@ for `THIRD-PARTY-NOTICES.txt`.
   narrow: an SVG text, a font's bytes and the page's settings in, bytes
   out. The settings are read over the same tab's defaults
   (`deduxit_web_tab::read`, so `limits.memory_bytes` is the tab's 96 MiB
-  there too) and a failure is the same JSON. The tab and the error are a
+  there too) and a failure is the same JSON. `Settings` refuses an
+  unknown key, and some of its fields and variants are behind a feature
+  (`interactive`, `ordinary.method` `sat`), so `deduxit-web-tab` enables
+  every feature of the bindings' but `png` and `pdf`: both modules accept
+  the same keys (`a_feature_s_keys_are_read`, which only a run of that
+  crate alone can fail, since a joint test build unifies the features:
+  `web-wasm-tests` runs it so, in a cargo of its own).
+  The tab and the error are a
   crate both depend on: a dependency on `deduxit-web` would link every
   `#[wasm_bindgen]` export of its into the renderers' cdylib, and the
   renderers in the bindings would put resvg and krilla back. The

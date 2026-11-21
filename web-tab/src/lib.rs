@@ -182,6 +182,18 @@ mod tests {
         }
     }
 
+    /// The keys a feature of the library adds are read, so the renderers'
+    /// module, built without the bindings' other calls, accepts every
+    /// setting the bindings accept. Run with this crate alone, as the
+    /// check under Node does: a build with the bindings would turn their
+    /// features on whatever this crate asks for.
+    #[wasm_bindgen_test::wasm_bindgen_test(unsupported = test)]
+    fn a_feature_s_keys_are_read() {
+        let settings =
+            read(r#"{"interactive": {"invertible": true}, "ordinary": {"method": "sat"}}"#);
+        assert!(settings.is_ok(), "{settings:?}");
+    }
+
     /// A math font is chosen by its name over the tab's font, and a name
     /// no option reads is refused.
     #[test]

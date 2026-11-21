@@ -12,8 +12,25 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-deduxit = { workspace = true, features = ["serialize", "svg"] }
+# The bindings' features but `png` and `pdf`: the settings' reader refuses an
+# unknown key, and a field or variant a feature adds (`interactive`,
+# `ordinary.method` "sat") would be unknown to a module built without it.
+# So both modules accept the same settings.
+deduxit = { workspace = true, features = [
+  "interactive",
+  "latex",
+  "parse",
+  "protocol",
+  "rocq",
+  "sat",
+  "serialize",
+  "svg",
+  "typst",
+] }
 serde_json = "1.0.149"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test = "=0.3.80"

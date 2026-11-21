@@ -366,6 +366,7 @@ version = "0.7.0"
 dependencies = [
  "deduxit",
  "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
