@@ -876,11 +876,15 @@ impl Interactive {
     }
 
     /// Starts a proof as [`new`](Self::new) does, of a sequent that
-    /// unfolds to at most `limits.occurrences` subformula occurrences.
+    /// unfolds to at most `limits.occurrences` subformula occurrences and
+    /// whose terms unfold to at most `limits.terms` symbols, as a
+    /// document's reader counts them; the steps are held to the latter
+    /// too.
     ///
     /// # Errors
     ///
-    /// As [`new`](Self::new) does, the bound being `limits.occurrences`.
+    /// As [`new`](Self::new) does, the bound being `limits.occurrences`,
+    /// and [`Refusal::Terms`] past `limits.terms`.
     pub fn within(sequent: &Sequent, logic: Logic, limits: &Limits) -> Result<Self, Error> {
         if logic != Logic::Classical && sequent.right.len() > 1 {
             return Err(Error::Succedents {
@@ -889,6 +893,15 @@ impl Interactive {
         }
         let mut formulas = sequent.formulas.clone();
         bound(&formulas, &sequent.left, &sequent.right, limits)?;
+        // A document of the proof would be refused when read.
+        if let Some(limit) = limits.terms
+            && formulas.is_first_order()
+        {
+            let terms = arena_terms(formulas.first_order());
+            if terms > limit {
+                return Err(Error::Refused(Refusal::Terms { terms, limit }));
+            }
+        }
         let falsity = Extra::add(&mut formulas)?.falsity;
         let mut right = sequent.right.clone();
         if logic != Logic::Classical && right.is_empty() {
@@ -4840,7 +4853,20 @@ mod tests {
         };
         let (mut s, _) = within("forall x. p(x, x) |- q", 4);
         let error = s.witness(GoalId::new(0), "f(f(f(f(a))))").unwrap_err();
-        assert!(error.to_string().contains("5 symbols"), "{error}");
+        assert!(
+            matches!(&error, StepError::Witness { reason } if reason.contains("5 symbols")),
+            "{error}"
+        );
+        // A sequent past the bound starts no proof.
+        let sequent: Sequent = "p(f(f(f(f(c))))) |- q".parse().unwrap();
+        let limits = Limits {
+            terms: Some(3),
+            ..Limits::default()
+        };
+        assert!(matches!(
+            Interactive::within(&sequent, Logic::Classical, &limits),
+            Err(Error::Refused(Refusal::Terms { terms: 5, limit: 3 }))
+        ));
         let (mut s, _) = within("forall x. p(x, x), r(f(a)) |- q", 5);
         let witness = s.witness(GoalId::new(0), "f(a)").unwrap();
         let step = Step::new(Left, 0, Rule::ForallLeft).with_witness(witness);

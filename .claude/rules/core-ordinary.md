@@ -1107,8 +1107,11 @@ factored out of the two until the kernel crate is.
   witness's size, so a typed witness, an open one or an eigenvariable
   can no more make a document the reader refuses than a binding can; a
   typed witness's text is refused past the bound before it is made (a
-  text term shares nothing, so its names are its size). Both refusals,
-  and a binding's, are `StepError::Terms`. Why levels and scope: the eigenvariables a binding may name
+  text term shares nothing, so its names are its size;
+  `StepError::Witness`). An instance's refusal and a binding's are
+  `StepError::Terms`. `within` refuses a sequent past the bound
+  (`Refusal::Terms`), so no proof starts past what its document's reader
+  takes. Why levels and scope: the eigenvariables a binding may name
   are those of the `∀R`/`∃L` below the step that left the witness open,
   so none lands in its own rule's conclusion.
   - **Every inference shows the bindings in force** (`bind`: a
