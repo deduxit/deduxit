@@ -124,6 +124,9 @@ struct Nnf {
     free: Vec<Vec<u32>>,
     /// How many variables were numbered.
     vars: u32,
+    /// The nodes and operands made, which bounds miniscoping's
+    /// distribution.
+    size: usize,
 }
 
 impl Nnf {
@@ -158,9 +161,27 @@ impl Nnf {
                 .filter(|v| v != x)
                 .collect(),
         };
+        let operands = match &node {
+            G::And(kids) | G::Or(kids) => kids.len(),
+            G::Lit(..) | G::True | G::False | G::Forall(..) | G::Exists(..) => 1,
+        };
+        self.size = self.size.saturating_add(1 + operands);
         self.nodes.push(node);
         self.free.push(free);
         (self.nodes.len() - 1) as u32
+    }
+
+    /// Refuses a normal form past `memory` bytes, at [`NNF_BYTES`] a node
+    /// or operand.
+    fn within(&self, memory: u64) -> Result<(), Error> {
+        if (self.size as u64).saturating_mul(NNF_BYTES) > memory {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Search,
+                limit_bytes: memory,
+                needed_bytes: None,
+            }));
+        }
+        Ok(())
     }
 
     /// Returns whether `x` is free in node `n`.
@@ -243,10 +264,22 @@ impl Nnf {
                         (true, G::And(_)) | (false, G::Or(_))
                     )
                 });
+                // A distribution makes a junction per part, each of the
+                // other operands and the part: made only within the budget.
+                let fits = |nnf: &Self, at: usize| {
+                    let parts = match &nnf.nodes[with[at] as usize] {
+                        G::And(parts) | G::Or(parts) => parts.len(),
+                        G::Lit(..) | G::True | G::False | G::Forall(..) | G::Exists(..) => 0,
+                    };
+                    parts
+                        .saturating_mul(with.len().saturating_add(2))
+                        .saturating_add(nnf.size)
+                        <= DISTRIBUTE_NODES
+                };
                 if let Some(at) = dual
                     && with.len() > 1
                     && depth > 0
-                    && self.nodes.len() < DISTRIBUTE_NODES
+                    && fits(self, at)
                 {
                     let parts = match &self.nodes[with[at] as usize] {
                         G::And(parts) | G::Or(parts) => parts.clone(),
@@ -311,6 +344,9 @@ struct Ground {
     /// The atoms' tuples, one after another: one allocation for all, so
     /// that a large grounding is freed at once when the stop ends it.
     args: Vec<u32>,
+    /// The bytes the grounding held at its end, by its estimate: the SAT
+    /// solver gets the memory bound less these.
+    bytes: u64,
     /// The constant each element is, [`NONE`] for a Skolem constant or the
     /// element added to an empty domain.
     elements: Vec<u32>,
@@ -384,15 +420,27 @@ fn run(
             statistics,
         }))
     };
+    // The memory bound in the set-up is unknown at that bound, as in the
+    // solver.
+    let memory = |limit_bytes| {
+        Ok(Some(Outcome {
+            verdict: Verdict::Unknown(Reason::MemoryLimit { limit_bytes }),
+            logic,
+            structure: None,
+            statistics: Statistics::default(),
+        }))
+    };
     let (nnf, root) = match prepare(sequent, limits, &mut *stop) {
         Ok(Some(prepared)) => prepared,
         Ok(None) => return Ok(None),
         Err(Error::Refused(Refusal::Stopped { .. })) => return stopped(Statistics::default()),
+        Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => return memory(limit_bytes),
         Err(error) => return Err(error),
     };
     let ground = match ground(&nnf, root, limits, &mut *stop) {
         Ok(ground) => ground,
         Err(Error::Refused(Refusal::Stopped { .. })) => return stopped(Statistics::default()),
+        Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => return memory(limit_bytes),
         Err(error) => return Err(error),
     };
     let mut statistics = Statistics {
@@ -401,7 +449,9 @@ fn run(
         nodes: ground.sequent.formulas().len() as u64,
         sat: sat::Statistics::default(),
     };
-    let decided = sat::decide(&ground.sequent, Logic::Classical, limits, &mut *stop)?;
+    let rest =
+        limits.with_memory_bytes(limits.memory_bytes.map(|m| m.saturating_sub(ground.bytes)));
+    let decided = sat::decide(&ground.sequent, Logic::Classical, &rest, &mut *stop)?;
     statistics.sat = decided.statistics;
     let (verdict, structure) = match decided.verdict {
         Verdict::Valid(evidence) => {
@@ -470,19 +520,25 @@ fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), E
 }
 
 /// The bytes a node of the ground formula's arena holds, with its share of
-/// the arena's index.
-const NODE_BYTES: u64 = 32;
+/// the arena's index (twice the node's size: the peaks measured were 1.4
+/// to 2.2 times an estimate of half these figures).
+const NODE_BYTES: u64 = 64;
 
 /// The bytes a ground atom holds beside 4 bytes an argument: its entries in
 /// the grounding's tables and the arena's, and its name.
-const ATOM_BYTES: u64 = 128;
+const ATOM_BYTES: u64 = 192;
+
+/// The bytes the normal form holds a node or operand: the node, its free
+/// variables, and its share of the tables beside it.
+const NNF_BYTES: u64 = 64;
 
 /// How many times miniscoping distributes a junction over its dual within
 /// one quantifier.
 const DISTRIBUTE_DEPTH: u32 = 8;
 
-/// The most nodes of the normal form before miniscoping stops
-/// distributing: each distribution copies the operands it spreads.
+/// The most nodes and operands of the normal form that miniscoping
+/// distributes within: each distribution copies the operands it spreads,
+/// and its size is checked before it is made.
 const DISTRIBUTE_NODES: usize = 1 << 20;
 
 /// How many steps of the set-up pass between two asks of the stop.
@@ -548,8 +604,10 @@ fn prepare(
         }
     };
     let mut steps: u64 = 0;
+    let memory = limits.memory_bytes.unwrap_or(u64::MAX);
     while let Some(task) = stack.pop() {
         poll(&mut steps, stop)?;
+        nnf.within(memory)?;
         if nnf.nodes.len() as u64 > most {
             return Err(Error::Refused(Refusal::Occurrences {
                 occurrences: most.saturating_add(1),
@@ -603,17 +661,39 @@ fn prepare(
                         stack.push(Task::Enter(a, !negated, scope, to));
                         continue;
                     }
-                    Node::And(a, b) => {
-                        kind = (0, !negated, 0);
-                        children = vec![(a, negated), (b, negated)];
-                    }
-                    Node::Or(a, b) => {
-                        kind = (0, negated, 0);
-                        children = vec![(a, negated), (b, negated)];
-                    }
-                    Node::Implies(a, b) => {
-                        kind = (0, negated, 0);
-                        children = vec![(a, !negated), (b, negated)];
+                    Node::And(..) | Node::Or(..) | Node::Implies(..) => {
+                        // A chain of one connective (negations taken into
+                        // account) is one junction: building it binary would
+                        // copy the operands at every level, quadratic in the
+                        // chain's length.
+                        let Some((and, first, second)) = junction_of(node, negated) else {
+                            unreachable!("∧, ∨ or →")
+                        };
+                        let mut operands = Vec::new();
+                        let mut work = vec![second, first];
+                        while let Some((c, n)) = work.pop() {
+                            poll(&mut steps, stop)?;
+                            if operands.len() as u64 > most {
+                                return Err(Error::Refused(Refusal::Occurrences {
+                                    occurrences: most.saturating_add(1),
+                                    limit: most,
+                                }));
+                            }
+                            let inner = formulas.node(c);
+                            if let Node::Not(negand) = inner {
+                                work.push((negand, !n));
+                                continue;
+                            }
+                            match junction_of(inner, n) {
+                                Some((same, x, y)) if same == and => {
+                                    work.push(y);
+                                    work.push(x);
+                                }
+                                Some(_) | None => operands.push((c, n)),
+                            }
+                        }
+                        kind = (0, and, 0);
+                        children = operands;
                     }
                     Node::Iff(a, b) => {
                         // (A ↔ B) is (¬A ∨ B) ∧ (A ∨ ¬B); negated, (A ∧ ¬B) ∨ (¬A ∧ B).
@@ -666,7 +746,29 @@ fn prepare(
         }
     }
     let root = miniscope(&mut nnf, root);
+    nnf.within(memory)?;
     Ok(in_class(&nnf, root).then_some((nnf, root)))
+}
+
+/// A formula and whether it is negated.
+type Operand = (NodeId, bool);
+
+/// Returns the junction a formula is in negation normal form, negated or
+/// not: whether it is a conjunction, and its two operands with their
+/// negations; `None` for another node.
+fn junction_of(node: Node, negated: bool) -> Option<(bool, Operand, Operand)> {
+    match node {
+        Node::And(a, b) => Some((!negated, (a, negated), (b, negated))),
+        Node::Or(a, b) => Some((negated, (a, negated), (b, negated))),
+        Node::Implies(a, b) => Some((negated, (a, !negated), (b, negated))),
+        Node::Atom(_)
+        | Node::True
+        | Node::False
+        | Node::Not(_)
+        | Node::Iff(..)
+        | Node::Forall(_)
+        | Node::Exists(_) => None,
+    }
 }
 
 /// Returns the literal of atom `a` under the scope `scope`: its predicate
@@ -685,11 +787,13 @@ fn literal(
     for &t in tables.list(args) {
         let term = match tables.terms[t.index()] {
             FoTerm::Bound(index) => {
+                // A variable no quantifier binds is outside the class
+                // (`Sequent::new` refuses one already).
                 let mut s = scope;
                 for _ in 0..index {
-                    s = scopes[s as usize].1;
+                    s = scopes.get(s as usize)?.1;
                 }
-                Term::Var(scopes[s as usize].0)
+                Term::Var(scopes.get(s as usize)?.0)
             }
             FoTerm::App(f, list) if tables.list(list).is_empty() => Term::Const(f.get()),
             FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_) => return None,
@@ -740,32 +844,37 @@ fn miniscope(nnf: &mut Nnf, root: u32) -> u32 {
 
 /// Returns whether no `∀` reachable from `root` lies in the scope of an
 /// `∃` whose variable is free in it: then every Skolem term is a constant.
+/// Every variable is bound by quantifiers of one kind (`prepare` numbers
+/// each binder apart, and miniscoping copies a quantifier with its own
+/// variable), and the formula is closed, so that is: no `∀` node has a
+/// variable of an `∃` free. One pass over the nodes reachable, each once.
 fn in_class(nnf: &Nnf, root: u32) -> bool {
-    // Each entry: a node and the ∃-variables around it, as a list in
-    // `outer`, NONE for none.
-    let mut outer: Vec<(u32, u32)> = Vec::new();
-    let mut stack = vec![(root, NONE)];
-    while let Some((n, around)) = stack.pop() {
+    let mut seen = vec![false; nnf.nodes.len()];
+    let mut existential = vec![false; nnf.vars as usize];
+    let mut universal: Vec<u32> = Vec::new();
+    let mut stack = vec![root];
+    while let Some(n) = stack.pop() {
+        if std::mem::replace(&mut seen[n as usize], true) {
+            continue;
+        }
         match &nnf.nodes[n as usize] {
             G::Lit(..) | G::True | G::False => {}
-            G::And(k) | G::Or(k) => stack.extend(k.iter().map(|&c| (c, around))),
+            G::And(k) | G::Or(k) => stack.extend_from_slice(k),
             G::Exists(x, b) => {
-                outer.push((*x, around));
-                stack.push((*b, (outer.len() - 1) as u32));
+                existential[*x as usize] = true;
+                stack.push(*b);
             }
             G::Forall(_, b) => {
-                let mut a = around;
-                while a != NONE {
-                    if nnf.has(n, outer[a as usize].0) {
-                        return false;
-                    }
-                    a = outer[a as usize].1;
-                }
-                stack.push((*b, around));
+                universal.push(n);
+                stack.push(*b);
             }
         }
     }
-    true
+    universal.iter().all(|&n| {
+        nnf.free[n as usize]
+            .iter()
+            .all(|&v| !existential[v as usize])
+    })
 }
 
 /// Grounds the miniscoped formula over the constants: each `∀` a Skolem
@@ -778,17 +887,62 @@ fn ground(
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Ground, Error> {
     let most = limits.occurrences.unwrap_or(u64::MAX);
-    // The domain: the constants the formula names, then one Skolem
-    // constant per ∀ reachable, or one element where there is none.
+    // The domain: the constants the formula names, then the Skolem
+    // constants, or one element where there is none. A Skolem constant
+    // stands for one `∀` node under one value of the `∀` variables free in
+    // it (in the class no `∃` variable is free in a `∀` node), so two
+    // nodes of one variable, which miniscoping makes by splitting a `∀`
+    // over a conjunction, get two constants: one shared between them made
+    // a sequent that is not valid valid. The pass visits each node under
+    // each value of its free `∀` variables once, bounded and polled like
+    // the grounding.
     let mut elements: Vec<u32> = Vec::new();
     let mut element_of: HashMap<u32, u32> = HashMap::default();
-    let mut skolem_of: HashMap<u32, u32> = HashMap::default();
-    let mut stack = vec![root];
-    let mut seen = vec![false; nnf.nodes.len()];
-    while let Some(n) = stack.pop() {
-        if std::mem::replace(&mut seen[n as usize], true) {
+    let mut skolem_of: HashMap<(u32, Vec<u32>), u32> = HashMap::default();
+    let mut skolems: Vec<(u32, Vec<u32>)> = Vec::new();
+    // Which variables `∀` nodes bind.
+    let mut universal = vec![false; nnf.vars as usize];
+    for node in &nnf.nodes {
+        if let G::Forall(x, _) = node {
+            universal[*x as usize] = true;
+        }
+    }
+    // The values of the `∀` variables free in `n`, in the order of its free
+    // variables, from the bindings of the `∀` nodes above it.
+    let universal_values = |n: u32, env: &[(u32, u32)]| -> Vec<u32> {
+        nnf.free[n as usize]
+            .iter()
+            .filter(|&&v| universal[v as usize])
+            .map(|v| {
+                env.iter().find(|&&(w, _)| w == *v).map_or_else(
+                    || unreachable!("a closed formula binds every variable"),
+                    |&(_, e)| e,
+                )
+            })
+            .collect()
+    };
+    let mut visited: crate::hash::HashSet<(u32, Vec<u32>)> = crate::hash::HashSet::default();
+    let mut stack: Vec<(u32, Vec<(u32, u32)>)> = vec![(root, Vec::new())];
+    let mut steps: u64 = 0;
+    while let Some((n, env)) = stack.pop() {
+        poll(&mut steps, stop)?;
+        let values = universal_values(n, &env);
+        if !visited.insert((n, values.clone())) {
             continue;
         }
+        if visited.len() as u64 > most {
+            return Err(Error::Refused(Refusal::Occurrences {
+                occurrences: most.saturating_add(1),
+                limit: most,
+            }));
+        }
+        // The bindings the operands see: those of variables free in `n`.
+        let keep = |env: &[(u32, u32)], m: u32| -> Vec<(u32, u32)> {
+            env.iter()
+                .copied()
+                .filter(|&(w, _)| nnf.has(m, w))
+                .collect()
+        };
         match &nnf.nodes[n as usize] {
             G::Lit(_, _, args) => {
                 for t in args {
@@ -801,19 +955,38 @@ fn ground(
                 }
             }
             G::True | G::False => {}
-            G::And(k) | G::Or(k) => stack.extend_from_slice(k),
-            G::Forall(x, b) => {
-                skolem_of.insert(*x, NONE);
-                stack.push(*b);
+            G::And(k) | G::Or(k) => {
+                for &m in k {
+                    stack.push((m, keep(&env, m)));
+                }
             }
-            G::Exists(_, b) => stack.push(*b),
+            G::Forall(x, b) => {
+                let key = (n, values);
+                let skolem = match skolem_of.get(&key) {
+                    Some(&k) => k,
+                    None => {
+                        let k = skolems.len() as u32;
+                        skolems.push(key.clone());
+                        skolem_of.insert(key, k);
+                        k
+                    }
+                };
+                let mut inner = keep(&env, *b);
+                // A Skolem constant's index among the Skolem constants,
+                // made an element below.
+                if nnf.has(*b, *x) {
+                    inner.push((*x, skolem));
+                }
+                stack.push((*b, inner));
+            }
+            G::Exists(_, b) => stack.push((*b, keep(&env, *b))),
         }
     }
-    let mut skolems: Vec<u32> = skolem_of.keys().copied().collect();
-    skolems.sort_unstable();
-    for x in skolems {
-        elements.push(NONE);
-        skolem_of.insert(x, (elements.len() - 1) as u32);
+    // The Skolem constants after the sequent's constants.
+    let first_skolem = elements.len() as u32;
+    elements.extend(std::iter::repeat_n(NONE, skolems.len()));
+    for k in skolem_of.values_mut() {
+        *k += first_skolem;
     }
     if elements.is_empty() {
         elements.push(NONE);
@@ -871,7 +1044,11 @@ fn ground(
             .saturating_add(atom_bytes)
             .saturating_add((tasks.capacity() as u64).saturating_mul(16))
             .saturating_add((bindings.capacity() as u64).saturating_mul(12))
-            .saturating_add((results.capacity() as u64).saturating_mul(4));
+            .saturating_add((results.capacity() as u64).saturating_mul(4))
+            .saturating_add((atoms.capacity() as u64).saturating_mul(12))
+            .saturating_add((args_of.capacity() as u64).saturating_mul(4))
+            .saturating_add((next.capacity() as u64 + ids.capacity() as u64).saturating_mul(4))
+            .saturating_add((first.capacity() as u64).saturating_mul(16));
         if held > memory {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Search,
@@ -934,7 +1111,19 @@ fn ground(
                     }
                 }
                 G::Forall(x, b) => {
-                    bindings.push((*x, skolem_of[x], at));
+                    // The node's Skolem constant under the values of its free
+                    // `∀` variables, which the domain's pass made.
+                    let values: Vec<u32> = nnf.free[n as usize]
+                        .iter()
+                        .filter(|&&v| universal[v as usize])
+                        // A `∀` variable's element is a Skolem constant; the
+                        // keys hold their indices among the Skolem constants.
+                        .map(|&v| lookup(&bindings, at, v) - first_skolem)
+                        .collect();
+                    let Some(&skolem) = skolem_of.get(&(n, values)) else {
+                        unreachable!("the domain's pass met every ∀ under its values")
+                    };
+                    bindings.push((*x, skolem, at));
                     tasks.push(Task::Enter(*b, (bindings.len() - 1) as u32));
                 }
                 G::Exists(x, b) => {
@@ -962,10 +1151,16 @@ fn ground(
         }
     }
     let formula = results.pop().expect("the ground formula");
+    let bytes = (formulas.len() as u64)
+        .saturating_mul(NODE_BYTES)
+        .saturating_add(atom_bytes)
+        .saturating_add((args_of.capacity() as u64).saturating_mul(4))
+        .saturating_add((atoms.capacity() as u64).saturating_mul(12));
     Ok(Ground {
         sequent: Sequent::new(formulas, Vec::new(), vec![formula])?,
         atoms,
         args: args_of,
+        bytes,
         elements,
     })
 }
@@ -1067,6 +1262,11 @@ mod tests {
             // `∧` under the `∀`.
             "|- exists y. forall x. (p(x) \\/ (q(x) /\\ s(y)))",
             "forall y. exists x. (p(x) /\\ (q(x) \\/ s(y))) |-",
+            // Miniscoping splits the `∀` into two nodes of one variable,
+            // which need a Skolem constant each.
+            "q(a), ~q(b) |- exists z. forall x. ((p(x) \\/ q(z)) /\\ (~p(x) \\/ ~q(z)))",
+            "exists u. q(u), exists v. ~q(v) |- exists z. forall x. ((p(x) \\/ q(z)) /\\ (~p(x) \\/ ~q(z)))",
+            "q(a), ~q(b), forall z. exists x. ((p(x) /\\ q(z)) \\/ (~p(x) /\\ ~q(z))) |-",
         ];
         for text in refuted {
             for &logic in Logic::ALL {

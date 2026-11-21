@@ -110,6 +110,26 @@ impl Structure {
         if self.size == 0 {
             return Err(wrong("has no element".to_owned()));
         }
+        // What the structure and the evaluator's tables hold: a structure
+        // read from JSON is many times its text (an empty tuple is two
+        // bytes there and a vector here).
+        let memory = limits.memory_bytes.unwrap_or(u64::MAX);
+        let held = self.predicates.iter().fold(
+            (self.constants.len() as u64).saturating_mul(ENTRY_BYTES),
+            |held, (_, tuples)| {
+                tuples.iter().fold(held, |held, tuple| {
+                    held.saturating_add(ENTRY_BYTES)
+                        .saturating_add((tuple.len() as u64).saturating_mul(4))
+                })
+            },
+        );
+        if held > memory {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Check,
+                limit_bytes: memory,
+                needed_bytes: Some(held),
+            }));
+        }
         let mut elements: HashMap<&str, u32> = HashMap::default();
         for (name, e) in &self.constants {
             if *e >= self.size {
@@ -129,11 +149,39 @@ impl Structure {
                 set.insert(tuple.as_slice());
             }
         }
-        // Every term of the sequent is interpreted, whether the evaluation
-        // reaches it or not.
-        let tables = sequent.formulas().first_order();
-        for term in &tables.terms {
-            match *term {
+        // Every term of the sequent's formulas is interpreted, whether the
+        // evaluation reaches it or not; a term of the arena no formula uses
+        // is no part of the sequent.
+        let formulas = sequent.formulas();
+        let tables = formulas.first_order();
+        let mut seen = vec![false; formulas.len()];
+        let mut stack: Vec<NodeId> = sequent
+            .left()
+            .iter()
+            .chain(sequent.right())
+            .copied()
+            .collect();
+        let mut terms: Vec<FoTermId> = Vec::new();
+        while let Some(n) = stack.pop() {
+            if std::mem::replace(&mut seen[n.index()], true) {
+                continue;
+            }
+            match formulas.node(n) {
+                Node::Atom(a) => {
+                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                        terms.extend_from_slice(tables.list(args));
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    stack.push(a);
+                    stack.push(b);
+                }
+            }
+        }
+        for t in terms {
+            match tables.terms[t.index()] {
                 FoTerm::App(f, args) => {
                     let name = tables.symbols[f.index()].0.as_str();
                     if !tables.list(args).is_empty() {
@@ -176,6 +224,11 @@ impl Structure {
         Ok(Evaluation::Refutes)
     }
 }
+
+/// The bytes a constant or a tuple holds in a structure and in the
+/// evaluator's tables beside 4 bytes an element: its vector and its entry
+/// in a set.
+const ENTRY_BYTES: u64 = 48;
 
 /// A step of the evaluation.
 enum Step {
