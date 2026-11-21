@@ -147,7 +147,11 @@ run ordinary_outcome-table-not-valid 1 "$deduxit" prove "${t[@]}" --logic classi
 run ordinary_outcome-tableau-valid 0 "$deduxit" prove "${t[@]}" --logic classical --method tableau --format json 'p \/ q, p -> r, q -> r |- r'
 run ordinary_outcome-tableau-not-valid 1 "$deduxit" prove "${t[@]}" --logic classical --method tableau --format json 'a -> b |- b -> a'
 run ordinary_outcome-unknown 3 "$deduxit" prove "${t[@]}" --logic intuitionistic --method ljt --work-limit 1 --format json '((a -> b) -> a) -> a'
+run ordinary_outcome-connection 0 "$deduxit" prove "${t[@]}" --logic classical --method connection --format json 'forall x. (p(x) -> q(x)), p(a) |- q(a)'
+run ordinary_outcome-grounding-valid 0 "$deduxit" prove "${t[@]}" --logic classical --method grounding --format json 'forall x. (p(x) -> q(x)), p(a) |- q(a)'
+run ordinary_outcome-grounding-structure 1 "$deduxit" prove "${t[@]}" --logic classical --format json 'exists x. p(x), q |- forall x. p(x)'
 run checked-ordinary 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-ljt-valid.json"
+run checked-structure 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-grounding-structure.json"
 echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' >model.json
 run checked-model 1 "$deduxit" check "${t[@]}" --format json --logic intuitionistic --sequent 'a \/ ~a' model.json
 # Modal logic: outcomes, their check and a model checked by hand.

@@ -105,6 +105,9 @@ sequent with nothing on the left.
   logic, first-order
   sequents included, and the default for a first-order classical
   sequent ([First-order sequents](#first-order-sequents)).
+- `grounding` decides the first-order sequents of two decidable classes
+  in every logic, and is the default for them ([Decidable
+  classes](#decidable-classes)).
 
 ```console
 $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
@@ -529,10 +532,14 @@ binds it, else a constant or a function symbol, as in `p(f(a), x)`. TPTP's
 `! [X] :` and `? [X] :` read the same way. There is no equality yet: `=`
 is refused, with a hint to write a predicate.
 
-`prove` decides a first-order sequent in classical logic by the
-connection prover, and in intuitionistic and minimal logic through the
-embedding. A valid one gets a checked derivation with the quantifier
-rules:
+`prove` decides a first-order sequent by grounding where it lies in a
+class grounding decides ([Decidable classes](#decidable-classes)), in
+every logic. Otherwise it decides it by the connection prover in
+classical logic, and through the embedding in intuitionistic and minimal
+logic. Under a time limit, grounding or the connection prover gets 90%
+of it and the embedding the rest: on ILTP's first-order problems that
+proves five theorems more at 2 seconds. A valid sequent gets a checked
+derivation with the quantifier rules:
 
 ```console
 $ deduxit prove --logic classical '|- exists x. (p(x) -> forall y. p(y))'
@@ -570,7 +577,7 @@ no quantifier needs a witness term: every `∀` is one to prove and every
 search then ends:
 
 ```console
-$ deduxit prove --logic classical 'exists x. p(x) |- forall y. p(y)'; echo "exit $?"
+$ deduxit prove --logic classical --method connection 'exists x. p(x) |- forall y. p(y)'; echo "exit $?"
 not valid (classical logic by the connection prover): the search was exhaustive
 exit 1
 $ deduxit prove --logic classical --method connection --path-length 2 'forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(a))))'; echo "exit $?"
@@ -618,6 +625,69 @@ p(a), ∀x. (p(x) → q(x)), p(a) → q(a) ⊢ p(a)      q(a), ∀x. (p(x) → q
 $ deduxit prove --logic intuitionistic --method connection '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
 unknown (intuitionistic logic by the connection prover): no proof was found, but the search may miss proofs here after …
 exit 3
+```
+
+### Decidable classes
+
+Validity is decidable for two classes of first-order sequents, and
+`--method grounding` decides them:
+- the Bernays–Schönfinkel class: no function symbols, and no `∀` under
+  an `∃`;
+- the monadic class: no function symbols, and no predicate of two or
+  more arguments.
+
+"Under" is read with negations pushed inward, the hypotheses negated
+(as `⊢` reads them), and every quantifier moved inward as far as it
+goes, distributing `∧` and `∨` where that frees it (up to a bound), so
+`∀x. ∃y. (p(x) ∧ q(y))` counts as `(∀x. p(x)) ∧ (∃y. q(y))`.
+Grounding replaces each `∀` by a fresh constant and each `∃` by the
+disjunction of its instances over the finitely many constants, and hands
+the result to the SAT solver. A valid sequent gets the solver's checked
+clausal proof, and by default the connection prover's derivation of LK
+where that prover finds one quickly. A sequent that is not valid gets a
+finite structure, which deduxit checks against the sequent before it
+answers: its elements, the element each constant names, and the set
+each predicate holds of:
+
+```console
+$ deduxit prove --logic classical 'exists x. p(x), q |- forall x. p(x)'; echo "exit $?"
+not valid (classical logic by grounding): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+p: {0}
+q: true
+exit 1
+```
+
+A structure refutes the sequent in intuitionistic and minimal logic too,
+since what is valid there is valid classically. A sequent grounding
+finds valid is left to the other methods in those logics, since
+classical validity says nothing of them:
+
+```console
+$ deduxit prove --logic intuitionistic 'exists x. p(x) |- forall x. p(x)'; echo "exit $?"
+not valid (intuitionistic logic by grounding): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+p: {0}
+exit 1
+$ deduxit prove --logic minimal --method grounding '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
+unknown (minimal logic by grounding): the sequent is valid in classical logic, which says nothing of minimal logic
+exit 3
+```
+
+`check` reads the outcome's JSON and evaluates its structure again.
+`--stats` prints the elements, the ground atoms and formulas, and the
+solver's counters. A structure too large to check within the limits is
+left out, and the verdict line says so; the verdict then rests on the
+solver's model of the grounded sequent, which was checked.
+
+```console
+$ deduxit prove --logic classical --format json 'exists x. p(x), q |- forall x. p(x)' > s.json; echo "exit $?"
+exit 1
+$ deduxit check s.json
+valid refutation of ∃x. p(x), q ⊢ ∀x. p(x) (classical logic): a finite structure of 2 elements refutes it
+domain: {0, 1}
+p: {0}
+q: true
 ```
 
 The translation into linear logic may lose a first-order proof: the
@@ -722,6 +792,10 @@ name and its arity), `fo` (the terms: `{"B": k}` the variable of the
 k-th quantifier out, `{"F": [symbol, [terms]]}` an application), each
 atom as `{"P": [symbol, [terms]]}`, and `binders`, one name per
 quantifier. A formula `{"∀": a}` or `{"∃": a}` binds in its operand `a`.
+An outcome refuted by grounding holds `"structure": {"sequent": …,
+"structure": {"size": 2, "constants": [["a", 0]], "predicates": [["p",
+[[0]]]]}}`: the sequent, the number of elements, each constant's element
+and each predicate's tuples, a predicate left out holding of none.
 A quantifier inference names its term by `"term": k`, a position in
 `fo`, where a derivation's eigenvariable is `{"E": n}`. A session's open
 witness is `{"M": k}` (`$1` for `k = 0`), and `"bindings": [[k, term,

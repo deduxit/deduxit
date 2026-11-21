@@ -1332,6 +1332,32 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   five counters, and an unknown at its bound names `--path-length`
   (`advice`). Where it gives way at a bound the embedding answers, as
   for the other defaults.
+- **Grounding** (`--method grounding`, the default of a first-order
+  sequent of the Bernays–Schönfinkel or the monadic class in every
+  logic): `decide_natively` runs it through `ordinary::decide_within`
+  with the method named, then, as the classical default, the connection
+  prover where grounding gives way and the connection prover's
+  derivation of LK of a valid sequent within `bounded`, as the library's
+  `by_grounding` does. Its "not valid" prints `a checked finite
+  structure of N elements refutes it` and the structure after the line
+  (`Structure`'s `Display`, not under `-q` or `--tree never`), or `…,
+  too large to check` where the check was refused at a bound; its
+  unknowns say why (`native_verdict_line`: outside the classes, told by
+  the statistics' `domain` 0, or valid classically alone).
+  `native_statistics` prints six counters. `check` of an outcome with a
+  structure is `check_structure` (`FiniteCountermodel::check`, exit 0
+  valid refutation, 1 invalid, 3 at a limit).
+- **The first-order share** (`FIRST_ORDER_SHARE`, 90): where no method
+  is given and the sequent's method is grounding or the connection
+  prover, `first_order_share` starts a second deadline at 90% of the
+  time limit (`Deadline::share`), the native method's stop polls both,
+  and `stopped_at_share` (stopped at the share, not the limit or Ctrl-C)
+  returns `Native::GivesWay`, so the embedding runs with the time left;
+  `prove` and the batch alike. Measured on ILTP's first-order problems
+  at 2 s (from 75b's per-problem times): 604 proved with 90%, 599 by the
+  prover alone; the prover proves all but three of its theorems within
+  0.6 s, and five of the seven the embedding alone proves take it under
+  6 ms. Without a time limit there is no share.
 - **`interact --logic` with quantifiers**: `apply G F RULE TERM…` reads
   the words after `∀L` or `∃R` as the witness
   (`ordinary::Interactive::witness`), none leaving it open (`$1`), and

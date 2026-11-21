@@ -80,10 +80,10 @@ kinds of problems:
 - Problems of ordinary logic from the ILTP library, in TPTP format:
   `nix build .#iltp -o bench/iltp` fetches its 274 propositional
   problems, and `run --tptp PATH --logics …` runs them with the engines
-  `embedding`, `ljt`, `sat`, `table`, `tableau`, `connection` and
-  `auto`; `nix build .#iltp-first-order -o bench/iltp-first-order` its
-  2 670 first-order problems, which the embedding, `connection` and
-  `auto` take.
+  `embedding`, `ljt`, `sat`, `table`, `tableau`, `connection`,
+  `grounding` and `auto`; `nix build .#iltp-first-order -o
+  bench/iltp-first-order` its 2 670 first-order problems, which the
+  embedding, `connection`, `grounding` and `auto` take.
 
 `run` runs every problem in every mode, engine and thread count asked
 for. Each run is a child process of its own with a time limit, and

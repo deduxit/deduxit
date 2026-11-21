@@ -19,6 +19,11 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`ordinary::Rule` has four variants more**, `ForallLeft`,
   `ForallRight`, `ExistsLeft` and `ExistsRight`, after `Open`.
 
+- **`ordinary::Outcome` has the field `structure`**, a finite structure
+  that refutes a first-order sequent. Struct expressions of `Outcome`
+  were refused already (`#[non_exhaustive]`); a pattern that names every
+  field needs `..`.
+
 ### Added
 
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
@@ -94,6 +99,33 @@ second number (0.1.x to 0.2.0), anything else the third.
   even without quantifiers: the search can miss a proof and never shows
   that none exists. The default
   of intuitionistic logic does not change.
+- **Grounding** (`ordinary::grounding`, `Method::Grounding`, `prove
+  --logic … --method grounding`, behind the feature `sat`): the
+  Bernays–Schönfinkel class (no function symbols, no `∀` under an `∃`
+  after the quantifiers are moved inward) and the monadic class (no
+  function symbols, predicates of at most one argument) decided by
+  grounding over the constants and the SAT solver, in every logic. A
+  valid classical sequent gets the solver's checked clausal proof, by
+  default the connection prover's derivation of LK where it finds one
+  within `EVIDENCE_WORK`; a sequent that is not valid gets a finite
+  structure (`ordinary::Structure`, `FiniteCountermodel`), checked by
+  evaluating the sequent in it (`Structure::refutes`,
+  `FiniteCountermodel::check`) and printed after the verdict line. It is
+  the default for the sequents of both classes; outside classical logic
+  a classically valid one, and in every logic a sequent outside the
+  classes, goes to the next method. `check` evaluates an outcome's
+  structure again, and the new `Error::Structure` (code
+  `invalid_structure`, kind invalid) says what a wrong one gets wrong.
+  `deduxit-bench run --engines grounding` runs it.
+- **The command shares its time limit at first order**: where the
+  default of a first-order sequent is grounding or the connection
+  prover, it gets 90% of the time limit and the embedding the rest.
+- **Otten's connection provers in the comparison**: the flake fetches
+  leanCoP 2.1, nanoCoP 2.0, nanoCoP-i 2.0 and iLeanCoP 1.2 at their
+  released archives and runs them on SWI-Prolog (`prover-leancop`,
+  `prover-nanocop`, `prover-nanocopi`, `prover-ileancop`);
+  `deduxit-bench run --tools leancop,nanocop,nanocopi,ileancop` runs
+  them on TPTP problems.
 - **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
   method that decides or transforms propositional sequents (the SAT
   solver, LJT, the truth table, the tableau, the normal
@@ -140,7 +172,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   decided by the connection prover (`"search": {"method": "connection",
   "statistics": {…}}`) or unknown at its bound (`{"kind": "path_length",
   "length": 8}`). The search options have the keys `path_length` and
-  `restricted_backtracking`.
+  `restricted_backtracking`. One decided by grounding is written at level
+  25 (`"search": {"method": "grounding", "statistics": {"domain",
+  "atoms", "nodes", "sat"}}`), and a refutation by it holds
+  `"structure": {"sequent": …, "structure": {"size", "constants",
+  "predicates"}}`.
 
 ## [0.7.0] - 2026-11-20
 

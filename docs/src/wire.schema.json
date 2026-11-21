@@ -2802,6 +2802,31 @@
         "path_length"
       ]
     },
+    "grounding_statistics": {
+      "description": "What deciding a sequent by grounding cost: the elements of the domain, the ground atoms, the formulas of the ground sequent's arena, and the SAT solver's statistics on it. Zeros where the sequent lies outside the classes grounding decides.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/count"
+        },
+        "atoms": {
+          "$ref": "#/$defs/count"
+        },
+        "nodes": {
+          "$ref": "#/$defs/count"
+        },
+        "sat": {
+          "$ref": "#/$defs/sat_statistics"
+        }
+      },
+      "required": [
+        "domain",
+        "atoms",
+        "nodes",
+        "sat"
+      ]
+    },
     "kripke_model_keys": {
       "description": "The keys of a Kripke model, at the top of a document or nested without `version`: each world's atoms by name, `falsity` where it forces `⊥` (minimal logic), its arrows to the worlds directly above it, and the world the model is about (0 where absent). The reader of a model given by hand refuses a key it does not know.",
       "type": "object",
@@ -3142,6 +3167,22 @@
               "$ref": "#/$defs/connection_statistics"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "statistics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "grounding"
+            },
+            "statistics": {
+              "$ref": "#/$defs/grounding_statistics"
+            }
+          }
         }
       ]
     },
@@ -3230,6 +3271,74 @@
             }
           }
         },
+        "structure": {
+          "description": "The finite structure that refutes a first-order sequent found not valid by grounding, with the sequent it refutes: the number of elements (the domain is 0 to size − 1), each constant's element by name, and each predicate by name with the tuples it holds of (a predicate left out holds of none, a nullary one holds where its list has the empty tuple). `check` evaluates the sequent in it again.",
+          "type": "object",
+          "required": [
+            "sequent",
+            "structure"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sequent": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "structure": {
+              "type": "object",
+              "required": [
+                "size",
+                "constants",
+                "predicates"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                },
+                "constants": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/$defs/index"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2
+                  }
+                },
+                "predicates": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/index"
+                          }
+                        }
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          }
+        },
         "lambda": {
           "$ref": "#/$defs/lambda"
         }
@@ -3301,8 +3410,17 @@
           },
           "then": {
             "not": {
-              "required": [
-                "countermodel"
+              "anyOf": [
+                {
+                  "required": [
+                    "countermodel"
+                  ]
+                },
+                {
+                  "required": [
+                    "structure"
+                  ]
+                }
               ]
             }
           }
@@ -3339,7 +3457,7 @@
       ]
     },
     "ordinary_outcome": {
-      "description": "The outcome of deciding an ordinary sequent (level 12, `prove --logic … --format json`): the verdict (`unknown` with a `reason`), the logic, the search tagged by its method, and the evidence: a valid outcome's `derivation`, its `clausal_proof` (the SAT solver in classical logic) or neither where the image's proof or the table stands alone; a not-valid outcome's `countermodel` where one was found. `--lambda` adds `lambda`.",
+      "description": "The outcome of deciding an ordinary sequent (level 12, `prove --logic … --format json`): the verdict (`unknown` with a `reason`), the logic, the search tagged by its method, and the evidence: a valid outcome's `derivation`, its `clausal_proof` (the SAT solver in classical logic) or neither where the image's proof or the table stands alone; a not-valid outcome's `countermodel` or, from grounding, its `structure` where one was found. `--lambda` adds `lambda`.",
       "$ref": "#/$defs/ordinary_outcome_keys",
       "required": [
         "version",

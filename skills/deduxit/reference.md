@@ -1186,6 +1186,26 @@ every other answer is `unknown`, without quantifiers too.
 - `--stats` prints `steps`, `extension steps`, `reduction steps`,
   `literals closed by a lemma` and `bound on the active path`.
 
+`grounding` decides the first-order sequents of two decidable classes,
+in every logic, and is their default: no function symbols, and either no
+`forall` under an `exists` (negations pushed inward, the hypotheses
+negated, quantifiers moved inward as far as they go) or no predicate of
+two or more arguments. Outside them it is `unknown`, and the default
+goes on to the connection prover (classical) or the embedding.
+
+- `valid` (classical logic only) comes with the SAT solver's checked
+  clausal proof of the ground sequent; by default the connection
+  prover's derivation of LK replaces it where that prover finds one
+  quickly. In intuitionistic and minimal logic a classically valid
+  sequent is `unknown` to grounding.
+- `not valid` comes with a finite structure, checked against the sequent
+  and printed after the verdict line (`domain: {0, 1}`, `a = 0`, `p:
+  {0}`, `r: {(0, 1)}`, `q: true`); it refutes the sequent in every
+  logic. In JSON it is `"structure": {"sequent": …, "structure":
+  {"size", "constants", "predicates"}}`, which `check` evaluates again.
+- `--stats` prints `elements`, `ground atoms`, `formulas of the ground
+  sequent`, `solver calls`, `conflicts` and `proof steps`.
+
 `table` and `tableau` decide classical logic only (exit status 2 for
 another), and print the table or the tableau in place of a derivation:
 
@@ -1508,13 +1528,16 @@ An ordinary formula may apply predicates to terms and bind variables
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed
 (`par` as `par_`, a function symbol named like a predicate as `name_f`). `prove` decides a first-order
-classical sequent by the connection prover (`--method connection`) and
-an intuitionistic or minimal one through the embedding: valid with a
-checked derivation; not valid only from the connection prover, where
-no quantifier needs a witness term (every `forall` one to prove, every
-`exists` one to assume); otherwise
-unknown (exit 3). Where the connection prover gives up at a bound the
-embedding decides; an unprovable image is unknown (reason
+sequent of the decidable classes by grounding (`--method grounding`,
+above), another classical one by the connection prover (`--method
+connection`) and another intuitionistic or minimal one through the
+embedding: valid with a checked derivation (or grounding's clausal
+proof); not valid from grounding with a checked finite structure, or
+from the connection prover where no quantifier needs a witness term
+(every `forall` one to prove, every `exists` one to assume); otherwise
+unknown (exit 3). Under the time limit grounding or the connection
+prover gets 90% of it and the embedding the rest; where they give up at
+a bound the embedding decides; an unprovable image is unknown (reason
 `incomplete`), since the translation may lose first-order proofs. The
 other methods refuse a first-order sequent, naming themselves (exit
 2). A session proves one with the quantifier rules:

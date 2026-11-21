@@ -24,7 +24,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `connection/` (public): the connection prover of classical logic,
-  below; `decide.rs`: `decide`, translation, search, read-back and check in one
+  below; `grounding.rs` (public, behind `sat`) and `structure.rs`: the
+  decidable classes and the finite structure, below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
@@ -652,12 +653,15 @@ the search, `read_back.rs` the derivation of LK.
   was quadratic in the depth of a nest of quantifiers (77 s for 30 000);
   it asks the stop every 1 024 literals. A branch nothing closes is `Error::ReadBack`, a defect;
   the derivation is checked by `Derivation::check` in `decide`.
-- **The dispatch**: `Options::method_for` makes the connection prover
-  the default of a first-order classical sequent with no method and no
-  translation given; where it gives way (`gives_way`: unknown at a bound
-  other than the stop, `Incomplete` included) the embedding decides.
-  `decide`'s door lets `Embedding` and `Connection` through at first
-  order. The command asks `method_for` in `by_native`,
+- **The dispatch**: `Options::method_for` makes grounding the default of
+  a first-order sequent of its classes (feature `sat`, `grounds`: the
+  class test within `GROUNDS_NODES`, 2²⁰ nodes of the normal form, any
+  error read as "no"), else the connection prover the default of a
+  first-order classical sequent with no method and no translation
+  given; where it gives way (`gives_way`: unknown at a bound other than
+  the stop, `Incomplete` included) the embedding decides. `decide`'s door
+  (`takes_first_order`) lets `Embedding`, `Connection` and `Grounding`
+  through at first order. The command asks `method_for` in `by_native`,
   `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`).
 - **The bound** is `search::Options::path_length` (library default
   `DEFAULT_PATH_LENGTH`, 8; `Settings::default()` none, the command
@@ -798,6 +802,85 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
 - **Measured** (`plan/reports/75-first-order-search.md`, 75c): ILTP's
   first-order problems in intuitionistic logic at 2 s beside the
   embedding.
+
+## Grounding (`grounding.rs`, `structure.rs`)
+
+The Bernays–Schönfinkel and the monadic class decided by grounding over
+the constants and the SAT solver (`plan/notes/first-order-search-design.md`
+§5), public as `ordinary::grounding::decide` and `Method::Grounding`
+(feature `sat`), every logic. The search and the grounding are
+untrusted for "not valid" only as far as the structure's check reaches;
+the clausal proof's checker is the trust for "valid".
+
+- **The pipeline** (`run`): `prepare` builds `⋀Γ → ⋁Δ` in negation
+  normal form with named variables (`Nnf`, `G` nodes: an equivalence
+  expanded both ways, a `Meta` or `Eigen` term, a function symbol with
+  arguments or a loose variable is "not in the class", `None`),
+  `miniscope` moves every quantifier inward (`Nnf::quantify`: `∀` into a
+  conjunction's operands and out of a disjunction's operands that do not
+  mention it, `∃` dually, to three levels), `in_class` asks that no `∀`
+  stands in the scope of an `∃` whose variable is free in it (BS after
+  Skolemization) unless every predicate is monadic, then `ground` makes
+  `⊢ F` over the domain: the constants the formula names, then one
+  Skolem constant per `∀` reached, one element where there is none;
+  each `∃` the disjunction of its body over the domain. Atoms are named
+  `g_N` by index, tuples flat in `Ground::args` (one allocation for all:
+  freeing per-atom keys after a stop overran a 4 s limit by 1.7 s, now
+  1.1 s, the arena's names left).
+- **Why it is sound and complete** (Herbrand for the BS class after
+  Skolemization; Löwenheim and Behmann for the monadic class, whose
+  miniscoped form is BS): the ground sequent is valid exactly when the
+  original is in the class, the Skolem constants standing for the `∀`s,
+  which in validity form are δ (eigenvariables); the domain is the
+  Herbrand universe, finite because no function symbol is left.
+  Miniscoping is an equivalence, so the class test after it decides
+  more sequents and the verdict is unchanged. A change to `quantify` or
+  `in_class` must keep both.
+- **Valid only in classical logic**: a ground valid sequent is
+  `Valid(Clausal)` classically, `Unknown(Incomplete)` in the others
+  (classical validity says nothing there), which the default gives way
+  on. **Not valid in every logic**: a classical structure is a one-world
+  Kripke model, and refuting classically refutes in the weaker logics.
+- **"Not valid" is a `FiniteCountermodel`** (`structure.rs`: the sequent
+  and a `Structure`: `size`, `constants` by name, `predicates` by name
+  with their tuples), read off the solver's checked one-world model
+  (`structure_of`) and checked by `FiniteCountermodel::check` before
+  the verdict: `Structure::refutes` evaluates the original sequent,
+  iteratively (`Step`, an environment stack, no recursion), each
+  connective and quantifier ended at the first operand that decides it,
+  every term of the sequent's tables checked up front (so a skipped
+  branch hides no uninterpretable constant), `limits.work` evaluations
+  at most (`Structure::WORK`, 2²⁶, where none is set), the stop every
+  4 096. A structure that fails its check is `Error::Countermodel` (a
+  defect) from grounding, `Error::Structure` (kind invalid, code
+  `invalid_structure`) from `check`. A check refused at a bound drops
+  the structure and keeps the verdict, as `Countermodel::found` does
+  (the solver's model of the ground sequent was checked; the verdict
+  rests on the grounding), and the stop during it is `Unknown(Stopped)`.
+  Six NLP problems needed the short cuts: the original formula evaluated
+  in `d^k` where the miniscoped ground formula is small.
+- **Bounds**: `prepare` and `ground` ask the stop every `POLL` steps (a
+  stop there is `Unknown(Stopped)`), refuse past `limits.occurrences`
+  nodes or pending tasks, and `ground` charges its arena, atoms
+  (`ATOM_BYTES` and 4 bytes an argument), tasks, bindings and results to
+  `limits.memory_bytes` (`Refusal::Memory`): ILTP's SYJ020
+  (`∃x₁…x₁₀ p(…) ↔ ¬∀x₁…x₁₀ ¬p(…)`) once grew to gigabytes and was
+  killed. Its bindings are never freed during the walk (a leak bounded
+  by the work, charged).
+- **The default** (`decide.rs`, `by_grounding`): in classical logic a
+  valid sequent takes the connection prover's derivation of LK where it
+  gives one within `EVIDENCE_WORK`, and a sequent grounding gives way on
+  (a bound, outside the classes) goes to the connection prover, before
+  the embedding. The command does the same in `decide_natively`.
+- **What step 76 must keep** (its countermodels own and extend this
+  type): `FiniteCountermodel::check` is the one trust for a finite
+  "not valid"; `Structure`'s JSON (`{"size", "constants",
+  "predicates"}`, `deny_unknown_fields`) and the outcome's `"structure":
+  {"sequent", "structure"}` are released forms; a predicate left out
+  holds of nothing, a nullary one holds where it lists the empty tuple;
+  function symbols with arguments are refused by the evaluator today
+  (`Error::Structure`), so a structure that interprets functions is an
+  extension of `Structure`, not a new type.
 
 ## The SAT engine (`sat/`, behind `sat`)
 

@@ -205,13 +205,22 @@ in use.
   outside its quantifier), proved
   step by step in LK, LJ and LM with the quantifier rules
   (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
-  Typst and SVG. `prove` decides classical ones by a connection prover
-  (nanoCoP's non-clausal calculus) and the others through the
-  embedding: valid with a checked derivation; not valid from the
-  connection prover where no quantifier needs a witness term (every `∀`
-  one to prove and every `∃` one to assume, negations and implications
-  taken into account); otherwise unknown, since neither search shows a
-  first-order sequent not valid. The other methods refuse them by name.
+  Typst and SVG. `prove` decides the Bernays–Schönfinkel and the
+  monadic class by grounding over the constants and the SAT solver, in
+  every logic: valid in classical logic with a checked clausal proof
+  (and the connection prover's derivation of LK where it finds one),
+  not valid with a finite structure that deduxit checks against the
+  sequent. It decides other classical sequents by a connection prover
+  (nanoCoP's non-clausal calculus) and other intuitionistic and minimal
+  ones through the embedding: valid with a checked derivation; not
+  valid from the connection prover where no quantifier needs a witness
+  term (every `∀` one to prove and every `∃` one to assume, negations
+  and implications taken into account); otherwise unknown. Under the
+  command's time limit the first-order method gets 90% and the
+  embedding the rest. The other methods refuse them by name. A
+  [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)
+  runs them beside leanCoP, nanoCoP, nanoCoP-i and iLeanCoP on ILTP's
+  first-order problems.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's.
