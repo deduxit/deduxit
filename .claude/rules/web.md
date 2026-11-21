@@ -548,8 +548,9 @@ for `THIRD-PARTY-NOTICES.txt`.
   of nixpkgs, and never alone (the client loads the module this CLI
   writes, so the client's flake update follows the push).
 - **The budget** (`modules/budget.nix`): each module at `gzip -9` under a
-  ceiling of its own (the bindings' 2 560 000 bytes, 2 502 108 on
-  2026-11-21 with the ordinary session's open witnesses and 2 438 116
+  ceiling of its own (the bindings' 2 650 000 bytes, 2 590 533 on
+  2026-11-21 with both connection provers,
+  2 502 108 that day with the ordinary session's open witnesses and 2 438 116
   that day once the renderers left; the renderers' 1 700 000, 1 639 598;
   before, the one module had 3 913 893 that day under 3 950 000;
   3 622 968 on 2026-11-16 with the modal
