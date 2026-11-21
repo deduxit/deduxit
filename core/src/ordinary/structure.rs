@@ -129,6 +129,30 @@ impl Structure {
                 set.insert(tuple.as_slice());
             }
         }
+        // Every term of the sequent is interpreted, whether the evaluation
+        // reaches it or not.
+        let tables = sequent.formulas().first_order();
+        for term in &tables.terms {
+            match *term {
+                FoTerm::App(f, args) => {
+                    let name = tables.symbols[f.index()].0.as_str();
+                    if !tables.list(args).is_empty() {
+                        return Err(wrong(format!(
+                            "interprets no function symbol, and {name} is one"
+                        )));
+                    }
+                    if !elements.contains_key(name) {
+                        return Err(wrong(format!("names no element for the constant {name}")));
+                    }
+                }
+                FoTerm::Bound(_) => {}
+                FoTerm::Eigen(_) | FoTerm::Meta(_) => {
+                    return Err(wrong(
+                        "cannot interpret an eigenvariable or an open witness".to_owned(),
+                    ));
+                }
+            }
+        }
         let mut eval = Evaluator {
             sequent,
             size: self.size,
@@ -159,6 +183,10 @@ enum Step {
     Eval(NodeId),
     /// Apply the connective to the values on top of the stack.
     Apply(Node),
+    /// The first operand of `∧`, `∨` or `→` was evaluated (its value on top
+    /// of the stack): it decides the formula, or the second operand's value
+    /// is the formula's.
+    Second(Node, NodeId),
     /// The quantifier's body was evaluated for the elements before `next`
     /// (its value on top of the stack, but before the first), and `acc` is
     /// what they gave.
@@ -214,10 +242,11 @@ impl Evaluator<'_, '_> {
                             stack.push(Step::Apply(node));
                             stack.push(Step::Eval(a));
                         }
-                        Node::And(a, b)
-                        | Node::Or(a, b)
-                        | Node::Implies(a, b)
-                        | Node::Iff(a, b) => {
+                        Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) => {
+                            stack.push(Step::Second(node, b));
+                            stack.push(Step::Eval(a));
+                        }
+                        Node::Iff(a, b) => {
                             stack.push(Step::Apply(node));
                             stack.push(Step::Eval(b));
                             stack.push(Step::Eval(a));
@@ -262,6 +291,25 @@ impl Evaluator<'_, '_> {
                     };
                     values.push(value);
                 }
+                Step::Second(node, b) => {
+                    let a = values.pop().expect("an operand's value");
+                    let decided = match node {
+                        Node::And(..) => (!a).then_some(false),
+                        Node::Or(..) => a.then_some(true),
+                        Node::Implies(..) => (!a).then_some(true),
+                        Node::Atom(_)
+                        | Node::True
+                        | Node::False
+                        | Node::Not(_)
+                        | Node::Iff(..)
+                        | Node::Forall(_)
+                        | Node::Exists(_) => unreachable!("∧, ∨ or →"),
+                    };
+                    match decided {
+                        Some(value) => values.push(value),
+                        None => stack.push(Step::Eval(b)),
+                    }
+                }
                 Step::Quantifier {
                     forall,
                     body,
@@ -273,7 +321,8 @@ impl Evaluator<'_, '_> {
                         env.pop();
                         acc = if forall { acc && v } else { acc || v };
                     }
-                    if next == self.size {
+                    // An element that decides the quantifier ends it.
+                    if next == self.size || acc != forall {
                         values.push(acc);
                         continue;
                     }

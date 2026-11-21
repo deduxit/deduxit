@@ -185,13 +185,12 @@ impl From<ljt::Outcome> for Outcome {
     }
 }
 
-/// Decides a first-order sequent of the decidable classes by grounding
-/// ([`grounding::decide`](super::grounding::decide)). As the default
-/// (`default`) in classical logic, a valid sequent gets the connection
-/// prover's derivation of LK where it finds one within [`EVIDENCE_WORK`]
-/// steps, the clausal proof standing otherwise. A sequent outside the
-/// classes is unknown ([`Reason::Incomplete`]), as one valid classically
-/// is in the other logics: the default gives way to the next method there.
+/// Decides `sequent` by grounding. Where the default chose it in classical
+/// logic, a valid sequent takes the connection prover's derivation of LK
+/// where it gives one within [`EVIDENCE_WORK`], and a sequent grounding
+/// gives way on (a bound other than the stop, or outside its classes) goes
+/// to the connection prover, as the default of a first-order classical
+/// sequent outside the classes does.
 #[cfg(feature = "sat")]
 fn by_grounding(
     sequent: &Sequent,
@@ -201,16 +200,28 @@ fn by_grounding(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    let Some(grounded) = super::grounding::decide(sequent, logic, limits, &mut *stop)? else {
-        return Ok(Outcome {
+    let classical = default && logic == Logic::Classical;
+    let grounded = match super::grounding::decide(sequent, logic, limits, &mut *stop) {
+        Ok(Some(grounded)) => Ok(Outcome::from(grounded)),
+        Ok(None) => Ok(Outcome {
             verdict: Verdict::Unknown(Reason::Incomplete),
             logic,
             search: Search::Grounding(super::grounding::Statistics::default()),
             countermodel: None,
             structure: None,
-        });
+        }),
+        Err(error) => Err(error),
     };
-    if default && logic == Logic::Classical && matches!(grounded.verdict, Verdict::Valid(_)) {
+    if classical && gives_way(&grounded) {
+        return super::connection::decide(sequent, logic, search, limits, &mut *stop)
+            .map(Outcome::from);
+    }
+    if classical
+        && let Ok(Outcome {
+            verdict: Verdict::Valid(_),
+            ..
+        }) = &grounded
+    {
         let bounded = limits.with_work(Some(
             limits.work.map_or(EVIDENCE_WORK, |w| w.min(EVIDENCE_WORK)),
         ));
@@ -221,7 +232,7 @@ fn by_grounding(
             return Ok(Outcome::from(connected));
         }
     }
-    Ok(Outcome::from(grounded))
+    grounded
 }
 
 /// Whether an ordinary sequent is valid in its logic.

@@ -40,7 +40,7 @@ use super::{Formulas, Logic, Node, NodeId, Sequent, Verdict};
 use crate::Error;
 use crate::first_order::FoTerm;
 use crate::hash::HashMap;
-use crate::limits::{Limits, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::search::Reason;
 
 /// No index.
@@ -77,7 +77,8 @@ pub struct Outcome {
     /// The logic decided.
     pub logic: Logic,
     /// The finite structure that refutes a sequent that is not valid,
-    /// checked by [`FiniteCountermodel::check`].
+    /// checked by [`FiniteCountermodel::check`]; `None` where it is too
+    /// large to check within the limits, the verdict standing.
     pub structure: Option<FiniteCountermodel>,
     /// What the search cost.
     pub statistics: Statistics,
@@ -253,9 +254,13 @@ impl Nnf {
 struct Ground {
     /// The propositional sequent `⊢ F`.
     sequent: Sequent,
-    /// Each ground atom: the predicate's index and the tuple of elements,
-    /// by the atom's index in the ground sequent.
-    atoms: Vec<(u32, Vec<u32>)>,
+    /// Each ground atom: the predicate's index and where its tuple of
+    /// elements starts in `args` and how long it is, by the atom's index in
+    /// the ground sequent.
+    atoms: Vec<(u32, u32, u32)>,
+    /// The atoms' tuples, one after another: one allocation for all, so
+    /// that a large grounding is freed at once when the stop ends it.
+    args: Vec<u32>,
     /// The constant each element is, [`NONE`] for a Skolem constant or the
     /// element added to an empty domain.
     elements: Vec<u32>,
@@ -269,7 +274,11 @@ struct Ground {
 /// not valid with a checked [`Structure`]. In intuitionistic and minimal
 /// logic it is not valid with the same structure, a Kripke model of one
 /// world, or unknown ([`Reason::Incomplete`]) where the sequent is valid
-/// classically.
+/// classically. A structure too large to check within the limits is
+/// dropped and the verdict kept, as a Kripke countermodel too large to
+/// check is: the ground sequent's model was checked, and the verdict rests
+/// on the grounding. A stop, during the set-up or the check, is unknown
+/// ([`Reason::Stopped`]).
 ///
 /// # Errors
 ///
@@ -294,7 +303,7 @@ pub fn decide(
 /// [`Refusal::Occurrences`] for a sequent whose normal form passes
 /// `limits.occurrences`.
 pub fn applies(sequent: &Sequent, limits: &Limits) -> Result<bool, Error> {
-    Ok(prepare(sequent, limits)?.is_some())
+    Ok(prepare(sequent, limits, &mut |_| false)?.is_some())
 }
 
 /// [`decide`] with the stop as a trait object.
@@ -309,10 +318,25 @@ fn run(
             count: sequent.right().len(),
         });
     }
-    let Some((nnf, root)) = prepare(sequent, limits)? else {
-        return Ok(None);
+    let stopped = |statistics| {
+        Ok(Some(Outcome {
+            verdict: Verdict::Unknown(Reason::Stopped),
+            logic,
+            structure: None,
+            statistics,
+        }))
     };
-    let ground = ground(&nnf, root, limits)?;
+    let (nnf, root) = match prepare(sequent, limits, &mut *stop) {
+        Ok(Some(prepared)) => prepared,
+        Ok(None) => return Ok(None),
+        Err(Error::Refused(Refusal::Stopped { .. })) => return stopped(Statistics::default()),
+        Err(error) => return Err(error),
+    };
+    let ground = match ground(&nnf, root, limits, &mut *stop) {
+        Ok(ground) => ground,
+        Err(Error::Refused(Refusal::Stopped { .. })) => return stopped(Statistics::default()),
+        Err(error) => return Err(error),
+    };
     let mut statistics = Statistics {
         domain: ground.elements.len() as u64,
         atoms: ground.atoms.len() as u64,
@@ -341,6 +365,16 @@ fn run(
                 let countermodel = FiniteCountermodel::new(sequent.clone(), structure);
                 match countermodel.check(logic, limits, &mut *stop) {
                     Ok(()) => (Verdict::NotValid, Some(countermodel)),
+                    // The stop during the check is the stop, as for a
+                    // Kripke countermodel.
+                    Err(Error::Refused(Refusal::Stopped { .. })) => {
+                        (Verdict::Unknown(Reason::Stopped), None)
+                    }
+                    // A structure too large to check is dropped, never the
+                    // verdict: the ground sequent's model was checked, and
+                    // the verdict rests on grounding as a verdict without
+                    // its model rests on the search.
+                    Err(Error::Refused(_)) => (Verdict::NotValid, None),
                     Err(Error::Structure { reason }) => {
                         return Err(Error::Countermodel {
                             reason: format!(
@@ -351,8 +385,9 @@ fn run(
                     Err(error) => return Err(error),
                 }
             }
-            // A model too large to check gives no checked verdict.
-            None => (Verdict::Unknown(Reason::Incomplete), None),
+            // The solver's model was too large to check; the verdict
+            // stands without it, as the solver's own does.
+            None => (Verdict::NotValid, None),
         },
         Verdict::Unknown(reason) => (Verdict::Unknown(reason), None),
     };
@@ -364,12 +399,39 @@ fn run(
     }))
 }
 
+/// Counts a step of the set-up and asks the stop every [`POLL`] steps.
+fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
+    *steps += 1;
+    if steps.is_multiple_of(POLL) && stop(Progress::new(Phase::Search, POLL, *steps)) {
+        return Err(Refusal::Stopped {
+            phase: Phase::Search,
+        }
+        .into());
+    }
+    Ok(())
+}
+
+/// The bytes a node of the ground formula's arena holds, with its share of
+/// the arena's index.
+const NODE_BYTES: u64 = 32;
+
+/// The bytes a ground atom holds beside 4 bytes an argument: its entries in
+/// the grounding's tables and the arena's, and its name.
+const ATOM_BYTES: u64 = 128;
+
+/// How many steps of the set-up pass between two asks of the stop.
+const POLL: u64 = 4_096;
+
 /// Returns the sequent's formula `⋀Γ → ⋁Δ` in negation normal form,
 /// miniscoped, and its root, where the sequent lies in the classes this
 /// module decides: no function symbol with arguments, no term that no
 /// quantifier binds and the sequent does not name, and no `∀` in the scope
 /// of an `∃` whose variable is free in it.
-fn prepare(sequent: &Sequent, limits: &Limits) -> Result<Option<(Nnf, u32)>, Error> {
+fn prepare(
+    sequent: &Sequent,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Option<(Nnf, u32)>, Error> {
     let formulas = sequent.formulas();
     let tables = formulas.first_order();
     let most = limits.occurrences.unwrap_or(u64::MAX);
@@ -419,7 +481,9 @@ fn prepare(sequent: &Sequent, limits: &Limits) -> Result<Option<(Nnf, u32)>, Err
             pending[to.0 as usize].kids[to.1 as usize] = made;
         }
     };
+    let mut steps: u64 = 0;
     while let Some(task) = stack.pop() {
+        poll(&mut steps, stop)?;
         if nnf.nodes.len() as u64 > most {
             return Err(Error::Refused(Refusal::Occurrences {
                 occurrences: most.saturating_add(1),
@@ -641,7 +705,12 @@ fn in_class(nnf: &Nnf, root: u32) -> bool {
 /// Grounds the miniscoped formula over the constants: each `∀` a Skolem
 /// constant, each `∃` the disjunction of its instances, into the
 /// propositional sequent `⊢ F` within `limits.occurrences`.
-fn ground(nnf: &Nnf, root: u32, limits: &Limits) -> Result<Ground, Error> {
+fn ground(
+    nnf: &Nnf,
+    root: u32,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Ground, Error> {
     let most = limits.occurrences.unwrap_or(u64::MAX);
     // The domain: the constants the formula names, then one Skolem
     // constant per ∀ reachable, or one element where there is none.
@@ -685,8 +754,25 @@ fn ground(nnf: &Nnf, root: u32, limits: &Limits) -> Result<Ground, Error> {
     }
     let size = elements.len() as u32;
     let mut formulas = Formulas::default();
-    let mut atoms: Vec<(u32, Vec<u32>)> = Vec::new();
-    let mut atom_ids: HashMap<(u32, Vec<u32>), NodeId> = HashMap::default();
+    let mut atoms: Vec<(u32, u32, u32)> = Vec::new();
+    let mut args_of: Vec<u32> = Vec::new();
+    // The atoms by their key's hash: the first atom of each hash, and for
+    // each atom the next one of the same hash (`NONE` at the end) and its
+    // node, so that no atom holds an allocation of its own.
+    let mut first: HashMap<u64, u32> = HashMap::default();
+    let mut next: Vec<u32> = Vec::new();
+    let mut ids: Vec<NodeId> = Vec::new();
+    let mut tuple: Vec<u32> = Vec::new();
+    let hasher = crate::hash::BuildHasher::default();
+    let index_of = |count: usize| {
+        u32::try_from(count).map_err(|_| {
+            Error::Refused(Refusal::Index {
+                what: crate::limits::Space::Atom,
+                count: count as u64,
+                most: u64::from(u32::MAX),
+            })
+        })
+    };
     // Each binding: a variable, its element and the bindings before it.
     let mut bindings: Vec<(u32, u32, u32)> = Vec::new();
     let lookup = |bindings: &[(u32, u32, u32)], mut at: u32, x: u32| -> u32 {
@@ -707,7 +793,26 @@ fn ground(nnf: &Nnf, root: u32, limits: &Limits) -> Result<Ground, Error> {
     }
     let mut results: Vec<NodeId> = Vec::new();
     let mut tasks = vec![Task::Enter(root, NONE)];
+    let mut steps: u64 = 0;
+    // The bytes the atoms' keys and names hold, which grow with their
+    // arguments.
+    let mut atom_bytes: u64 = 0;
+    let memory = limits.memory_bytes.unwrap_or(u64::MAX);
     while let Some(task) = tasks.pop() {
+        poll(&mut steps, stop)?;
+        let held = (formulas.len() as u64)
+            .saturating_mul(NODE_BYTES)
+            .saturating_add(atom_bytes)
+            .saturating_add((tasks.capacity() as u64).saturating_mul(16))
+            .saturating_add((bindings.capacity() as u64).saturating_mul(12))
+            .saturating_add((results.capacity() as u64).saturating_mul(4));
+        if held > memory {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Search,
+                limit_bytes: memory,
+                needed_bytes: None,
+            }));
+        }
         if formulas.len() as u64 > most || tasks.len() as u64 > most {
             return Err(Error::Refused(Refusal::Occurrences {
                 occurrences: most.saturating_add(1),
@@ -717,22 +822,34 @@ fn ground(nnf: &Nnf, root: u32, limits: &Limits) -> Result<Ground, Error> {
         match task {
             Task::Enter(n, at) => match &nnf.nodes[n as usize] {
                 G::Lit(positive, predicate, args) => {
-                    let tuple: Vec<u32> = args
-                        .iter()
-                        .map(|t| match *t {
-                            Term::Var(x) => lookup(&bindings, at, x),
-                            Term::Const(c) => element_of[&c],
-                        })
-                        .collect();
-                    let key = (*predicate, tuple);
-                    let atom = match atom_ids.get(&key) {
-                        Some(&id) => id,
-                        None => {
-                            let id = formulas.atom(&format!("g_{}", atoms.len()))?;
-                            atoms.push(key.clone());
-                            atom_ids.insert(key, id);
-                            id
+                    tuple.clear();
+                    tuple.extend(args.iter().map(|t| match *t {
+                        Term::Var(x) => lookup(&bindings, at, x),
+                        Term::Const(c) => element_of[&c],
+                    }));
+                    let hash = std::hash::BuildHasher::hash_one(&hasher, (*predicate, &tuple));
+                    let mut found = first.get(&hash).copied().unwrap_or(NONE);
+                    while found != NONE {
+                        let (p, start, len) = atoms[found as usize];
+                        let (start, len) = (start as usize, len as usize);
+                        if p == *predicate && args_of[start..start + len] == tuple[..] {
+                            break;
                         }
+                        found = next[found as usize];
+                    }
+                    let atom = if found == NONE {
+                        let index = index_of(atoms.len())?;
+                        let start = index_of(args_of.len())?;
+                        let id = formulas.atom(&format!("g_{index}"))?;
+                        atom_bytes = atom_bytes
+                            .saturating_add(ATOM_BYTES.saturating_add(4 * tuple.len() as u64));
+                        args_of.extend_from_slice(&tuple);
+                        atoms.push((*predicate, start, tuple.len() as u32));
+                        next.push(first.insert(hash, index).unwrap_or(NONE));
+                        ids.push(id);
+                        id
+                    } else {
+                        ids[found as usize]
                     };
                     let node = if *positive {
                         atom
@@ -782,6 +899,7 @@ fn ground(nnf: &Nnf, root: u32, limits: &Limits) -> Result<Ground, Error> {
     Ok(Ground {
         sequent: Sequent::new(formulas, Vec::new(), vec![formula])?,
         atoms,
+        args: args_of,
         elements,
     })
 }
@@ -813,8 +931,12 @@ fn structure_of(sequent: &Sequent, ground: &Ground, true_atoms: &[String]) -> St
         else {
             continue;
         };
-        let (predicate, tuple) = &ground.atoms[index];
-        holds.entry(*predicate).or_default().push(tuple.clone());
+        let (predicate, start, len) = ground.atoms[index];
+        let (start, len) = (start as usize, len as usize);
+        holds
+            .entry(predicate)
+            .or_default()
+            .push(ground.args[start..start + len].to_vec());
     }
     let mut predicates: Vec<(String, Vec<Vec<u32>>)> = holds
         .into_iter()
