@@ -1868,9 +1868,6 @@ stop for `Image::read_back` and `Derivation::check`, went to step 28.
   could not be checked within 6 GiB. A read-back on the proof term (a
   DAG), with a checker on terms, would avoid it.
 
-- **`cargo test -p linlog` without `parallel` warns** in
-  `search/focus/tests.rs` and `search/reference_fo.rs` (49a); the
-  workspace run, with the feature unified, does not.
 
 Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
 

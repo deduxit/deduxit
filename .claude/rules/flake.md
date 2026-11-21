@@ -68,6 +68,15 @@ and `systems.nix` are what their names say.
   `rocq`, `bench` nor `ratchet`; `doc`, `doc-private` read `core` and
   `cli`, `wasm` and `features` `core` alone, `deny` and `shear` every
   part.
+- `clippy-core-default` is Clippy on the core crate and its tests as
+  `cargo test --package deduxit` builds them, with the default features
+  (from `core` and `core-tests`): `clippy-core` takes every feature and
+  `cargo test --workspace` unifies `parallel` in, so a test item that
+  only the pool's tests use warned in the crate's own run and in no
+  check but `wasm`, which builds for wasm32 with `png` and `pdf`. The
+  gate runs the same line after the workspace's Clippy, so
+  the full check still holds every part of the gate. It costs about
+  15 s on the shared dependencies' build.
 - The dependencies' build (`buildDepsOnly`) reads the manifests and the
   lock alone (crane's dummy source), so it is the same derivation for
   every change but a manifest's or the lock's.

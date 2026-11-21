@@ -229,6 +229,25 @@
           }
         );
 
+        # The core crate and its tests as `cargo test --package deduxit`
+        # builds them, with the default features: `clippy-core' selects
+        # every feature, `parallel' among them, so an item that only the
+        # tests with threads use, or a test's import that they alone
+        # need, warns here and nowhere else.
+        clippy-core-default = craneLib.cargoClippy (
+          workspace.argsOf [
+            "core"
+            "core-tests"
+          ]
+          // {
+            inherit (workspace) cargoArtifacts;
+            pname = "deduxit-core-default";
+            cargoExtraArgs = "--locked --package deduxit";
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            doInstallCargoArtifacts = false;
+          }
+        );
+
         # The core crate's features one at a time and in pairs, with all of
         # them and with none; the CLI enables all of them and would never
         # notice one that breaks alone. The full powerset doubles with every

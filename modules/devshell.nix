@@ -50,6 +50,9 @@
             command = ''
               set -eu
               cargo clippy --workspace --all-targets --locked -- --deny warnings
+              # The core crate alone has its default features, without
+              # `parallel', which the workspace's run unifies in.
+              cargo clippy --package deduxit --all-targets --locked -- --deny warnings
               cargo test --workspace --locked
               # Warnings denied: an import or item left unused in one feature
               # set fails here. Their own target directory, since RUSTFLAGS
