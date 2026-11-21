@@ -666,6 +666,86 @@ the search, `read_back.rs` the derivation of LK.
   outcome is `Search::Connection(Statistics)`, written at level 25
   (`"method": "connection"`).
 
+## The intuitionistic connection prover (`connection/intuitionistic/`)
+
+nanoCoP-i's prefixed non-clausal connection calculus (Otten, TABLEAUX
+2017; ARQNL 2016), intuitionistic logic, under the same
+`Method::Connection` (`connection::run` sends intuitionistic logic
+here; minimal logic is `Error::Logic` until it has its differential
+test). Written from the papers, never from nanoCoP-i's or ileanCoP's
+code (GPL); the research notes are in the step's report. `prefix.rs`
+the characters and T-string unification, `prove.rs` the search (a copy
+of the classical one, changed), `read_back.rs` the derivation of LJ.
+
+- **The matrix is the classical prover's**, its terms and copies too
+  (`connection::matrix`, `connection::terms`, read only from here).
+  Beside it `Prefixes` gives every position a character: a prefix
+  variable for `¬`, `→`, `∀` and an atom with polarity 1, a constant for
+  the same with polarity 0 (Otten 2017, Table 1); a literal's prefix is
+  the characters from the root down to it, its own included.
+- **Copies rename prefix variables by Definition 5** (`free_vars`, the
+  classical `free_slots` over characters): a variable is free in a
+  clause where no other element of a clause above holds a literal with
+  it, so a copy of a clause α-related to its other literals renames it.
+  A constant is a Skolem term over the prefix variables above it
+  (`consts`, keyed by the position and their numbers): a copy renames
+  it exactly where it renames one of them. Renaming by "every literal
+  inside the clause" and a constant per copy left `⊢ ¬¬(a ∨ ¬a)`
+  unprovable: the root's constant differed between copies.
+- **What the search checks, and when** (`prove.rs`): each connection's
+  prefixes must pass Otten and Kreitz's test (Lemma 8, binding nothing),
+  and its equation is kept; once every path holds a connection, all the
+  equations are unified together with one per eigenvariable a term
+  variable is bound to, `pre(x) = pre(δ)·W` (the domain condition), the
+  prefixes including the quantifier's own character (with the plain
+  prefix `∀x(A ∨ B(x)) ⊢ A ∨ ∀x B(x)` would be "proved"); no unifier,
+  and the search backtracks into its last choice, as nanoCoP-i does
+  (departs from the design, which unified after each connection).
+  Regularity and lemmata compare prefixes as well as terms (equal
+  strings: equal under every substitution), no literal is settled (its
+  other solutions may be the ones whose prefixes unify), every copy that
+  renames a variable or a character counts against the path bound, and
+  no failure is "not valid" (`Incomplete` or `PathLength`).
+- **T-string unification** (`unify`): the ten rules of Otten and Kreitz
+  1996, R8 and R9 on `V s⁺` as there (the 2016 and 2017 papers misprint
+  them as `V a u`), their alternatives tried depth first. A state holds
+  the current equation and the bindings; the equations not taken up yet
+  are read under the bindings when they are. Cloning the whole system
+  at each step ran 8 s past a 2 s limit on ILTP's SYN070. `UNIFY_STEPS`
+  bounds it per proof (past it the proof is given up), and it asks the
+  stop every 256 steps.
+- **The reduction ordering's cycles are not checked apart**: the
+  classical Skolem terms do not take the prefix variables, so the occurs
+  check does not cover `<J`. A proof whose ordering has a cycle does not
+  read back; the search then goes on (departs from the brief, which
+  calls a proof that does not read back a bug's refusal: here that is
+  the admissibility check of last resort). `decide_counting` counts the
+  proofs whose prefixes unified and that did not read back;
+  `agrees_with_ljt` holds that count to zero on generated sequents.
+- **The read-back is a G3i search the proof guides** (`read_back.rs`;
+  departs from the design, which named Kreitz and Schmitt's conversion:
+  that gives a proof with several formulas right of `⊢`, and its second
+  step to LJ was not read): `∀L` and `∃R` take only the terms the
+  substitution gave the quantifier's variables, a Skolem term as the
+  eigenvariable its `∀R`/`∃L` made on the branch, else as a constant of
+  the branch (75b's finding on the classical side: its δ-rule lies on
+  another branch), an unbound variable as one eigenvariable no rule
+  introduces (`anonymous`), tried last. Invertible rules first, then the
+  choices; a sequent repeated on its branch (as a set) is cut; a
+  δ-formula whose introduced eigenvariable is in use is left alone on
+  the left and gets a fresh one on the right. Bounded by `STEPS` rules
+  and the recursion depth, the stop asked every `POLL` rules; the stop
+  there ends the search as `Reason::Stopped`. The emission is LJT's way
+  (`weaken_to`, `contract_to`, `→L` split and contracted, `∀L` keeping
+  its principal), checked in `decide`.
+- **A δ-formula whose variable no literal holds** has no Skolem symbol in
+  the matrix (`Matrix` makes one only where a literal needs it): its
+  Skolem terms take a symbol number past the matrix's, which no literal
+  shares (`Kalish 227`, SYN400, panicked before).
+- **Measured** (`plan/reports/75-first-order-search.md`, 75c): ILTP's
+  first-order problems in intuitionistic logic at 2 s beside the
+  embedding.
+
 ## The SAT engine (`sat/`, behind `sat`)
 
 intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts

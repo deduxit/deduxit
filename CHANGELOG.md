@@ -85,6 +85,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   (`--restricted-backtracking`) keeps each literal's first solution,
   never answering "not valid". `deduxit-bench run --engines connection`
   runs it.
+- **The connection prover decides intuitionistic logic** (`prove --logic
+  intuitionistic --method connection`): nanoCoP-i's prefixed calculus,
+  in which a classical connection proof is an intuitionistic one when its
+  prefixes unify (T-string unification) and its eigenvariables meet the
+  domain condition. A valid sequent gets a derivation of LJ, found by a
+  search the proof guides and checked; any other is unknown, since the
+  search is no decision procedure even without quantifiers. The default
+  of intuitionistic logic does not change.
 - **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
   method that decides or transforms propositional sequents (the SAT
   solver, LJT, the truth table, the tableau, the normal

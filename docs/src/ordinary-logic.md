@@ -101,7 +101,8 @@ sequent with nothing on the left.
 - `table` and `tableau`, for classical logic, decide the sequent by its
   truth table or by a tableau, as a first logic course does, and print
   the table or the tableau ([Truth tables and tableaux](#truth-tables-and-tableaux)).
-- `connection` is a connection prover for classical logic, first-order
+- `connection` is a connection prover for classical and intuitionistic
+  logic, first-order
   sequents included, and the default for a first-order classical
   sequent ([First-order sequents](#first-order-sequents)).
 
@@ -593,6 +594,31 @@ exit 3
 `--stats` prints its steps, its extension and reduction steps, the
 literals it closed by an equal one solved before, and the bound it
 reached.
+
+`--method connection` decides intuitionistic sequents too. A classical
+connection proof is an intuitionistic one when its literals' prefixes,
+strings that stand for the worlds of a Kripke model, can be made equal.
+A valid sequent gets a derivation of LJ; any other is unknown, even
+without quantifiers, since this search cannot show that no proof
+exists. The default of intuitionistic logic stays the embedding:
+
+```console
+$ deduxit prove --logic intuitionistic --method connection 'exists x. p(x), forall x. (p(x) -> q(x)) |- exists y. q(y)'
+valid (intuitionistic logic by the connection prover)
+─────────────────────────────────────────── ax   ──────────────────────────────────── ax
+p(a), ∀x. (p(x) → q(x)), p(a) → q(a) ⊢ p(a)      q(a), ∀x. (p(x) → q(x)), p(a) ⊢ q(a)
+───────────────────────────────────────────────────────────────────────────────────── →L
+                     ∀x. (p(x) → q(x)), p(a), p(a) → q(a) ⊢ q(a)
+                     ─────────────────────────────────────────── ∀L
+                           ∀x. (p(x) → q(x)), p(a) ⊢ q(a)
+                         ────────────────────────────────── ∃R
+                         ∀x. (p(x) → q(x)), p(a) ⊢ ∃y. q(y)
+                       ────────────────────────────────────── ∃L
+                       ∃x. p(x), ∀x. (p(x) → q(x)) ⊢ ∃y. q(y)
+$ deduxit prove --logic intuitionistic --method connection '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
+unknown (intuitionistic logic by the connection prover): no proof was found, but the search may miss proofs here after …
+exit 3
+```
 
 The translation into linear logic may lose a first-order proof: the
 classical image cannot use a hypothesis twice. So where the image is

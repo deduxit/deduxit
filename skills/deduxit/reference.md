@@ -1168,9 +1168,11 @@ cuts than LJT's.
   `facts derived`, `clauses` and `proof steps`.
 
 `connection` is a non-clausal connection prover (nanoCoP's calculus),
-for classical logic only (exit status 2 for another), first-order
-sequents included; it is the default of a first-order classical
-sequent.
+for classical and intuitionistic logic (exit status 2 for minimal
+logic), first-order sequents included; it is the default of a
+first-order classical sequent. Intuitionistically it is nanoCoP-i's
+prefixed calculus: `valid` comes with a checked derivation of LJ, and
+every other answer is `unknown`, without quantifiers too.
 
 - `valid` comes with a checked derivation of LK.
 - `not valid` comes only where no quantifier needs a witness term (every
