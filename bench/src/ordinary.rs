@@ -60,7 +60,7 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     }
     match method {
         Method::Embedding => embedded(args, logic, &problem.sequent, expected),
-        Method::Ljt | Method::Sat | Method::Connection => {
+        Method::Ljt | Method::Sat | Method::Connection | Method::Grounding => {
             native(args, logic, &problem.sequent, expected, method)
         }
         Method::Table | Method::Tableau => {
@@ -139,7 +139,8 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
     })
 }
 
-/// Decides the sequent by LJT, the SAT solver or the connection prover
+/// Decides the sequent by LJT, the SAT solver, the connection prover or
+/// grounding
 /// within the run's memory bound and time limit, and returns the tail of
 /// its row. The evidence is
 /// checked inside the time measured. A proof whose derivation a bound
@@ -150,6 +151,9 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
 /// `nodes` are its conflicts and `work` its calls and conflicts, the
 /// units its work bound counts. The connection prover's `nodes` are its
 /// extension steps and `work` its steps, with no bound on the active path.
+/// Grounding's `nodes` are its ground atoms and `work` the solver's calls
+/// and conflicts; a sequent outside its classes is `unknown`
+/// (`incomplete`).
 fn native(
     args: &OneArgs,
     logic: Logic,
@@ -186,6 +190,22 @@ fn native(
                 ],
             )
         })
+    } else if method == Method::Grounding {
+        ordinary::grounding::decide(sequent, logic, &limits, stop).map(|outcome| match outcome {
+            Some(outcome) => {
+                let s = outcome.statistics;
+                (
+                    outcome.verdict,
+                    [
+                        s.atoms.to_string(),
+                        String::new(),
+                        String::new(),
+                        s.sat.calls.saturating_add(s.sat.conflicts).to_string(),
+                    ],
+                )
+            }
+            None => (Verdict::Unknown(Reason::Incomplete), Default::default()),
+        })
     } else if method == Method::Sat {
         sat::decide(sequent, logic, &limits, stop).map(|outcome| {
             let s = outcome.statistics;
@@ -219,6 +239,7 @@ fn native(
             match method {
                 Method::Sat => "SAT",
                 Method::Connection => "connection",
+                Method::Grounding => "grounding",
                 _ => "LJT",
             },
         ),
@@ -458,6 +479,16 @@ fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expecte
                     Method::Sat.name().to_owned(),
                     "SAT".to_owned(),
                     [s.conflicts, 0, 0, s.calls.saturating_add(s.conflicts)],
+                ),
+                ordinary::Search::Connection(s) => (
+                    Method::Connection.name().to_owned(),
+                    "connection".to_owned(),
+                    [s.extensions, 0, 0, s.steps],
+                ),
+                ordinary::Search::Grounding(s) => (
+                    Method::Grounding.name().to_owned(),
+                    "grounding".to_owned(),
+                    [s.atoms, 0, 0, s.sat.calls.saturating_add(s.sat.conflicts)],
                 ),
                 _ => (String::new(), String::new(), [0; 4]),
             };
