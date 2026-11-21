@@ -346,6 +346,14 @@ pub fn decide(
     run(sequent, logic, limits, &mut stop)
 }
 
+/// The most nodes of the ground formula (and pending steps) that the
+/// default grounds within, 2²¹, past which it gives way to the next method
+/// (`limits.occurrences`, if lower, still applies): of ILTP's first-order
+/// problems, the largest grounding decided within 2 s has 65 540 atoms,
+/// while SYJ020's grows until the time limit and would keep the
+/// connection prover from deciding it.
+pub const DEFAULT_NODES: u64 = 1 << 21;
+
 /// Returns whether `sequent` lies in the classes this module decides.
 ///
 /// # Errors

@@ -185,7 +185,9 @@ impl From<ljt::Outcome> for Outcome {
     }
 }
 
-/// Decides `sequent` by grounding. Where the default chose it in classical
+/// Decides `sequent` by grounding, as the default within
+/// [`grounding::DEFAULT_NODES`](super::grounding::DEFAULT_NODES) nodes of
+/// the ground formula. Where the default chose it in classical
 /// logic, a valid sequent takes the connection prover's derivation of LK
 /// where it gives one within [`EVIDENCE_WORK`], and a sequent grounding
 /// gives way on (a bound other than the stop, or outside its classes) goes
@@ -201,7 +203,17 @@ fn by_grounding(
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     let classical = default && logic == Logic::Classical;
-    let grounded = match super::grounding::decide(sequent, logic, limits, &mut *stop) {
+    // The default grounds within a bound of its own and gives way past it.
+    let bounded_grounding;
+    let grounding_limits = if default {
+        let most = super::grounding::DEFAULT_NODES;
+        bounded_grounding =
+            limits.with_occurrences(Some(limits.occurrences.map_or(most, |o| o.min(most))));
+        &bounded_grounding
+    } else {
+        limits
+    };
+    let grounded = match super::grounding::decide(sequent, logic, grounding_limits, &mut *stop) {
         Ok(Some(grounded)) => Ok(Outcome::from(grounded)),
         Ok(None) => Ok(Outcome {
             verdict: Verdict::Unknown(Reason::Incomplete),

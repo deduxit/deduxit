@@ -193,7 +193,15 @@ pub(crate) fn decide_natively(
         // connection prover decides, as the library's default does.
         Method::Grounding => {
             let named = options.with_method(Some(Method::Grounding));
-            let grounded = ordinary::decide_within(sequent, &named, search, limits, &mut stop);
+            // The default grounds within the library default's bound.
+            let most = ordinary::grounding::DEFAULT_NODES;
+            let grounding_limits = if options.method.is_none() {
+                limits.with_occurrences(Some(limits.occurrences.map_or(most, |o| o.min(most))))
+            } else {
+                *limits
+            };
+            let grounded =
+                ordinary::decide_within(sequent, &named, search, &grounding_limits, &mut stop);
             let classical = options.method.is_none() && logic == Logic::Classical;
             if classical && ordinary::gives_way(&grounded) {
                 return ordinary::connection::decide(sequent, logic, search, limits, stop)
