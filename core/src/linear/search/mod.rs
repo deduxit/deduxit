@@ -3377,8 +3377,8 @@ impl Verdict {
 /// "limit_bytes": 1073741824}`, `{"kind": "index_limit"}`, `{"kind":
 /// "work_limit", "limit": 1000000}`, `{"kind": "unchecked",
 /// "limit_bytes": 1073741824}`, `{"kind": "witness_depth", "depth": 64}`
-/// or `{"kind": "instances", "instances": 65536}`. A reader refuses a
-/// kind it does not know.
+/// `{"kind": "instances", "instances": 65536}` or `{"kind": "incomplete"}`.
+/// A reader refuses a kind it does not know.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Reason {
@@ -3451,6 +3451,12 @@ pub enum Reason {
         /// The bound on instances.
         instances: u32,
     },
+    /// A search that may miss proofs ended without one, so the sequent may
+    /// still hold. An ordinary first-order sequent whose image the linear
+    /// search finds unprovable is unknown for this reason: the embedding
+    /// is not shown complete at first order (the classical image has no
+    /// contraction).
+    Incomplete,
 }
 
 impl Reason {
@@ -3466,6 +3472,7 @@ impl Reason {
         "unchecked",
         "witness_depth",
         "instances",
+        "incomplete",
     ];
 
     /// Returns the reason's word, its `kind` in the JSON form.
@@ -3480,6 +3487,7 @@ impl Reason {
             Self::Unchecked { .. } => "unchecked",
             Self::WitnessDepth { .. } => "witness_depth",
             Self::Instances { .. } => "instances",
+            Self::Incomplete => "incomplete",
         }
     }
 
@@ -3510,6 +3518,7 @@ impl Reason {
         match self {
             Self::Stopped
             | Self::IndexLimit
+            | Self::Incomplete
             | Self::MemoryLimit {
                 limit_bytes: u64::MAX,
             } => None,
@@ -3553,6 +3562,9 @@ impl Display for Reason {
             }
             Reason::Instances { instances } => {
                 write!(f, "the bound of {instances} instances was reached")
+            }
+            Reason::Incomplete => {
+                f.write_str("no proof was found, but the search may miss proofs here")
             }
         }
     }
@@ -3803,6 +3815,7 @@ mod tests {
             Reason::Unchecked { limit_bytes: 1 },
             Reason::WitnessDepth { depth: 1 },
             Reason::Instances { instances: 1 },
+            Reason::Incomplete,
         ];
         // No wildcard: a new reason fails to compile here until listed.
         let at = |reason: &Reason| match reason {
@@ -3815,6 +3828,7 @@ mod tests {
             Reason::Unchecked { .. } => 6,
             Reason::WitnessDepth { .. } => 7,
             Reason::Instances { .. } => 8,
+            Reason::Incomplete => 9,
         };
         assert_eq!(reasons.len(), Reason::NAMES.len());
         for (i, reason) in reasons.iter().enumerate() {

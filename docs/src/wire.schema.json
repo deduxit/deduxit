@@ -584,7 +584,8 @@
             "kind": {
               "enum": [
                 "stopped",
-                "index_limit"
+                "index_limit",
+                "incomplete"
               ]
             }
           }

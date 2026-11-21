@@ -95,6 +95,8 @@ pub(super) enum Why {
         /// The bound.
         instances: u32,
     },
+    /// A search that may miss proofs found none.
+    Incomplete,
 }
 
 impl From<Reason> for Why {
@@ -110,6 +112,7 @@ impl From<Reason> for Why {
             Reason::Unchecked { limit_bytes } => Why::Unchecked { limit_bytes },
             Reason::WitnessDepth { depth } => Why::WitnessDepth { depth },
             Reason::Instances { instances } => Why::Instances { instances },
+            Reason::Incomplete => Why::Incomplete,
         }
     }
 }
@@ -127,6 +130,7 @@ impl From<Why> for Reason {
             Why::Unchecked { limit_bytes } => Reason::Unchecked { limit_bytes },
             Why::WitnessDepth { depth } => Reason::WitnessDepth { depth },
             Why::Instances { instances } => Reason::Instances { instances },
+            Why::Incomplete => Reason::Incomplete,
         }
     }
 }
@@ -1052,6 +1056,7 @@ mod tests {
             },
             Reason::WitnessDepth { depth: 64 },
             Reason::Instances { instances: 1 << 16 },
+            Reason::Incomplete,
         ] {
             let json = serde_json::to_string(&reason).unwrap();
             assert_eq!(
