@@ -123,18 +123,18 @@ impl Interactive {
         }
         eigens.sort_unstable();
         eigens.dedup();
-        metas.sort_unstable_by_key(|&k| (q.metas[k as usize].level, k));
+        metas.sort_unstable_by_key(|&k| (q.unifier.metas()[k as usize].level, k));
         metas.dedup();
         // The prefix, in the order the variables were made. An
         // eigenvariable at or past the first open witness's level is bound
         // by `∀` right before the first open witness of a higher level.
         // An older eigenvariable, or one that is a constant, becomes a
         // constant symbol.
-        let first = metas.first().map(|&k| q.metas[k as usize].level);
+        let first = metas.first().map(|&k| q.unifier.metas()[k as usize].level);
         let mut prefix: Vec<Result<u32, Eigen>> = Vec::new();
         let mut placed: Vec<Eigen> = Vec::new();
         for &k in &metas {
-            let level = q.metas[k as usize].level;
+            let level = q.unifier.metas()[k as usize].level;
             for &a in &eigens {
                 if a.get() < level
                     && first.is_some_and(|f| a.get() >= f)

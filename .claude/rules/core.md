@@ -41,7 +41,9 @@ The root holds what every suite shares: `errors`, `limits`, `settings`,
 `wire`, `export`, `serialize` and `hash`, the first-order tables
 `first_order` and the check of names `name` (both crate-private, the
 linear suite re-exporting the terms' public types under
-`linear::sequents::fo`), and the suites beside each
+`linear::sequents::fo`), the unifier of the interactive sessions' open
+witnesses `unify` (crate-private, behind `interactive`: a `Unifier` over
+any store of terms, `unify::Terms`), and the suites beside each
 other: `linear` (`core/src/linear/`), `ordinary`, `modal` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
 to no suite, `protocol` (behind its feature), what each suite offers

@@ -311,7 +311,7 @@ impl Interactive {
         // An open witness admits no eigenvariable made at its step or later.
         if opened
             .iter()
-            .any(|&(k, step)| q.metas[k as usize].made > later[step])
+            .any(|&(k, step)| q.unifier.metas()[k as usize].made > later[step])
         {
             return Err(bad(
                 "an open witness's level admits an eigenvariable made after it",
@@ -334,7 +334,7 @@ impl Interactive {
         // A binding is made by an axiom, a `1` or `⊤` closing its goal, or a
         // graft of the search, never by a step that only opens goals. Undo
         // of such a step would leave a state no session reaches.
-        for (_, _, step) in q.bindings() {
+        for (_, _, step) in q.unifier.bindings() {
             let h = step as usize;
             let goal = &self.inferences[self.history[h].index()];
             let (start, end) = added_by[h];

@@ -622,6 +622,13 @@ code relies on:
   pair met before (unification of two DAGs was exponential), and
   `same_atom` reads the shown table, where bindings are followed
   already, so no chain of bindings is walked per comparison.
+- **The unifier is `crate::unify::Unifier`** (`Quantified::unifier`):
+  the metavariables, their levels and the trail by step number, over the
+  `unify::Terms` trait, which the session's `Terms` and the ordinary
+  arena's `FirstOrder` implement, so that a second session with open
+  witnesses calls the same code. `Quantified`'s `resolve`, `unify` and
+  `bind` are thin wrappers passing its constants. Moving it changed no
+  counter of the target set.
 - **Levels are the eigenvariable condition, as in the engine**: a
   metavariable's level is the eigenvariables made before it; a binding
   refuses an eigenvariable at or above it that is no constant and

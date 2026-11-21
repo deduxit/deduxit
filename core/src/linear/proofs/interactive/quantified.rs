@@ -18,46 +18,9 @@ use crate::linear::Instances;
 use crate::linear::occurrences::instances::{FrameId, Terms};
 use crate::linear::occurrences::{Forest, Member, OccId};
 use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Symbol};
-
-/// A metavariable: the witness of an `∃` step left open.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Meta {
-    /// Its term in the table.
-    pub(super) term: FoTermId,
-    /// How many eigenvariables were made before it. A binding may name only
-    /// eigenvariables numbered below its level, or constants. Binding
-    /// another metavariable to a term this one occurs in lowers this level
-    /// to that one's, when it is higher.
-    ///
-    /// The reason: an eigenvariable made later belongs to a `∀` step above
-    /// the `∃` step that made the metavariable, or on another branch. In
-    /// the witness it would stand in that `∀` step's conclusion, or outside
-    /// its subtree.
-    pub(super) level: u32,
-    /// Its level when it was made, before any binding lowered it.
-    pub(super) made: u32,
-    /// What a later axiom or the search bound it to.
-    pub(super) bound: Option<FoTermId>,
-}
-
-/// A change a step made that its undo takes back.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Trailed {
-    /// A metavariable was bound.
-    Bound(u32),
-    /// A metavariable's level was lowered from the level given.
-    Lowered(u32, u32),
-}
-
-/// Why two terms do not unify.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Clash {
-    /// The symbols differ, or a metavariable would occur in its own
-    /// binding.
-    Terms,
-    /// A binding would name an eigenvariable made after the metavariable.
-    Eigen(Eigen),
-}
+#[cfg(feature = "serialize")]
+use crate::unify::Trailed;
+use crate::unify::{Clash, Unifier};
 
 /// A closed term by what it is, for hash-consing.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -87,8 +50,9 @@ pub(super) struct Quantified {
     /// Every closed term without a metavariable by what it is, the
     /// sequent's own closed terms among them.
     terms: HashMap<Key, FoTermId>,
-    /// The metavariables, by number.
-    pub(super) metas: Vec<Meta>,
+    /// The metavariables, their bindings, and the trail of bindings and
+    /// lowerings, each with the number of the step that made it.
+    pub(super) unifier: Unifier,
     /// How many eigenvariables were made: the next one's number. Each
     /// eigenvariable and each metavariable is a term of the table, so
     /// together they are fewer than the table's terms, which a `u32`
@@ -98,9 +62,6 @@ pub(super) struct Quantified {
     /// witness nothing constrained; no `∀` step introduces them, so they
     /// may stand in any binding.
     pub(super) constants: Vec<Eigen>,
-    /// The bindings and lowerings made, in order, each with the number of
-    /// the step that made it.
-    trail: Vec<(u32, Trailed)>,
     /// Where the table, the metavariables, the eigenvariables and the
     /// constants stood before each step that made entries, with the step's
     /// number: what its undo truncates to. A session's JSON carries them,
@@ -163,10 +124,9 @@ impl Quantified {
             members: HashMap::default(),
             frames: HashMap::default(),
             terms,
-            metas: Vec::new(),
+            unifier: Unifier::new(),
             eigens: 0,
             constants: Vec::new(),
-            trail: Vec::new(),
             marks: Vec::new(),
             limit: Some(crate::Limits::DEFAULT_TERMS),
             largest: 0,
@@ -181,10 +141,10 @@ impl Quantified {
             terms: self.table.terms.len(),
             args: self.table.args.len(),
             lists: self.table.lists.len(),
-            metas: self.metas.len(),
+            metas: self.unifier.metas().len(),
             eigens: self.eigens,
             constants: self.constants.len(),
-            trail: self.trail.len(),
+            trail: self.unifier.trail_len(),
         }
     }
 
@@ -192,14 +152,14 @@ impl Quantified {
     /// drops every entry, metavariable, eigenvariable and constant made
     /// since. No member, frame or term made before the mark names them.
     pub(super) fn back_to(&mut self, mark: Mark) {
-        self.undo_to(mark.trail);
+        self.unifier.undo_to(mark.trail);
         let (occurrences, base) = (self.table.occurrences, self.table.base_terms);
         self.table.members.truncate(mark.members);
         self.table.frames.truncate(mark.frames);
         self.table.terms.truncate(mark.terms);
         self.table.args.truncate(mark.args);
         self.table.lists.truncate(mark.lists);
-        self.metas.truncate(mark.metas);
+        self.unifier.truncate_metas(mark.metas);
         self.eigens = mark.eigens;
         self.constants.truncate(mark.constants);
         // The ids below the mark fit a `u32`, as the table made them.
@@ -329,10 +289,7 @@ impl Quantified {
                     .or_insert(FoTermId::new(n as u32));
             }
         }
-        for meta in &mut self.metas {
-            meta.term = term(meta.term);
-            meta.bound = meta.bound.map(term);
-        }
+        self.unifier.renumber(term);
         self.table = table;
         self.show(new);
     }
@@ -344,7 +301,12 @@ impl Quantified {
         let below = |t: FoTermId| if t.get() < base { t.index() + 1 } else { 0 };
         let args = self.table.args.iter().map(|&t| below(t));
         let frames = self.table.frames.iter().map(|&(_, t)| below(t));
-        let bound = self.metas.iter().filter_map(|m| m.bound).map(below);
+        let bound = self
+            .unifier
+            .metas()
+            .iter()
+            .filter_map(|m| m.bound)
+            .map(below);
         args.chain(frames).chain(bound).max().unwrap_or(0)
     }
 
@@ -451,16 +413,9 @@ impl Quantified {
     /// Makes a fresh metavariable at the level of the eigenvariables made
     /// so far and returns its term.
     pub(super) fn fresh_meta(&mut self) -> FoTermId {
-        // The cast is exact: there are fewer metavariables than the
-        // table's terms, which a `u32` numbers.
-        let k = self.metas.len() as u32;
+        let k = self.unifier.next_meta();
         let term = self.table.push_term(FoTerm::Meta(k));
-        self.metas.push(Meta {
-            term,
-            level: self.eigens,
-            made: self.eigens,
-            bound: None,
-        });
+        self.unifier.push_meta(term, self.eigens);
         term
     }
 
@@ -474,14 +429,8 @@ impl Quantified {
 
     /// Returns `t` after following the bindings of the metavariables at its
     /// top.
-    pub(super) fn resolve(&self, forest: &Forest, mut t: FoTermId) -> FoTermId {
-        let terms = self.terms(forest);
-        while let FoTerm::Meta(k) = terms.term(t)
-            && let Some(b) = self.metas[k as usize].bound
-        {
-            t = b;
-        }
-        t
+    pub(super) fn resolve(&self, forest: &Forest, t: FoTermId) -> FoTermId {
+        self.unifier.resolve(&self.terms(forest), t)
     }
 
     /// Returns the frame's terms, the innermost binder's first, and none
@@ -558,49 +507,13 @@ impl Quantified {
         pairs: Vec<(FoTermId, FoTermId)>,
         step: u32,
     ) -> Result<(), Clash> {
-        let mark = self.trail.len();
-        let result = self.unify_pairs(forest, pairs, step);
-        if result.is_err() {
-            self.undo_to(mark);
-        }
-        result
-    }
-
-    /// Unifies the pairs, leaving what it bound before a clash.
-    fn unify_pairs(
-        &mut self,
-        forest: &Forest,
-        mut pairs: Vec<(FoTermId, FoTermId)>,
-        step: u32,
-    ) -> Result<(), Clash> {
-        // A pair met before is unified already. So shared terms are walked
-        // once, not once per path to them, which would take exponential
-        // time on terms that share their halves.
-        let mut met: std::collections::HashSet<(FoTermId, FoTermId)> = Default::default();
-        while let Some((x, y)) = pairs.pop() {
-            let (x, y) = (self.resolve(forest, x), self.resolve(forest, y));
-            if x == y || !met.insert((x, y)) {
-                continue;
-            }
-            let terms = self.terms(forest);
-            match (terms.term(x), terms.term(y)) {
-                (FoTerm::Meta(k), _) => self.bind(forest, k, y, step)?,
-                (_, FoTerm::Meta(k)) => self.bind(forest, k, x, step)?,
-                (FoTerm::App(f, a), FoTerm::App(g, b)) if f == g => {
-                    pairs.extend(
-                        terms
-                            .list(a)
-                            .iter()
-                            .copied()
-                            .zip(terms.list(b).iter().copied()),
-                    );
-                }
-                // Distinct eigenvariables, an eigenvariable against an
-                // application, or two symbols.
-                _ => return Err(Clash::Terms),
-            }
-        }
-        Ok(())
+        let terms = Terms {
+            fo: &forest.sequent().fo,
+            table: &self.table,
+        };
+        let constants = &self.constants;
+        self.unifier
+            .unify(&terms, pairs, step, &|a| constants.contains(&a))
     }
 
     /// Binds the unbound metavariable `k` to `t`, and lowers the levels of
@@ -615,84 +528,25 @@ impl Quantified {
         t: FoTermId,
         step: u32,
     ) -> Result<(), Clash> {
-        let level = self.metas[k as usize].level;
-        let mut lowered = Vec::new();
-        {
-            let terms = self.terms(forest);
-            let mut seen: std::collections::HashSet<FoTermId> = Default::default();
-            let mut stack = vec![t];
-            while let Some(u) = stack.pop() {
-                let u = self.resolve(forest, u);
-                if !seen.insert(u) {
-                    continue;
-                }
-                match terms.term(u) {
-                    FoTerm::Meta(j) if j == k => return Err(Clash::Terms),
-                    FoTerm::Meta(j) => {
-                        if self.metas[j as usize].level > level {
-                            lowered.push(j);
-                        }
-                    }
-                    FoTerm::Eigen(a) => {
-                        if a.get() >= level && !self.constants.contains(&a) {
-                            return Err(Clash::Eigen(a));
-                        }
-                    }
-                    FoTerm::App(_, args) => stack.extend_from_slice(terms.list(args)),
-                    FoTerm::Bound(_) => unreachable!("a closed term has no bound variable"),
-                }
-            }
-        }
-        for j in lowered {
-            let meta = &mut self.metas[j as usize];
-            self.trail.push((step, Trailed::Lowered(j, meta.level)));
-            meta.level = level;
-        }
-        self.metas[k as usize].bound = Some(t);
-        self.trail.push((step, Trailed::Bound(k)));
-        Ok(())
+        let terms = Terms {
+            fo: &forest.sequent().fo,
+            table: &self.table,
+        };
+        let constants = &self.constants;
+        self.unifier
+            .bind(&terms, k, t, step, &|a| constants.contains(&a))
     }
 
     /// Takes back what the steps numbered `step` and later bound and
     /// lowered, and drops what they made, back to their marks.
     pub(super) fn undo(&mut self, step: u32) {
-        let keep = self.trail.partition_point(|&(s, _)| s < step);
-        self.undo_to(keep);
+        self.unifier.undo(step);
         while let Some(&(s, mark)) = self.marks.last()
             && s >= step
         {
             self.marks.pop();
             self.back_to(mark);
         }
-    }
-
-    /// Takes back the trail past its first `len` entries, last first.
-    fn undo_to(&mut self, len: usize) {
-        while self.trail.len() > len {
-            let (_, trailed) = self.trail.pop().expect("longer than len");
-            match trailed {
-                Trailed::Bound(k) => self.metas[k as usize].bound = None,
-                Trailed::Lowered(k, level) => self.metas[k as usize].level = level,
-            }
-        }
-    }
-
-    /// Returns the bindings in force in the order made, each as the
-    /// metavariable, its term and the step that made it.
-    #[cfg(feature = "serialize")]
-    pub(super) fn bindings(&self) -> impl Iterator<Item = (u32, FoTermId, u32)> + '_ {
-        self.trail
-            .iter()
-            .filter_map(|&(step, trailed)| match trailed {
-                Trailed::Bound(k) => Some((
-                    k,
-                    self.metas[k as usize]
-                        .bound
-                        .expect("a trailed binding holds"),
-                    step,
-                )),
-                Trailed::Lowered(..) => None,
-            })
     }
 
     /// Rebuilds the first-order part of a session over `forest` from its
@@ -762,25 +616,20 @@ impl Quantified {
                     q.terms.insert(Key::Eigen(a), t);
                 }
                 PartTerm::Meta(k) => {
-                    let Some(&made) = parts.metas.get(q.metas.len()) else {
+                    let Some(&made) = parts.metas.get(q.unifier.metas().len()) else {
                         return Err(bad("a metavariable has no level"));
                     };
-                    if k as usize != q.metas.len() || made > q.eigens {
+                    if k != q.unifier.next_meta() || made > q.eigens {
                         return Err(bad(
                             "the metavariables are not numbered in order, or a level is past the eigenvariables made",
                         ));
                     }
                     let term = q.table.push_term(FoTerm::Meta(k));
-                    q.metas.push(Meta {
-                        term,
-                        level: made,
-                        made,
-                        bound: None,
-                    });
+                    q.unifier.push_meta(term, made);
                 }
             }
         }
-        if q.metas.len() != parts.metas.len() {
+        if q.unifier.metas().len() != parts.metas.len() {
             return Err(bad("a level has no metavariable"));
         }
         let all = base + parts.terms.len();
@@ -829,7 +678,10 @@ impl Quantified {
             // first.
             let ok = step >= last
                 && (step as usize) < steps
-                && q.metas.get(k as usize).is_some_and(|m| m.bound.is_none())
+                && q.unifier
+                    .metas()
+                    .get(k as usize)
+                    .is_some_and(|m| m.bound.is_none())
                 && closed(t, all)
                 && q.resolve(forest, FoTermId::new(t)) == FoTermId::new(t);
             if !ok || q.bind(forest, k, FoTermId::new(t), step).is_err() {
@@ -891,7 +743,7 @@ impl Quantified {
             match *term {
                 FoTerm::Eigen(e) => made = made.max(e.get() as usize + 1),
                 FoTerm::Meta(k) => {
-                    made = made.max(self.metas[k as usize].made as usize);
+                    made = made.max(self.unifier.metas()[k as usize].made as usize);
                     m += 1;
                 }
                 FoTerm::App(_, list) => {
@@ -915,13 +767,19 @@ impl Quantified {
             FoTerm::App(..) | FoTerm::Meta(_) | FoTerm::Bound(_) => usize::MAX,
         }));
         let dropped_constants = suffix_min(self.constants.iter().map(|a| a.get() as usize));
-        let bound = prefix_max(self.trail.iter().map(|&(_, trailed)| match trailed {
-            Trailed::Bound(k) => {
-                let meta = &self.metas[k as usize];
-                reach(meta.term).max(meta.bound.map_or(0, reach))
-            }
-            Trailed::Lowered(k, _) => reach(self.metas[k as usize].term),
-        }));
+        let unified = self.unifier.metas();
+        let bound = prefix_max(
+            self.unifier
+                .trail()
+                .iter()
+                .map(|&(_, trailed)| match trailed {
+                    Trailed::Bound(k) => {
+                        let meta = &unified[k as usize];
+                        reach(meta.term).max(meta.bound.map_or(0, reach))
+                    }
+                    Trailed::Lowered(k, _) => reach(unified[k as usize].term),
+                }),
+        );
         let mut marks = Vec::with_capacity(written.len());
         let mut last: Option<(u32, Mark)> = None;
         for &(step, members, frame_count, term_count, eigen_count, constant_count) in written {
@@ -931,7 +789,7 @@ impl Quantified {
                 term_count as usize,
                 constant_count as usize,
             );
-            let trail = self.trail.partition_point(|&(s, _)| s < step);
+            let trail = self.unifier.trail_before(step);
             let fits = (step as usize) < steps
                 && m <= self.table.members.len()
                 && f <= self.table.frames.len()
@@ -1011,10 +869,11 @@ impl Quantified {
                     FoTerm::Bound(_) => unreachable!("a table's term is closed"),
                 })
                 .collect(),
-            metas: self.metas.iter().map(|m| m.made).collect(),
+            metas: self.unifier.metas().iter().map(|m| m.made).collect(),
             eigens: self.eigens,
             constants: self.constants.iter().map(|a| a.get()).collect(),
             bindings: self
+                .unifier
                 .bindings()
                 .map(|(k, t, step)| (k, t.get(), step))
                 .collect(),
@@ -1161,7 +1020,7 @@ impl Quantified {
                     continue;
                 }
                 let made = match terms.term(u) {
-                    FoTerm::Meta(k) => match self.metas[k as usize].bound {
+                    FoTerm::Meta(k) => match self.unifier.metas()[k as usize].bound {
                         Some(b) if expanded => self.mapped(b, &at),
                         Some(b) => {
                             stack.push((u, true));

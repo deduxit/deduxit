@@ -4,7 +4,6 @@
 //! The steps of a session: the rules a formula admits, a rule applied and
 //! expanded into its premises, undo, and a goal closed by the search.
 
-use super::quantified::Clash;
 use super::{Applicable, Closed, GoalId, Interactive, Needs, Step, StepError, Witness};
 use crate::Error;
 use crate::errors::describe::{Names, cut};
@@ -16,6 +15,7 @@ use crate::linear::proofs::multiset::Multiset;
 use crate::linear::proofs::{Branch, CheckError, Named, Proof, Rule};
 use crate::linear::search::{self, Options, Verdict, focus};
 use crate::linear::sequents::Kind;
+use crate::unify::Clash;
 
 impl Interactive {
     /// Returns the refusal of a rule that does not act on the formula of
