@@ -323,7 +323,11 @@ for `THIRD-PARTY-NOTICES.txt`.
   `Interactive::invertible_steps`, the goals the steps closed by an
   invertible rule (the ids `ordinary_undo` answers in `reopened`), which the
   page's undo goes past as in a linear tab.
-  `tests/ordinary.rs` holds their tests.
+  `tests/ordinary.rs` holds their tests. At first order the step's
+  JSON takes `witness`, the witness's text for `∀L` and `∃R`, which the
+  session reads (`Interactive::witness`); `rules` writes `"witness":
+  true` only where a rule takes one, so propositional answers are as
+  before; a first-order session is written at level 25.
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,
   `rules_view`, `rules_rules`, `rules_apply`, `rules_derive`,

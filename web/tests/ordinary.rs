@@ -37,6 +37,7 @@ fn step(side: &str, position: usize, rule: &str, split: Option<(&[usize], &[usiz
             left: left.to_vec(),
             right: right.to_vec(),
         }),
+        witness: None,
     })
     .unwrap()
 }
@@ -532,4 +533,37 @@ fn a_sequent_is_normalized_and_resolved() {
     let transformations = &about["suites"][1]["transformations"];
     assert_eq!(transformations[2]["call"], "ordinary_normalize");
     assert_eq!(transformations[3]["call"], "ordinary_resolve");
+}
+
+/// A first-order session takes a witness's text with `∀L` and `∃R`,
+/// which `rules` marks, and names the eigenvariable of `∃L`.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_first_order_step_takes_a_witness() {
+    let started = ordinary::start("exists x. p(x) |- exists y. p(y)", "classical", "").unwrap();
+    let state = session(&started);
+    let rules = value(&ordinary::rules(&state, 0, "right", 0, "").unwrap());
+    let existential = rules
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["rule"] == "∃R")
+        .unwrap();
+    assert_eq!(existential["witness"], true);
+    assert!(rules[0].get("witness").is_none(), "{rules}");
+    let answer = ordinary::apply(&state, 0, &step("left", 0, "∃L", None), "").unwrap();
+    let [goal] = open_goals(&answer)[..] else {
+        panic!("{answer}")
+    };
+    let mut witnessed: Value = value(&step("right", 0, "∃R", None));
+    witnessed["witness"] = json!("a");
+    let answer = ordinary::apply(&session(&answer), goal, &witnessed.to_string(), "").unwrap();
+    let [goal] = open_goals(&answer)[..] else {
+        panic!("{answer}")
+    };
+    witnessed["witness"] = json!("b");
+    let refused = ordinary::apply(&session(&answer), goal, &witnessed.to_string(), "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "step", "{}", refused.0);
+    let answer =
+        ordinary::apply(&session(&answer), goal, &step("right", 0, "ax", None), "").unwrap();
+    assert!(open_goals(&answer).is_empty(), "{answer}");
 }

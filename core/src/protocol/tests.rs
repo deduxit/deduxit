@@ -605,3 +605,44 @@ fn a_term_is_checked_and_a_type_s_terms_found_and_counted() {
         Err(Error::InvalidOption { key: "logic", .. })
     ));
 }
+
+/// A first-order statement starts a session and its derivation is
+/// exported, drawn and summarized; the operations that decide or certify
+/// propositional sequents refuse it by name.
+#[test]
+fn a_first_order_statement_is_proved_step_by_step_and_rendered() {
+    use crate::ordinary::{Interactive, Logic, Rule, Side, Step};
+    let text = "forall x. p(x) |- p(c)";
+    let statement = ordinary(text, Logic::Classical);
+    let refused = |operation: &str, inputs: &[&str]| {
+        run(operation, inputs, "", &settings(), |_| false)
+            .unwrap_err()
+            .code()
+    };
+    assert_eq!(refused("ordinary.decide", &[&statement]), "first_order");
+    let session = ran("ordinary.start", &[&statement], "");
+    assert!(session.contains(r#""version":25"#), "{session}");
+    let mut state = Interactive::new(&text.parse().unwrap(), Logic::Classical).unwrap();
+    let goal = state.goals().next().unwrap();
+    let witness = state.witness(goal, "c").unwrap();
+    let step = Step::new(Side::Left, 0, Rule::ForallLeft).with_witness(witness);
+    let [goal] = state.apply(goal, &step).unwrap()[..] else {
+        panic!()
+    };
+    state
+        .apply(goal, &Step::new(Side::Right, 0, Rule::Axiom))
+        .unwrap();
+    let saved = serde_json::to_string(&state).unwrap();
+    let derivation = ran("ordinary.derivation", &[&saved], "");
+    let limits = settings().limits;
+    read("ordinary.derivation", &derivation, &limits).unwrap();
+    #[cfg(feature = "latex")]
+    assert!(ran("ordinary.export", &[&derivation], r#"{"format": "latex"}"#).contains(r"\forall"));
+    #[cfg(feature = "svg")]
+    assert!(ran("ordinary.draw", &[&derivation], "").contains("∀L"));
+    #[cfg(feature = "rocq")]
+    assert_eq!(
+        refused("ordinary.certificate", &[&derivation]),
+        "first_order"
+    );
+}

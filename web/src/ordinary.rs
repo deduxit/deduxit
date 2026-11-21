@@ -174,6 +174,10 @@ struct Offered {
     /// Whether it has two premises. They share the goal's other formulas
     /// unless a step splits them.
     split: bool,
+    /// Whether a step of it takes a witness term (`∀L`, `∃R`); written only
+    /// then.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    witness: bool,
 }
 
 impl From<Applicable> for Offered {
@@ -182,6 +186,7 @@ impl From<Applicable> for Offered {
         Self {
             rule: applicable.rule,
             split: matches!(applicable.needs, Needs::Context),
+            witness: matches!(applicable.needs, Needs::Witness),
         }
     }
 }
@@ -211,9 +216,13 @@ pub fn rules(
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
 }
 
-/// A step as the page sends it: `{"side", "position", "rule", "split"}`.
+/// A step as the page sends it: `{"side", "position", "rule", "split",
+/// "witness"}`.
 ///
 /// - `rule` is the rule's name, such as `"→L"`.
+/// - `witness`, for `∀L` and `∃R`, is the witness's text, which the
+///   session reads (`Interactive::witness`: the sequent's function symbols
+///   and the eigenvariables in the goal's scope by their printed names).
 /// - `split`, for a rule with two premises, is the positions on each side
 ///   that go to the first premise: `{"left": [..], "right": [..]}`. It is
 ///   left out when both premises share the goal's other formulas.
@@ -230,6 +239,9 @@ pub struct StepForm {
     /// share the goal's other formulas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub split: Option<SplitForm>,
+    /// The witness's text, for `∀L` and `∃R`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub witness: Option<String>,
 }
 
 /// The formulas a split sends to the first premise of a rule with two,
@@ -269,6 +281,7 @@ impl StepForm {
             position: step.position,
             rule: step.rule,
             split,
+            witness: None,
         }
     }
 }
@@ -296,8 +309,16 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     let step: StepForm = serde_json::from_str(step).map_err(Failure::json)?;
+    let goal = GoalId::new(goal);
+    let mut library = step.step();
+    if let Some(text) = &step.witness {
+        let witness = state
+            .witness(goal, text)
+            .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
+        library = library.with_witness(witness);
+    }
     let mut opened = state
-        .apply(GoalId::new(goal), &step.step())
+        .apply(goal, &library)
         .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
     let mut automatic = Automatic::default();
     if settings.interactive.invertible {
