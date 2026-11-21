@@ -7843,3 +7843,18 @@ move (D26).
   `parallel` were gone, so a check holds it now (`clippy-core-default`, and its line in the gate).
   Rebased onto 74c, its check on `ci/fixup-12`, then `main`. In its slot after a clear: **74e**,
   the open witness (Opus, high, the full panel and the reviewer; cores 7-9).
+- 2026-11-21, about 07:00: **74d reviewed; fixup-13 started.** 74d (Opus, high; the reviewer on
+  Fable): a first-order LJ derivation pinned in LaTeX, Typst and SVG (no exporter change needed);
+  the protocol runs first-order values as the design said (no new kind or operation) and the
+  bindings' ordinary step takes `"witness"`; the manual's "First-order sequents", `status.md`, the
+  wire schema (level 25, validated by the `wire-schema` check) and the guide; ILTP's first-order
+  package (`iltp-first-order`) read by the harness (includes inlined, problems without a
+  conjecture and `lemma`/`theorem` roles read). The pass over 2 670 problems at 2 s: 3 356 rows
+  wait for equality, 1 580 for step 75, 103 ground problems proved and 34 unprovable, no verdict
+  against a status; the reviewer's finding (an intuitionistic `Open` read as the classical
+  `Theorem`, 120 problems) fixed. D17: `read-lltp` +0.37 % (0.47 % over its ceiling, inside the
+  tolerance). Its check on `ci/step-74d`, then `main`. **Decided unattended** (74d's question for
+  the author): 130 problems refused for their names (`par`, a name both predicate and function)
+  are read by **renaming on reading** (`par_`, `name_f`), since TPTP's names are wider than the
+  native syntax's. In its slot, the same worker: **fixup-13**, that renaming, the text tree's size
+  computed under `--tree never` (74c's follow-up) and `include` in the command's TPTP reader.
