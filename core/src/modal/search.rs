@@ -30,8 +30,9 @@
 //! In K4, KD4 and S4 the worlds are made in depth: a new world acts
 //! before the world that made it acts again. A world's part of the
 //! branch (the world and the worlds made after it, until it is
-//! finished) depends only on its key: the formula it was made for and
-//! the `□` true and `◇` false at the worlds that see it. So the search
+//! finished) gets its formulas from its key alone: the formula it was
+//! made for and the `□` true and `◇` false at the worlds that see it
+//! (only blocking, by any earlier world, may differ). So the search
 //! keeps a cache of keys across branches, as Goré and Nguyen's tableaux
 //! with global caching do ("EXPTIME tableaux with global caching for
 //! description logics with transitive roles, inverse roles and role
@@ -1339,7 +1340,7 @@ impl<'a> Search<'a> {
             }
             branch.open.pop();
             branch.worlds[x as usize].end = branch.worlds.len() as u32;
-            self.keep(branch, x);
+            self.keep(branch, x, stop)?;
             // Each finished part was scanned: count it now, not all at
             // the end of the walk.
             self.tick(0, stop)?;
@@ -1399,8 +1400,9 @@ impl<'a> Search<'a> {
     /// formula it is made for (`own`: the operand's index and its side,
     /// or 0 for `Ser`), and every `□` true and `◇` false at a world that
     /// will see it, `x` and the worlds that see `x`. Formulas reach only
-    /// the worlds made later, so nothing else reaches that part, and two
-    /// worlds with one key start the same search.
+    /// the worlds made later, so no other formula reaches that part, and
+    /// two worlds with one key have parts of the same formulas; only
+    /// blocking, by any earlier world, may differ between them.
     fn keyed(&mut self, branch: &mut Branch, x: u32, y: u32, own: u64) -> Rc<[u64]> {
         let words = self.words;
         let mut key = vec![0u64; 2 * words + 1];
@@ -1443,12 +1445,17 @@ impl<'a> Search<'a> {
     /// so a world is copied into one entry at most along a branch. The
     /// entry is taken only where the memory bound spares it, as the linear
     /// search's memo is.
-    fn keep(&mut self, branch: &mut Branch, k: u32) {
+    fn keep(
+        &mut self,
+        branch: &mut Branch,
+        k: u32,
+        stop: &mut impl FnMut(Progress) -> bool,
+    ) -> Result<(), Reason> {
         let Some(key) = branch.worlds[k as usize].key.clone() else {
-            return;
+            return Ok(());
         };
         if Self::cached(branch, k) || self.cache.contains_key(&key) {
-            return;
+            return Ok(());
         }
         let (start, end) = (k as usize, branch.worlds.len());
         // Each world's place in the entry, `u32::MAX` for a world inside
@@ -1508,7 +1515,7 @@ impl<'a> Search<'a> {
             let w = &branch.worlds[y as usize];
             if y != k {
                 let Some(m) = at(w.maker) else {
-                    return;
+                    return Ok(());
                 };
                 pieces[m as usize].arrows.push(i as u32);
             }
@@ -1536,28 +1543,52 @@ impl<'a> Search<'a> {
             let dead = self.serial && w.sees.is_empty();
             if waits[i] || (dead && own) {
                 let Blocked::By(v) = w.blocked else {
-                    return;
+                    return Ok(());
                 };
                 let Some(v) = at(v) else {
-                    return;
+                    return Ok(());
                 };
                 if pieces[v as usize].graft.is_some() {
-                    return;
+                    return Ok(());
                 }
-                // The blocker does not wait, so its arrows are final; the
-                // waiting world's loop as a dead end goes (not its loop
-                // in S4).
-                let more = pieces[v as usize].arrows.clone();
-                let arrows = &mut pieces[i].arrows;
+                // The blocker does not wait, so its arrows are final. The
+                // waiting world's own loop as a dead end goes (not its
+                // loop in S4, nor an arrow to it it takes from its
+                // blocker). Both lists are sorted (loops and arrows are
+                // added in the order of the worlds): merge them.
                 if !self.reflexive {
-                    arrows.retain(|&a| a != i as u32);
+                    pieces[i].arrows.retain(|&a| a != i as u32);
                 }
-                for c in more {
-                    if !arrows.contains(&c) {
-                        arrows.push(c);
-                    }
+                let more = &pieces[v as usize].arrows;
+                let mine = &pieces[i].arrows;
+                let mut merged = Vec::with_capacity(mine.len() + more.len());
+                let (mut a, mut b) = (0, 0);
+                while a < mine.len() || b < more.len() {
+                    let next = match (mine.get(a), more.get(b)) {
+                        (Some(&x), Some(&y)) if x == y => {
+                            a += 1;
+                            b += 1;
+                            x
+                        }
+                        (Some(&x), Some(&y)) if x < y => {
+                            a += 1;
+                            x
+                        }
+                        (Some(&x), None) => {
+                            a += 1;
+                            x
+                        }
+                        (_, Some(&y)) => {
+                            b += 1;
+                            y
+                        }
+                        (None, None) => unreachable!("the loop's condition"),
+                    };
+                    merged.push(next);
                 }
-                self.owed = self.owed.saturating_add(arrows.len() as u64);
+                self.owed = self.owed.saturating_add((mine.len() + more.len()) as u64);
+                pieces[i].arrows = merged;
+                self.tick(0, stop)?;
             }
         }
         let mut bytes = key.len() * 16 + 64;
@@ -1570,7 +1601,7 @@ impl<'a> Search<'a> {
             );
         }
         if !self.account.spares(bytes) {
-            return;
+            return Ok(());
         }
         self.account.charge(bytes);
         self.cache_bytes = self.cache_bytes.saturating_add(bytes);
@@ -1578,6 +1609,7 @@ impl<'a> Search<'a> {
         self.entries.push(Entry { worlds: pieces });
         self.cache.insert(key, entry);
         branch.worlds[k as usize].kept = Some(entry);
+        Ok(())
     }
 
     /// Returns the bytes a world of an entry takes in a model: its arrows,
