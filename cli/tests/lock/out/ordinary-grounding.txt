@@ -3,7 +3,7 @@ $ deduxit prove --logic classical --stats 'exists x. p(x), q |- forall x. p(x)'
 --- stdout
 not valid (classical logic by grounding): a checked finite structure of 2 elements refutes it
 domain: {0, 1}
-p: {0}
+p: {1}
 q: true
 elements: 2
 ground atoms: 3
