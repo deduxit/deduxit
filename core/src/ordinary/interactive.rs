@@ -488,6 +488,15 @@ enum Shape {
 /// position], "premises": [indices]}`, a quantifier step with its
 /// `"term"` as a derivation's has it; an open goal has its two sides
 /// alone. `history` lists, in order, the inference each step closed.
+///
+/// A first-order proof's open witnesses are terms `{"M": k}` of the
+/// sequent's `fo` (`$1` for `k = 0`), and `"bindings": [[k, term,
+/// step]]` lists those an axiom filled, in the order filled: the
+/// witness, the index of its term in `fo`, and the step whose axiom
+/// filled it; the key is left out where there is none. The inferences
+/// are written as their steps made them, before a filling changed them,
+/// and the reader fills them again step by step.
+///
 /// Reading the form back checks every inference by the checker's rules,
 /// so a state read from JSON is as sound as one built through
 /// [`apply`](Self::apply).
@@ -581,10 +590,14 @@ enum Unbound {
 
 /// Unifies the formulas `left` and `right` of an axiom in `formulas`,
 /// binding open witnesses under `step`. A binding takes no eigenvariable at
-/// or above its witness's level and none that `in_scope` refuses, and the
-/// terms of the arena once the bindings are shown must unfold to at most
-/// `most` symbols by the measure a document's reader takes
-/// ([`arena_terms`]). On a refusal nothing is left bound.
+/// or above its witness's level and none that `in_scope` refuses, and no
+/// term that unfolds to more than `most` symbols. With `arena`, the terms
+/// of the arena once the bindings are shown must unfold to at most `most`
+/// symbols too, by the measure a document's reader takes
+/// ([`arena_terms`]): the session asks it, so that it writes no document
+/// its reader refuses; the reader, whose document that measure has
+/// bounded already, does not, since its arena is the last step's. On a
+/// refusal nothing is left bound.
 fn unify_axiom(
     formulas: &Formulas,
     unifier: &mut Unifier,
@@ -592,6 +605,7 @@ fn unify_axiom(
     step: u32,
     in_scope: &impl Fn(FoTermId) -> bool,
     most: u64,
+    arena: bool,
 ) -> Result<(), Unbound> {
     let pairs = formulas.term_pairs(left, right).ok_or(Unbound::Differ)?;
     let terms = formulas.first_order();
@@ -612,10 +626,19 @@ fn unify_axiom(
         .filter(|&(_, &was)| !was)
         .filter_map(|(m, _)| m.bound)
         .collect();
-    let mut total = arena_terms(terms);
+    let mut largest = 0;
     for &t in &new {
-        total = total.max(unfolded(terms, unifier, t, &mut sizes));
+        largest = largest.max(unfolded(terms, unifier, t, &mut sizes));
     }
+    if largest > most {
+        unifier.undo_to(mark);
+        return Err(Unbound::Large(largest));
+    }
+    let mut total = if arena {
+        arena_terms(terms).max(largest)
+    } else {
+        0
+    };
     // Each atom that holds a witness bound now makes at most one atom more,
     // its arguments resolved: what showing the bindings builds.
     let fresh: Vec<bool> = unifier
@@ -632,7 +655,7 @@ fn unify_axiom(
             FoTerm::Bound(_) | FoTerm::Eigen(_) => false,
         };
     }
-    for &(_, args) in &terms.atoms {
+    for &(_, args) in terms.atoms.iter().filter(|_| arena) {
         let list = terms.list(args);
         if list.iter().any(|a| holds[a.index()]) {
             for &a in list {
@@ -696,7 +719,14 @@ fn unfolded(
         if sizes.contains_key(&u) {
             continue;
         }
-        let r = unifier.resolve(terms, u);
+        // A witness an undone step made stays in the arena's atoms with a
+        // number past the live ones: it is a leaf.
+        let r = match terms.terms[u.index()] {
+            FoTerm::Meta(k) if k as usize >= unifier.metas().len() => u,
+            FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_) => {
+                unifier.resolve(terms, u)
+            }
+        };
         let parts: &[FoTermId] = match terms.terms[r.index()] {
             FoTerm::App(_, args) => terms.list(args),
             FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => &[],
@@ -991,6 +1021,7 @@ impl Interactive {
                 number,
                 &in_scope,
                 self.terms,
+                true,
             )
             .is_ok()
         })
@@ -1220,6 +1251,7 @@ impl Interactive {
                 number,
                 &in_scope,
                 self.terms,
+                true,
             ) {
                 Ok(()) => {
                     partner = Some(at);
@@ -2909,7 +2941,15 @@ impl Replay<'_> {
                 implications_from(formulas, built)?;
                 let g = self.history[s].index();
                 let in_scope = |e| tree.in_scope(e, g);
-                match unify_axiom(formulas, &mut w.unifier, pair, number, &in_scope, self.most) {
+                match unify_axiom(
+                    formulas,
+                    &mut w.unifier,
+                    pair,
+                    number,
+                    &in_scope,
+                    self.most,
+                    false,
+                ) {
                     Ok(()) => {}
                     Err(Unbound::Large(size)) => {
                         return Err(Error::Refused(Refusal::Terms {
@@ -4338,5 +4378,59 @@ mod tests {
         let error = closes(&mut s, first, (Left, "p($1)")).unwrap_err();
         assert!(error.to_string().contains("bound of 2 on terms"), "{error}");
         assert_eq!(s.bindings(), []);
+    }
+
+    /// A witness an undone step made stays in the arena's atoms, numbered
+    /// past the live witnesses; the axiom's measure of the arena passes it
+    /// by.
+    #[test]
+    fn an_undone_witness_left_in_the_arena_is_passed_by() {
+        let (mut s, g) = start(
+            "forall x. forall y. r(x, y) |- forall y. r(a, y)",
+            Logic::Classical,
+        );
+        let [g] = at_position(&mut s, g, (Left, 0), Rule::ForallLeft).unwrap()[..] else {
+            panic!()
+        };
+        at_position(&mut s, g, (Left, 0), Rule::ForallLeft).unwrap();
+        s.undo();
+        s.rules(g, Left, 0).unwrap();
+        assert!(closes(&mut s, g, (Left, "∀y. r($1, y)")).is_ok());
+    }
+
+    /// A session held to a bound on terms writes documents its reader
+    /// takes under the same bound, the steps after a filling growing the
+    /// arena.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_session_under_a_bound_on_terms_reads_back_under_it() {
+        let sequent: Sequent = "forall x. p(x) |- (exists x. p(x)) /\\ (exists x. p(x))"
+            .parse()
+            .unwrap();
+        let limits = Limits {
+            terms: Some(5),
+            ..Limits::default()
+        };
+        let mut s = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
+        let [first, second] =
+            at_position(&mut s, GoalId::new(0), (Right, 0), Rule::AndRight).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [g] = at_position(&mut s, first, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let [g] = at_position(&mut s, g, (Left, 0), Rule::ForallLeft).unwrap()[..] else {
+            panic!()
+        };
+        closes(&mut s, g, (Left, "p($2)")).unwrap();
+        let [g] = at_position(&mut s, second, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        at_position(&mut s, g, (Left, 0), Rule::ForallLeft).unwrap();
+        let json = serde_json::to_string(&s).unwrap();
+        let mut reader = serde_json::Deserializer::from_str(&json);
+        let read: Interactive = crate::wire::upgrade(&mut reader, &limits).unwrap();
+        assert_eq!(serde_json::to_string(&read).unwrap(), json);
     }
 }

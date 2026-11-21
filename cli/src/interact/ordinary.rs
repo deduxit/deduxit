@@ -236,10 +236,15 @@ impl Commands for Session {
                     step = step.split(&left, &right);
                 }
                 let before = self.state.steps();
-                let bound = self.state.bindings().len();
+                // The bindings come by witness number, so a step that fills
+                // an earlier witness adds one in the middle.
+                let known: Vec<String> = self.state.bindings().into_iter().map(|b| b.0).collect();
                 let opened = self.state.apply(goal, &step)?;
-                let filled: Vec<String> = self.state.bindings()[bound..]
+                let filled: Vec<String> = self
+                    .state
+                    .bindings()
                     .iter()
+                    .filter(|(witness, _)| !known.contains(witness))
                     .map(|(witness, term)| format!("filled {witness} with {term}\n"))
                     .collect();
                 format!("{}{}", filled.concat(), self.stepped(before, opened)?)

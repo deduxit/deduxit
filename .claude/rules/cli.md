@@ -1322,8 +1322,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   the words after `∀L` or `∃R` as the witness
   (`ordinary::Interactive::witness`), none leaving it open (`$1`), and
   after an `apply` prints `filled $k with TERM` for each binding the
-  step made (`ordinary::Interactive::bindings`, compared before and
-  after); `ordinary_rules` lists the
+  step made (`ordinary::Interactive::bindings`, by witness number,
+  compared by name before and after: a step that fills an earlier
+  witness adds one in the middle); `ordinary_rules` lists the
   quantifier rules only for a sequent with a binder (`binders`), so a
   propositional session's messages are as before; `close` answers the
   library's first-order refusal.

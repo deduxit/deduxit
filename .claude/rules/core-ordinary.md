@@ -1094,7 +1094,13 @@ factored out of the two until the kernel crate is.
   for exponentially long ones (20 links took 3.9 s and 44 MB), and a
   bound per binding alone let a session of 96 steps write a document of
   129 KB that its own reader refused (1.5 to 4.8 GB at its peak); the
-  arena only grows, so the check cannot come after the build. Why levels and scope: the eigenvariables a binding may name
+  arena only grows, so the check cannot come after the build. The
+  reader binds with the per-binding bound alone (`unify_axiom`'s
+  `arena` false): its arena is the last step's, which `Tables::read`
+  has bounded, and the last arena plus an earlier step's growth refused
+  a session's own document. A witness an undone step made stays in the
+  arena's atoms numbered past the live ones; `unfolded` takes it as a
+  leaf (resolving it indexed past the unifier's witnesses). Why levels and scope: the eigenvariables a binding may name
   are those of the `∀R`/`∃L` below the step that left the witness open,
   so none lands in its own rule's conclusion.
   - **Every inference shows the bindings in force** (`bind`: a

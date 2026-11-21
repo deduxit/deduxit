@@ -920,6 +920,23 @@ fn ordinary_open_witness() {
         "{out}"
     );
     assert_eq!(status, 1);
+    // An axiom that fills an earlier witness than the last one filled
+    // says which.
+    let script = "apply 0 R0 andR\napply 1 R0 existsR\napply 2 R0 existsR\napply 4 L0 forallL\n\
+                  apply 5 L0 ax\napply 3 L0 forallL\napply 8 L0 ax\n";
+    let line = [
+        "interact",
+        "--logic",
+        "classical",
+        "forall x. p(f(x)) |- (exists x. p(x)) /\\ (exists x. p(x))",
+    ];
+    let (_, out, _) = deduxit(&line, script);
+    let filled: Vec<&str> = out.lines().filter(|l| l.starts_with("filled")).collect();
+    assert_eq!(
+        filled,
+        ["filled $2 with f($3)", "filled $1 with f($4)"],
+        "{out}"
+    );
 }
 
 /// `interact --logic` proves an ordinary sequent by the rules of LK or
