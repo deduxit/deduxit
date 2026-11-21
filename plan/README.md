@@ -7834,3 +7834,12 @@ move (D26).
     74e** (Opus, high, the panel), after fixup-12 frees its slot.
   - **74d** started in 74c's worker (it keeps its conversation): the exports, the protocol's
     reads, the manual and the guide, ILTP's first-order package.
+- 2026-11-21, about 06:15: **fixup-12 reviewed; 74e started.** fixup-12 (Opus, high; the
+  reviewer on Fable) tested three `later.md` entries found by reading: a table of binders alone
+  made `join_first_order` and `add_cut` read the sequent's atoms with the other side's names (a
+  fault, fixed with a test that failed before); LJ's one-premise `¬L` gave a certificate Rocq
+  refused (a fault: the writer now applies the negation to the premise, Rocq accepts it with no
+  axiom, both certificates pinned as snapshots the `rocq` check compiles); the warnings without
+  `parallel` were gone, so a check holds it now (`clippy-core-default`, and its line in the gate).
+  Rebased onto 74c, its check on `ci/fixup-12`, then `main`. In its slot after a clear: **74e**,
+  the open witness (Opus, high, the full panel and the reviewer; cores 7-9).
