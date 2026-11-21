@@ -87,8 +87,8 @@ pub enum Status {
 /// Reads the text of an LLTP file into its sequent and the status its
 /// header claims.
 ///
-/// - Every clause with the role `axiom` or `hypothesis` is a formula left
-///   of `⊢`, in the order of the file. The one clause with the role
+/// - Every clause with the role `axiom`, `hypothesis`, `lemma` or
+///   `theorem` is a formula left of `⊢`, in the order of the file. The one clause with the role
 ///   `conjecture` is the formula right of it.
 /// - From `%` to the end of a line is a comment.
 /// - The status is the first `Status (intuit.)` or `Status (linear)`
@@ -118,10 +118,15 @@ pub enum Status {
 ///   [`Sequent::parse_within`] refuses it.
 pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Lltp { message })?;
+    let Some(conjecture) = &clauses.conjecture else {
+        return Err(Error::Lltp {
+            message: "no conjecture".to_owned(),
+        });
+    };
     // The sequent as text, and where each formula of the file starts in it.
     let mut sequent = String::new();
     let mut pieces = Vec::new();
-    let ranges = clauses.hypotheses.iter().chain([&clauses.conjecture]);
+    let ranges = clauses.hypotheses.iter().chain([conjecture]);
     for (i, range) in ranges.enumerate() {
         sequent.push_str(match i {
             0 => "",
@@ -166,10 +171,11 @@ pub(crate) struct Clauses {
     /// The file's text without comments, a `-` inside a name written as
     /// [`HYPHEN`] and a `.` as [`DOT`].
     code: String,
-    /// The formulas of the clauses with the role `axiom` or `hypothesis`.
+    /// The formulas of the clauses with the role `axiom`, `hypothesis`,
+    /// `lemma` or `theorem`.
     hypotheses: Vec<std::ops::Range<usize>>,
-    /// The formula of the one clause with the role `conjecture`.
-    conjecture: std::ops::Range<usize>,
+    /// The formula of the one clause with the role `conjecture`, if any.
+    conjecture: Option<std::ops::Range<usize>>,
     /// The provability the header claims.
     pub(crate) status: Option<Status>,
 }
@@ -186,9 +192,9 @@ impl Clauses {
         &self.code
     }
 
-    /// Returns the conjecture's formula.
-    pub(crate) fn conjecture(&self) -> &str {
-        &self.code[self.conjecture.clone()]
+    /// Returns the conjecture's formula, if the file has one.
+    pub(crate) fn conjecture(&self) -> Option<&str> {
+        self.conjecture.clone().map(|r| &self.code[r])
     }
 
     /// Returns the byte of `file`, the text these clauses were read from,
@@ -349,7 +355,8 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
         let start = formula.as_ptr() as usize - code.as_ptr() as usize;
         let range = start..start + formula.len();
         match role.trim() {
-            "axiom" | "hypothesis" => hypotheses.push(range),
+            // A lemma and a theorem are claimed true, as an axiom is.
+            "axiom" | "hypothesis" | "lemma" | "theorem" => hypotheses.push(range),
             "conjecture" if conjecture.is_some() => {
                 return Err(Error::SeveralConjectures {
                     second: name.to_owned(),
@@ -358,7 +365,8 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
             "conjecture" => conjecture = Some(range),
             other => {
                 return Err(error(format!(
-                    "clause `{name}` has the role `{other}`, not axiom, hypothesis or conjecture"
+                    "clause `{name}` has the role `{other}`, not axiom, hypothesis, lemma, theorem or \
+                     conjecture"
                 )));
             }
         }
@@ -368,9 +376,6 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
             .ok_or_else(|| error(format!("clause `{name}` does not end with `).`")))?
             .trim_start();
     }
-    let Some(conjecture) = conjecture else {
-        return Err(error("no conjecture".to_owned()));
-    };
     Ok(Clauses {
         code,
         hypotheses,
@@ -475,8 +480,9 @@ mod tests {
                 "expected `fof(` at `cnf(c, conjecture, a).`",
             ),
             (
-                "fof(c, lemma, a).",
-                "clause `c` has the role `lemma`, not axiom, hypothesis or conjecture",
+                "fof(c, definition, a).",
+                "clause `c` has the role `definition`, not axiom, hypothesis, lemma, theorem or \
+                 conjecture",
             ),
         ] {
             match read(text, &Limits::default()) {

@@ -704,8 +704,10 @@ pub struct Problem {
 }
 
 /// Reads a problem of TPTP's `fof` syntax, as the ILTP library writes
-/// them: every clause with the role `axiom` or `hypothesis` is a
-/// hypothesis, the one `conjecture` the formula right of `⊢`. A formula
+/// them: every clause with the role `axiom`, `hypothesis`, `lemma` or
+/// `theorem` is a hypothesis, the one `conjecture` the formula right of
+/// `⊢`. A file without a conjecture asks that its hypotheses be refuted:
+/// nothing stands right of `⊢`. A formula
 /// is built over `$true`, `$false` and atoms with these connectives, from
 /// the tightest binding to the loosest: `~`, `! [X, …] :` and `? [X, …] :`;
 /// `&` and `~&`; `|` and `~|`; `=>` and `<=`; `<=>` and `<~>`. TPTP asks
@@ -769,7 +771,11 @@ pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
         .hypotheses()
         .map(&mut read)
         .collect::<Result<_, _>>()?;
-    let right = vec![read(clauses.conjecture())?];
+    // Without a conjecture TPTP asks for the hypotheses' refutation.
+    let right = match clauses.conjecture() {
+        Some(conjecture) => vec![read(conjecture)?],
+        None => Vec::new(),
+    };
     Ok(Problem {
         sequent: Sequent::new(formulas, left, right)?,
         status: clauses.status,
@@ -925,7 +931,7 @@ mod tests {
             "¬p → (r → q), (¬(p ↔ q) ∧ ¬(p ∨ ⊤)) ∧ ¬(q ∧ ⊥) ⊢ ¬¬p ↔ p"
         );
         assert!(matches!(
-            read_tptp("fof(c, axiom, p).", &Limits::default()),
+            read_tptp("fof(c, axiom, p) & q.", &Limits::default()),
             Err(Error::Tptp { .. })
         ));
         assert!(read_tptp("fof(c, conjecture, p -> q).", &Limits::default()).is_err());
@@ -939,22 +945,20 @@ mod tests {
             place("fof(a, axiom, p).\nfof(b, axiom, p & ).\nfof(c, conjecture, p)."),
             (2, 19, Some(")".to_owned()))
         );
+        // A file without a conjecture asks for its hypotheses' refutation,
+        // and a lemma is a hypothesis.
+        let refuted =
+            read_tptp("fof(a, axiom, p).\nfof(b, lemma, ~p).", &Limits::default()).unwrap();
+        assert_eq!(refuted.sequent.to_string(), "p, ¬p ⊢");
         // TPTP's constants are `$true` and `$false`; a plain `true` would
         // name an atom that this syntax reads as the constant, and is
-        // refused. The messages say what is wrong.
-        for (text, message) in [
-            (
-                "fof(c, conjecture, true | p).",
-                "the atom name \"true\" is a keyword of the syntax",
-            ),
-            ("fof(c, axiom, p).", "not a TPTP problem: no conjecture"),
-        ] {
-            assert_eq!(
-                read_tptp(text, &Limits::default()).unwrap_err().to_string(),
-                message,
-                "{text}"
-            );
-        }
+        // refused. The message says what is wrong.
+        assert_eq!(
+            read_tptp("fof(c, conjecture, true | p).", &Limits::default())
+                .unwrap_err()
+                .to_string(),
+            "the atom name \"true\" is a keyword of the syntax"
+        );
     }
 
     /// A second conjecture is refused by name: right of `⊢` the two would

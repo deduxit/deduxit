@@ -23,12 +23,17 @@ the generated families are read or changed; the harness that runs them is
   or `Status (linear)` comment's, else the first plain one's, because the
   translated ILLTP problems carry the classical source's `Status` first
   (39 files, the excluded middle among them, would read as theorems);
-  roles other than `axiom`, `hypothesis` and `conjecture`, an
+  roles other than `axiom`, `hypothesis`, `lemma`, `theorem` (the last
+  two claimed true, so hypotheses; ILTP's first-order problems use
+  `lemma`) and `conjecture`, an
   annotation after the formula, an empty formula (it read as an empty
   succedent and was decided) and a second conjecture
   (`Error::SeveralConjectures`, naming it; joined right of `⊢` the two
   read as their par) are refused, in `lltp::clauses`, which
-  `ordinary::read_tptp` shares. A `-` between two name
+  `ordinary::read_tptp` shares. A file without a conjecture is refused
+  by `lltp::read` alone: `read_tptp` reads it as the hypotheses'
+  refutation, nothing right of `⊢`, as TPTP means it (182 of ILTP's
+  first-order problems). A `-` between two name
   characters is part of the name unless it starts `-o` (and `-o` between
   two name characters, `a-ob`, is refused: a name to the library's
   convention and `a ⊸ b` to this crate's, H6; no file of the LLTP or
