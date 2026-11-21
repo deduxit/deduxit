@@ -82,7 +82,15 @@ static KINDS: [Kind; 6] = [
 static DECIDE_PARAMETERS: [Parameter; 2] = [
     Parameter {
         name: "method",
-        values: &["embedding", "ljt", "sat", "table", "tableau", "connection"],
+        values: &[
+            "embedding",
+            "ljt",
+            "sat",
+            "table",
+            "tableau",
+            "connection",
+            "grounding",
+        ],
         default: None,
         description: "How to decide; left out, the logic's default",
     },
@@ -1427,15 +1435,18 @@ fn decides(
             checked("derivation", derivation.check(limits, stop))?.status
         }
         ordinary::Verdict::Valid(_) => Status::Recorded,
-        ordinary::Verdict::NotValid => match &outcome.countermodel {
-            Some(countermodel) => {
+        ordinary::Verdict::NotValid => match (&outcome.countermodel, &outcome.structure) {
+            (Some(countermodel), _) => {
                 checked(
                     "countermodel",
                     countermodel.check(outcome.logic, limits, stop),
                 )?
                 .status
             }
-            None => Status::Recorded,
+            (None, Some(structure)) => {
+                checked("structure", structure.check(outcome.logic, limits, stop))?.status
+            }
+            (None, None) => Status::Recorded,
         },
         ordinary::Verdict::Unknown(_) => Status::None,
     };

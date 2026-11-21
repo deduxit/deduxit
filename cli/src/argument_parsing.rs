@@ -659,16 +659,17 @@ pub(crate) struct ProveArgs {
     pub(crate) system: Option<deduxit::modal::System>,
     /// With --logic, how to decide the sequent: through its embedding into
     /// linear logic, by LJT, by a SAT solver, by its truth table, by a
-    /// tableau or by a connection prover (ordinary.method)
+    /// tableau, by a connection prover or by grounding (ordinary.method)
     ///
     /// By default every logic is decided by the SAT solver: intuitionistic
     /// and minimal logic with LJT's derivation where LJT gives one, and
     /// classical logic with the embedding's output (its derivation of LK,
     /// refutation and certificate) where the embedding decides within a
-    /// short bound of work. A first-order sequent is decided by the
+    /// short bound of work. A first-order sequent is decided by grounding
+    /// where it lies in the classes grounding decides, else by the
     /// connection prover in classical logic and through the embedding in
-    /// the others, the methods that take one; where the connection prover
-    /// gives up at a bound, the embedding decides in its place.
+    /// the others, the methods that take one; where grounding or the
+    /// connection prover gives up, the embedding decides in its place.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
@@ -678,13 +679,24 @@ pub(crate) struct ProveArgs {
     /// derivation of LK or LJ, and a search that finds no proof is
     /// unknown, never not valid, but for a classical sequent without
     /// quantifiers (--path-length bounds it).
+    /// Grounding decides the first-order sequents without function
+    /// symbols where no ∀ stands under an ∃ (the Bernays–Schönfinkel
+    /// class) or no predicate takes two or more arguments (the monadic
+    /// class); "under" is read once negations are pushed inward, the
+    /// hypotheses negated, and the quantifiers moved inward as far as they
+    /// go. It replaces the quantifiers by the finitely many constants and
+    /// hands the result to the SAT solver. A sequent that is not valid
+    /// gets a checked finite structure, printed after the verdict: its
+    /// elements, each constant's element and where each predicate holds.
+    /// In intuitionistic and minimal logic a classically valid sequent is
+    /// unknown to grounding.
     /// The truth table and the tableau decide classical logic, and print
     /// the table or the tableau in place of a derivation: the table's rows
     /// that falsify the sequent marked `×`, the tableau's lines numbered,
     /// each branch closed with `×` or left open. --table-atoms bounds the
     /// table.
-    /// Under LJT, the SAT solver, the table, the tableau and the
-    /// connection prover, --stats prints
+    /// Under LJT, the SAT solver, the table, the tableau, the
+    /// connection prover and grounding, --stats prints
     /// the method's counters. Under every method --format json writes the
     /// outcome of the ordinary sequent, its "search" tagged by "method".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
@@ -2207,6 +2219,11 @@ pub(crate) enum MethodArg {
     /// intuitionistic logic, first-order sequents included: a valid
     /// sequent gets a checked derivation of LK or LJ
     Connection,
+    /// By grounding over the constants and the SAT solver, for first-order
+    /// sequents without function symbols where no ∀ stands under an ∃ or
+    /// every predicate takes at most one argument: a sequent that is not
+    /// valid gets a checked finite structure
+    Grounding,
 }
 
 impl From<MethodArg> for deduxit::ordinary::Method {
@@ -2218,6 +2235,7 @@ impl From<MethodArg> for deduxit::ordinary::Method {
             MethodArg::Table => Self::Table,
             MethodArg::Tableau => Self::Tableau,
             MethodArg::Connection => Self::Connection,
+            MethodArg::Grounding => Self::Grounding,
         }
     }
 }

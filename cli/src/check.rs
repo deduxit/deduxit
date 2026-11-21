@@ -590,6 +590,10 @@ pub(crate) fn check_ordinary(
                 let countermodel = outcome.countermodel.as_ref().expect("a countermodel");
                 check_countermodel(countermodel, logic, &show, quiet, deadline, &mut out)?
             }
+            (ordinary::Verdict::NotValid, None) if outcome.structure.is_some() => {
+                let structure = outcome.structure.as_ref().expect("a structure");
+                check_structure(structure, logic, &show, quiet, deadline, &mut out)?
+            }
             (ordinary::Verdict::NotValid, None) => {
                 let by = match outcome.method() {
                     ordinary::Method::Sat => "the SAT solver",
@@ -905,6 +909,72 @@ fn check_countermodel(
     let keep = show.close(out, shown, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
         show.after(out, &model.to_string(), false)?;
+    }
+    Ok((status, keep))
+}
+
+/// Checks that an outcome's finite structure refutes its first-order
+/// sequent, and writes the verdict and the structure, or the verdict as
+/// JSON; returns the verdict's status (valid 0, invalid 1, unknown 3) and
+/// whether the output is to be finished.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+fn check_structure(
+    countermodel: &ordinary::FiniteCountermodel,
+    logic: ordinary::Logic,
+    show: &Show,
+    quiet: bool,
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let result = countermodel.check(logic, &show.limits, |_| over());
+    let status = match &result {
+        Ok(()) => Status::Yes,
+        Err(error) if error.is_refusal() => Status::Unknown,
+        Err(_) => Status::No,
+    };
+    let sequent = abbreviated(&countermodel.sequent, show.abbreviate, 0);
+    let structure = &countermodel.structure;
+    let line = match &result {
+        Ok(()) => format!(
+            "valid refutation of {sequent} ({logic} logic): a finite structure of {} refutes it",
+            crate::eliminate::counted(structure.size as usize, "element", "elements"),
+        ),
+        Err(error) if status == Status::No => {
+            format!("invalid refutation of {sequent} ({logic} logic): {error}")
+        }
+        Err(error) => {
+            format!("unknown: the refutation of {sequent} ({logic} logic) is not checked: {error}")
+        }
+    };
+    if show.format == Format::Json {
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: match status {
+                Status::Yes => "valid",
+                Status::Unknown => "unknown",
+                _ => "invalid",
+            },
+            mode: None,
+            logic: Some(logic),
+            calculus: None,
+            system: None,
+            error: result.as_ref().err().cloned(),
+            message: result.is_err().then_some(line),
+            lambda: None,
+            failing: None,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok((status, true));
+    }
+    let line = (show.verdict || result.is_err()).then_some(line);
+    show.open(out, line.as_deref())?;
+    let keep = show.close(out, Shown::Nothing, line.as_deref())?;
+    if result.is_ok() && !quiet && show.format == Format::Text {
+        show.after(out, &structure.to_string(), false)?;
     }
     Ok((status, keep))
 }

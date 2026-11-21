@@ -70,6 +70,12 @@ pub struct Outcome {
     /// SAT solver's statistics count its worlds), and where the stop ended
     /// the check of the embedding's model.
     pub countermodel: Option<super::Countermodel>,
+    /// The finite structure that refutes a first-order sequent that is not
+    /// valid, checked by [`FiniteCountermodel::check`](super::FiniteCountermodel::check):
+    /// grounding's ([`Method::Grounding`]). It refutes the sequent in every
+    /// logic, a classical structure being a Kripke model of one world.
+    /// `None` for every other verdict and method.
+    pub structure: Option<Box<super::FiniteCountermodel>>,
 }
 
 /// How an ordinary sequent was searched, by its [`Method`].
@@ -98,6 +104,10 @@ pub enum Search {
     Tableau(Box<super::Tableau>),
     /// By the connection prover, and what its search cost.
     Connection(super::connection::Statistics),
+    /// By grounding over the constants and the SAT solver, and what it
+    /// cost. Needs the cargo feature `sat`.
+    #[cfg(feature = "sat")]
+    Grounding(super::grounding::Statistics),
 }
 
 impl Outcome {
@@ -112,6 +122,8 @@ impl Outcome {
             #[cfg(feature = "interactive")]
             Search::Tableau(_) => Method::Tableau,
             Search::Connection(_) => Method::Connection,
+            #[cfg(feature = "sat")]
+            Search::Grounding(_) => Method::Grounding,
         }
     }
 }
@@ -126,6 +138,22 @@ impl From<super::sat::Outcome> for Outcome {
             logic: outcome.logic,
             search: Search::Sat(outcome.statistics),
             countermodel: outcome.model,
+            structure: None,
+        }
+    }
+}
+
+#[cfg(feature = "sat")]
+impl From<super::grounding::Outcome> for Outcome {
+    /// The outcome of grounding as an outcome of deciding an ordinary
+    /// sequent, its structure the countermodel.
+    fn from(outcome: super::grounding::Outcome) -> Self {
+        Self {
+            verdict: outcome.verdict,
+            logic: outcome.logic,
+            search: Search::Grounding(outcome.statistics),
+            countermodel: None,
+            structure: outcome.structure.map(Box::new),
         }
     }
 }
@@ -139,6 +167,7 @@ impl From<super::connection::Outcome> for Outcome {
             logic: outcome.logic,
             search: Search::Connection(outcome.statistics),
             countermodel: None,
+            structure: None,
         }
     }
 }
@@ -151,8 +180,48 @@ impl From<ljt::Outcome> for Outcome {
             logic: outcome.logic,
             search: Search::Ljt(outcome.statistics),
             countermodel: None,
+            structure: None,
         }
     }
+}
+
+/// Decides a first-order sequent of the decidable classes by grounding
+/// ([`grounding::decide`](super::grounding::decide)). As the default
+/// (`default`) in classical logic, a valid sequent gets the connection
+/// prover's derivation of LK where it finds one within [`EVIDENCE_WORK`]
+/// steps, the clausal proof standing otherwise. A sequent outside the
+/// classes is unknown ([`Reason::Incomplete`]), as one valid classically
+/// is in the other logics: the default gives way to the next method there.
+#[cfg(feature = "sat")]
+fn by_grounding(
+    sequent: &Sequent,
+    logic: Logic,
+    default: bool,
+    search: &search::Options,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    let Some(grounded) = super::grounding::decide(sequent, logic, limits, &mut *stop)? else {
+        return Ok(Outcome {
+            verdict: Verdict::Unknown(Reason::Incomplete),
+            logic,
+            search: Search::Grounding(super::grounding::Statistics::default()),
+            countermodel: None,
+            structure: None,
+        });
+    };
+    if default && logic == Logic::Classical && matches!(grounded.verdict, Verdict::Valid(_)) {
+        let bounded = limits.with_work(Some(
+            limits.work.map_or(EVIDENCE_WORK, |w| w.min(EVIDENCE_WORK)),
+        ));
+        if let Ok(connected) =
+            super::connection::decide(sequent, logic, search, &bounded, &mut *stop)
+            && matches!(connected.verdict, Verdict::Valid(Evidence::Derivation(_)))
+        {
+            return Ok(Outcome::from(connected));
+        }
+    }
+    Ok(Outcome::from(grounded))
 }
 
 /// Whether an ordinary sequent is valid in its logic.
@@ -325,6 +394,7 @@ fn with_evidence(
             linear: Box::new(linear),
         },
         countermodel,
+        structure: None,
     })
 }
 
@@ -402,6 +472,7 @@ impl super::Image {
                 linear: Box::new(linear),
             },
             countermodel,
+            structure: None,
         })
     }
 
@@ -552,6 +623,21 @@ pub fn decide_within(
     within(sequent, options, search, limits, &mut stop)
 }
 
+/// Returns whether `method` decides first-order sequents: the embedding,
+/// the connection prover and grounding.
+pub(super) const fn takes_first_order(method: Method) -> bool {
+    match method {
+        Method::Embedding | Method::Connection => true,
+        #[cfg(feature = "sat")]
+        Method::Grounding => true,
+        Method::Ljt | Method::Table => false,
+        #[cfg(feature = "sat")]
+        Method::Sat => false,
+        #[cfg(feature = "interactive")]
+        Method::Tableau => false,
+    }
+}
+
 /// [`decide_within`] with the stop as a trait object, so that every
 /// method is compiled once, not once per caller's closure.
 fn within(
@@ -561,10 +647,10 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    // At first order the embedding and the connection prover decide:
-    // every other method refuses at its door.
+    // At first order the embedding, the connection prover and grounding
+    // decide: every other method refuses at its door.
     let method = options.method_for(sequent);
-    if !matches!(method, Method::Embedding | Method::Connection) {
+    if !takes_first_order(method) {
         sequent.formulas().propositional(method.title())?;
     }
     let (logic, translation) = (options.logic, options.translation());
@@ -604,6 +690,15 @@ fn within(
         Method::Connection => Some(
             super::connection::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
         ),
+        #[cfg(feature = "sat")]
+        Method::Grounding => Some(by_grounding(
+            sequent,
+            logic,
+            options.method.is_none(),
+            search,
+            limits,
+            &mut stop,
+        )),
     };
     if let Some(decided) = decided
         && (options.method.is_some() || !gives_way(&decided))
@@ -637,6 +732,7 @@ fn within(
             linear: Box::new(linear),
         },
         countermodel,
+        structure: None,
     })
 }
 

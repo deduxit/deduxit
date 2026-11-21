@@ -67,6 +67,8 @@ pub mod connection;
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
+#[cfg(feature = "sat")]
+pub mod grounding;
 /// The instances of a quantified formula, built or found.
 mod instance;
 /// Step-by-step proving in LK and LJ.
@@ -89,6 +91,8 @@ pub mod resolution;
 pub(crate) mod rocq;
 #[cfg(feature = "sat")]
 pub mod sat;
+/// Finite structures, the countermodels of first-order sequents.
+mod structure;
 /// The translations into linear logic.
 mod table;
 #[cfg(feature = "interactive")]
@@ -109,6 +113,7 @@ pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Ste
 pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp};
+pub use structure::{Evaluation, FiniteCountermodel, Structure};
 pub use table::{TruthTable, truth_table};
 #[cfg(feature = "interactive")]
 pub use tableau::{End, Sign, Signed, Tableau, TableauNode};
@@ -387,6 +392,14 @@ pub enum Method {
     /// valid"; elsewhere, and always intuitionistically, it deepens its
     /// bound on the active path and answers "unknown" where none is found.
     Connection,
+    /// Grounding over the constants and the SAT solver
+    /// ([`grounding::decide`]), for the first-order sequents of the
+    /// Bernays–Schönfinkel and the monadic class: valid with a checked
+    /// clausal proof, or not valid with a checked finite [`Structure`],
+    /// which refutes the sequent in every logic. A valid sequent is only
+    /// valid in classical logic. Needs the cargo feature `sat`.
+    #[cfg(feature = "sat")]
+    Grounding,
 }
 
 impl Method {
@@ -400,6 +413,8 @@ impl Method {
         #[cfg(feature = "interactive")]
         Self::Tableau,
         Self::Connection,
+        #[cfg(feature = "sat")]
+        Self::Grounding,
     ];
 
     /// The methods' names, which [`name`](Self::name) writes and `FromStr`
@@ -413,10 +428,13 @@ impl Method {
         #[cfg(feature = "interactive")]
         "tableau",
         "connection",
+        #[cfg(feature = "sat")]
+        "grounding",
     ];
 
     /// Returns the method's name: `embedding`, `ljt`, `sat`, `table`,
-    /// `tableau` or `connection`, as the command and the JSON spell it.
+    /// `tableau`, `connection` or `grounding`, as the command and the JSON
+    /// spell it.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Embedding => "embedding",
@@ -427,6 +445,8 @@ impl Method {
             #[cfg(feature = "interactive")]
             Self::Tableau => "tableau",
             Self::Connection => "connection",
+            #[cfg(feature = "sat")]
+            Self::Grounding => "grounding",
         }
     }
 
@@ -441,6 +461,8 @@ impl Method {
             #[cfg(feature = "interactive")]
             Self::Tableau => "a tableau",
             Self::Connection => "the connection prover",
+            #[cfg(feature = "sat")]
+            Self::Grounding => "grounding",
         }
     }
 
@@ -455,6 +477,8 @@ impl Method {
             #[cfg(feature = "interactive")]
             Self::Tableau => "classical logic",
             Self::Connection => "classical and intuitionistic logic",
+            #[cfg(feature = "sat")]
+            Self::Grounding => "every logic, refuting only in intuitionistic and minimal logic",
         }
     }
 
@@ -492,6 +516,8 @@ impl Method {
             #[cfg(feature = "interactive")]
             Self::Tableau => matches!(logic, Logic::Classical),
             Self::Connection => matches!(logic, Logic::Classical | Logic::Intuitionistic),
+            #[cfg(feature = "sat")]
+            Self::Grounding => true,
         }
     }
 }
@@ -582,12 +608,19 @@ impl Options {
 
     /// Returns the method that decides `sequent` under these options:
     /// [`method`](Self::method), but for a first-order sequent when no
-    /// method and no translation is given the connection prover in
-    /// classical logic and the embedding in the others, the methods that
-    /// take quantifiers. [`decide()`] decides by it; where the connection
-    /// prover stops at a bound, the embedding decides in its place.
+    /// method and no translation is given grounding where the sequent lies
+    /// in the Bernays–Schönfinkel or the monadic class (with the feature
+    /// `sat`), else the connection prover in classical logic and the
+    /// embedding in the others, the methods that take quantifiers.
+    /// [`decide()`] decides by it; where the method gives way (a bound, or
+    /// a sequent grounding finds valid only classically), the embedding
+    /// decides in its place.
     pub fn method_for(&self, sequent: &Sequent) -> Method {
         match (self.method, self.translation) {
+            #[cfg(feature = "sat")]
+            (None, None) if sequent.formulas().is_first_order() && grounds(sequent) => {
+                Method::Grounding
+            }
             (None, None)
                 if sequent.formulas().is_first_order() && self.logic == Logic::Classical =>
             {
@@ -598,6 +631,22 @@ impl Options {
         }
     }
 }
+
+/// Returns whether grounding decides `sequent`: whether it lies in the
+/// Bernays–Schönfinkel or the monadic class, read within a normal form of
+/// at most [`GROUNDS_NODES`] nodes, past which the default does not try.
+#[cfg(feature = "sat")]
+fn grounds(sequent: &Sequent) -> bool {
+    let limits = crate::Limits::default().with_occurrences(Some(GROUNDS_NODES));
+    grounding::applies(sequent, &limits).unwrap_or(false)
+}
+
+/// The most nodes of the normal form in which the default asks whether
+/// grounding decides a first-order sequent: 2²⁰, far above ILTP's
+/// problems in the classes, while an equivalence nested deep, whose normal
+/// form doubles per level, is left to the other methods.
+#[cfg(feature = "sat")]
+const GROUNDS_NODES: u64 = 1 << 20;
 
 /// The index of a formula in a [`Formulas`] arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -1995,8 +2044,9 @@ mod first_order_tests {
             }
             for &method in Method::ALL {
                 // The connection prover decides classical first-order
-                // sequents and refuses the other logics by name.
-                if matches!(method, Method::Embedding | Method::Connection) {
+                // sequents and refuses the other logics by name; grounding
+                // decides those of its classes.
+                if super::decide::takes_first_order(method) {
                     continue;
                 }
                 let options = Options::default()

@@ -557,6 +557,10 @@ struct OutcomeForm<'a> {
     /// The Kripke model that refutes the sequent, for `not_valid` by one.
     #[serde(skip_serializing_if = "Option::is_none")]
     countermodel: Option<CountermodelForm>,
+    /// The finite structure that refutes a first-order sequent, for
+    /// `not_valid` by grounding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    structure: Option<StructureForm>,
 }
 
 /// The serialized form of a countermodel: the sequent refuted and the
@@ -575,6 +579,26 @@ impl CountermodelForm {
         Self {
             sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
             model: super::kripke::ModelForm::from(&c.model),
+        }
+    }
+}
+
+/// The serialized form of a finite countermodel: the sequent refuted and
+/// the structure.
+#[derive(Serialize, Deserialize)]
+pub(super) struct StructureForm {
+    /// The sequent refuted.
+    sequent: SequentForm,
+    /// The structure.
+    structure: crate::ordinary::Structure,
+}
+
+impl StructureForm {
+    /// Returns the written form of a finite countermodel.
+    fn of(c: &crate::ordinary::FiniteCountermodel) -> Self {
+        Self {
+            sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
+            structure: c.structure.clone(),
         }
     }
 }
@@ -617,6 +641,12 @@ enum SearchForm<'a> {
     Connection {
         /// The prover's statistics.
         statistics: &'a crate::ordinary::connection::Statistics,
+    },
+    /// By grounding, and what it cost.
+    #[cfg(feature = "sat")]
+    Grounding {
+        /// Grounding's statistics.
+        statistics: &'a crate::ordinary::grounding::Statistics,
     },
 }
 
@@ -675,6 +705,8 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
             tableau: TableauForm::from(&**tableau),
         },
         Search::Connection(statistics) => SearchForm::Connection { statistics },
+        #[cfg(feature = "sat")]
+        Search::Grounding(statistics) => SearchForm::Grounding { statistics },
     };
     // A reader of level 12 does not know the methods `table` and
     // `tableau`, so an outcome of either is at level 14; the method
@@ -684,6 +716,8 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         #[cfg(feature = "interactive")]
         Search::Tableau(_) => wire::TABLES,
         Search::Connection(_) => wire::ORDINARY_TERMS,
+        #[cfg(feature = "sat")]
+        Search::Grounding(_) => wire::ORDINARY_TERMS,
         Search::Embedding { .. } | Search::Ljt(_) => wire::SEARCH,
         #[cfg(feature = "sat")]
         Search::Sat(_) => wire::SEARCH,
@@ -725,6 +759,7 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
             | Verdict::Unknown(_) => None,
         },
         countermodel,
+        structure: outcome.structure.as_deref().map(StructureForm::of),
     }
 }
 
@@ -778,6 +813,12 @@ enum SearchRead {
         /// The prover's statistics.
         statistics: crate::ordinary::connection::Statistics,
     },
+    /// By grounding.
+    #[cfg(feature = "sat")]
+    Grounding {
+        /// Grounding's statistics.
+        statistics: crate::ordinary::grounding::Statistics,
+    },
 }
 
 /// The keys an ordinary outcome is read from. `deduxit`, the writer's
@@ -806,6 +847,10 @@ struct OutcomeRead {
     /// The Kripke model that refutes the sequent, for `not_valid`.
     #[serde(default)]
     countermodel: Option<CountermodelForm>,
+    /// The finite structure that refutes a first-order sequent, for
+    /// `not_valid`.
+    #[serde(default)]
+    structure: Option<StructureForm>,
 }
 
 impl OutcomeRead {
@@ -840,12 +885,16 @@ impl OutcomeRead {
             #[cfg(feature = "interactive")]
             SearchRead::Tableau { tableau } => Search::Tableau(Box::new(tableau.within(limits)?)),
             SearchRead::Connection { statistics } => Search::Connection(statistics),
+            #[cfg(feature = "sat")]
+            SearchRead::Grounding { statistics } => Search::Grounding(statistics),
         };
         let image = match &search {
             Search::Embedding { linear, .. } => Some(&linear.verdict),
             #[cfg(feature = "sat")]
             Search::Sat(_) => None,
             Search::Ljt(_) | Search::Table(_) | Search::Connection(_) => None,
+            #[cfg(feature = "sat")]
+            Search::Grounding(_) => None,
             #[cfg(feature = "interactive")]
             Search::Tableau(_) => None,
         };
@@ -906,11 +955,24 @@ impl OutcomeRead {
                 ));
             }
         };
+        let structure = match (self.structure, &verdict) {
+            (None, _) => None,
+            (Some(form), Verdict::NotValid) => {
+                Some(Box::new(crate::ordinary::FiniteCountermodel::new(
+                    sequent(form.sequent, limits)?,
+                    form.structure,
+                )))
+            }
+            (Some(_), _) => {
+                return Err(refuse("a structure beside a verdict other than not_valid"));
+            }
+        };
         Ok(Outcome {
             verdict,
             logic: self.logic,
             search,
             countermodel,
+            structure,
         })
     }
 }

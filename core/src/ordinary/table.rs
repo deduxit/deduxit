@@ -329,6 +329,7 @@ pub(super) fn decide(
         logic,
         search: super::Search::Table(Box::new(table)),
         countermodel,
+        structure: None,
     })
 }
 

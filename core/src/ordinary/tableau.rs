@@ -891,6 +891,7 @@ pub(super) fn decide(
             logic,
             search: super::Search::Tableau(Box::new(tableau)),
             countermodel: None,
+            structure: None,
         });
     };
     let view = ViewOptions::default().with_structural(Structural::Explicit);
@@ -924,6 +925,7 @@ pub(super) fn decide(
         logic,
         search: super::Search::Tableau(Box::new(tableau)),
         countermodel,
+        structure: None,
     })
 }
 

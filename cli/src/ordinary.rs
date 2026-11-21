@@ -98,7 +98,8 @@ pub(crate) fn translated(
 /// Either flag beside `--method ljt` or `sat`, or beside a settings
 /// file's `ordinary.method` of either.
 pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Result<()> {
-    if let Some(method @ (Method::Ljt | Method::Sat | Method::Connection)) = options.method
+    if let Some(method @ (Method::Ljt | Method::Sat | Method::Connection | Method::Grounding)) =
+        options.method
         && (args.logic.translation.is_some() || args.linear)
     {
         bail!(
@@ -118,6 +119,7 @@ pub(crate) const fn by(method: Method) -> &'static str {
         Method::Table => "its truth table",
         Method::Tableau => "a tableau",
         Method::Connection => "the connection prover",
+        Method::Grounding => "grounding",
         _ => "LJT",
     }
 }
@@ -131,10 +133,35 @@ pub(crate) fn decide_natively(
     sequent: &ordinary::Sequent,
     search: &deduxit::linear::search::Options,
     limits: &deduxit::Limits,
-    stop: impl FnMut(deduxit::Progress) -> bool,
+    mut stop: impl FnMut(deduxit::Progress) -> bool,
 ) -> Result<ordinary::Outcome, Error> {
     let logic = options.logic;
     match options.method_for(sequent) {
+        // The default keeps the connection prover's derivation of LK of a
+        // valid classical sequent where it gives one within the bound of
+        // the evidence, as the library's default does.
+        Method::Grounding => {
+            let named = options.with_method(Some(Method::Grounding));
+            let grounded = ordinary::decide_within(sequent, &named, search, limits, &mut stop)?;
+            if options.method.is_none()
+                && logic == Logic::Classical
+                && matches!(grounded.verdict, ordinary::Verdict::Valid(_))
+                && let Ok(connected) = ordinary::connection::decide(
+                    sequent,
+                    logic,
+                    search,
+                    &bounded(limits),
+                    &mut stop,
+                )
+                && matches!(
+                    connected.verdict,
+                    ordinary::Verdict::Valid(ordinary::Evidence::Derivation(_))
+                )
+            {
+                return Ok(ordinary::Outcome::from(connected));
+            }
+            Ok(grounded)
+        }
         Method::Connection => ordinary::connection::decide(sequent, logic, search, limits, stop)
             .map(ordinary::Outcome::from),
         Method::Sat if options.method.is_none() => {
@@ -473,6 +500,16 @@ pub(crate) fn write_native(
     {
         show.after(&mut out, &countermodel.model.to_string(), drawn)?;
     }
+    // Grounding's finite structure, likewise.
+    if let (ordinary::Verdict::NotValid, Some(structure), Format::Text, false) = (
+        &outcome.verdict,
+        &outcome.structure,
+        format,
+        args.output.quiet,
+    ) && show.tree != Tree::Never
+    {
+        show.after(&mut out, &structure.structure.to_string(), drawn)?;
+    }
     if args.stats {
         show.after(&mut out, &native_statistics(outcome, ended.elapsed), drawn)?;
     }
@@ -553,6 +590,25 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
             ),
             _ => not_valid(outcome, method, &context),
         },
+        // Grounding grounds nothing outside its classes, and outside
+        // classical logic a valid ground sequent says nothing.
+        ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete) if matches!(&outcome.search, ordinary::Search::Grounding(s) if s.domain == 0) =>
+        {
+            format!(
+                "unknown ({context}): the sequent lies outside the classes grounding decides: \
+                 no function symbols, and either no ∀ under an ∃ or no predicate of two or more \
+                 arguments"
+            )
+        }
+        ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete)
+            if matches!(&outcome.search, ordinary::Search::Grounding(_)) =>
+        {
+            format!(
+                "unknown ({context}): the sequent is valid in classical logic, which says nothing \
+                 of {} logic",
+                outcome.logic
+            )
+        }
         ordinary::Verdict::Unknown(reason) => {
             format!("unknown ({context}): {}", advice(*reason, "", ended))
         }
@@ -563,6 +619,15 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
 /// Returns the verdict line of a sequent LJT or the SAT solver found not
 /// valid: with its countermodel, too large a one, or none.
 fn not_valid(outcome: &ordinary::Outcome, method: Method, context: &str) -> String {
+    if let Some(structure) = &outcome.structure {
+        let elements = match structure.structure.size {
+            1 => "1 element".to_owned(),
+            n => format!("{n} elements"),
+        };
+        return format!(
+            "not valid ({context}): a checked finite structure of {elements} refutes it"
+        );
+    }
     if outcome.countermodel.is_some() {
         return format!("not valid ({context}): a checked countermodel refutes it");
     }
@@ -609,6 +674,14 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
             ("reduction steps", s.reductions),
             ("literals closed by a lemma", s.lemmata),
             ("bound on the active path", u64::from(s.path_length)),
+        ],
+        ordinary::Search::Grounding(s) => &[
+            ("elements", s.domain),
+            ("ground atoms", s.atoms),
+            ("formulas of the ground sequent", s.nodes),
+            ("solver calls", s.sat.calls),
+            ("conflicts", s.sat.conflicts),
+            ("proof steps", s.sat.proof_steps),
         ],
         ordinary::Search::Tableau(tableau) => &[
             ("lines", u64::from(tableau.line_count())),

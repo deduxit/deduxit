@@ -747,6 +747,14 @@ pub enum Error {
         /// The zones of the derivation's sequents.
         zones: usize,
     },
+    /// A finite structure cannot interpret the sequent it is said to
+    /// refute, or does not refute it.
+    #[error("the finite structure is wrong: {reason}")]
+    #[non_exhaustive]
+    Structure {
+        /// What fails.
+        reason: String,
+    },
 }
 
 /// What sort of failure an [`Error`](enum@Error) is.
@@ -904,6 +912,7 @@ impl Error {
         "not_built",
         "no_cut",
         "reduction_rejected",
+        "invalid_structure",
     ];
 
     /// Returns what sort of failure this is. A wrapped error answers with
@@ -945,9 +954,10 @@ impl Error {
             | Self::ForeignProof
             | Self::GoalMismatch => Invalid,
             Self::GoalProof => Unsupported,
-            Self::SequentMismatch { .. } | Self::Model { .. } | Self::InvalidDerivation { .. } => {
-                Invalid
-            }
+            Self::SequentMismatch { .. }
+            | Self::Model { .. }
+            | Self::Structure { .. }
+            | Self::InvalidDerivation { .. } => Invalid,
             Self::InvalidCalculus { .. } | Self::Zones { .. } | Self::StepNeeds { .. } => Malformed,
             Self::StepRefused { .. } | Self::InvalidRefutation { .. } => Invalid,
             Self::ClauseFile { .. } => Malformed,
@@ -1076,6 +1086,7 @@ impl Error {
             Self::ReadBack { .. } => "read_back",
             Self::Countermodel { .. } => "countermodel",
             Self::Model { .. } => "invalid_model",
+            Self::Structure { .. } => "invalid_structure",
             Self::InvalidCalculus { .. } => "invalid_calculus",
             Self::InvalidDerivation { .. } => "invalid_derivation",
             Self::Zones { .. } => "zones",
@@ -1453,6 +1464,7 @@ mod tests {
             },
             Error::Countermodel { reason: message() },
             Error::Model { reason: message() },
+            Error::Structure { reason: message() },
             Error::InvalidCalculus { reason: message() },
             Error::InvalidDerivation {
                 calculus: "LK".into(),
@@ -1679,6 +1691,7 @@ mod tests {
             | Error::ReadBack { .. }
             | Error::Countermodel { .. }
             | Error::Model { .. }
+            | Error::Structure { .. }
             | Error::InvalidCalculus { .. }
             | Error::InvalidDerivation { .. }
             | Error::Zones { .. }

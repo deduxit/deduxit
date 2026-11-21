@@ -166,7 +166,10 @@ impl Serialize for Details<'_> {
             ReadBack { calculus, reason } => {
                 entries!(s; "calculus" => calculus; "reason" => reason)
             }
-            Countermodel { reason } | Model { reason } | InvalidCalculus { reason } => {
+            Countermodel { reason }
+            | Model { reason }
+            | Structure { reason }
+            | InvalidCalculus { reason } => {
                 entries!(s; "reason" => reason)
             }
             InvalidDerivation { calculus, reason } => {
