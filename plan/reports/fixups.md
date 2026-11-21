@@ -617,3 +617,143 @@ each answered in `sztmxwxm` with a test:
   `check --tree never` timed before and after.
 - `nix flake check` at the last commit, after the rebase: in the
   session's last message.
+
+## Session fixup-14: the session's leftovers
+
+Opus 5.5 at `high`, the session that was 74e, in the workspace
+`../deduxit-wt-step-58a-610ed3`, cores 7 to 9, on `ktsrqsps` (74e), rebased at the end onto `wrnxnzrk`.
+Nothing was pushed.
+
+### Outcome
+
+| change | subject |
+|---|---|
+| `yqsnzmmn` | Show a binding only through the inferences that hold its witness |
+| `wsklvkyy` | Hold a typed witness and every instance to the bound on terms |
+| `qsvuwtsx` | Answer the review of fixup-14 |
+| `ukmypmlo` | Read a session's open witnesses through one walk |
+| `nttvtsyp` | Raise the web module's budget for the ordinary session's open witnesses |
+
+This report is the change after them.
+
+- **A binding shows itself only where its witness is** (the 74e panel's
+  finding 6). `Witnesses` keeps, per open witness, the inferences
+  registered as showing it (`holders`) and, per inference, the witnesses
+  it is registered under (`registered`). An inference is registered when
+  it is recorded and when a binding changes it, and forgotten when an
+  undo truncates it, so a witness's set holds every inference that shows
+  it and every one a binding of it changed. `bind` walks the sets of the
+  witnesses its axiom bound, `undo` those of the witnesses it unbound;
+  the reader registers each inference under the witnesses its shown form
+  holds and those its form as made reaches through the bindings
+  (`reached`), so an undo of a binding read from a document finds every
+  inference too.
+  - The same states and documents as the walk over every inference:
+    `a_binding_shown_through_its_holders_is_the_walk_s` runs 90 random
+    sessions in LK, LJ and LM over eight first-order sequents (open
+    witnesses, fillings, undos, documents read back), and after every
+    step `walked_differs` rebuilds each inference from its form as made
+    under all the bindings and compares, and checks every closed
+    inference. With the undo's walk cut short by one inference the test
+    fails at once.
+- **A typed witness and every instance held to the bound on terms** (the
+  74e reviewer's note). `instance_within` predicts, before `instantiate`
+  builds anything, the arena's measure after the instance by the measure
+  a document's reader takes (`arena_terms`): each atom of the body that
+  holds a bound variable makes at most one atom more, every bound
+  variable counted as the witness's size. A typed witness whose text
+  names more symbols than the bound is refused before it is made. Both,
+  and a binding past the bound (74e's `uswrllmz`), are the new
+  `StepError::Terms { terms, limit }`, whose message says to start with
+  a higher bound (the binding said "the axiom cannot fill the open
+  witnesses: …" before, which an eigenvariable's step would have read as
+  a fault of a witness). `an_instance_is_held_to_the_bound_on_terms`:
+  a witness of five symbols under a bound of four, an instance past a
+  bound of five, and 74e's reviewer's session under every bound from 3
+  to 7, whose document reads back under the same bound whatever steps
+  the bound let through. 74e's `a_binding_is_held_to_the_bound_on_terms`
+  had a bound of 2 below its own sequent's measure; it has 8 now, where
+  the instances pass and the filling (11) is refused.
+
+### The timings
+
+The 74e integers member's probe (a session of N conjuncts under an `∃`,
+each closed by a filling axiom, beside W atoms), release builds of
+`ktsrqsps` (before) and `yqsnzmmn` (after) on core 7:
+
+| N | W | axioms before | axioms after | undo all before | undo all after | read back before | read back after |
+|--:|--:|--:|--:|--:|--:|--:|--:|
+| 200 | 100 | 2.36 s | 0.059 s | 2.44 s | 0.006 s | 0.15 s | 0.20 s |
+| 400 | 100 | 9.46 s | 0.139 s | 10.1 s | 0.013 s | 0.31 s | 0.42 s |
+| 400 | 400 | 127.8 s | 1.85 s | 134.3 s | 0.064 s | 3.04 s | 4.19 s |
+
+- An axiom at 1 200 steps of width 100 went from 24 ms to 0.35 ms, and
+  the session's time from quadratic to about linear in its length
+  (what is left grows with the goal's width: `scope`, `unifies` and the
+  arena's measure are per step, over integers).
+- Reading back costs about a third more: the reader registers every
+  inference, walking its form as made and its shown form.
+- The rest of the probe's 10.7 s at W = 400 is the probe's own search of
+  each goal's formulas by their printed text.
+
+### The ratchet
+
+The gate at `wsklvkyy` counted `read-json` at 12 283 897 and `read-tptp`
+at 33 812 683, above 74e's gate (12 226 553 and 33 743 026) and within
+the tolerance. Neither journey reaches the session's code. Counted in
+one build environment (`ratchet --only … --keep`), `ktsrqsps` gives
+12 286 633 and 33 835 879 and `wsklvkyy` 12 283 897 and 33 812 683: the
+fixup moves nothing (its counts are a little lower, the per-function
+differences the allocator's and two addresses of one function); the
+rise against 74e's gate is the base's, fixup-13 being in it, and the
+build's.
+
+### The web module's budget
+
+The full check at the report's first commit failed one check, `budget`:
+the bindings' module at 2 502 257 bytes at `gzip -9`, over its ceiling
+of 2 500 000 (set that morning at 2 438 116, before 74c to fixup-14's
+first-order session). `ukmypmlo` folds two walks the reader used
+(`largest_meta`, `holds_open_witness`) into `metas_in`, which saved 149
+bytes (2 502 108); `nttvtsyp` raises the ceiling to 2 560 000 with that
+figure and what earned it, in `modules/budget.nix` and `web.md`, as the
+file's own rule asks. (departs from the brief, which kept this session
+to the session's code: the ceiling is a line of `modules/`.)
+
+### The reviewer's round
+
+`deduxit-review-fixup-14` (`fresh-reviewer`, Fable 5.2) read both
+commits against the brief and the rules, argued the holders complete
+(an undo returns to an earlier state with a superset of its
+registrations; `reached` under the final bindings covers every prefix)
+and the prediction an upper bound of the reader's measure, and ran a
+differential fuzz of its own: 3 000 rounds of 60 actions over seven
+sequents in the three logics under bounds from 4 to 43 (typed and open
+witnesses, axioms, undos, documents read back and the session continued
+from them): 1 530 fillings, 13 063 reads, 19 713 refusals at the bound,
+35 388 undos, no difference from the walk, no reader refusal, no panic.
+Its two findings, answered in `qsvuwtsx`:
+
+1. **A session started past the bound** (`p(f(f(f(f(c))))) ⊢ q` under
+   a bound of 3) wrote, with no step taken, a document its reader
+   refused: `within` never measured the sequent. It refuses such a
+   sequent now (`Refusal::Terms`), so the changelog's "a session writes
+   no document its reader refuses" holds.
+2. **The rules file named `StepError::Terms`** for the typed witness's
+   text refusal, which is `StepError::Witness`; corrected, and the test
+   pins the variant.
+
+### What was checked, and by what
+
+- The gate at `wsklvkyy` (covers `yqsnzmmn`), capped on cores 7 to 9:
+  passed.
+- Clippy, the core session's and the command's tests at `qsvuwtsx`.
+- Clippy, the core tests and `cargo hack check --each-feature` at
+  `yqsnzmmn`; clippy and the core and command tests at `wsklvkyy`.
+- The timings above, both builds' sources swapped in one workspace (the
+  probe kept out of the tree).
+- `nix flake check` under the machine lock at the report's first
+  commit: every check but `budget` passed (above); at the last commit:
+  in the session's last message.
+- The budget check alone (`nix build .#checks.x86_64-linux.budget`)
+  after `ukmypmlo`: 2 502 108 bytes.
