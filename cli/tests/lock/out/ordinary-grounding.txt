@@ -1,0 +1,15 @@
+$ deduxit prove --logic classical --stats 'exists x. p(x), q |- forall x. p(x)'
+--- status 1
+--- stdout
+not valid (classical logic by grounding): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+p: {0}
+q: true
+elements: 2
+ground atoms: 3
+formulas of the ground sequent: 7
+solver calls: 1
+conflicts: 0
+proof steps: 0
+time: …
+--- stderr

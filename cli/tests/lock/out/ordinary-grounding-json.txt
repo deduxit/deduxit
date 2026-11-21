@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --format json 'exists x. p(x), q |- forall x. p(x)'
+--- status 1
+--- stdout
+{"version":25,"deduxit":"…","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["p",[[0]]],["q",[[]]]]}}}
+--- stderr

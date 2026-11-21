@@ -1,0 +1,5 @@
+$ deduxit prove --logic minimal --method grounding '|- exists x. (p(x) -> forall y. p(y))'
+--- status 3
+--- stdout
+unknown (minimal logic by grounding): the sequent is valid in classical logic, which says nothing of minimal logic
+--- stderr

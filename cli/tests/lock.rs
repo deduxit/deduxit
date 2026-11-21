@@ -55,6 +55,14 @@ const TABLEAU_OPEN: &str = "1  T a → b\n2  F b → a\n3  T b      →R 2\n4  F
 /// A proof of `A * B |- B * A`, as `prove --format json` writes it.
 const PROOF: &str = r#"{"version":1,"linlog":"0.1.0","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"net","statistics":{"nodes":2,"memo_hits":0,"memo_entries":0,"splits":0,"links":2,"tests":2,"copies":0},"sequent":{"terms":[{"D":0},{"D":1},{"⅋":[0,1]},{"V":1},{"V":0},{"⊗":[3,4]}],"roots":[2,5],"atoms":["A","B"]},"nodes":[{"ax":[2,4]},{"ax":[1,5]},{"⊗":[3,0,1]},{"⅋":[0,2]}]}"#;
 
+/// An outcome of `∃x. p(x), q ⊢ ∀x. p(x)` found not valid by grounding, as
+/// `prove --logic classical --format json` writes it.
+const STRUCTURE: &str = r#"{"version":25,"deduxit":"0.7.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["p",[[0]]],["q",[[]]]]}}}"#;
+
+/// The same outcome with `p` holding of nothing, which makes the first
+/// hypothesis false: no refutation.
+const WRONG_STRUCTURE: &str = r#"{"version":25,"deduxit":"0.7.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["q",[[]]]]}}}"#;
+
 /// The same proof with its axioms crossed: no proof of the sequent.
 const WRONG_PROOF: &str = r#"{"version":1,"sequent":{"terms":[{"D":0},{"D":1},{"⅋":[0,1]},{"V":1},{"V":0},{"⊗":[3,4]}],"roots":[2,5],"atoms":["A","B"]},"nodes":[{"ax":[1,4]},{"ax":[2,5]},{"⊗":[3,0,1]},{"⅋":[0,2]}]}"#;
 
@@ -779,6 +787,73 @@ const CASES: &[Case] = &[
             "forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(f(a)))))",
         ],
     ),
+    // Grounding: a refutation by default with its structure, its JSON, a
+    // valid sequent's clausal proof, a refutation in intuitionistic logic,
+    // and the two unknowns: outside the classes, and valid classically
+    // alone.
+    call(
+        "ordinary-grounding",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--stats",
+            "exists x. p(x), q |- forall x. p(x)",
+        ],
+    ),
+    call(
+        "ordinary-grounding-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--format",
+            "json",
+            "exists x. p(x), q |- forall x. p(x)",
+        ],
+    ),
+    call(
+        "ordinary-grounding-valid",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "grounding",
+            "forall x. (p(x) -> q(x)), p(a) |- q(a)",
+        ],
+    ),
+    call(
+        "ordinary-grounding-intuitionistic",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "exists x. p(x) |- forall x. p(x)",
+        ],
+    ),
+    call(
+        "ordinary-grounding-outside",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "grounding",
+            "forall x. exists y. r(x, y) |- r(a, a)",
+        ],
+    ),
+    call(
+        "ordinary-grounding-classical-alone",
+        &[
+            "prove",
+            "--logic",
+            "minimal",
+            "--method",
+            "grounding",
+            "|- exists x. (p(x) -> forall y. p(y))",
+        ],
+    ),
     // Modal logic.
     call("modal-valid", &["prove", "--system", "S4", "[]p -> [][]p"]),
     call(
@@ -933,6 +1008,13 @@ const CASES: &[Case] = &[
         ],
         MODEL,
     ),
+    piped("check-structure", &["check"], STRUCTURE),
+    piped(
+        "check-structure-json",
+        &["check", "--format", "json"],
+        STRUCTURE,
+    ),
+    piped("check-structure-wrong", &["check"], WRONG_STRUCTURE),
     piped("check-modal", &["check"], MODAL_OUTCOME),
     piped(
         "check-modal-json",

@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method grounding 'forall x. exists y. r(x, y) |- r(a, a)'
+--- status 3
+--- stdout
+unknown (classical logic by grounding): the sequent lies outside the classes grounding decides: no function symbols, and either no ∀ under an ∃ or no predicate of two or more arguments
+--- stderr

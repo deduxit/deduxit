@@ -1,0 +1,6 @@
+$ deduxit prove --logic classical --method grounding 'forall x. (p(x) -> q(x)), p(a) |- q(a)'
+--- status 0
+--- stdout
+valid (classical logic by grounding): a checked clausal proof of 1 step against the 8 clauses of the sequent's negation
+--- stderr
+the sequent is valid by a checked clausal proof, which is no derivation; the method embedding gives the derivation of LK

@@ -1,0 +1,7 @@
+$ deduxit prove --logic intuitionistic 'exists x. p(x) |- forall x. p(x)'
+--- status 1
+--- stdout
+not valid (intuitionistic logic by grounding): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+p: {0}
+--- stderr
