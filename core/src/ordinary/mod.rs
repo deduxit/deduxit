@@ -116,9 +116,9 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
-use crate::first_order::{Args, FirstOrder, Interner};
-#[cfg(any(test, feature = "parse"))]
-use crate::first_order::{FoTerm, FoTermId};
+use crate::first_order::{Args, FirstOrder, FoTerm, Interner};
+#[cfg(any(test, feature = "parse", feature = "serialize"))]
+use crate::first_order::FoTermId;
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -648,6 +648,11 @@ pub struct Formulas {
     fo: Option<Box<Interner<NodeId>>>,
 }
 
+/// An arena read from first-order tables, the index in it of every atom
+/// of the tables and the id in it of every term of the tables.
+#[cfg(feature = "serialize")]
+pub(crate) type OfTables = (Formulas, Vec<u32>, Vec<FoTermId>);
+
 /// The tables of an arena that has none.
 static NO_TABLES: FirstOrder<NodeId> = FirstOrder::new();
 
@@ -792,9 +797,9 @@ impl Formulas {
     }
 
     /// Returns the arena of the first-order `tables`, read from a
-    /// document and checked, without a node yet, and the index in it of
-    /// every atom of the tables: an atom equal to an earlier one is that
-    /// one. Every symbol, term and argument list is interned again, so the
+    /// document and checked, without a node yet, the index in it of every
+    /// atom of the tables (an atom equal to an earlier one is that one)
+    /// and the id in it of every term of the tables. Every symbol, term and argument list is interned again, so the
     /// arena holds each term once however often the document lists it.
     /// `None` where the tables have no term and every atom is nullary:
     /// the document is a propositional sequent, its atoms by name.
@@ -804,9 +809,7 @@ impl Formulas {
     /// [`Error::AtomName`] for a symbol named by a keyword of the ordinary
     /// syntax.
     #[cfg(feature = "serialize")]
-    pub(crate) fn of_tables(
-        tables: &FirstOrder<NodeId>,
-    ) -> Result<Option<(Self, Vec<u32>)>, Error> {
+    pub(crate) fn of_tables(tables: &FirstOrder<NodeId>) -> Result<Option<OfTables>, Error> {
         let propositional = tables.terms.is_empty()
             && tables
                 .atoms
@@ -841,8 +844,10 @@ impl Formulas {
                     let args = fo.list(&items);
                     fo.term(crate::first_order::FoTerm::App(symbols[f.index()], args))
                 }
+                // A derivation's or a goal state's terms, which the reader
+                // takes where the document is one.
                 crate::first_order::FoTerm::Eigen(_) | crate::first_order::FoTerm::Meta(_) => {
-                    unreachable!("the reader of a sequent's terms refuses them")
+                    fo.term(term)
                 }
             };
             terms.push(id);
@@ -869,7 +874,7 @@ impl Formulas {
             };
             indices.push(index);
         }
-        Ok(Some((formulas, indices)))
+        Ok(Some((formulas, indices, terms)))
     }
 
     /// Returns whether the arena is first-order: it holds a binder or a
@@ -1178,8 +1183,13 @@ impl Formulas {
         name: &impl Fn(&mut W, &str) -> FmtResult,
     ) -> FmtResult {
         let tables = self.tables();
-        let taken: std::collections::HashSet<&str> =
-            tables.symbols.iter().map(|(s, _)| s.as_str()).collect();
+        let eigens = self.eigen_names();
+        let taken: std::collections::HashSet<&str> = tables
+            .symbols
+            .iter()
+            .map(|(s, _)| s.as_str())
+            .chain(eigens.iter().map(String::as_str))
+            .collect();
         // The names of the open binders, the innermost last.
         let mut scope: Vec<String> = Vec::new();
         // Per compound formula entered, whether a bracket was opened.
@@ -1191,7 +1201,7 @@ impl Formulas {
                 Stop::Enter(k, nested) => {
                     let in_body = std::mem::take(&mut body);
                     match self.node(k) {
-                        Node::Atom(a) => self.write_atom(out, a, &scope, atom, name)?,
+                        Node::Atom(a) => self.write_atom(out, a, &scope, &eigens, atom, name)?,
                         Node::True => out.write_str(symbols.truth)?,
                         Node::False => out.write_str(symbols.falsity)?,
                         Node::Not(_) => {
@@ -1249,12 +1259,14 @@ impl Formulas {
 
     /// Writes the atom `a` of a first-order arena: by `atom` where it has
     /// no arguments, else as its predicate applied to its terms, a bound
-    /// variable by the name `scope` gives its binder.
+    /// variable by the name `scope` gives its binder, an eigenvariable by
+    /// its name in `eigens` and an open witness as `$1`, `$2`, ….
     fn write_atom<W: Write>(
         &self,
         out: &mut W,
         a: u32,
         scope: &[String],
+        eigens: &[String],
         atom: &impl Fn(&mut W, u32) -> FmtResult,
         name: &impl Fn(&mut W, &str) -> FmtResult,
     ) -> FmtResult {
@@ -1272,13 +1284,22 @@ impl Formulas {
             if i > 0 {
                 out.write_str(", ")?;
             }
-            tables.write(out, t, &mut |o, s| name(o, s), &mut |o, index| match scope
-                .len()
-                .checked_sub(index as usize + 1)
-            {
-                Some(at) => name(o, &scope[at]),
-                None => write!(o, "#{index}"),
-            })?;
+            tables.write_with(
+                out,
+                t,
+                &mut |o, s| name(o, s),
+                &mut |o, index| match scope.len().checked_sub(index as usize + 1) {
+                    Some(at) => name(o, &scope[at]),
+                    None => write!(o, "#{index}"),
+                },
+                &mut |o, other| match other {
+                    FoTerm::Eigen(e) => name(o, &eigens[e.get() as usize]),
+                    FoTerm::Meta(k) => {
+                        name(o, &crate::linear::occurrences::instances::meta_name(k))
+                    }
+                    FoTerm::Bound(_) | FoTerm::App(..) => Ok(()),
+                },
+            )?;
         }
         out.write_char(')')
     }
@@ -1874,6 +1895,7 @@ mod first_order_tests {
         let all = formulas.binder(true, body, "x").unwrap();
         let sequent = Sequent::new(formulas.clone(), vec![all], vec![all]).unwrap();
         let axiom = Inference {
+            term: None,
             left: vec![all],
             right: vec![all],
             rule: Rule::Axiom,

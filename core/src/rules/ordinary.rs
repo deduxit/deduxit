@@ -71,6 +71,9 @@ fn name(logic: Logic, inference: &Inference, premises: &[&Inference]) -> (String
     let lj = logic != Logic::Classical;
     let (name, side) = match rule {
         Axiom | Cut | Open => (rule.name().to_owned(), None),
+        ForallLeft | ForallRight | ExistsLeft | ExistsRight => {
+            unreachable!("{}", crate::ordinary::REFUSED)
+        }
         WeakenLeft | ContractLeft | AndLeft | AndLeft1 | AndLeft2 | IffLeft | IffLeft1
         | IffLeft2 | FalseLeft | TrueLeft => (rule.name().to_owned(), Some(Left)),
         WeakenRight | ContractRight | OrRight | OrRight1 | OrRight2 | ImpliesRight | FalseRight

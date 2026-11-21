@@ -235,7 +235,7 @@ impl Ill {
             fo: self.fo,
             atoms: self.atoms,
         }
-        .read(limits)?;
+        .read(limits, super::sequents::Extension::Sequent)?;
         let len = self.terms.len();
         // Each term lowers to at most two terms, and a `u32` numbers them.
         let most = u64::from(u32::MAX / 2);

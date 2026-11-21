@@ -6,17 +6,9 @@
 //! `t`. An instance is nodes of the arena like any formula, so a checker
 //! compares it with a premise's formulas by id.
 
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the checker's quantifier rules are the first caller outside the tests"
-    )
-)]
-
 use super::{Formulas, Node, NodeId};
 use crate::Error;
-use crate::first_order::{Args, FoTerm, FoTermId, Symbol};
+use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
 use crate::hash::HashMap;
 
 impl Formulas {
@@ -34,6 +26,13 @@ impl Formulas {
     /// [`Error::LooseVariable`] for a term with a bound variable, which
     /// the instance would capture, and
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the goal state's quantifier rules are its first caller"
+        )
+    )]
     pub(crate) fn instantiate(&mut self, body: NodeId, term: FoTermId) -> Result<NodeId, Error> {
         self.holds(body)?;
         if term.index() >= self.tables().terms.len() {
@@ -69,6 +68,98 @@ impl Formulas {
 }
 
 impl Formulas {
+    /// Returns whether `term` is a term of the arena that is an
+    /// eigenvariable.
+    pub(crate) fn is_eigenvariable(&self, term: FoTermId) -> bool {
+        matches!(
+            self.tables().terms.get(term.index()),
+            Some(FoTerm::Eigen(_))
+        )
+    }
+
+    /// Returns whether the term `t` of the arena holds an open witness
+    /// ([`FoTerm::Meta`]). It walks on a stack of its own, each shared
+    /// term once.
+    pub(crate) fn holds_meta(&self, t: FoTermId) -> bool {
+        let tables = self.tables();
+        if t.index() >= tables.terms.len() {
+            return false;
+        }
+        let mut seen = vec![false; tables.terms.len()];
+        let mut stack = vec![t];
+        while let Some(u) = stack.pop() {
+            if std::mem::replace(&mut seen[u.index()], true) {
+                continue;
+            }
+            match tables.terms[u.index()] {
+                FoTerm::Meta(_) => return true,
+                FoTerm::App(_, args) => stack.extend_from_slice(tables.list(args)),
+                FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
+            }
+        }
+        false
+    }
+
+    /// Returns whether the term `term` occurs in one of the formulas
+    /// `roots`, as an argument of an atom or inside one. It walks on
+    /// stacks of its own, each shared node and term once.
+    pub(crate) fn mentions(&self, roots: impl Iterator<Item = NodeId>, term: FoTermId) -> bool {
+        let tables = self.tables();
+        let mut nodes_seen = vec![false; self.nodes.len()];
+        let mut terms_seen = vec![false; tables.terms.len()];
+        let mut nodes: Vec<NodeId> = roots.collect();
+        let mut terms: Vec<FoTermId> = Vec::new();
+        while let Some(k) = nodes.pop() {
+            if std::mem::replace(&mut nodes_seen[k.index()], true) {
+                continue;
+            }
+            match self.nodes[k.index()] {
+                Node::Atom(a) => {
+                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                        terms.extend_from_slice(tables.list(args));
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    nodes.push(a);
+                    nodes.push(b);
+                }
+            }
+        }
+        while let Some(u) = terms.pop() {
+            if u == term {
+                return true;
+            }
+            if std::mem::replace(&mut terms_seen[u.index()], true) {
+                continue;
+            }
+            if let FoTerm::App(_, args) = tables.terms[u.index()] {
+                terms.extend_from_slice(tables.list(args));
+            }
+        }
+        false
+    }
+
+    /// Returns the names the eigenvariables of the arena are written with,
+    /// by number up to the largest the terms hold: `a`, `b`, … `z`, then
+    /// `a_1`, `b_1`, …, skipping the names of the arena's symbols, so that
+    /// a sequent of a derivation reads as a sequent with its
+    /// eigenvariables as new constants.
+    pub(crate) fn eigen_names(&self) -> Vec<String> {
+        let tables = self.tables();
+        let count = tables
+            .terms
+            .iter()
+            .filter_map(|term| match *term {
+                FoTerm::Eigen(e) => Some(e.get() as usize + 1),
+                FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
+            })
+            .max()
+            .unwrap_or(0);
+        eigen_names(tables, count)
+    }
+
     /// Returns whether the term `t` has no bound variable. It walks on a
     /// stack of its own, each shared term once.
     fn is_closed(&self, t: FoTermId) -> bool {
@@ -106,6 +197,13 @@ trait Maker {
 }
 
 /// An arena that adds what it lacks.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the goal state's quantifier rules are its first caller"
+    )
+)]
 struct Build<'a>(&'a mut Formulas);
 
 impl Maker for Build<'_> {
@@ -323,6 +421,25 @@ impl Substitution {
         }
         self.terms.get(&(t, depth)).copied()
     }
+}
+
+/// Returns the names of the first `count` eigenvariables over the symbols
+/// of `tables`: `a`, `b`, … `z`, then `a_1`, `b_1`, …, each name of a
+/// symbol skipped.
+pub(crate) fn eigen_names(tables: &FirstOrder<NodeId>, count: usize) -> Vec<String> {
+    let taken: std::collections::HashSet<&str> =
+        tables.symbols.iter().map(|(s, _)| s.as_str()).collect();
+    (0u64..)
+        .map(|n| {
+            let letter = char::from(b'a' + (n % 26) as u8);
+            match n / 26 {
+                0 => letter.to_string(),
+                k => format!("{letter}_{k}"),
+            }
+        })
+        .filter(|name| !taken.contains(name.as_str()))
+        .take(count)
+        .collect()
 }
 
 #[cfg(test)]

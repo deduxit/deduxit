@@ -701,7 +701,11 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
             | Rule::FalseRight
             | Rule::TrueLeft
             | Rule::Cut
-            | Rule::Open => unreachable!("no step takes it"),
+            | Rule::Open
+            | Rule::ForallLeft
+            | Rule::ForallRight
+            | Rule::ExistsLeft
+            | Rule::ExistsRight => unreachable!("no step takes it"),
         }
     }
 
@@ -888,6 +892,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         })?;
         let before = self.inferences.capacity();
         self.inferences.push(Inference {
+            term: None,
             left,
             right,
             rule,

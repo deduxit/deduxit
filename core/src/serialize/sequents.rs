@@ -26,6 +26,22 @@ pub(super) enum FoExpression {
     /// proof adds to the arena, never in a sequent's.
     #[serde(rename = "E")]
     Eigen(u32),
+    /// An open witness of a proof in progress, by its number. It stands
+    /// only in the terms of an ordinary goal state.
+    #[serde(rename = "M")]
+    Meta(u32),
+}
+
+/// Which terms besides bound variables and applications a document's
+/// tables may hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Extension {
+    /// A sequent's: none.
+    Sequent,
+    /// An ordinary derivation's: eigenvariables.
+    Derivation,
+    /// An ordinary goal state's: eigenvariables and open witnesses.
+    Session,
 }
 
 /// The serialized form of an atom. A propositional sequent writes its
@@ -218,7 +234,7 @@ impl Tables {
                     FoTerm::Bound(i) => FoExpression::Bound(i),
                     FoTerm::App(f, args) => FoExpression::App(f.get(), list(args)),
                     FoTerm::Eigen(a) => FoExpression::Eigen(a.get()),
-                    FoTerm::Meta(_) => unreachable!("a sequent's arena holds no metavariable"),
+                    FoTerm::Meta(k) => FoExpression::Meta(k),
                 })
                 .collect(),
             atoms: Atoms::Mixed(
@@ -247,6 +263,7 @@ impl Tables {
     pub(super) fn read<K: Copy + Ord>(
         self,
         limits: &Limits,
+        extension: Extension,
     ) -> Result<(Generic<K>, Vec<String>), crate::Error> {
         let mut tables = Generic::<K>::new();
         let first_order = !self.symbols.is_empty() || !self.fo.is_empty();
@@ -289,10 +306,20 @@ impl Tables {
                     let args = list(&mut tables, items);
                     FoTerm::App(Symbol::new(f), args)
                 }
+                FoExpression::Eigen(a) if extension != Extension::Sequent => {
+                    FoTerm::Eigen(crate::first_order::Eigen::new(a))
+                }
+                FoExpression::Meta(k) if extension == Extension::Session => FoTerm::Meta(k),
                 FoExpression::Eigen(_) => {
                     return Err(crate::Error::Json {
                         form: "sequent",
                         message: "an eigenvariable stands only in a proof's terms".to_owned(),
+                    });
+                }
+                FoExpression::Meta(_) => {
+                    return Err(crate::Error::Json {
+                        form: "sequent",
+                        message: "an open witness stands only in a proof in progress".to_owned(),
                     });
                 }
             };
@@ -547,7 +574,7 @@ impl Seq {
             fo: s.fo,
             atoms: s.atoms,
         }
-        .read(limits)?;
+        .read(limits, Extension::Sequent)?;
         let cuts = s.cuts;
         let terms: Vec<Term> = s.terms.into_iter().map(Expression::into_term).collect();
         if !s.binders.is_empty() {

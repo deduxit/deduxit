@@ -2,8 +2,9 @@
 // Licensed under the EUPL
 
 use super::search::Why;
-use super::sequents::{Atoms, FoExpression, Tables};
+use super::sequents::{Atoms, Extension, FoExpression, Tables};
 use crate::Error;
+use crate::first_order::FoTermId;
 use crate::limits::{Limits, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{
@@ -153,7 +154,11 @@ impl SequentForm {
     /// Returns the formulas the form holds, the id among them of every
     /// index of the form, and the two sides. Both the form's formulas and
     /// the sequent's unfolding must be within `limits.occurrences`.
-    fn within(self, limits: &Limits) -> Result<(Read, Vec<NodeId>, Vec<NodeId>), Error> {
+    fn within(
+        self,
+        limits: &Limits,
+        extension: Extension,
+    ) -> Result<(Read, Vec<NodeId>, Vec<NodeId>), Error> {
         if let Some(limit) = limits.occurrences
             && self.formulas.len() as u64 > limit
         {
@@ -171,9 +176,9 @@ impl SequentForm {
                 fo: self.fo,
                 atoms: self.atoms,
             };
-            let (tables, names) = tables.read::<NodeId>(limits)?;
+            let (tables, names) = tables.read::<NodeId>(limits, extension)?;
             match Formulas::of_tables(&tables)? {
-                Some((formulas, indices)) => (formulas, Some(indices), Vec::new()),
+                Some((formulas, indices, terms)) => (formulas, Some((indices, terms)), Vec::new()),
                 None => (Formulas::default(), None, names),
             }
         } else {
@@ -194,14 +199,14 @@ impl SequentForm {
             };
             let id = match *form {
                 FormulaForm::Atom(a) => {
-                    let len = indices.as_ref().map_or(names.len(), Vec::len);
+                    let len = indices.as_ref().map_or(names.len(), |(i, _)| i.len());
                     let outside = Error::IndexOutOfBounds {
                         space: Space::Atom,
                         index: a as usize,
                         len,
                     };
                     match &indices {
-                        Some(indices) => {
+                        Some((indices, _)) => {
                             let index = indices.get(a as usize).ok_or(outside)?;
                             formulas.add(Node::Atom(*index))?
                         }
@@ -226,7 +231,12 @@ impl SequentForm {
             };
             ids.push(id);
         }
-        let read = Read { formulas, ids };
+        let terms = indices.map(|(_, terms)| terms).unwrap_or_default();
+        let read = Read {
+            formulas,
+            ids,
+            terms,
+        };
         let left = read.ids(&self.left)?;
         let right = read.ids(&self.right)?;
         bound(&read.formulas, &left, &right, limits)?;
@@ -240,9 +250,23 @@ struct Read {
     formulas: Formulas,
     /// The id of each index of the form.
     ids: Vec<NodeId>,
+    /// The id of each index of the form's terms.
+    terms: Vec<FoTermId>,
 }
 
 impl Read {
+    /// Returns the id of the term at `index` of the form's terms.
+    fn term(&self, index: u32) -> Result<FoTermId, Error> {
+        self.terms
+            .get(index as usize)
+            .copied()
+            .ok_or(Error::IndexOutOfBounds {
+                space: Space::Term,
+                index: index as usize,
+                len: self.terms.len(),
+            })
+    }
+
     /// Returns the ids of the indices given.
     fn ids(&self, indices: &[u32]) -> Result<Vec<NodeId>, Error> {
         indices
@@ -293,7 +317,7 @@ impl Readable for Sequent {
 
 /// Returns the sequent a form holds, within the limits.
 fn sequent(form: SequentForm, limits: &Limits) -> Result<Sequent, Error> {
-    let (read, left, right) = form.within(limits)?;
+    let (read, left, right) = form.within(limits, Extension::Sequent)?;
     Sequent::new(read.formulas, left, right)
 }
 
@@ -317,6 +341,10 @@ struct InferenceForm {
     /// The premises, as indices of inferences; absent for a leaf.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     premises: Vec<u32>,
+    /// The term of a quantifier rule, as an index of the sequent's terms;
+    /// absent for every other rule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    term: Option<u32>,
 }
 
 impl InferenceForm {
@@ -330,6 +358,7 @@ impl InferenceForm {
             rule: (!(open && inference.rule == Rule::Open)).then_some(inference.rule),
             principal: inference.principal,
             premises: inference.premises.iter().map(|p| p.get()).collect(),
+            term: inference.term.map(FoTermId::get),
         }
     }
 
@@ -350,6 +379,7 @@ impl InferenceForm {
             })
             .collect::<Result<_, _>>()?;
         let inference = Inference {
+            term: self.term.map(|t| read.term(t)).transpose()?,
             left: read.ids(&self.left)?,
             right: read.ids(&self.right)?,
             rule: self.rule.unwrap_or(Rule::Open),
@@ -417,7 +447,7 @@ impl DerivationForm {
     /// Whether it is a derivation of its logic is for
     /// [`Derivation::check`] to say.
     fn within(self, limits: &Limits) -> Result<Derivation, Error> {
-        let (read, left, right) = self.sequent.within(limits)?;
+        let (read, left, right) = self.sequent.within(limits, Extension::Derivation)?;
         let len = self.inferences.len();
         let mut parents = vec![0u8; len];
         let mut inferences = Vec::with_capacity(len);
@@ -943,7 +973,7 @@ impl Readable for Interactive {
 /// Returns the proof in progress a form holds, within the limits.
 #[cfg(feature = "interactive")]
 fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
-    let (read, left, right) = form.sequent.within(limits)?;
+    let (read, left, right) = form.sequent.within(limits, Extension::Session)?;
     let len = form.inferences.len();
     let inferences = form
         .inferences
@@ -1046,7 +1076,7 @@ impl TableForm {
     /// `limits`; refuses rows or falsifying rows that are not that
     /// table's.
     fn within(self, limits: &Limits) -> Result<crate::ordinary::TruthTable, Error> {
-        let (read, left, right) = self.sequent.within(limits)?;
+        let (read, left, right) = self.sequent.within(limits, Extension::Sequent)?;
         let ids = read.ids.clone();
         let sequent = Sequent::new(read.formulas, left, right)?;
         let table = crate::ordinary::truth_table(&sequent, limits, |_| false)?;
@@ -1230,7 +1260,7 @@ impl TableauForm {
             form: "tableau",
             message,
         };
-        let (read, left, right) = self.sequent.within(limits)?;
+        let (read, left, right) = self.sequent.within(limits, Extension::Sequent)?;
         read.formulas.propositional("a tableau")?;
         let total: u64 = self.nodes.iter().map(|n| n.lines.len() as u64).sum();
         let total =

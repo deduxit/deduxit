@@ -34,7 +34,7 @@ const fn expansion(rule: Rule) -> Option<&'static str> {
         TrueLeft => "T⊤",
         FalseRight => "F⊥",
         Axiom | WeakenLeft | WeakenRight | ContractLeft | ContractRight | FalseLeft | TrueRight
-        | Cut | Open => return None,
+        | Cut | Open | ForallLeft | ForallRight | ExistsLeft | ExistsRight => return None,
     })
 }
 

@@ -179,6 +179,9 @@ impl Certificate<'_> {
         match inference.rule {
             // `write` refuses a derivation with an open goal.
             Open => unreachable!("an open goal has no term"),
+            ForallLeft | ForallRight | ExistsLeft | ExistsRight => {
+                unreachable!("{}", crate::ordinary::REFUSED)
+            }
             Axiom => {
                 let (x, y) = (inference.left[0], inference.right[0]);
                 let h = self.of(x, Left);

@@ -373,6 +373,9 @@ impl Tableau {
                     | Rule::TrueRight
                     | Rule::Cut
                     | Rule::Open => break,
+                    Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight => {
+                        unreachable!("{}", super::REFUSED)
+                    }
                 }
             }
             let inference = &inferences[at];
@@ -442,6 +445,9 @@ impl Tableau {
                 | Rule::ContractLeft
                 | Rule::ContractRight => {
                     return Err(fail(format!("inference {at} is no step of a tableau")));
+                }
+                Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight => {
+                    unreachable!("{}", super::REFUSED)
                 }
                 rule @ (Rule::AndLeft
                 | Rule::AndLeft1

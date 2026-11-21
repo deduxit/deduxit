@@ -388,6 +388,9 @@ impl ReadBack<'_> {
             ContractRight | OrRight | Open => {
                 unreachable!("no rule of LJ the read-back takes")
             }
+            ForallLeft | ForallRight | ExistsLeft | ExistsRight => {
+                unreachable!("{}", crate::ordinary::REFUSED)
+            }
         }
     }
 }

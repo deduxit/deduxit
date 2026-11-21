@@ -919,6 +919,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         })?;
         let before = self.inferences.capacity();
         self.inferences.push(Inference {
+            term: None,
             left,
             right,
             rule,

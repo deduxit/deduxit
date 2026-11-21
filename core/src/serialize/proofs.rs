@@ -147,6 +147,12 @@ impl Instances {
                 FoExpression::Eigen(k) => {
                     table.eigen(Eigen::new(k));
                 }
+                FoExpression::Meta(_) => {
+                    return Err(crate::Error::Json {
+                        form: "proof",
+                        message: "an open witness stands only in a proof in progress".to_owned(),
+                    });
+                }
                 FoExpression::App(f, items) => {
                     let items: Vec<FoTermId> = items.into_iter().map(FoTermId::new).collect();
                     table.apply(Symbol::new(f), &items);

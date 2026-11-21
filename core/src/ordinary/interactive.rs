@@ -148,6 +148,10 @@ const fn target(rule: Rule) -> &'static str {
         TrueRight => "⊤ right of ⊢",
         Cut => "no formula of a goal, so no step takes it",
         Open => "no formula, since it only marks an open goal",
+        ForallLeft => "a universal formula left of ⊢",
+        ForallRight => "a universal formula right of ⊢",
+        ExistsLeft => "an existential formula left of ⊢",
+        ExistsRight => "an existential formula right of ⊢",
     }
 }
 
@@ -453,6 +457,7 @@ pub struct Interactive {
 /// Returns an open goal with the sides given.
 const fn open(left: Vec<NodeId>, right: Vec<NodeId>) -> Inference {
     Inference {
+        term: None,
         left,
         right,
         rule: Rule::Open,
@@ -689,6 +694,8 @@ impl Interactive {
         let node = self.formulas.node(x);
         let fits = match rule {
             Axiom | Cut | Open => false,
+            // The goal state refuses a first-order sequent at its door.
+            ForallLeft | ForallRight | ExistsLeft | ExistsRight => false,
             WeakenLeft | ContractLeft => side == Left,
             WeakenRight | ContractRight => side == Right,
             AndLeft | AndLeft1 | AndLeft2 => side == Left && matches!(node, Node::And(..)),
@@ -719,7 +726,8 @@ impl Interactive {
             FalseLeft => self.logic == Logic::Minimal,
             Axiom | WeakenLeft | ContractLeft | AndLeft | AndLeft1 | AndLeft2 | AndRight
             | OrLeft | OrRight1 | OrRight2 | ImpliesLeft | ImpliesRight | NotLeft | NotRight
-            | IffLeft | IffLeft1 | IffLeft2 | IffRight | TrueLeft | TrueRight | Cut | Open => false,
+            | IffLeft | IffLeft1 | IffLeft2 | IffRight | TrueLeft | TrueRight | Cut | Open
+            | ForallLeft | ForallRight | ExistsLeft | ExistsRight => false,
         };
         if refused {
             return Err(StepError::Logic {
@@ -871,6 +879,7 @@ impl Interactive {
                 });
             }
             let mut made = vec![Inference {
+                term: None,
                 left: goal.left.clone(),
                 right: goal.right.clone(),
                 rule,
@@ -1164,6 +1173,7 @@ impl Interactive {
             .inferences()
             .iter()
             .map(|inference| Inference {
+                term: None,
                 left: map(&inference.left),
                 right: map(&inference.right),
                 rule: inference.rule,
@@ -1372,6 +1382,7 @@ impl Interactive {
                     .map(|id| {
                         let inference = &self.inferences[id.index()];
                         Inference {
+                            term: None,
                             left: Vec::new(),
                             right: Vec::new(),
                             rule: inference.rule,
@@ -1510,6 +1521,7 @@ fn contracted(
         // Each inference's premise is the next one made; fewer than a
         // `u32` counts, as the goal's formulas are.
         made.push(Inference {
+            term: None,
             left: left.clone(),
             right: goal.right.clone(),
             rule: Rule::ContractLeft,
@@ -1528,6 +1540,7 @@ fn contracted(
     let contracted = open(left, goal.right.clone());
     let n = made.len() as u32;
     made.push(Inference {
+        term: None,
         left: contracted.left.clone(),
         right: contracted.right.clone(),
         rule,
@@ -1573,6 +1586,7 @@ fn axiom(goal: &Inference, side: Side, position: usize, partner: usize) -> Vec<I
             // `u32` counts, as the goal's formulas are.
             let next = InfId::new(made.len() as u32 + 1);
             made.push(Inference {
+                term: None,
                 left: left.clone(),
                 right: right.clone(),
                 rule,
@@ -1597,6 +1611,7 @@ fn axiom(goal: &Inference, side: Side, position: usize, partner: usize) -> Vec<I
         }
     }
     made.push(Inference {
+        term: None,
         left,
         right,
         rule: Rule::Axiom,

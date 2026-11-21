@@ -16,8 +16,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   the quantifiers of first-order formulas. A `match` over `Node` needs an
   arm for each.
 
+- **`ordinary::Rule` has four variants more**, `ForallLeft`,
+  `ForallRight`, `ExistsLeft` and `ExistsRight`, after `Open`.
+
 ### Added
 
+- **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
+  `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
+  recording its witness or eigenvariable (`Inference::term`).
 - **First-order formulas in ordinary logic**: predicates applied to
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
@@ -49,7 +55,9 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **Level 25**: a first-order ordinary sequent or derivation, its
   formulas with `{"∀": a}` and `{"∃": a}`, and its tables under the
   linear sequent's keys `symbols`, `fo`, the atoms as `{"P": [symbol,
-  [terms]]}` and `binders`. A propositional one stays at level 8.
+  [terms]]}` and `binders`. A propositional one stays at level 8. A
+  derivation's quantifier rule names its term by `"term": k`, an
+  eigenvariable among the terms being `{"E": n}`.
 
 ## [0.7.0] - 2026-11-20
 

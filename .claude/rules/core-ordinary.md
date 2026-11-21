@@ -266,16 +266,39 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     `unreachable!("{}", REFUSED)` (`panic!` in a `const fn`) resting on
     those doors; a new method gets its door and its line in
     `every_propositional_method_refuses_a_first_order_sequent`. A
-    derivation of a first-order sequent exists (an axiom on `∀x. p(x)`)
-    and the checker takes it; its quantifier rules are still to come.
+    derivation of a first-order sequent exists and the checker takes it.
   - **Instances are nodes** (`instance.rs`): `instantiate(body, t)`
     builds `A[t/x]` by an iterative walk memoised per node and depth (a
     node shared at two depths is substituted at each, `p(#0)` under an
     inner binder is not `p(x)`), the closed `t` needing no shift; a
     binder it builds keeps the copied one's name. `instance` is the
     find-only form for the checker, which builds nothing (the interner's
-    `find_term`, `find_list`). Both have no caller outside the tests
-    until the checker's quantifier rules (`expect(dead_code)`).
+    `find_term`, `find_list`); `instantiate`'s first caller outside the
+    tests is the goal state.
+  - **The checker's quantifier rules** (G3c, G3i, G3m of Troelstra and
+    Schwichtenberg, §3.1; `Rule::{ForallLeft, ForallRight, ExistsLeft,
+    ExistsRight}`, last in `Rule::ALL` after `Cut` and `Open`, so `NAMES`
+    and `TAKEN` skip those two by name): every quantifier inference
+    records its term (`Inference::term`, `"term": k` in the JSON), and a
+    term on any other rule is refused, so a document has one reading.
+    `∀L` and `∃R` take any closed term of the arena, the premise keeping
+    the principal (G3) or not (G1; `∃R` keeps it in LK only); `∀R` and
+    `∃L` take an `Eigen` term that occurs in no formula of the conclusion
+    (`Formulas::mentions`, a walk over nodes and terms): the condition is
+    local because every inference holds its whole sequent. The instance is
+    found by `instance` (the checker builds nothing; a miss is a premise
+    that does not hold it). `Derivation::check` refuses a witness holding
+    an open witness (`Meta`), which `check_inference` takes for a goal
+    state's steps; the derivation's reader takes `{"E": n}` and refuses
+    `{"M": k}`, which only the goal state's reader takes
+    (`serialize::sequents::Extension`).
+  - **Eigenvariables are named by number** (`Formulas::eigen_names`): `a`,
+    `b`, … `z`, `a_1`, … skipping the symbols, the linear proofs' scheme;
+    the printer counts them as taken when it renames a binder, and an
+    atom's key writes an eigenvariable `@n` and an open witness `?k`
+    (`FirstOrder::write_with`; no name of the text syntax starts with
+    either). The admissible view keeps a weakening whose formulas hold
+    the eigenvariable of the `∀R` or `∃L` above it.
   - **The printer renames** (`write_first_order`, cold, only for a
     first-order arena): a binder whose name a symbol or an enclosing
     binder has is written `x_1`, `x_2` (the linear printer's scheme),

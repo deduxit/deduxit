@@ -159,6 +159,19 @@ pub(crate) struct FirstOrder<K> {
     pub(crate) binders: Vec<(K, String)>,
 }
 
+/// Writes an eigenvariable or an open witness as an atom's key holds it:
+/// `@k` for the eigenvariable `k`, `?k` for the open witness `k`. No name
+/// of the text syntax starts with either sign, so no key of a sequent's
+/// atom is one of these.
+fn canonical<W: Write + ?Sized>(out: &mut W, term: FoTerm) -> FmtResult {
+    match term {
+        FoTerm::Eigen(a) => write!(out, "@{}", a.get()),
+        FoTerm::Meta(k) => write!(out, "?{k}"),
+        FoTerm::Bound(index) => write!(out, "#{index}"),
+        FoTerm::App(..) => Ok(()),
+    }
+}
+
 impl<K> Default for FirstOrder<K> {
     fn default() -> Self {
         Self::new()
@@ -265,6 +278,19 @@ impl<K> FirstOrder<K> {
         symbol: &mut impl FnMut(&mut W, &str) -> FmtResult,
         bound: &mut impl FnMut(&mut W, u32) -> FmtResult,
     ) -> FmtResult {
+        self.write_with(out, term, symbol, bound, &mut canonical)
+    }
+
+    /// Writes the term `term` as [`write`](Self::write) does, an
+    /// eigenvariable or an open witness by `other`.
+    pub(crate) fn write_with<W: Write + ?Sized>(
+        &self,
+        out: &mut W,
+        term: FoTermId,
+        symbol: &mut impl FnMut(&mut W, &str) -> FmtResult,
+        bound: &mut impl FnMut(&mut W, u32) -> FmtResult,
+        other_writer: &mut impl FnMut(&mut W, FoTerm) -> FmtResult,
+    ) -> FmtResult {
         // The argument lists being written, each with the next argument.
         let mut open: Vec<(Args, u32)> = Vec::new();
         let mut next = Some(term);
@@ -279,11 +305,7 @@ impl<K> FirstOrder<K> {
                             open.push((args, 0));
                         }
                     }
-                    // Every way to a sequent builds its arena from bound
-                    // and ground terms alone.
-                    FoTerm::Eigen(_) | FoTerm::Meta(_) => {
-                        unreachable!("a sequent's arena holds no eigenvariable or metavariable")
-                    }
+                    other @ (FoTerm::Eigen(_) | FoTerm::Meta(_)) => other_writer(out, other)?,
                 }
             }
             let Some(&mut (args, ref mut i)) = open.last_mut() else {
@@ -608,25 +630,11 @@ impl<K> Interner<K> {
     }
 
     /// Returns the id of `term` if the tables hold it.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the checker's quantifier rules are its first caller outside the tests"
-        )
-    )]
     pub(crate) fn find_term(&self, term: FoTerm) -> Option<FoTermId> {
         self.terms.get(&term).copied()
     }
 
     /// Returns the argument list of `items` if the tables hold it.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the checker's quantifier rules are its first caller outside the tests"
-        )
-    )]
     pub(crate) fn find_list(&self, items: &[FoTermId]) -> Option<Args> {
         self.lists.get(items).copied()
     }

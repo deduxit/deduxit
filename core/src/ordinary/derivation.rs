@@ -3,6 +3,7 @@
 
 use super::translate::{Core, Image, pattern};
 use super::{Formulas, Logic, Node, NodeId, Translation};
+use crate::first_order::FoTermId;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::style::Drawn;
@@ -57,6 +58,12 @@ impl Side {
 /// (G1m): one rule would read an empty right side as `⊥` and another as
 /// any formula, which together give ex falso. LJ also has Gentzen's cut;
 /// LK's derivations have none.
+///
+/// The quantifier rules are G3's (Troelstra and Schwichtenberg, *Basic
+/// Proof Theory*, §3.1): `∀L` and `∃R` take any closed term as their
+/// witness, and `∀R` and `∃L` an eigenvariable that occurs in no formula
+/// of their conclusion. Each records its term
+/// ([`Inference::term`]), so the checker builds the instance and compares.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Rule {
     /// `ax`: `A ⊢ A`.
@@ -119,6 +126,22 @@ pub enum Rule {
     /// An open goal of a proof in progress. No derivation the checker
     /// accepts has one.
     Open,
+    /// `∀L`: `A[t/x], Γ ⊢ Δ` concludes `∀x. A, Γ ⊢ Δ` for any closed term
+    /// `t`, the inference's [`term`](Inference::term); the premise may
+    /// also keep `∀x. A`.
+    ForallLeft,
+    /// `∀R`: `Γ ⊢ Δ, A[y/x]` concludes `Γ ⊢ Δ, ∀x. A`, where the
+    /// eigenvariable `y`, the inference's [`term`](Inference::term),
+    /// occurs in no formula of the conclusion.
+    ForallRight,
+    /// `∃L`: `A[y/x], Γ ⊢ Δ` concludes `∃x. A, Γ ⊢ Δ`, where the
+    /// eigenvariable `y`, the inference's [`term`](Inference::term),
+    /// occurs in no formula of the conclusion.
+    ExistsLeft,
+    /// `∃R`: `Γ ⊢ Δ, A[t/x]` concludes `Γ ⊢ Δ, ∃x. A` for any closed term
+    /// `t`, the inference's [`term`](Inference::term); in LK the premise
+    /// may also keep `∃x. A`.
+    ExistsRight,
 }
 
 /// Each rule's two labels in markup, in the order of [`Rule::ALL`]:
@@ -153,12 +176,16 @@ const LABELS: [(&str, &str); Rule::ALL.len()] = [
     ("⊤R", "⊤_R"),
     ("cut", "cut"),
     ("open", "open"),
+    ("∀L", "∀_L"),
+    ("∀R", "∀_R"),
+    ("∃L", "∃_L"),
+    ("∃R", "∃_R"),
 ];
 
 impl Rule {
     /// Every rule, in the order of declaration, which is the order of
     /// `rule as usize`.
-    pub(crate) const ALL: [Self; 27] = {
+    pub(crate) const ALL: [Self; 31] = {
         use Rule::*;
         [
             Axiom,
@@ -188,6 +215,10 @@ impl Rule {
             TrueRight,
             Cut,
             Open,
+            ForallLeft,
+            ForallRight,
+            ExistsLeft,
+            ExistsRight,
         ]
     };
 
@@ -222,6 +253,10 @@ impl Rule {
             TrueRight => "⊤R",
             Cut => "cut",
             Open => "open",
+            ForallLeft => "∀L",
+            ForallRight => "∀R",
+            ExistsLeft => "∃L",
+            ExistsRight => "∃R",
         }
     }
 
@@ -254,7 +289,7 @@ impl Display for Rule {
 /// connectives as the parser of ordinary formulas reads them (`/\`, `\/`,
 /// `->`, `~`, `<->`) or as words (`and`, `or`, `imp`, `not`, `iff`,
 /// `false`, `true`), a subscript as a digit.
-const ASCII: [(&str, Rule); 36] = [
+const ASCII: [(&str, Rule); 40] = [
     ("/\\L", Rule::AndLeft),
     ("/\\L1", Rule::AndLeft1),
     ("/\\L2", Rule::AndLeft2),
@@ -291,18 +326,41 @@ const ASCII: [(&str, Rule); 36] = [
     ("falseR", Rule::FalseRight),
     ("trueL", Rule::TrueLeft),
     ("trueR", Rule::TrueRight),
+    ("forallL", Rule::ForallLeft),
+    ("forallR", Rule::ForallRight),
+    ("existsL", Rule::ExistsLeft),
+    ("existsR", Rule::ExistsRight),
 ];
 
 /// The names of every rule a step takes, all but [`Rule::Cut`] and
-/// [`Rule::Open`], the last two, as an unknown name's error lists them.
+/// [`Rule::Open`], as an unknown name's error lists them.
 const NAMES: [&str; Rule::ALL.len() - 2] = {
     let mut names = [""; Rule::ALL.len() - 2];
     let mut i = 0;
-    while i < names.len() {
-        names[i] = Rule::ALL[i].name();
+    let mut n = 0;
+    while i < Rule::ALL.len() {
+        if !matches!(Rule::ALL[i], Rule::Cut | Rule::Open) {
+            names[n] = Rule::ALL[i].name();
+            n += 1;
+        }
         i += 1;
     }
     names
+};
+
+/// The rules a step takes, in the order of [`NAMES`].
+const TAKEN: [Rule; Rule::ALL.len() - 2] = {
+    let mut rules = [Rule::Axiom; Rule::ALL.len() - 2];
+    let mut i = 0;
+    let mut n = 0;
+    while i < Rule::ALL.len() {
+        if !matches!(Rule::ALL[i], Rule::Cut | Rule::Open) {
+            rules[n] = Rule::ALL[i];
+            n += 1;
+        }
+        i += 1;
+    }
+    rules
 };
 
 impl std::str::FromStr for Rule {
@@ -311,7 +369,8 @@ impl std::str::FromStr for Rule {
     /// Reads a rule from its [`name`](Self::name) or an ASCII spelling of
     /// it: `/\R` or `andR` for `∧R`, `\/R1` or `orR1` for `∨R₁`, `->L` or
     /// `impL` for `→L`, `~R` or `notR` for `¬R`, `<->L2` or `iffL2` for
-    /// `↔L₂`, `falseL` for `⊥L`, `trueR` for `⊤R`, and a subscript as a
+    /// `↔L₂`, `falseL` for `⊥L`, `trueR` for `⊤R`, `forallL` for `∀L`,
+    /// `existsR` for `∃R`, and a subscript as a
     /// digit after the Unicode connective too (`∧L1`). A cut and an open
     /// goal are no rules a step takes, so `cut` and `open` are refused.
     fn from_str(text: &str) -> Result<Self, Error> {
@@ -319,7 +378,7 @@ impl std::str::FromStr for Rule {
         NAMES
             .iter()
             .position(|&name| name == text || name == digits)
-            .map(|i| Self::ALL[i])
+            .map(|i| TAKEN[i])
             .or_else(|| {
                 ASCII
                     .iter()
@@ -352,6 +411,9 @@ pub struct Inference {
     pub(crate) principal: Option<(Side, usize)>,
     /// The premises, in the rule's order.
     pub(crate) premises: Vec<InfId>,
+    /// The term of a quantifier rule: the witness of `∀L` and `∃R`, the
+    /// eigenvariable of `∀R` and `∃L`; `None` for every other rule.
+    pub(crate) term: Option<FoTermId>,
 }
 
 impl Inference {
@@ -383,6 +445,22 @@ impl Inference {
         &self.premises
     }
 
+    /// Returns the term of a quantifier rule, an id of the derivation's
+    /// first-order terms: the witness of `∀L` and `∃R`, the eigenvariable
+    /// of `∀R` and `∃L`; `None` for every other rule.
+    pub const fn term(&self) -> Option<FoTermId> {
+        self.term
+    }
+
+    /// Returns the eigenvariable of a `∀R` or an `∃L`.
+    pub(crate) fn eigenvariable(&self) -> Option<FoTermId> {
+        if matches!(self.rule, Rule::ForallRight | Rule::ExistsLeft) {
+            self.term
+        } else {
+            None
+        }
+    }
+
     /// Returns the formulas of one side.
     pub(crate) fn side(&self, side: Side) -> &[NodeId] {
         match side {
@@ -408,7 +486,9 @@ impl Inference {
 /// [`Sequent`](super::Sequent), with every formula the inferences name.
 /// Each inference is `{"left": [ids], "right": [ids], "rule": name,
 /// "principal": ["right", position], "premises": [indices]}`, without
-/// `principal` or `premises` where it has none. A derivation with LJ's
+/// `principal` or `premises` where it has none; a quantifier rule adds
+/// `"term": k`, its term by index in the sequent's `fo`, where an
+/// eigenvariable is `{"E": n}`. A derivation with LJ's
 /// cut ([`Rule::Cut`]) is written at level 9, since a reader of level 8
 /// does not know the rule. Reading one checks its shape (a tree, its root
 /// last), not its rules: that is [`check`](Self::check)'s.
@@ -587,6 +667,12 @@ impl Derivation {
                     let found = inference.side(side).iter().position(|&x| x == id);
                     found.map(|at| Some((side, at)))
                 })
+                // A rule's eigenvariable stays out of its conclusion: a
+                // weakening that adds a formula holding it is shown.
+                && !out[above.index()].eigenvariable().is_some_and(|y| {
+                    self.formulas
+                        .mentions(inference.left.iter().chain(&inference.right).copied(), y)
+                })
             {
                 let target = &mut out[above.index()];
                 target.left.clone_from(&inference.left);
@@ -679,6 +765,11 @@ impl Derivation {
                 .iter()
                 .map(|&p| &self.inferences[p.index()])
                 .collect();
+            // An open witness belongs to a proof in progress: a finished
+            // derivation names a term for every witness.
+            if inference.term.is_some_and(|t| self.formulas.holds_meta(t)) {
+                return Err(fail(n, "an open witness".to_owned()));
+            }
             check_inference(&self.formulas, self.logic, inference, &premises)
                 .map_err(|why| fail(n, why))?;
         }
@@ -750,6 +841,17 @@ pub(super) fn check_inference(
             Err(format!("{} premises instead of {n}", premises.len()))
         }
     };
+    let quantifier = matches!(
+        inference.rule,
+        ForallLeft | ForallRight | ExistsLeft | ExistsRight
+    );
+    if quantifier != inference.term.is_some() {
+        return Err(if quantifier {
+            "a quantifier rule without its term".to_owned()
+        } else {
+            "a term on a rule that takes none".to_owned()
+        });
+    }
     if inference.rule == Axiom {
         count(0)?;
         return match (&inference.left[..], &inference.right[..]) {
@@ -845,6 +947,27 @@ pub(super) fn check_inference(
     };
     let node = f.node(principal);
     let leaf = || count(0).map(|()| Added::default());
+    // The instance `A[t/x]` of the principal's body: the checker builds
+    // nothing, so a premise that holds it finds it in the arena, and a
+    // miss is a premise that does not.
+    let instance = |body: NodeId| {
+        let term = inference.term.ok_or("a quantifier rule without its term")?;
+        formulas
+            .instance(body, term)
+            .ok_or_else(|| "the premise is not what the rule makes of the conclusion".to_owned())
+    };
+    // `∀R` and `∃L`: the term is an eigenvariable that occurs in no
+    // formula of the conclusion.
+    let eigenvariable = || {
+        let term = inference.term.ok_or("a quantifier rule without its term")?;
+        if !formulas.is_eigenvariable(term) {
+            return Err("the term of the rule is no eigenvariable".to_owned());
+        }
+        if formulas.mentions(inference.left.iter().chain(&inference.right).copied(), term) {
+            return Err("the eigenvariable occurs in the conclusion".to_owned());
+        }
+        Ok(())
+    };
     match (inference.rule, side, node) {
         (WeakenLeft, Left, _) | (WeakenRight, Right, _) => unary(&[]),
         (ContractLeft, Left, _) => unary(&[(Left, principal), (Left, principal)]),
@@ -891,6 +1014,29 @@ pub(super) fn check_inference(
                 (IffRight, Right) => binary(&[(Right, forward)], &[(Right, backward)]),
                 _ => Err("the rule does not apply on this side".to_owned()),
             }
+        }
+        // G3's form keeps the principal formula in the premise, G1's drops
+        // it; its contraction is admissible.
+        (ForallLeft, Left, Node::Forall(body)) => {
+            let a = instance(body)?;
+            unary(&[(Left, a), (Left, principal)]).or_else(|_| unary(&[(Left, a)]))
+        }
+        (ExistsRight, Right, Node::Exists(body)) => {
+            let a = instance(body)?;
+            // Only LK's premise has room for the kept formula.
+            if logic == Logic::Classical {
+                unary(&[(Right, a), (Right, principal)]).or_else(|_| unary(&[(Right, a)]))
+            } else {
+                unary(&[(Right, a)])
+            }
+        }
+        (ForallRight, Right, Node::Forall(body)) => {
+            eigenvariable()?;
+            unary(&[(Right, instance(body)?)])
+        }
+        (ExistsLeft, Left, Node::Exists(body)) => {
+            eigenvariable()?;
+            unary(&[(Left, instance(body)?)])
         }
         (FalseLeft, Left, Node::False) if logic != Logic::Minimal => leaf(),
         (FalseLeft, ..) if logic == Logic::Minimal => {
@@ -1459,6 +1605,7 @@ fn push(
         list.push(node);
     }
     out.push(Inference {
+        term: None,
         left,
         right,
         rule,
@@ -1556,6 +1703,7 @@ mod tests {
         let f = sequent.formulas();
         let (a, not_a, b) = (sequent.left()[0], sequent.left()[1], sequent.right()[0]);
         let inference = |left: Vec<NodeId>, right, rule, principal, premises: &[u32]| Inference {
+            term: None,
             left,
             right,
             rule,
@@ -1617,7 +1765,7 @@ mod tests {
     /// refused.
     #[test]
     fn rules_read_from_their_names() {
-        for rule in &Rule::ALL[..Rule::ALL.len() - 2] {
+        for rule in &super::TAKEN {
             assert_eq!(rule.name().parse::<Rule>().unwrap(), *rule);
         }
         for (name, rule) in super::ASCII {
@@ -1677,6 +1825,7 @@ mod tests {
         let sequent: Sequent = "a, b |- a".parse().unwrap();
         let (a, b) = (sequent.left()[0], sequent.left()[1]);
         let make = |left: Vec<NodeId>, right, rule, premises: &[u32]| Inference {
+            term: None,
             left,
             right,
             rule,
@@ -1919,6 +2068,7 @@ mod tests {
                 Side::Right => (vec![a], vec![a, b]),
             };
             let make = |rule, premises: Vec<InfId>| Inference {
+                term: None,
                 left: with_b.0.clone(),
                 right: with_b.1.clone(),
                 rule,
@@ -1926,6 +2076,7 @@ mod tests {
                 premises,
             };
             let axiom = Inference {
+                term: None,
                 left: vec![a],
                 right: vec![a],
                 rule: Rule::Axiom,
@@ -1997,5 +2148,160 @@ mod tests {
             open.term(&limits, |_| false),
             Err(Error::NoTerm { .. })
         ));
+    }
+
+    /// Returns `∃x. ∀y. r(x, y) ⊢ ∀y. ∃x. r(x, y)` derived in LJ with all
+    /// four quantifier rules, `∀R`'s eigenvariable numbered 0 and `∃L`'s
+    /// `inner`, and the terms of both.
+    fn swapped(inner: u32) -> (Derivation, [FoTermId; 2]) {
+        use crate::first_order::{Eigen, FoTerm};
+        let mut f = Formulas::default();
+        let (x, y) = (f.variable(1), f.variable(0));
+        let r = f.predicate("r", &[x, y]).unwrap();
+        let all_y = f.binder(true, r, "y").unwrap();
+        let left = f.binder(false, all_y, "x").unwrap();
+        let (x, y) = (f.variable(0), f.variable(1));
+        let r = f.predicate("r", &[x, y]).unwrap();
+        let exists_x = f.binder(false, r, "x").unwrap();
+        let right = f.binder(true, exists_x, "y").unwrap();
+        let e0 = f.interner().term(FoTerm::Eigen(Eigen::new(0)));
+        let e1 = f.interner().term(FoTerm::Eigen(Eigen::new(inner)));
+        // `∀y. r(e1, y)`, `r(e1, e0)` and `∃x. r(x, e0)`.
+        let all = f.instantiate(all_y, e1).unwrap();
+        let Node::Forall(body) = f.node(all) else {
+            unreachable!()
+        };
+        let ground = f.instantiate(body, e0).unwrap();
+        let some = f.instantiate(exists_x, e0).unwrap();
+        let make = |left, right, rule, principal, premises: &[u32], term| Inference {
+            left,
+            right,
+            rule,
+            principal,
+            premises: premises.iter().map(|&p| InfId::new(p)).collect(),
+            term,
+        };
+        let inferences = vec![
+            make(vec![ground], vec![ground], Rule::Axiom, None, &[], None),
+            make(
+                vec![ground],
+                vec![some],
+                Rule::ExistsRight,
+                Some((Side::Right, 0)),
+                &[0],
+                Some(e1),
+            ),
+            make(
+                vec![all],
+                vec![some],
+                Rule::ForallLeft,
+                Some((Side::Left, 0)),
+                &[1],
+                Some(e0),
+            ),
+            make(
+                vec![left],
+                vec![some],
+                Rule::ExistsLeft,
+                Some((Side::Left, 0)),
+                &[2],
+                Some(e1),
+            ),
+            make(
+                vec![left],
+                vec![right],
+                Rule::ForallRight,
+                Some((Side::Right, 0)),
+                &[3],
+                Some(e0),
+            ),
+        ];
+        let derivation = Derivation::from_parts(
+            Logic::Intuitionistic,
+            f,
+            (vec![left], vec![right]),
+            inferences,
+        );
+        (derivation, [e0, e1])
+    }
+
+    /// The quantifier rules check, each with the term it records, and each
+    /// break of one is refused for its own reason.
+    #[test]
+    fn the_quantifier_rules_check() {
+        let limits = Limits::default();
+        let reason = |d: &Derivation| match d.check(&limits, |_| false) {
+            Err(Error::ReadBack { reason, .. }) => reason,
+            other => panic!("expected a refusal, got {other:?}"),
+        };
+        let (derivation, [e0, _]) = swapped(1);
+        derivation.check(&limits, |_| false).unwrap();
+        assert_eq!(
+            derivation
+                .formulas()
+                .formula(derivation.inferences()[2].left()[0])
+                .to_string(),
+            "∀y. r(b, y)"
+        );
+        // `∃L` on the eigenvariable `∀R` takes, which its conclusion holds.
+        let (bad, _) = swapped(0);
+        assert!(reason(&bad).contains("occurs in the conclusion"));
+        let broken = |n: usize, change: &dyn Fn(&mut Inference)| {
+            let mut d = swapped(1).0;
+            change(&mut d.inferences[n]);
+            reason(&d)
+        };
+        let constant = {
+            let mut d = swapped(1).0;
+            let a = d.formulas.function("a", &[]).unwrap();
+            d.inferences[4].term = Some(a);
+            reason(&d)
+        };
+        assert!(constant.contains("no eigenvariable"));
+        assert!(broken(2, &|i| i.term = Some(FoTermId::new(0))).contains("not what the rule"));
+        assert!(broken(2, &|i| i.term = None).contains("without its term"));
+        assert!(broken(0, &|i| i.term = Some(e0)).contains("takes none"));
+        let open = {
+            let mut d = swapped(1).0;
+            let meta = d
+                .formulas
+                .interner()
+                .term(crate::first_order::FoTerm::Meta(0));
+            d.inferences[2].term = Some(meta);
+            reason(&d)
+        };
+        assert!(open.contains("an open witness"));
+        #[cfg(feature = "serialize")]
+        {
+            let json = serde_json::to_string(&derivation).unwrap();
+            assert!(
+                json.contains(r#"{"E":0}"#) && json.contains(r#""term":"#),
+                "{json}"
+            );
+            let read: Derivation = serde_json::from_str(&json).unwrap();
+            read.check(&limits, |_| false).unwrap();
+            assert_eq!(serde_json::to_string(&read).unwrap(), json);
+        }
+    }
+
+    /// The admissible view keeps a weakening that brings `∀R`'s
+    /// eigenvariable into the conclusion.
+    #[test]
+    fn the_admissible_view_keeps_an_eigenvariable_out_of_its_conclusion() {
+        let (mut derivation, _) = swapped(1);
+        // `∃x. r(x, e0)`, weakened in below `∀R` on `e0`.
+        let weak = derivation.inferences[1].right[0];
+        let root = derivation.inferences.len() as u32 - 1;
+        let mut below = derivation.inferences[4].clone();
+        below.left.push(weak);
+        below.rule = Rule::WeakenLeft;
+        below.principal = Some((Side::Left, 1));
+        below.premises = vec![InfId::new(root)];
+        below.term = None;
+        derivation.left.clone_from(&below.left);
+        derivation.inferences.push(below);
+        derivation.check(&Limits::default(), |_| false).unwrap();
+        let shown = derivation.shown(Structural::Admissible);
+        assert_eq!(shown.inferences().len(), derivation.inferences().len());
     }
 }
