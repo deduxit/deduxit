@@ -7858,3 +7858,17 @@ move (D26).
   are read by **renaming on reading** (`par_`, `name_f`), since TPTP's names are wider than the
   native syntax's. In its slot, the same worker: **fixup-13**, that renaming, the text tree's size
   computed under `--tree never` (74c's follow-up) and `include` in the command's TPTP reader.
+- 2026-11-21, about 08:00: **fixup-13 reviewed; step 75's prompt written; 75a started.**
+  fixup-13 (Opus, high; the reviewer on Fable): TPTP names that the native syntax keeps (`par`,
+  `true`, `exists` …) or uses in two roles are renamed on reading (`_`, `_f`, kept fresh, compared
+  in NFC), so the 130 problems refused for their names read (ILTP's first-order pass: no error of
+  a name left, no verdict against a status; four files keep a variable outside its quantifier,
+  their own fault); `check --tree never` leaves the derivation out (a 5 000-deep derivation: past
+  300 s to 6.9 s); the command's TPTP reader inlines `include` (`$TPTP`, then the directories up,
+  bounded, cycles refused). The reviewer's five findings answered with tests. **Accepted
+  departure:** the LLTP reader renames nothing (`top` and `bot` are units LLTP's files write).
+  D17: `read-tptp` +0.08 %, now 0.99 % over its ceiling: about 1 % left, said in 75's prompt.
+  Its check on `ci/fixup-13`, then `main`. **Step 75's prompt** (`plan/75-first-order-search.md`)
+  written now rather than at 74's review, so 75a (the design, the embedding's quantifier rows and
+  the read-back of first-order linear proofs) starts in fixup-13's worker while 74e runs; 75a
+  keeps out of the session's code and rebases onto 74e when it lands.
