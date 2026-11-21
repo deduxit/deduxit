@@ -30,6 +30,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   (`apply 0 R0 existsR c`); `Step::with_witness`, `Needs::Witness`,
   `StepError::NoWitness` and `StepError::Witness` are new. A witness is
   typed: one left open for a later axiom to fill is not offered yet.
+- **First-order derivations drawn and read**: LaTeX, Typst and SVG draw
+  them, the web bindings' ordinary step takes `"witness"`, and a TPTP
+  problem without a conjecture reads as its hypotheses' refutation, a
+  `lemma` or a `theorem` as a hypothesis. The flake's package
+  `iltp-first-order` fetches ILTP's 2 670 first-order problems, which
+  `deduxit-bench run --tptp` reads, includes inlined.
 - **First-order formulas in ordinary logic**: predicates applied to
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas

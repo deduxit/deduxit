@@ -1152,7 +1152,7 @@
       ]
     },
     "fo_term": {
-      "description": "A first-order term: `{\"B\": k}` the variable of the k-th binder out (0 the innermost), `{\"F\": [symbol, [terms]]}` a symbol applied to earlier terms of the same list, `{\"E\": k}` an eigenvariable, only among a proof's own terms.",
+      "description": "A first-order term: `{\"B\": k}` the variable of the k-th binder out (0 the innermost), `{\"F\": [symbol, [terms]]}` a symbol applied to earlier terms of the same list, `{\"E\": k}` an eigenvariable, only among a proof's, an ordinary derivation's or a session's own terms.",
       "type": "object",
       "minProperties": 1,
       "maxProperties": 1,
@@ -2458,7 +2458,7 @@
       ]
     },
     "formula": {
-      "description": "A formula of ordinary logic in its sequent's list: an atom `{\"V\": a}`, `\"⊤\"`, `\"⊥\"`, `¬` with one operand, `∧`, `∨`, `→` or `↔` with two. Every operand comes before its formula.",
+      "description": "A formula of ordinary logic in its sequent's list: an atom `{\"V\": a}`, `\"⊤\"`, `\"⊥\"`, `¬`, `∀` or `∃` with one operand, `∧`, `∨`, `→` or `↔` with two. Every operand comes before its formula. A bound variable is the index of its quantifier, counted outwards from 0, so the operand of `∀` and `∃` may hold one.",
       "oneOf": [
         {
           "enum": [
@@ -2489,6 +2489,12 @@
             },
             "↔": {
               "$ref": "#/$defs/pair"
+            },
+            "∀": {
+              "$ref": "#/$defs/index"
+            },
+            "∃": {
+              "$ref": "#/$defs/index"
             }
           }
         }
@@ -2508,7 +2514,7 @@
         "version": {
           "type": "integer",
           "minimum": 8,
-          "description": "The wire level, written only at the top of a document."
+          "description": "The wire level, written only at the top of a document: 25 where the sequent is first-order."
         },
         "formulas": {
           "type": "array",
@@ -2517,10 +2523,7 @@
           }
         },
         "atoms": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/name"
-          }
+          "$ref": "#/$defs/atoms"
         },
         "left": {
           "$ref": "#/$defs/indices",
@@ -2529,11 +2532,28 @@
         "right": {
           "$ref": "#/$defs/indices",
           "description": "The formulas right of ⊢."
+        },
+        "symbols": {
+          "$ref": "#/$defs/symbols"
+        },
+        "fo": {
+          "description": "The first-order terms, each argument before its term. An eigenvariable stands only in a derivation's or a session's terms.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fo_term"
+          }
+        },
+        "binders": {
+          "description": "The variables' names, one per quantifier in the order of the formulas.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
         }
       }
     },
     "ordinary_sequent": {
-      "description": "A sequent of ordinary logic (level 8): the formulas, the atoms and the two sides.",
+      "description": "A sequent of ordinary logic (level 8, 25 where it is first-order): the formulas, the atoms and the two sides, and at first order the symbols, the terms and the binders' names.",
       "$ref": "#/$defs/ordinary_sequent_keys",
       "required": [
         "version"
@@ -2549,7 +2569,7 @@
       }
     },
     "ordinary_rule": {
-      "description": "A rule of LK or LJ by name; `cut` is from level 9, and `open` marks an open goal.",
+      "description": "A rule of LK or LJ by name; `cut` is from level 9, `open` marks an open goal, and the quantifier rules `∀L`, `∀R`, `∃L`, `∃R` are from level 25.",
       "enum": [
         "ax",
         "WL",
@@ -2577,11 +2597,15 @@
         "⊤L",
         "⊤R",
         "cut",
-        "open"
+        "open",
+        "∀L",
+        "∀R",
+        "∃L",
+        "∃R"
       ]
     },
     "inference": {
-      "description": "An inference of LK or LJ: its two sides as positions in the sequent's `formulas`, its rule, its principal formula's side and position, and its premises. A session's open goal has its two sides alone.",
+      "description": "An inference of LK or LJ: its two sides as positions in the sequent's `formulas`, its rule, its principal formula's side and position, its premises, and for a quantifier rule its term (the witness of `∀L` and `∃R`, the eigenvariable of `∀R` and `∃L`) as a position in the sequent's `fo`. A session's open goal has its two sides alone.",
       "type": "object",
       "required": [
         "left",
@@ -2616,6 +2640,9 @@
         },
         "premises": {
           "$ref": "#/$defs/indices"
+        },
+        "term": {
+          "$ref": "#/$defs/index"
         }
       }
     },
@@ -2632,7 +2659,7 @@
         "version": {
           "type": "integer",
           "minimum": 8,
-          "description": "The wire level, written only at the top of a document: 9 where it holds a cut."
+          "description": "The wire level, written only at the top of a document: 9 where it holds a cut, 25 where it is first-order."
         },
         "logic": {
           "$ref": "#/$defs/logic"
@@ -3276,7 +3303,7 @@
       }
     },
     "ordinary_session": {
-      "description": "A session of step-by-step proving in LK or LJ (level 8, `interact --logic`'s `save FILE`; 9 where it holds a cut): the logic, the sequent, the inferences in the session's own order with the root first, an open goal its two sides alone, and the steps taken in order. deduxit checks every inference by the checker's rules when it reads one. A reader ignores keys it does not know.",
+      "description": "A session of step-by-step proving in LK or LJ (level 8, `interact --logic`'s `save FILE`; 9 where it holds a cut, 25 where it is first-order): the logic, the sequent, the inferences in the session's own order with the root first, an open goal its two sides alone, and the steps taken in order. deduxit checks every inference by the checker's rules when it reads one. A reader ignores keys it does not know.",
       "type": "object",
       "required": [
         "version",

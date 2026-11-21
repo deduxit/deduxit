@@ -199,6 +199,14 @@ in use.
   the web bindings, and a session can apply the invertible rules by
   itself. A goal's `close` and `hint` decide through the embedding; in the bindings a goal that is not valid gets the SAT
   solver's countermodel.
+- [First-order sequents](ordinary-logic.md#first-order-sequents) are
+  read from text, JSON and TPTP (of ILTP's 2 670 first-order problems,
+  all but those with equality and 132 more: a symbol named `par`, a name
+  used as a predicate and as a function, or a free variable), proved
+  step by step in LK, LJ and LM with the quantifier rules
+  (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
+  Typst and SVG. Every deciding method refuses them by name until the
+  searches come.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's.
@@ -511,7 +519,8 @@ in use.
 The collection grows by a suite at a time, release by release:
 
 - 0.8.0: first-order ordinary logic: classical, intuitionistic and
-  minimal, proved step by step and searched, with finite countermodels;
+  minimal, searched, with finite countermodels and Rocq certificates; a
+  witness left open in a session for an axiom to fill;
   prenex form, Skolem form, clausal form and Herbrand's theorem, each
   checked; equality and first-order resolution; all of it on the web
   page, the linear tab at first order too.

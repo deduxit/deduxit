@@ -160,6 +160,8 @@ run checked-modal-model 1 "$deduxit" check "${t[@]}" --format json --system K --
 keep ordinary_session-intuitionistic 1 session.json "$deduxit" interact --logic intuitionistic 'a -> b, b -> c |- a -> c' <<<$'apply 0 R0 ->R\nsave session.json'
 keep ordinary_derivation-intuitionistic 0 derivation.json "$deduxit" interact --logic intuitionistic 'a, a -> b |- b' <<<$'close\nproof derivation.json'
 keep ordinary_derivation-classical 0 lk-derivation.json "$deduxit" interact --logic classical '((a -> b) -> a) -> a' <<<$'close\nproof lk-derivation.json'
+keep ordinary_session-first-order 1 fo-session.json "$deduxit" interact --logic intuitionistic 'forall x. (p(x) -> q(x)), exists x. p(x) |- exists y. q(y)' <<<$'apply 0 L1 existsL\napply 1 R0 existsR a\nsave fo-session.json'
+keep ordinary_derivation-first-order 0 fo-derivation.json "$deduxit" interact --logic classical 'forall x. p(x) |- p(c)' <<<$'apply 0 L0 forallL c\napply 1 R0 ax\nproof fo-derivation.json'
 
 # Negative translations and interpolants.
 run comparison-kolmogorov 0 "$deduxit" seq translate "${t[@]}" --format json 'a \/ ~a'

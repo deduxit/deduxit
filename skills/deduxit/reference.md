@@ -1436,7 +1436,8 @@ by step by the rules of LK or LJ. It has the linear session's commands
 - A rule is its name or an ASCII spelling: `ax`, `WL`, `WR`, `CL`, `CR`,
   `andL`, `andL1`, `andL2`, `andR`, `orL`, `orR`, `orR1`, `orR2`, `impL`
   or `->L`, `impR` or `->R`, `notL` or `~L`, `notR` or `~R`, `iffL`,
-  `iffL1`, `iffL2`, `iffR`, `falseL`, `falseR`, `trueL`, `trueR`.
+  `iffL1`, `iffL2`, `iffR`, `falseL`, `falseR`, `trueL`, `trueR`, and at
+  first order `forallL`, `forallR`, `existsL`, `existsR`.
 - The axiom closes a goal that has its formula on both sides, whatever
   else it holds.
 - A rule with two premises shares the whole context, unless formulas
@@ -1468,6 +1469,42 @@ a ∧ b ⊢ b       a ∧ b ⊢ a
       a ∧ b ⊢ b ∧ a
    ─────────────────── →R
    ⊢ (a ∧ b) → (b ∧ a)
+```
+
+### First-order sequents in LK or LJ
+
+An ordinary formula may apply predicates to terms and bind variables
+(`forall x. p(x) -> q(x)`, `exists x. p(x)`, `∀x.`, `∃x.`; TPTP's `! [X]
+:` and `? [X] :`); there is no `=` yet. Every method of `prove` refuses a
+first-order sequent, naming itself (exit 2); a session proves one with
+the quantifier rules:
+- `forallR` and `existsL` (`∀R`, `∃L`) name a fresh eigenvariable, `a`,
+  `b`, … past the sequent's own names.
+- `forallL` and `existsR` (`∀L`, `∃R`) take a witness term after the
+  rule's name, of the sequent's function symbols and the eigenvariables
+  introduced below the goal: `apply 1 R0 existsR a`. The witness is
+  typed; one left open for an axiom to fill comes later, so a sequent
+  with no constant, such as `∀x. p(x) ⊢ ∃x. p(x)`, has no proof yet.
+- `close` refuses a first-order goal; `check` checks the derivation
+  `proof FILE` writes, whose quantifier inferences hold `"term": k` (an
+  index of the sequent's `fo`, an eigenvariable there `{"E": n}`, wire
+  level 25).
+
+```console
+$ printf 'apply 0 L0 existsL\napply 1 R0 existsR a\napply 2 R0 orR1\napply 3 R0 ax\nproof\n' | deduxit interact --logic intuitionistic 'exists x. p(x) |- exists y. (p(y) \/ q)'
+opened goal 1: L0: p(a) ⊢ R0: ∃y. (p(y) ∨ q)
+opened goal 2: L0: p(a) ⊢ R0: p(a) ∨ q
+opened goal 3: L0: p(a) ⊢ R0: p(a)
+closed; no goal is open: `proof` checks the proof
+valid proof in LJ (intuitionistic logic)
+       ─────────── ax
+       p(a) ⊢ p(a)
+     ─────────────── ∨R₁
+     p(a) ⊢ p(a) ∨ q
+  ───────────────────── ∃R
+  p(a) ⊢ ∃y. (p(y) ∨ q)
+───────────────────────── ∃L
+∃x. p(x) ⊢ ∃y. (p(y) ∨ q)
 ```
 
 ### Modal logic: `--system`
@@ -1973,7 +2010,9 @@ library's `ordinary::Interactive` at wire level 8:
 - `ordinary_rules(session, goal, side, position, settings)`;
 - `ordinary_apply`, which takes a step `{"side": "left"|"right",
   "position", "rule": "→L", "split": {"left": [..], "right": [..]}}`;
-  with `split` left out, the premises share the context;
+  with `split` left out, the premises share the context; `"witness":
+  "TEXT"` gives `∀L` and `∃R` their term, and `ordinary_rules` marks
+  those rules `"witness": true`;
 - `ordinary_hint`, whose `steps` are the weakenings and contractions at
   the root of the derivation found and the rule above them, which
   `ordinary_apply` takes in turn;

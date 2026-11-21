@@ -507,6 +507,79 @@ $ deduxit prove --logic classical --quiet --file pel1.p
 valid (classical logic by the affine translation into affine MALL, focus engine)
 ```
 
+## First-order sequents
+
+A formula may apply predicates to terms and bind variables:
+`forall x. p(x) -> q(x)` and `exists x. p(x)` (or `∀x.` and `∃x.`; a
+quantifier reaches as far right as it can, and `forall x y.` binds
+two). A name in a term is the variable of the nearest quantifier that
+binds it, else a constant or a function symbol, as in `p(f(a), x)`. TPTP's
+`! [X] :` and `? [X] :` read the same way. There is no equality yet: `=`
+is refused, with a hint to write a predicate.
+
+Nothing decides first-order logic yet, so every method of `prove`
+refuses such a sequent, naming itself:
+
+```console
+$ deduxit prove --logic classical 'forall x. p(x) |- p(a)'; echo "exit $?"
+error: the SAT solver takes propositional sequents only, and this one is first-order
+exit 2
+```
+
+A session proves one step by step with the quantifier rules of LK, LJ
+and LM:
+- `∀R` and `∃L` (`forallR`, `existsL`) need nothing: the session names
+  a fresh eigenvariable, `a`, `b`, … skipping the sequent's own names.
+- `∀L` and `∃R` (`forallL`, `existsR`) take a witness term after the
+  rule's name. It may use the sequent's function symbols and the
+  eigenvariables that a step below the goal introduced. `rules` marks
+  these rules `(with a witness)`.
+- The witness is always typed. A session cannot leave it open for a
+  later axiom to fill in, so a sequent without a constant, such as
+  `∀x. p(x) ⊢ ∃x. p(x)`, has no proof here yet.
+- `close` refuses a first-order goal, as `prove` does.
+
+`check` checks a finished derivation that `proof FILE` wrote:
+
+```console
+$ deduxit interact --logic intuitionistic 'forall x. (p(x) -> q(x)), exists x. p(x) |- exists y. q(y)'
+> apply 0 L1 existsL
+opened goal 1: L0: ∀x. (p(x) → q(x)), L1: p(a) ⊢ R0: ∃y. q(y)
+> rules 1 R0
+∃R (with a witness)
+> apply 1 R0 existsR a
+opened goal 2: L0: ∀x. (p(x) → q(x)), L1: p(a) ⊢ R0: q(a)
+> apply 2 L0 forallL a
+opened goal 3: L0: p(a) → q(a), L1: ∀x. (p(x) → q(x)), L2: p(a) ⊢ R0: q(a)
+> apply 3 L0 ->L
+opened goal 6: L0: ∀x. (p(x) → q(x)), L1: p(a) ⊢ R0: p(a)
+opened goal 7: L0: q(a), L1: ∀x. (p(x) → q(x)), L2: p(a) ⊢ R0: q(a)
+> apply 6 R0 ax
+closed
+> apply 7 R0 ax
+closed; no goal is open: `proof` checks the proof
+> proof d.json
+valid proof written to d.json
+$ deduxit check d.json
+valid derivation in LJ of ∀x. (p(x) → q(x)), ∃x. p(x) ⊢ ∃y. q(y) (intuitionistic logic)
+────────────────────────────── ax   ──────────────────────────────────── ax
+∀x. (p(x) → q(x)), p(a) ⊢ p(a)      q(a), ∀x. (p(x) → q(x)), p(a) ⊢ q(a)
+──────────────────────────────────────────────────────────────────────── →L
+              p(a) → q(a), ∀x. (p(x) → q(x)), p(a) ⊢ q(a)
+              ─────────────────────────────────────────── ∀L
+                    ∀x. (p(x) → q(x)), p(a) ⊢ q(a)
+                  ────────────────────────────────── ∃R
+                  ∀x. (p(x) → q(x)), p(a) ⊢ ∃y. q(y)
+                ────────────────────────────────────── ∃L
+                ∀x. (p(x) → q(x)), ∃x. p(x) ⊢ ∃y. q(y)
+```
+
+The checker takes the rules in G3's form and in G1's: `∀L` may keep
+its formula in the premise or drop it, and so may `∃R` in LK. An
+eigenvariable must occur nowhere in the conclusion of its `∀R` or
+`∃L`. LaTeX, Typst and SVG draw such a derivation as they draw any
+other; it has no Rocq certificate yet (`no certificate: …`).
+
 ## JSON output
 
 With `--format json` every method writes the outcome of the ordinary
