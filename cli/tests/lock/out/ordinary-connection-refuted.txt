@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method connection 'exists x. p(x) |- forall y. p(y)'
+--- status 1
+--- stdout
+not valid (classical logic by the connection prover): the search was exhaustive
+--- stderr

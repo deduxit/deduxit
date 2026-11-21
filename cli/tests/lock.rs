@@ -727,6 +727,58 @@ const CASES: &[Case] = &[
             "a /\\ b |- b",
         ],
     ),
+    // The connection prover: a first-order proof, its JSON, a ground
+    // refutation, and an unknown at its bound on the active path.
+    call(
+        "ordinary-connection",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "connection",
+            "--stats",
+            "--deterministic",
+            "|- exists x. (p(x) -> forall y. p(y))",
+        ],
+    ),
+    call(
+        "ordinary-connection-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "connection",
+            "--format",
+            "json",
+            "forall x. (p(x) -> q(x)), p(a) |- q(a)",
+        ],
+    ),
+    call(
+        "ordinary-connection-refuted",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "connection",
+            "exists x. p(x) |- forall y. p(y)",
+        ],
+    ),
+    call(
+        "ordinary-connection-bound",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "connection",
+            "--path-length",
+            "2",
+            "forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(f(a)))))",
+        ],
+    ),
     // Modal logic.
     call("modal-valid", &["prove", "--system", "S4", "[]p -> [][]p"]),
     call(

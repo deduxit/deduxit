@@ -236,6 +236,11 @@ Search:
           
           [default: 1048576]
 
+      --restricted-backtracking
+          Keep the connection prover's first solution of each literal, never trying another (search.restricted_backtracking)
+          
+          The search often ends sooner, but it may miss a proof, so a sequent it finds no proof of is unknown (exit status 3), never not valid.
+
   -j, --jobs <N>
           How many threads the search may use (search.jobs)
           
@@ -295,6 +300,13 @@ Limits:
           Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3), not unprovable.
           
           [default: 65536]
+
+      --path-length <N>
+          The longest active path the connection prover searches with, or `none` for no bound (search.path_length)
+          
+          The connection prover (--method connection) tries the bounds 1, 2, … in turn, and only a step that makes a fresh variable is held to the bound. By default it goes on until it decides or the time limit passes; with a bound, a sequent with no proof within it is unknown (exit status 3).
+          
+          [default: none]
 
       --memory-limit <SIZE>
           The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)

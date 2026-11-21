@@ -1,0 +1,23 @@
+$ deduxit prove --logic classical --method connection --stats --deterministic '|- exists x. (p(x) -> forall y. p(y))'
+--- status 0
+--- stdout
+valid (classical logic by the connection prover)
+ ──────────────────────────────────────────────────── ax
+ p(b), p(a) ⊢ p(b), ∃x. (p(x) → (∀y. p(y))), ∀y. p(y)
+─────────────────────────────────────────────────────── →R
+p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), p(b), p(b) → (∀y. p(y))
+─────────────────────────────────────────────────────── ∃R
+         p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), p(b)
+       ──────────────────────────────────────── ∀R
+       p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), ∀y. p(y)
+     ──────────────────────────────────────────── →R
+     ⊢ ∃x. (p(x) → (∀y. p(y))), p(a) → (∀y. p(y))
+     ──────────────────────────────────────────── ∃R
+              ⊢ ∃x. (p(x) → (∀y. p(y)))
+steps: 5
+extension steps: 1
+reduction steps: 0
+literals closed by a lemma: 0
+bound on the active path: 1
+time: …
+--- stderr

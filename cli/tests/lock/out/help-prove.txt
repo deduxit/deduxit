@@ -74,16 +74,17 @@ Logic:
           The input is a formula or a sequent of propositional modal logic: ordinary logic's syntax with the prefixes [] (necessarily) and <> (possibly), as `[]p -> [][]p`, or its JSON form. The system is one of K, D, T, KB, KDB, B, K4, KD4, S4, K5, KD5, K45, KD45, KB5 and S5, or another name of one, such as KT4 for S4. A valid sequent is shown as a checked derivation in the system's labelled sequent calculus, G3 and the system's name, which `check --calculus` reads; one that is not valid with a checked Kripke countermodel, each world's arrows the worlds it sees. The JSON output is the modal outcome.
 
       --method <METHOD>
-          With --logic, how to decide the sequent: through its embedding into linear logic, by LJT, by a SAT solver, by its truth table or by a tableau (ordinary.method)
+          With --logic, how to decide the sequent: through its embedding into linear logic, by LJT, by a SAT solver, by its truth table, by a tableau or by a connection prover (ordinary.method)
           
-          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. A first-order sequent is decided through the embedding, the only method that takes one. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. The truth table and the tableau decide classical logic, and print the table or the tableau in place of a derivation: the table's rows that falsify the sequent marked `×`, the tableau's lines numbered, each branch closed with `×` or left open. --table-atoms bounds the table. Under LJT, the SAT solver, the table and the tableau, --stats prints the method's counters. Under every method --format json writes the outcome of the ordinary sequent, its "search" tagged by "method".
+          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. A first-order sequent is decided by the connection prover in classical logic and through the embedding in the others, the methods that take one; where the connection prover gives up at a bound, the embedding decides in its place. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. The connection prover decides classical logic, first-order sequents included: a valid sequent gets a checked derivation of LK, and a search with variables that finds no proof is unknown, never not valid (--path-length bounds it). The truth table and the tableau decide classical logic, and print the table or the tableau in place of a derivation: the table's rows that falsify the sequent marked `×`, the tableau's lines numbered, each branch closed with `×` or left open. --table-atoms bounds the table. Under LJT, the SAT solver, the table, the tableau and the connection prover, --stats prints the method's counters. Under every method --format json writes the outcome of the ordinary sequent, its "search" tagged by "method".
 
           Possible values:
-          - embedding: Through its translation into linear logic, the proof read back as LK or LJ
-          - ljt:       By Dyckhoff's calculus LJT, whose search always ends, for intuitionistic and minimal logic
-          - sat:       By a SAT solver, whose search always ends, for every logic; a valid classical sequent gets a checked clausal proof and no derivation
-          - table:     By its truth table, for classical logic: every assignment of its atoms, within --table-atoms
-          - tableau:   By a signed tableau, for classical logic: a closed tableau is a checked derivation of LK, an open branch a checked countermodel
+          - embedding:  Through its translation into linear logic, the proof read back as LK or LJ
+          - ljt:        By Dyckhoff's calculus LJT, whose search always ends, for intuitionistic and minimal logic
+          - sat:        By a SAT solver, whose search always ends, for every logic; a valid classical sequent gets a checked clausal proof and no derivation
+          - table:      By its truth table, for classical logic: every assignment of its atoms, within --table-atoms
+          - tableau:    By a signed tableau, for classical logic: a closed tableau is a checked derivation of LK, an open branch a checked countermodel
+          - connection: By a non-clausal connection prover, for classical logic, first-order sequents included: a valid sequent gets a checked derivation of LK
 
 Input:
   -f, --file <PATH>
@@ -346,6 +347,11 @@ Search:
           
           [default: 1048576]
 
+      --restricted-backtracking
+          Keep the connection prover's first solution of each literal, never trying another (search.restricted_backtracking)
+          
+          The search often ends sooner, but it may miss a proof, so a sequent it finds no proof of is unknown (exit status 3), never not valid.
+
   -j, --jobs <N>
           How many threads the search may use (search.jobs)
           
@@ -410,6 +416,13 @@ Limits:
           Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3), not unprovable.
           
           [default: 65536]
+
+      --path-length <N>
+          The longest active path the connection prover searches with, or `none` for no bound (search.path_length)
+          
+          The connection prover (--method connection) tries the bounds 1, 2, … in turn, and only a step that makes a fresh variable is held to the bound. By default it goes on until it decides or the time limit passes; with a bound, a sequent with no proof within it is unknown (exit status 3).
+          
+          [default: none]
 
       --memory-limit <SIZE>
           The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)

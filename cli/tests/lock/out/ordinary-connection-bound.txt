@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method connection --path-length 2 'forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(f(a)))))'
+--- status 3
+--- stdout
+unknown (classical logic by the connection prover): the bound of 2 on the active path was reached after …; raise it with --path-length N, or lift it with --path-length none to deepen it while the time limit lasts
+--- stderr
