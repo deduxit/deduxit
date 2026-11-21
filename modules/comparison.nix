@@ -27,7 +27,8 @@
         intuit = pkgs.callPackage ./_provers/intuit.nix { };
         intuitr = pkgs.callPackage ./_provers/intuitr.nix { };
       }
-      // pkgs.callPackages ./_provers/prolog.nix { };
+      // pkgs.callPackages ./_provers/prolog.nix { }
+      // pkgs.callPackages ./_provers/cop.nix { };
       deduxit = config.packages.deduxit-cli;
       # Each name of `run --tools' to the program that runs it.
       tools = {
@@ -46,6 +47,10 @@
         apll-ill = provers.apll;
         intuit = provers.intuit;
         intuitr = provers.intuitr;
+        leancop = provers.leancop;
+        nanocop = provers.nanocop;
+        nanocopi = provers.nanocopi;
+        ileancop = provers.ileancop;
       };
       record = pkgs.writeTextDir "share/deduxit-comparison/tools.json" (
         builtins.toJSON (

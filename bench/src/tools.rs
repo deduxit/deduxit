@@ -239,6 +239,61 @@ fn intuit_read(output: &str, _: i32) -> Answer {
     }
 }
 
+/// Reads the answer of one of Jens Otten's connection provers from the
+/// last line its driver prints, `verdict(theorem)`, `verdict(non-theorem)`
+/// or `verdict(timeout)`; SWI-Prolog at its stacks' limit is the memory
+/// limit.
+fn cop_read(output: &str, _: i32) -> Answer {
+    let verdict = output
+        .lines()
+        .rev()
+        .find_map(|l| l.trim().strip_prefix("verdict(")?.strip_suffix(')'));
+    match verdict {
+        Some("theorem") => Answer::plain("proved", ""),
+        Some("non-theorem") => Answer::plain("unprovable", ""),
+        Some("timeout") => Answer::plain("unknown", "timeout"),
+        _ if prolog_out_of_memory(output) => Answer::plain("unknown", "memory_limit"),
+        _ => {
+            let last = output.lines().rev().find(|l| !l.trim().is_empty());
+            Answer::plain("error", last.unwrap_or(""))
+        }
+    }
+}
+
+/// Returns the arguments of a connection prover's command: the TPTP file,
+/// the time limit in whole seconds (at least one), and the memory limit as
+/// the limit of SWI-Prolog's stacks.
+fn cop_arguments(file: &Path, _: Logic, timeout: f64, memory: u64) -> Vec<String> {
+    vec![
+        file.display().to_string(),
+        format!("{timeout}"),
+        memory.to_string(),
+    ]
+}
+
+/// The driver of one of Jens Otten's connection provers on SWI-Prolog,
+/// which reads a TPTP problem of ordinary logic and nothing of linear
+/// logic.
+const fn cop(name: &'static str, summary: &'static str, decides: fn(Logic) -> bool) -> Driver {
+    Driver {
+        name,
+        program: name,
+        summary,
+        covers: nothing,
+        input: Input::Translated("p"),
+        translate: untranslated,
+        arguments: |_, _, _, _| Vec::new(),
+        read: |_, _, _| Answer::plain("error", "no problem of linear logic"),
+        jobs: "1",
+        checks: false,
+        ordinary: Some(Ordinary {
+            decides,
+            arguments: cop_arguments,
+            read: cop_read,
+        }),
+    }
+}
+
 /// Reads deduxit's answer from its exit status and its outcome in JSON,
 /// as [`deduxit_answer`] does, and checks an unprovable verdict's
 /// refutation with `Disproof::check` ([`refutation_checked`]).
@@ -611,6 +666,30 @@ pub const DRIVERS: &[Driver] = &[
             read: intuit_read,
         }),
     },
+    cop(
+        "leancop",
+        "leanCoP 2.1 (Otten): clausal connection calculus for classical first-order logic, \
+         its script's strategies with equality axioms added, on SWI-Prolog",
+        |logic| logic == Logic::Classical,
+    ),
+    cop(
+        "nanocop",
+        "nanoCoP 2.0 (Otten): non-clausal connection calculus for classical first-order \
+         logic, its script's strategies, on SWI-Prolog",
+        |logic| logic == Logic::Classical,
+    ),
+    cop(
+        "nanocopi",
+        "nanoCoP-i 2.0 (Otten): non-clausal connection calculus for intuitionistic \
+         first-order logic, its script's strategies, on SWI-Prolog",
+        |logic| logic == Logic::Intuitionistic,
+    ),
+    cop(
+        "ileancop",
+        "iLeanCoP 1.2 (Otten): clausal connection calculus for intuitionistic first-order \
+         logic with prefixes, its script's strategies, on SWI-Prolog in place of ECLiPSe",
+        |logic| logic == Logic::Intuitionistic,
+    ),
 ];
 
 /// Reads APLL's answer from the line before its time: `P` is provable, `N`

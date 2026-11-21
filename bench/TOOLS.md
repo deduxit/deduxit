@@ -131,6 +131,57 @@ four tools on one core: every verdict agrees with the file's status (10
 theorems, 5 non-theorems). It checks the drivers, not the times; the
 comparison of times on all 274 problems is not made yet.
 
+## Connection provers of first-order logic
+
+deduxit decides first-order ordinary logic too: grounding for the
+Bernays–Schönfinkel and the monadic class, a non-clausal connection
+prover in classical logic, the embedding into linear logic in the
+others. Jens Otten's connection provers run beside it on ILTP's
+first-order problems.
+
+| | deduxit | leanCoP | nanoCoP | nanoCoP-i | iLeanCoP |
+|---|---|---|---|---|---|
+| authors | this repository | Otten | Otten | Otten | Otten |
+| version | — | 2.1 (2009) | 2.0 | 2.0 | 1.2 (2007) |
+| logics | classical, intuitionistic, minimal | classical | classical | intuitionistic | intuitionistic |
+| method | grounding (two decidable classes), a non-clausal connection prover, the embedding | clausal connection calculus, definitional clausal form | non-clausal connection calculus | non-clausal connection calculus with prefixes | clausal connection calculus with prefixes |
+| equality | ✗ (refused) | axioms added | axioms added | axioms added | axioms added |
+| proofs output | ✓ (LK and LJ derivations, clausal proofs, finite structures) | ✓ (connection proofs) | ✓ (connection proofs) | ✓ (connection proofs) | ✗ (valid or not) |
+| checker | ✓ (every derivation and structure) | ✗ | ✗ | ✗ | ✗ |
+| input | text, JSON, TPTP | TPTP or leanCoP's syntax | TPTP or leanCoP's syntax | TPTP or leanCoP's syntax | leanCoP's syntax (TPTP through TPTP2X) |
+| Prolog | — | ECLiPSe, SICStus or SWI | ECLiPSe or SWI | ECLiPSe or SWI | ECLiPSe |
+| licence | EUPL-1.2 | GPL, no version | GPL, no version | GPL, no version | GPL, no version |
+| runs here in batch | ✓ | ✓ (SWI-Prolog, a driver of ours) | ✓ (SWI-Prolog, a driver of ours) | ✓ (SWI-Prolog, a driver of ours) | ✓ (SWI-Prolog, two lines replaced) |
+
+Sources, all read on 2026-11-21 from leancop.de: the archives
+`programs/leancop21.tar.gz`, `programs/ileancop12.tar.gz`,
+`nanocop/programs/nanoCoP20.tar.gz` and
+`nanocop-i/programs/nanoCoP-i20.tar.gz`, each with its ReadMe (the
+syntax, the output lines) and its shell script (the strategies and the
+shares of the time limit). Jens Otten, "leanCoP 2.0 and ileanCoP 1.2:
+High performance lean theorem proving in classical and intuitionistic
+logic", IJCAR 2008, LNCS 5195; "nanoCoP: A non-clausal connection
+prover", IJCAR 2016, LNCS 9706; "The nanoCoP 2.0 connection provers
+for classical, intuitionistic and modal logics", TABLEAUX 2021, LNCS
+12842.
+
+How they run (`modules/_provers/cop.nix`): the flake fetches each
+archive and runs its own files on nixpkgs' SWI-Prolog. Each release's
+script runs its prover once per strategy, a Prolog process each, and
+polls the process's CPU time with `ps` once a second, so no answer
+comes before a second has passed. Our driver (`cop.pl`) runs the same
+strategies in the same order with the same shares of the time limit in
+one process, each under `call_with_time_limit`, trusting a strategy's
+"not valid" only where the script does. iLeanCoP's release runs on
+ECLiPSe alone, which nixpkgs lacks: its `lib(iso)` is left out, ECLiPSe's
+global occurs check becomes SWI-Prolog's, ECLiPSe's `retract_all/1` is
+SWI-Prolog's `retractall/1`, and a TPTP problem is read by leanCoP 2.1's
+TPTP reader (`ileancop_main.pl`) in place of TPTP2X. `run --tools
+deduxit,leancop,nanocop,nanocopi,ileancop --tptp DIR --logics
+classical,intuitionistic` runs them; a problem's includes are read from
+`$TPTP` by deduxit and from the library's root above the problem by the
+others.
+
 ## How the comparison is made
 
 - **The problems**: the LLTP library's intuitionistic problems (`ILL/`,

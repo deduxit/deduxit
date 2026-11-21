@@ -72,7 +72,11 @@ serde_json, which the CLI and the core's tests already have.
   columns empty; `connection` times `connection::decide` (classical
   logic only, the others `refused`) with no bound on the active path,
   its derivation checked inside, `fragment` `connection`, `nodes` its
-  extension steps, `work` its steps; `table` and `tableau` (classical logic only, the
+  extension steps, `work` its steps; `grounding` times
+  `grounding::decide` in every logic (its clausal proof and structure
+  checked inside), `fragment` `grounding`, `nodes` its ground atoms,
+  `work` the solver's calls and conflicts, a sequent outside its classes
+  `unknown`/`incomplete`; `table` and `tableau` (classical logic only, the
   others `refused`) time `ordinary::decide_within` with the method
   named, within `Limits::default()` (the command's bound of ten atoms on
   a table) and the run's memory bound, the tableau's derivation and
@@ -609,6 +613,22 @@ serde_json, which the CLI and the core's tests already have.
   error. A translator never panics on what a reader can return (the
   empty sequent is `0.` for linTAP, `[] --> []` for llprover): it runs
   in the parent, and a panic there ends the whole run and every resume.
+- **Otten's connection provers** (`cop` in `tools.rs`: `leancop`,
+  `nanocop` classical, `nanocopi`, `ileancop` intuitionistic) read a
+  TPTP problem of ordinary logic as it is and nothing of linear logic
+  (`covers: nothing`, an `Ordinary` part). Their command is `NAME FILE
+  SECONDS BYTES`, the driver `modules/_provers/cop.pl`, whose last line
+  `verdict(theorem|non-theorem|timeout)` is the answer (`cop_read`); a
+  stack overflow is `memory_limit`. The driver runs each release
+  script's strategies with its shares in one process: the scripts' own
+  `ps` loop answered nothing before a second. Their wrapper sets `TPTP`
+  to the library's root, two directories above the problem's real path,
+  so a problem's includes resolve wherever the file is linked from.
+  They decide equality (axioms added), which deduxit refuses: a
+  comparison on deduxit's set leaves those problems out. deduxit's
+  command refuses a file that is not UTF-8 (107 of ILTP's 940
+  first-order problems without equality hold Latin-1 in comments), so
+  the comparison gives every tool those files converted.
 - **The columns** `tool`, `tool_version` (from the flake's record,
   `DEDUXIT_COMPARISON_TOOLS`), `translate_ms`, `peak_bytes` and `raw` (the
   tool's last line of output) came at the end of `HEADER`; `run` without

@@ -284,7 +284,11 @@ OCaml 4.14 (it was written for 4.06), intuit and intuitR with the GHC of
 nixpkgs and its Haskell package `minisat` (`haskellPackages.mkDerivation`
 written out, no import from a derivation; intuit with its pragma
 `MonadFailDesugaring` removed, which GHC 9.10 refuses, intuitR with
-`partial-order` built unbroken and without its tests). Each carries
+`partial-order` built unbroken and without its tests), and Otten's
+leanCoP 2.1, nanoCoP 2.0, nanoCoP-i 2.0 and iLeanCoP 1.2 from their
+leancop.de archives on SWI-Prolog (`cop.nix`, the driver `cop.pl` of
+ours, iLeanCoP's two ECLiPSe directives replaced by `substituteInPlace`
+and its TPTP read by `ileancop_main.pl`, `bench/TOOLS.md`). Each carries
 `passthru.source` (url, revision, date, licence), which `comparison`'s
 `share/deduxit-comparison/tools.json` records per `--tools` name.
 `comparison` joins deduxit's command and harness, BenchExec, the provers
