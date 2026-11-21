@@ -146,8 +146,15 @@ struct World {
     /// Whether an earlier world blocks it, once asked.
     blocked: Blocked,
     /// What decides its part of the branch, in a system that blocks: see
-    /// [`Search::key`]. `None` for the first world and in other systems.
+    /// [`Search::keyed`]. `None` for the first world and in other systems.
     key: Option<Rc<[u64]>>,
+    /// The world that made it (the first world names itself).
+    maker: u32,
+    /// In a system that blocks, once it is finished, the end of its part
+    /// of the branch: it is `self..end`.
+    end: u32,
+    /// The entry its own finished part was kept as, on this branch.
+    kept: Option<u32>,
 }
 
 /// Whether a world is blocked, as far as the search asked.
@@ -869,6 +876,9 @@ impl<'a> Search<'a> {
             signature: None,
             blocked: Blocked::Unknown,
             key: None,
+            maker: index,
+            end: 0,
+            kept: None,
         });
         self.counts.worlds += 1;
         Ok(index)
@@ -1328,7 +1338,11 @@ impl<'a> Search<'a> {
                 return Ok(true);
             }
             branch.open.pop();
+            branch.worlds[x as usize].end = branch.worlds.len() as u32;
             self.keep(branch, x);
+            // Each finished part was scanned: count it now, not all at
+            // the end of the walk.
+            self.tick(0, stop)?;
         }
         Ok(false)
     }
@@ -1337,6 +1351,7 @@ impl<'a> Search<'a> {
     /// and returns it.
     fn make(&mut self, branch: &mut Branch, x: u32, demand: Option<usize>) -> Result<u32, Reason> {
         let y = self.world(branch)?;
+        branch.worlds[y as usize].maker = x;
         match demand {
             Some(index) => {
                 let (x, id, right) = branch.demands.remove(index);
@@ -1421,85 +1436,138 @@ impl<'a> Search<'a> {
     /// blocked by a world of the part, whose arrows it then takes, so
     /// that the part's model needs no world outside it. A dead end where
     /// `Ser` does not apply sees itself, as in [`Search::model`]. The
+    /// entry holds each world's direct arrows only (to the worlds it made,
+    /// and the loops of S4 and of a dead end): the model closes them under
+    /// transitivity, which gives the branch's relation. A world of the
+    /// part whose own part was kept already stands in it as that entry,
+    /// so a world is copied into one entry at most along a branch. The
     /// entry is taken only where the memory bound spares it, as the linear
     /// search's memo is.
-    fn keep(&mut self, branch: &Branch, k: u32) {
+    fn keep(&mut self, branch: &mut Branch, k: u32) {
         let Some(key) = branch.worlds[k as usize].key.clone() else {
             return;
         };
         if Self::cached(branch, k) || self.cache.contains_key(&key) {
             return;
         }
-        // The part: `k` and the worlds made after it, numbered from `k`.
-        let part = |y: u32| y.checked_sub(k);
-        let worlds = k..branch.worlds.len() as u32;
-        let size = branch.worlds.len() - k as usize;
-        let mut waits = vec![false; size];
+        let (start, end) = (k as usize, branch.worlds.len());
+        // Each world's place in the entry, `u32::MAX` for a world inside
+        // a part that stands as its entry.
+        let mut place = vec![u32::MAX; end - start];
+        let mut pieces: Vec<Piece> = Vec::new();
+        let mut worlds: Vec<u32> = Vec::new();
+        let mut d = start;
+        while d < end {
+            let w = &branch.worlds[d];
+            place[d - start] = pieces.len() as u32;
+            worlds.push(d as u32);
+            let graft = match (w.blocked, w.kept) {
+                (Blocked::Cached(entry), _) => Some(entry),
+                (_, Some(entry)) if d != start => Some(entry),
+                _ => None,
+            };
+            let atoms: Vec<u32> = if graft.is_some() {
+                Vec::new()
+            } else {
+                self.owed = self.owed.saturating_add(self.words as u64);
+                let mut atoms: Vec<u32> = (0..self.words)
+                    .flat_map(|j| {
+                        let mut bits = w.truth[j] & self.atoms[j];
+                        std::iter::from_fn(move || {
+                            (bits != 0).then(|| {
+                                let b = bits.trailing_zeros();
+                                bits &= bits - 1;
+                                (j * 64) as u32 + b
+                            })
+                        })
+                    })
+                    .collect();
+                atoms.shrink_to_fit();
+                atoms
+            };
+            pieces.push(Piece {
+                atoms,
+                arrows: Vec::new(),
+                graft,
+            });
+            // A kept part stands as its entry: skip its other worlds.
+            d = match (w.kept, d != start) {
+                (Some(_), true) => w.end as usize,
+                _ => d + 1,
+            };
+        }
         self.owed = self
             .owed
-            .saturating_add((branch.demands.len() + size) as u64);
-        // Every demand left has no witness.
+            .saturating_add((branch.demands.len() + pieces.len()) as u64);
+        let at = |y: u32| -> Option<u32> {
+            let i = y.checked_sub(k)? as usize;
+            place.get(i).copied().filter(|&p| p != u32::MAX)
+        };
+        // The direct arrows: from each world's maker, and the loops.
+        for (i, &y) in worlds.iter().enumerate() {
+            let w = &branch.worlds[y as usize];
+            if y != k {
+                let Some(m) = at(w.maker) else {
+                    return;
+                };
+                pieces[m as usize].arrows.push(i as u32);
+            }
+            if pieces[i].graft.is_none()
+                && (self.reflexive || (self.serial && w.sees.is_empty()))
+            {
+                pieces[i].arrows.push(i as u32);
+            }
+        }
+        // A world that waits takes its blocker's arrows; every demand
+        // left has no witness.
+        let mut waits = vec![false; pieces.len()];
         for &(d, ..) in &branch.demands {
-            if let Some(i) = part(d) {
+            if let Some(i) = at(d) {
                 waits[i as usize] = true;
             }
         }
-        let mut pieces: Vec<Piece> = Vec::with_capacity(size);
-        let mut bytes = key.len() * 16 + 64;
-        for (i, x) in worlds.enumerate() {
-            let w = &branch.worlds[x as usize];
-            self.owed = self.owed.saturating_add((self.words + w.sees.len()) as u64);
-            let graft = match w.blocked {
-                Blocked::Cached(entry) => Some(entry),
-                Blocked::Unknown | Blocked::No | Blocked::By(_) => None,
-            };
-            let dead = self.serial && w.sees.is_empty() && graft.is_none();
+        for (i, &y) in worlds.iter().enumerate() {
+            let w = &branch.worlds[y as usize];
+            if pieces[i].graft.is_some() {
+                continue;
+            }
             let own = (0..self.words)
                 .any(|j| w.truth[j] & self.boxes[j] != 0 || w.falsity[j] & self.diamonds[j] != 0);
-            let mut arrows = Vec::with_capacity(w.sees.len() + 1);
-            for &y in &w.sees {
-                let Some(y) = part(y) else {
-                    return;
-                };
-                arrows.push(y);
-            }
-            arrows.sort_unstable();
+            let dead = self.serial && w.sees.is_empty();
             if waits[i] || (dead && own) {
                 let Blocked::By(v) = w.blocked else {
                     return;
                 };
-                let Some(v) = part(v) else {
+                let Some(v) = at(v) else {
                     return;
                 };
-                // The blocker's arrows as the model has them: it does not
-                // wait, so they are final.
+                if pieces[v as usize].graft.is_some() {
+                    return;
+                }
+                // The blocker does not wait, so its arrows are final; the
+                // waiting world's loop as a dead end goes (not its loop
+                // in S4).
                 let more = pieces[v as usize].arrows.clone();
+                let arrows = &mut pieces[i].arrows;
+                if !self.reflexive {
+                    arrows.retain(|&a| a != i as u32);
+                }
                 for c in more {
-                    if let Err(at) = arrows.binary_search(&c) {
-                        arrows.insert(at, c);
+                    if !arrows.contains(&c) {
+                        arrows.push(c);
                     }
                 }
-            } else if dead {
-                arrows.push(i as u32);
+                self.owed = self.owed.saturating_add(arrows.len() as u64);
             }
-            let atoms: Vec<u32> = (0..self.words)
-                .flat_map(|j| {
-                    let mut bits = w.truth[j] & self.atoms[j];
-                    std::iter::from_fn(move || {
-                        (bits != 0).then(|| {
-                            let b = bits.trailing_zeros();
-                            bits &= bits - 1;
-                            (j * 64) as u32 + b
-                        })
-                    })
-                })
-                .collect();
-            bytes = bytes.saturating_add(4 * (atoms.len() + arrows.len()) + 64);
-            pieces.push(Piece {
-                atoms,
-                arrows,
-                graft,
-            });
+        }
+        let mut bytes = key.len() * 16 + 64;
+        for piece in &mut pieces {
+            piece.arrows.shrink_to_fit();
+            bytes = bytes.saturating_add(
+                std::mem::size_of::<Piece>()
+                    + 4 * (piece.atoms.capacity() + piece.arrows.capacity())
+                    + 32,
+            );
         }
         if !self.account.spares(bytes) {
             return;
@@ -1509,6 +1577,13 @@ impl<'a> Search<'a> {
         let entry = self.index(self.entries.len());
         self.entries.push(Entry { worlds: pieces });
         self.cache.insert(key, entry);
+        branch.worlds[k as usize].kept = Some(entry);
+    }
+
+    /// Returns the bytes a world of an entry takes in a model: its arrows,
+    /// and its atoms as indices and as the names a model's world holds.
+    fn model_bytes(piece: &Piece) -> usize {
+        48 * piece.atoms.len() + 4 * piece.arrows.len() + 64
     }
 
     /// Gives a new world its reflexive edge.
@@ -1730,9 +1805,11 @@ impl<'a> Search<'a> {
             while let Some((root, entry)) = grafts.pop() {
                 if let Some(&base) = added.get(&entry) {
                     let first = &self.entries[entry as usize].worlds[0];
-                    atoms[root as usize].clone_from(&first.atoms);
                     let arrows = first.arrows.clone();
-                    self.tick(1 + arrows.len() as u64, stop)?;
+                    let (count, held) = (first.atoms.len(), Self::model_bytes(first));
+                    self.account.charge(held);
+                    self.tick((1 + arrows.len() + count) as u64, stop)?;
+                    atoms[root as usize].clone_from(&self.entries[entry as usize].worlds[0].atoms);
                     for y in arrows {
                         let y = if y == 0 {
                             root
@@ -1746,16 +1823,14 @@ impl<'a> Search<'a> {
                     continue;
                 }
                 added.insert(entry, sees.len());
-                let (count, held) = {
+                let (count, held, cells) = {
                     let pieces = &self.entries[entry as usize].worlds;
-                    let held: usize = pieces
-                        .iter()
-                        .map(|p| 4 * (p.atoms.len() + p.arrows.len()) + 64)
-                        .sum();
-                    (pieces.len(), held)
+                    let held: usize = pieces.iter().map(Self::model_bytes).sum();
+                    let cells: usize = pieces.iter().map(|p| p.atoms.len() + p.arrows.len()).sum();
+                    (pieces.len(), held, cells)
                 };
                 self.account.charge(held);
-                self.tick(count as u64, stop)?;
+                self.tick((count + cells) as u64, stop)?;
                 let pieces = &self.entries[entry as usize].worlds;
                 let base = sees.len();
                 let at = |i: u32| {

@@ -171,13 +171,26 @@ The design, with its reasons, alternatives and sources, is
   an entry where every world of it that waits (a demand without a
   witness, or a dead end where `Ser` applies) is blocked by a world of
   the part; a dead end where `Ser` does not apply gets a loop, a waiting
-  world its blocker's arrows (as `model` does). A world made later with
+  world its blocker's arrows (as `model` does). An entry holds direct
+  arrows only (maker to made, the loops of S4 and of a dead end), which
+  the model's worklist closes into the branch's relation, and a world of
+  the part whose own part was kept on this branch (`World::kept`) stands
+  as that entry, its other worlds skipped (`World::end`): copying every
+  part's closed arrows cost n³ on a K4 chain, paid in one tick after the
+  walk (the integers panel of fixup-10). Never another entry of the same
+  key there: the descendants a part had may realise its ancestors'
+  demands, which another model of the key need not. The walk ticks after
+  every popped world. A world made later with
   that key is `Blocked::Cached`: never expanded (no betas, no demands,
   no `Ser`), never a blocker, and `model` makes it the entry's first
   world and adds the entry's other worlds once (an entry within an entry
   in turn; a second world with the same entry sees the same added
   worlds, which satisfy both since what reaches them is the key's), then
-  closes the arrows by the worklist. An entry is taken only where
+  closes the arrows by the worklist; each added world's atoms are
+  charged as the names a model holds (48 bytes an atom) and counted, so a
+  graft past the memory bound is a refusal (a graft of 400 worlds of
+  25 000 atoms each once held 9 times a 64 MiB bound uncharged, the
+  integers panel). An entry is taken only where
   `Account::spares` allows it (an eighth of the bound left), charged and
   never released; losing one costs only time.
 - **The unsat side** (`Search::learn`, called in `fold` at a used step
