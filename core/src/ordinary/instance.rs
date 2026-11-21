@@ -231,6 +231,159 @@ impl Formulas {
     }
 }
 
+#[cfg(feature = "interactive")]
+impl Formulas {
+    /// Returns the pairs of terms whose unification makes the formulas `x`
+    /// and `y` one formula: the arguments of the atoms that stand at the
+    /// same place in both, or `None` where the two differ in a connective
+    /// or a predicate. Under a binder a pair may hold its bound variable,
+    /// which only that variable unifies with. It walks on a stack of its
+    /// own, each pair of shared nodes once.
+    pub(crate) fn term_pairs(&self, x: NodeId, y: NodeId) -> Option<Vec<(FoTermId, FoTermId)>> {
+        let tables = self.tables();
+        let mut pairs = Vec::new();
+        let mut seen = HashSet::default();
+        let mut stack = vec![(x, y)];
+        while let Some((a, b)) = stack.pop() {
+            if a == b || !seen.insert((a, b)) {
+                continue;
+            }
+            match (self.nodes[a.index()], self.nodes[b.index()]) {
+                (Node::Atom(p), Node::Atom(q)) => {
+                    let (&(f, s), &(g, t)) =
+                        (tables.atoms.get(p as usize)?, tables.atoms.get(q as usize)?);
+                    if f != g {
+                        return None;
+                    }
+                    let (s, t) = (tables.list(s), tables.list(t));
+                    pairs.extend(s.iter().copied().zip(t.iter().copied()));
+                }
+                (Node::Not(c), Node::Not(d))
+                | (Node::Forall(c), Node::Forall(d))
+                | (Node::Exists(c), Node::Exists(d)) => stack.push((c, d)),
+                (Node::And(c, d), Node::And(e, f))
+                | (Node::Or(c, d), Node::Or(e, f))
+                | (Node::Implies(c, d), Node::Implies(e, f))
+                | (Node::Iff(c, d), Node::Iff(e, f)) => {
+                    stack.push((d, f));
+                    stack.push((c, e));
+                }
+                _ => return None,
+            }
+        }
+        Some(pairs)
+    }
+
+    /// Returns the closed term `t` as text: `f(t, …)`, an eigenvariable by
+    /// the name the proof prints it with, an open witness as `$1`, `$2`, ….
+    pub(crate) fn term_text(&self, t: FoTermId) -> String {
+        let eigens = self.eigen_names();
+        let mut text = String::new();
+        let written = self.tables().write_with(
+            &mut text,
+            t,
+            &mut |o: &mut String, name: &str| {
+                o.push_str(name);
+                Ok(())
+            },
+            &mut |o: &mut String, index| {
+                use std::fmt::Write as _;
+                write!(o, "#{index}")
+            },
+            &mut |o: &mut String, other| {
+                match other {
+                    FoTerm::Eigen(e) => match eigens.binary_search_by_key(&e.get(), |&(k, _)| k) {
+                        Ok(at) => o.push_str(&eigens[at].1),
+                        Err(_) => o.push('?'),
+                    },
+                    FoTerm::Meta(k) => {
+                        o.push_str(&crate::linear::occurrences::instances::meta_name(k));
+                    }
+                    FoTerm::Bound(_) | FoTerm::App(..) => {}
+                }
+                Ok(())
+            },
+        );
+        debug_assert!(written.is_ok(), "a string takes every write");
+        text
+    }
+
+    /// Returns whether one of the formulas `roots` holds an open witness.
+    /// It walks on stacks of its own, each shared node and term once.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn holds_open_witness(&self, roots: impl Iterator<Item = NodeId>) -> bool {
+        let tables = self.tables();
+        let mut nodes_seen = HashSet::default();
+        let mut terms_seen = HashSet::default();
+        let mut nodes: Vec<NodeId> = roots.collect();
+        let mut terms: Vec<FoTermId> = Vec::new();
+        while let Some(k) = nodes.pop() {
+            if !nodes_seen.insert(k) {
+                continue;
+            }
+            match self.nodes[k.index()] {
+                Node::Atom(a) => {
+                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                        terms.extend_from_slice(tables.list(args));
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    nodes.push(a);
+                    nodes.push(b);
+                }
+            }
+        }
+        while let Some(u) = terms.pop() {
+            if !terms_seen.insert(u) {
+                continue;
+            }
+            match tables.terms[u.index()] {
+                FoTerm::Meta(_) => return true,
+                FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
+                FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
+            }
+        }
+        false
+    }
+}
+
+/// The replacement of open witnesses by the terms they are bound to, over
+/// any number of formulas and terms of one arena, each node and term made
+/// once. The bindings hold no cycle: a binding never holds the open
+/// witness it binds, nor one bound to a term that holds it.
+#[cfg(feature = "interactive")]
+pub(crate) struct Resolution(Substitution);
+
+#[cfg(feature = "interactive")]
+impl Resolution {
+    /// Returns the replacement of each open witness `k` by `bindings[k]`,
+    /// those with `None` left as they are.
+    pub(crate) fn new(bindings: Vec<Option<FoTermId>>) -> Self {
+        Self(Substitution::of_metas(bindings))
+    }
+
+    /// Returns the formula `node` of `formulas` with its open witnesses
+    /// replaced, built in the arena where new.
+    ///
+    /// # Errors
+    ///
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
+    pub(crate) fn node(&mut self, formulas: &mut Formulas, node: NodeId) -> Result<NodeId, Error> {
+        let made = self.0.run(&mut Build(formulas), node)?;
+        Ok(made.expect("an arena that adds what it lacks finds every node"))
+    }
+
+    /// Returns the term `t` of `formulas` with its open witnesses replaced,
+    /// built in the arena where new.
+    pub(crate) fn term(&mut self, formulas: &mut Formulas, t: FoTermId) -> FoTermId {
+        self.0
+            .substitute(&mut Build(formulas), t, 0)
+            .expect("an arena that adds what it lacks finds every term")
+    }
+}
+
 /// An arena as a substitution makes its results in it: one that adds what
 /// it lacks, or one that only looks up and answers `None` for a miss.
 trait Maker {
@@ -329,11 +482,26 @@ enum Task<T> {
     Make(T, u32),
 }
 
+/// What a substitution replaces.
+enum Replace {
+    /// The variable of the binder removed, by this closed term.
+    Variable(FoTermId),
+    /// Each open witness by the term it is bound to, by number, `None` for
+    /// one left as it is. A bound term may hold open witnesses bound in
+    /// turn, which are replaced too.
+    #[cfg_attr(
+        not(feature = "interactive"),
+        expect(dead_code, reason = "only the goal state has open witnesses")
+    )]
+    Metas(Vec<Option<FoTermId>>),
+}
+
 /// The replacement of the variable of one binder by a closed term, at
-/// every depth it is met, each node and term made once per depth.
+/// every depth it is met, or of open witnesses by their bindings, each
+/// node and term made once per depth.
 struct Substitution {
-    /// The closed term.
-    term: FoTermId,
+    /// What is replaced.
+    replace: Replace,
     /// Every node's instance under so many binders below the removed one.
     nodes: HashMap<(NodeId, u32), NodeId>,
     /// Every term's instance under so many binders below the removed one.
@@ -345,9 +513,39 @@ impl Substitution {
     /// variable.
     fn new(term: FoTermId) -> Self {
         Self {
-            term,
+            replace: Replace::Variable(term),
             nodes: HashMap::default(),
             terms: HashMap::default(),
+        }
+    }
+
+    /// Returns the substitution of each open witness by its binding,
+    /// `bindings[k]` for the open witness `k`.
+    #[cfg(feature = "interactive")]
+    fn of_metas(bindings: Vec<Option<FoTermId>>) -> Self {
+        Self {
+            replace: Replace::Metas(bindings),
+            nodes: HashMap::default(),
+            terms: HashMap::default(),
+        }
+    }
+
+    /// Returns the depth under a binder at `depth`: one more where the
+    /// substitution replaces a binder's variable, since a variable then
+    /// reads by its depth, and the same where it replaces open witnesses,
+    /// which are closed terms.
+    const fn inner(&self, depth: u32) -> u32 {
+        match self.replace {
+            Replace::Variable(_) => depth + 1,
+            Replace::Metas(_) => depth,
+        }
+    }
+
+    /// Returns the binding of the open witness `k`, if it has one.
+    fn binding(&self, k: u32) -> Option<FoTermId> {
+        match &self.replace {
+            Replace::Variable(_) => None,
+            Replace::Metas(bindings) => bindings.get(k as usize).copied().flatten(),
         }
     }
 
@@ -363,8 +561,11 @@ impl Substitution {
                     }
                     stack.push(Task::Make(n, depth));
                     let node = maker.formulas().node(n);
-                    let inner =
-                        depth + u32::from(matches!(node, Node::Forall(_) | Node::Exists(_)));
+                    let inner = if matches!(node, Node::Forall(_) | Node::Exists(_)) {
+                        self.inner(depth)
+                    } else {
+                        depth
+                    };
                     let (a, b) = node.operands();
                     for k in [a, b].into_iter().flatten() {
                         stack.push(Task::Visit(k, inner));
@@ -392,7 +593,8 @@ impl Substitution {
         n: NodeId,
         depth: u32,
     ) -> Result<Option<NodeId>, Error> {
-        let at = |k: NodeId, d: u32| self.nodes[&(k, d)];
+        let nodes = &self.nodes;
+        let at = |k: NodeId, d: u32| nodes[&(k, d)];
         let node = match maker.formulas().node(n) {
             Node::Atom(a) => {
                 let Some(&(symbol, args)) = maker.formulas().tables().atoms.get(a as usize) else {
@@ -421,8 +623,8 @@ impl Substitution {
             Node::Or(a, b) => Node::Or(at(a, depth), at(b, depth)),
             Node::Implies(a, b) => Node::Implies(at(a, depth), at(b, depth)),
             Node::Iff(a, b) => Node::Iff(at(a, depth), at(b, depth)),
-            Node::Forall(a) => Node::Forall(at(a, depth + 1)),
-            Node::Exists(a) => Node::Exists(at(a, depth + 1)),
+            Node::Forall(a) => Node::Forall(at(a, self.inner(depth))),
+            Node::Exists(a) => Node::Exists(at(a, self.inner(depth))),
         };
         maker.node(node, n)
     }
@@ -440,20 +642,39 @@ impl Substitution {
                         continue;
                     }
                     stack.push(Task::Make(u, d));
-                    if let FoTerm::App(_, args) = maker.formulas().tables().terms[u.index()] {
-                        for &v in maker.formulas().tables().list(args) {
-                            stack.push(Task::Visit(v, d));
+                    match maker.formulas().tables().terms[u.index()] {
+                        FoTerm::App(_, args) => {
+                            for &v in maker.formulas().tables().list(args) {
+                                stack.push(Task::Visit(v, d));
+                            }
                         }
+                        FoTerm::Meta(k) => {
+                            if let Some(b) = self.binding(k) {
+                                stack.push(Task::Visit(b, d));
+                            }
+                        }
+                        FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
                     }
                 }
                 Task::Make(u, d) => {
                     if self.terms.contains_key(&(u, d)) {
                         continue;
                     }
+                    let variable = match self.replace {
+                        Replace::Variable(term) => Some(term),
+                        Replace::Metas(_) => None,
+                    };
                     let made = match maker.formulas().tables().terms[u.index()] {
-                        FoTerm::Bound(i) if i == d => self.term,
-                        FoTerm::Bound(i) if i > d => maker.term(FoTerm::Bound(i - 1))?,
-                        FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => u,
+                        FoTerm::Bound(i) => match variable {
+                            Some(term) if i == d => term,
+                            Some(_) if i > d => maker.term(FoTerm::Bound(i - 1))?,
+                            _ => u,
+                        },
+                        FoTerm::Meta(k) => match self.binding(k) {
+                            Some(b) => self.terms[&(b, d)],
+                            None => u,
+                        },
+                        FoTerm::Eigen(_) => u,
                         FoTerm::App(f, args) => {
                             let items: Vec<FoTermId> = maker
                                 .formulas()

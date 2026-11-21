@@ -625,10 +625,19 @@ code relies on:
 - **The unifier is `crate::unify::Unifier`** (`Quantified::unifier`):
   the metavariables, their levels and the trail by step number, over the
   `unify::Terms` trait, which the session's `Terms` and the ordinary
-  arena's `FirstOrder` implement, so that a second session with open
-  witnesses calls the same code. `Quantified`'s `resolve`, `unify` and
-  `bind` are thin wrappers passing its constants. Moving it changed no
-  counter of the target set.
+  arena's `FirstOrder` implement, and the ordinary goal state's open
+  witnesses call it too (`core-ordinary.md`). `Quantified`'s `resolve`,
+  `unify` and `bind` are thin wrappers passing its constants. Moving it
+  changed no counter of the target set. A binding refuses a bound
+  variable (`Clash::Terms`): the ordinary session unifies two formulas,
+  whose atoms under a binder hold its variable; the linear session's
+  terms are closed, so the refusal changes nothing for it.
+- **The goal tree's walks are `crate::goal_tree`'s** (`subtree`,
+  `postorder`, the reader's history walk `added`, the graft's
+  `grafted`), shared with the ordinary goal state over each
+  inference's premises; each reader keeps its own messages for the
+  walk's two faults. Moving them changed no counter of the target
+  set.
 - **Levels are the eigenvariable condition, as in the engine**: a
   metavariable's level is the eigenvariables made before it; a binding
   refuses an eigenvariable at or above it that is no constant and

@@ -1075,9 +1075,61 @@ factored out of the two until the kernel crate is.
   The session reader runs the `closed` pass and takes no `{"M": k}`, as
   the derivation reader does; `derivation_ids(Admissible)` maps a
   first-order state with its formulas and terms, since the admissible
-  view reads them there. An open witness (`$1`, filled by a
-  later axiom's unification) is not built: with no constant in the
-  sequent, `∀x. p(x) ⊢ ∃x. p(x)` has no witness to type.
+  view reads them there.
+- **Open witnesses** (`Witnesses`, `None` until a step leaves one
+  open): `∀L` and `∃R` without a witness put `Meta(k)` (`$1` for
+  `k = 0`) in the instance, its level one more than the largest
+  eigenvariable in the goal's scope. The axiom, where no formula on the
+  other side is equal to the step's, takes the first that unifies
+  (`unify_axiom`: `Formulas::term_pairs` of the two formulas, left of
+  `⊢` first, then the shared `crate::unify::Unifier`, trailed under the
+  step's number), refusing an eigenvariable at or above a witness's
+  level and one outside the goal's scope (`StepError::Binding`, which
+  names it). Why levels and scope: the eigenvariables a binding may name
+  are those of the `∀R`/`∃L` below the step that left the witness open,
+  so none lands in its own rule's conclusion.
+  - **Every inference shows the bindings in force** (`bind`: a
+    `Resolution` over the arena replaces each bound witness, transitively,
+    in every inference's sides and term), so `check_inference`, the
+    views, the exports and the commands read them as any inference;
+    every inference that changes is checked first and a failure refuses
+    the binding, changing nothing. What an inference was made as is kept
+    beside it (`Witnesses::raw`, `Some` only where a binding changed it;
+    the goal of a later step keeps its sides as made and takes the
+    step's term), and `undo` takes back the step's trail and witnesses
+    and shows the rest again from it (`reshow`); the witnesses go once
+    none is left.
+  - **A finished derivation holds no open witness**
+    (`finishing`, in `derivation_within` when no goal is open): each one
+    no axiom bound becomes an eigenvariable numbered past every one the
+    arena holds, which no `∀R` or `∃L` introduces, so the checker reads
+    it as a constant (the linear session's rule). While a goal is open
+    the derivation shows `$1`.
+  - The invertible run's axiom closes equal formulas only, and
+    `invertible_steps` leaves out an axiom that bound a witness: a
+    binding is a choice. `rules` lists the axiom where a formula unifies
+    (on a copy of the unifier). `bindings()` gives each bound witness's
+    name and term as text, which the command prints after a step.
+  - **The JSON** writes the inferences as made (`parts`, a `Cow` that
+    borrows where there is no witness) and `"bindings": [[k, term,
+    step]]`, written only where there is one, in the level-25 form
+    (level 25 was not released before them); `{"M": k}` is read in a
+    session's terms (`Extension::Session`) and nowhere else.
+  - **The reader replays them** (`Replay::run`, only for a document with
+    a bound or opened witness, so a propositional one reads as before):
+    every closed inference belongs to the step that made it (the goal
+    tree's `added` ranges); per step in order, the witness of its one
+    `∀L`/`∃R` whose term is the next `Meta` (any other term holding one is
+    refused) is made at the level the tree gives (`Tree::level`, one pass
+    down the tree), an axiom step whose `A ⊢ A` was made unequal binds by
+    `unify_axiom` on those two made formulas, with the scope by the
+    walk's intervals (`Tree::in_scope`), and every inference of the step
+    is checked as it shows the bindings then; at the end every
+    inference again under the final bindings (a later binding can bring
+    an eigenvariable in, never take one out), and the bindings found
+    must equal the document's. The sequent may hold no `Meta`. The
+    unifier gets exactly the made formulas the live step unified, so
+    the replay binds what the session bound.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.

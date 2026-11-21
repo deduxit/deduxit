@@ -923,6 +923,11 @@ struct SessionForm {
     inferences: Vec<InferenceForm>,
     /// The steps, each the inference it closed.
     history: Vec<u32>,
+    /// The bindings of open witnesses in force, in the order made: the
+    /// witness's number, its term and the step whose axiom bound it.
+    /// Written only where there is one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    bindings: Vec<[u32; 3]>,
 }
 
 #[cfg(feature = "interactive")]
@@ -931,10 +936,10 @@ impl Serialize for Interactive {
     /// its arena is first-order, else at level 9 where an inference is a
     /// cut, else at level 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let (logic, formulas, inferences, history) = self.parts();
+        let (logic, formulas, inferences, history, bindings) = self.parts();
         let (left, right) = self.sequent();
         SessionForm {
-            version: Some(terms(formulas, level(inferences))),
+            version: Some(terms(formulas, level(&inferences))),
             logic,
             sequent: SequentForm::of(formulas, left, right),
             inferences: inferences
@@ -942,6 +947,10 @@ impl Serialize for Interactive {
                 .map(|i| InferenceForm::of(i, true))
                 .collect(),
             history: history.iter().map(|h| h.get()).collect(),
+            bindings: bindings
+                .into_iter()
+                .map(|(k, t, step)| [k, t.get(), step])
+                .collect(),
         }
         .serialize(serializer)
     }
@@ -974,9 +983,8 @@ impl Readable for Interactive {
 /// Returns the proof in progress a form holds, within the limits.
 #[cfg(feature = "interactive")]
 fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
-    // No step makes an open witness, so a session's terms are a
-    // derivation's.
-    let (read, left, right) = form.sequent.within(limits, Extension::Derivation)?;
+    // A session's terms are a derivation's and its open witnesses.
+    let (read, left, right) = form.sequent.within(limits, Extension::Session)?;
     let len = form.inferences.len();
     let inferences = form
         .inferences
@@ -1012,12 +1020,18 @@ fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
             }),
         })
         .collect::<Result<_, _>>()?;
+    let bindings = form
+        .bindings
+        .iter()
+        .map(|&[k, t, step]| Ok((k, read.term(t)?, step)))
+        .collect::<Result<_, Error>>()?;
     Interactive::from_parts(
         Parts {
             logic: form.logic,
             formulas: read.formulas,
             inferences,
             history,
+            bindings,
         },
         limits,
     )

@@ -38,8 +38,10 @@ pub(super) enum FoExpression {
 pub(super) enum Extension {
     /// A sequent's: none.
     Sequent,
-    /// An ordinary derivation's or goal state's: eigenvariables.
+    /// An ordinary derivation's: eigenvariables.
     Derivation,
+    /// An ordinary goal state's: eigenvariables and open witnesses.
+    Session,
 }
 
 /// The serialized form of an atom. A propositional sequent writes its
@@ -314,6 +316,7 @@ impl Tables {
                         message: "an eigenvariable stands only in a proof's terms".to_owned(),
                     });
                 }
+                FoExpression::Meta(k) if extension == Extension::Session => FoTerm::Meta(k),
                 FoExpression::Meta(_) => {
                     return Err(crate::Error::Json {
                         form: "sequent",

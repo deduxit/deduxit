@@ -231,9 +231,9 @@ impl Unifier {
     /// the metavariables `t` holds to `k`'s. The changes are trailed under
     /// `step`.
     ///
-    /// It refuses a `t` that holds `k` itself (the occurs check), or an
-    /// eigenvariable at or above `k`'s level that is not a constant, as
-    /// `constant` says.
+    /// It refuses a `t` that holds `k` itself (the occurs check), a bound
+    /// variable, or an eigenvariable at or above `k`'s level that is not a
+    /// constant, as `constant` says.
     pub(crate) fn bind(
         &mut self,
         terms: &impl Terms,
@@ -264,7 +264,10 @@ impl Unifier {
                     }
                 }
                 FoTerm::App(_, args) => stack.extend_from_slice(terms.list(args)),
-                FoTerm::Bound(_) => unreachable!("a closed term has no bound variable"),
+                // A metavariable stands for a closed term. An ordinary
+                // session unifies two formulas, whose atoms under a binder
+                // hold its variable; the linear session's terms are closed.
+                FoTerm::Bound(_) => return Err(Clash::Terms),
             }
         }
         for j in lowered {

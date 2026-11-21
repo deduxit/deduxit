@@ -15,6 +15,7 @@
 //! Needs the cargo feature `interactive` (on by default).
 
 use super::derivation::{check_inference, same};
+use super::instance::Resolution;
 use super::translate::Extra;
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side};
 use super::{Translation, Verdict, bound, decide_within};
@@ -23,6 +24,7 @@ use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
+use crate::unify::{Clash, Unifier};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Why a step does not apply to a goal as asked. Positions are the ones
@@ -123,11 +125,20 @@ pub enum StepError {
         /// The rule asked for.
         rule: Rule,
     },
-    /// The witness of `∀L` or `∃R` is missing, or is not a term of the
-    /// goal: a term of the sequent's function symbols and of the
-    /// eigenvariables in the goal's scope.
+    /// The witness of `∀L` or `∃R` is not a term of the goal: a term of
+    /// the sequent's function symbols and of the eigenvariables in the
+    /// goal's scope.
     #[non_exhaustive]
     Witness {
+        /// Why, in words.
+        reason: String,
+    },
+    /// The axiom's formula unifies with a formula on the other side of `⊢`
+    /// only by giving an open witness a term it may not take: an
+    /// eigenvariable that a `∀R` or `∃L` introduced above the step that
+    /// left the witness open, or on another branch.
+    #[non_exhaustive]
+    Binding {
         /// Why, in words.
         reason: String,
     },
@@ -259,6 +270,9 @@ impl Display for StepError {
                  names the eigenvariable of ∀R and ∃L"
             ),
             StepError::Witness { reason } => write!(f, "the witness is not a term here: {reason}"),
+            StepError::Binding { reason } => {
+                write!(f, "the axiom cannot fill the open witnesses: {reason}")
+            }
         }
     }
 }
@@ -303,8 +317,9 @@ pub struct Step {
     /// How two premises take the context.
     pub context: Context,
     /// The witness of `∀L` or `∃R`, a term of the proof's formulas
-    /// ([`Interactive::witness`] reads one from text); `None` for every
-    /// other rule.
+    /// ([`Interactive::witness`] reads one from text). `None` leaves the
+    /// witness of `∀L` or `∃R` open, as `$1`, `$2`, …, for a later axiom to
+    /// fill; every other rule takes none.
     pub witness: Option<FoTermId>,
 }
 
@@ -369,7 +384,8 @@ pub enum Needs {
     /// A context for its two premises: shared unless the step gives a
     /// split.
     Context,
-    /// A witness term for the bound variable: `∀L` and `∃R`.
+    /// A witness term for the bound variable, or none to leave it open:
+    /// `∀L` and `∃R`.
     Witness,
 }
 
@@ -494,6 +510,103 @@ pub struct Interactive {
     /// The bound on the bytes of a step's run of structural rules, the
     /// `derivation_bytes` the state was started or read under.
     limit: Option<u64>,
+    /// The open witnesses, `None` while no step leaves one open.
+    witnesses: Option<Box<Witnesses>>,
+}
+
+/// An inference's sides and term as the step that made it left them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Made {
+    /// The formulas left of `⊢`.
+    left: Vec<NodeId>,
+    /// The formulas right of `⊢`.
+    right: Vec<NodeId>,
+    /// The term of a quantifier rule.
+    term: Option<FoTermId>,
+}
+
+impl Made {
+    /// Returns the sides and term of `inference`.
+    fn of(inference: &Inference) -> Self {
+        Self {
+            left: inference.left.clone(),
+            right: inference.right.clone(),
+            term: inference.term,
+        }
+    }
+
+    /// Returns whether `inference` has these sides and this term.
+    fn shows(&self, inference: &Inference) -> bool {
+        self.left == inference.left && self.right == inference.right && self.term == inference.term
+    }
+}
+
+/// The open witnesses of a proof in progress: the witnesses of `∀L` and
+/// `∃R` steps taken without one, which an axiom fills by unification.
+///
+/// The inferences show every binding in force: an inference that holds a
+/// bound witness holds its term in its place, so the checker's rules read
+/// them as they read any inference. What an inference was made as, before
+/// a binding changed it, is kept beside, so that an undo shows it again.
+#[derive(Clone, Debug, Default)]
+struct Witnesses {
+    /// The open witnesses by number, their levels and bindings, and the
+    /// trail of bindings by step. A witness's level is one more than the
+    /// largest eigenvariable in its step's scope, so a binding takes no
+    /// eigenvariable made after it.
+    unifier: Unifier,
+    /// The step that made each open witness, by number.
+    made: Vec<u32>,
+    /// Per inference, its sides and term as made, where a binding changed
+    /// them since; as long as the inferences.
+    raw: Vec<Option<Made>>,
+}
+
+/// Unifies the formulas `left` and `right` of an axiom in `formulas`,
+/// binding open witnesses under `step`. A binding takes no eigenvariable at
+/// or above its witness's level, and none that `in_scope` refuses. On a
+/// refusal nothing is left bound: the eigenvariable that was refused, or
+/// `None` where the formulas differ.
+fn unify_axiom(
+    formulas: &Formulas,
+    unifier: &mut Unifier,
+    (left, right): (NodeId, NodeId),
+    step: u32,
+    in_scope: &impl Fn(FoTermId) -> bool,
+) -> Result<(), Option<Eigen>> {
+    let pairs = formulas.term_pairs(left, right).ok_or(None)?;
+    let terms = formulas.first_order();
+    let was: Vec<bool> = unifier.metas().iter().map(|m| m.bound.is_some()).collect();
+    let mark = unifier.trail_len();
+    match unifier.unify(terms, pairs, step, &|_| false) {
+        Ok(()) => {}
+        Err(Clash::Eigen(e)) => return Err(Some(e)),
+        Err(Clash::Terms) => return Err(None),
+    }
+    // Every eigenvariable a new binding names, its bindings followed.
+    let mut seen = crate::hash::HashSet::default();
+    let mut stack: Vec<FoTermId> = unifier
+        .metas()
+        .iter()
+        .zip(&was)
+        .filter(|&(_, &was)| !was)
+        .filter_map(|(m, _)| m.bound)
+        .collect();
+    while let Some(u) = stack.pop() {
+        let u = unifier.resolve(terms, u);
+        if !seen.insert(u) {
+            continue;
+        }
+        match terms.terms[u.index()] {
+            FoTerm::App(_, args) => stack.extend_from_slice(terms.list(args)),
+            FoTerm::Eigen(e) if !in_scope(u) => {
+                unifier.undo_to(mark);
+                return Err(Some(e));
+            }
+            FoTerm::Eigen(_) | FoTerm::Meta(_) | FoTerm::Bound(_) => {}
+        }
+    }
+    Ok(())
 }
 
 /// Returns an open goal with the sides given.
@@ -548,6 +661,7 @@ impl Interactive {
             inferences: vec![open(sequent.left.clone(), right)],
             history: Vec::new(),
             limit: limits.derivation_bytes,
+            witnesses: None,
         })
     }
 
@@ -640,7 +754,14 @@ impl Interactive {
             at = &self.inferences[premise.index()];
         }
         if at.rule == Rule::Axiom {
-            return true;
+            // An axiom that filled open witnesses chose their terms.
+            let step = self.history.iter().position(|&h| h == id);
+            return !self.witnesses.as_deref().is_some_and(|w| {
+                step.is_some_and(|s| {
+                    let s = s as u32;
+                    w.unifier.trail_before(s + 1) > w.unifier.trail_before(s)
+                })
+            });
         }
         let Some((side, position)) = goal.principal else {
             return false;
@@ -697,10 +818,11 @@ impl Interactive {
         side: Side,
         position: usize,
     ) -> Result<Vec<Applicable>, StepError> {
-        let goal = self.open(goal)?;
+        let id = goal;
+        let goal = self.open(id)?;
         let x = formula_at(goal, side, position)?;
         let mut rules = Vec::new();
-        if goal.side(side.flip()).contains(&x) {
+        if goal.side(side.flip()).contains(&x) || self.unifies(id, side, x) {
             rules.push(Applicable {
                 rule: Rule::Axiom,
                 needs: Needs::Nothing,
@@ -721,6 +843,59 @@ impl Interactive {
             }
         }
         Ok(rules)
+    }
+
+    /// Returns whether the formula `x` on `side` of the open goal `id`
+    /// unifies with a formula on the other side by a binding of open
+    /// witnesses that the axiom would make. Nothing is bound.
+    fn unifies(&self, id: GoalId, side: Side, x: NodeId) -> bool {
+        let (Some(w), Ok(goal)) = (self.witnesses.as_deref(), self.open(id)) else {
+            return false;
+        };
+        let scope = self.scope(InfId::new(id.get()));
+        goal.side(side.flip()).iter().any(|&y| {
+            let pair = match side {
+                Side::Left => (x, y),
+                Side::Right => (y, x),
+            };
+            let mut unifier = w.unifier.clone();
+            let number = self.history.len() as u32;
+            unify_axiom(&self.formulas, &mut unifier, pair, number, &|e| {
+                scope.contains(&e)
+            })
+            .is_ok()
+        })
+    }
+
+    /// Returns the open witnesses an axiom has bound, in the order they
+    /// were left open: each by its name, `$1` for the first, with the term
+    /// it stands for now as text, written as the proof prints its terms.
+    pub fn bindings(&self) -> Vec<(String, String)> {
+        let Some(w) = self.witnesses.as_deref() else {
+            return Vec::new();
+        };
+        let terms = &self.formulas.first_order().terms;
+        let mut found = Vec::new();
+        for (inference, raw) in self.inferences.iter().zip(&w.raw) {
+            let made = raw.as_ref().map_or(inference.term, |m| m.term);
+            let (Some(made), Some(shown)) = (made, inference.term) else {
+                continue;
+            };
+            if let FoTerm::Meta(k) = terms[made.index()]
+                && w.unifier.metas()[k as usize].bound.is_some()
+            {
+                found.push((
+                    k,
+                    crate::linear::occurrences::instances::meta_name(k),
+                    self.formulas.term_text(shown),
+                ));
+            }
+        }
+        found.sort_unstable_by_key(|&(k, ..)| k);
+        found
+            .into_iter()
+            .map(|(_, name, term)| (name, term))
+            .collect()
     }
 
     /// Returns what `rule` makes of the formula `x` at `position` of
@@ -862,8 +1037,163 @@ impl Interactive {
         if step.witness.is_some() {
             return Err(StepError::NoWitness { rule: step.rule });
         }
+        if step.rule == Rule::Axiom
+            && self.witnesses.is_some()
+            && let Some(opened) = self.unifying_axiom(goal, step)?
+        {
+            return Ok(opened);
+        }
         let made = self.expand(goal, step)?;
         Ok(self.record(goal, made))
+    }
+
+    /// Closes the goal by the axiom on the formula the step names and the
+    /// first formula on the other side of `⊢` that unifies with it, where
+    /// none is equal to it: the open witnesses take the unifier's terms,
+    /// every inference that holds them shows those terms, and the axiom's
+    /// weakenings and `A ⊢ A` are made as [`axiom`] makes them. Returns the
+    /// goals opened, none, or `None` where a formula on the other side is
+    /// equal to it, which needs no binding.
+    fn unifying_axiom(
+        &mut self,
+        id: GoalId,
+        step: &Step,
+    ) -> Result<Option<Vec<GoalId>>, StepError> {
+        let (side, position) = (step.side, step.position);
+        let goal = self.open(id)?;
+        let x = formula_at(goal, side, position)?;
+        if step.context != Context::Shared || goal.side(side.flip()).contains(&x) {
+            return Ok(None);
+        }
+        let len = goal.left.len() + goal.right.len();
+        self.run_within(len, len)?;
+        let goal = goal.clone();
+        let scope = self.scope(InfId::new(id.get()));
+        // The step's number, under which its bindings are trailed. Fewer
+        // steps than inferences, which a `u32` counts.
+        let number = self.history.len() as u32;
+        let Some(w) = self.witnesses.as_deref_mut() else {
+            return Ok(None);
+        };
+        let mark = w.unifier.trail_len();
+        let mut refused = None;
+        let mut partner = None;
+        for (at, &y) in goal.side(side.flip()).iter().enumerate() {
+            let pair = match side {
+                Side::Left => (x, y),
+                Side::Right => (y, x),
+            };
+            match unify_axiom(&self.formulas, &mut w.unifier, pair, number, &|e| {
+                scope.contains(&e)
+            }) {
+                Ok(()) => {
+                    partner = Some(at);
+                    break;
+                }
+                Err(eigen) => refused = refused.or(eigen),
+            }
+        }
+        let Some(partner) = partner else {
+            return Err(match refused {
+                Some(e) => {
+                    let name = self.eigen_name(e);
+                    StepError::Binding {
+                        reason: format!(
+                            "an open witness would take the eigenvariable {name}, which a ∀R or \
+                             ∃L introduced after the witness was left open or on another branch"
+                        ),
+                    }
+                }
+                None => StepError::NoPartner { side, position },
+            });
+        };
+        let made = axiom(&goal, side, position, partner);
+        match self.bind(&made) {
+            Ok((shown, raw)) => {
+                let opened = self.record_made(id, shown, raw);
+                Ok(Some(opened))
+            }
+            Err(error) => {
+                if let Some(w) = self.witnesses.as_deref_mut() {
+                    w.unifier.undo_to(mark);
+                }
+                Err(error)
+            }
+        }
+    }
+
+    /// Shows the bindings the unifier holds now in every inference that
+    /// holds a bound witness, and returns the inferences `made` as they
+    /// show them, with what each was made as where that differs. Every
+    /// inference that changes is checked by the checker's rules first; one
+    /// that a binding would break (an eigenvariable brought into its
+    /// rule's conclusion) refuses the binding and changes nothing.
+    fn bind(
+        &mut self,
+        made: &[Inference],
+    ) -> Result<(Vec<Inference>, Vec<Option<Made>>), StepError> {
+        let Some(w) = self.witnesses.as_deref_mut() else {
+            return Ok((made.to_vec(), vec![None; made.len()]));
+        };
+        let bindings = w.unifier.metas().iter().map(|m| m.bound).collect();
+        let mut resolution = Resolution::new(bindings);
+        let full = |error: Error| StepError::Binding {
+            reason: error.to_string(),
+        };
+        let mut changed = crate::hash::HashMap::default();
+        for (i, inference) in self.inferences.iter().enumerate() {
+            let shown = shown(&mut resolution, &mut self.formulas, inference).map_err(full)?;
+            if shown != *inference {
+                changed.insert(i, shown);
+            }
+        }
+        let shown_made = made
+            .iter()
+            .map(|i| shown(&mut resolution, &mut self.formulas, i))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(full)?;
+        let at = |i: InfId| {
+            changed
+                .get(&i.index())
+                .unwrap_or(&self.inferences[i.index()])
+        };
+        for inference in changed.values().filter(|i| i.rule != Rule::Open) {
+            let premises: Vec<&Inference> = inference.premises.iter().map(|&p| at(p)).collect();
+            if check_inference(&self.formulas, self.logic, inference, &premises).is_err() {
+                return Err(StepError::Binding {
+                    reason: "a binding would bring an eigenvariable into the conclusion of the \
+                             ∀R or ∃L that introduced it"
+                        .to_owned(),
+                });
+            }
+        }
+        let raw = made
+            .iter()
+            .zip(&shown_made)
+            .map(|(m, s)| (m != s).then(|| Made::of(m)))
+            .collect();
+        let shown_made = self.checked(shown_made);
+        let w = self
+            .witnesses
+            .as_deref_mut()
+            .expect("the witnesses are there");
+        for (i, inference) in changed {
+            w.raw[i].get_or_insert_with(|| Made::of(&self.inferences[i]));
+            let at = &mut self.inferences[i];
+            at.left = inference.left;
+            at.right = inference.right;
+            at.term = inference.term;
+        }
+        Ok((shown_made, raw))
+    }
+
+    /// Returns the name an eigenvariable is printed with.
+    fn eigen_name(&self, e: Eigen) -> String {
+        self.formulas
+            .eigen_names()
+            .into_iter()
+            .find(|&(k, _)| k == e.get())
+            .map_or_else(|| format!("#{}", e.get()), |(_, name)| name)
     }
 
     /// Returns the inferences a step of a quantifier rule makes: the goal's
@@ -884,14 +1214,16 @@ impl Interactive {
         let eigenvariable = matches!(rule, Rule::ForallRight | Rule::ExistsLeft);
         // `∀L` keeps its principal, and `∃R` where the right side has room.
         let keep = !eigenvariable && (rule == Rule::ForallLeft || self.logic == Logic::Classical);
+        // An open witness's number and level, made once the instance is.
+        let mut open = None;
         let term = match step.witness {
             Some(_) if eigenvariable => return Err(StepError::NoWitness { rule }),
             None if eigenvariable => self.fresh_eigenvariable()?,
             Some(t) => self.held(id, t)?,
             None => {
-                return Err(StepError::Witness {
-                    reason: format!("{rule} needs a witness term for the bound variable"),
-                });
+                let (term, level) = self.open_witness(id)?;
+                open = Some(level);
+                term
             }
         };
         let instance =
@@ -905,6 +1237,17 @@ impl Interactive {
         Extra::add(&mut self.formulas).map_err(|error| StepError::Witness {
             reason: error.to_string(),
         })?;
+        if let Some(level) = open {
+            let (len, number) = (self.inferences.len(), self.history.len() as u32);
+            let w = self.witnesses.get_or_insert_with(|| {
+                Box::new(Witnesses {
+                    raw: vec![None; len],
+                    ..Witnesses::default()
+                })
+            });
+            w.unifier.push_meta(term, level);
+            w.made.push(number);
+        }
         let goal = self.open(id)?;
         let same = if keep {
             vec![instance, x]
@@ -923,6 +1266,34 @@ impl Interactive {
             premise(goal, side, position, &same, &[], |_, _| true),
         ];
         Ok(self.checked(made))
+    }
+
+    /// Returns the term of the next open witness, `$1` for the first, and
+    /// its level for a step on the goal `id`: one more than the largest
+    /// eigenvariable in the goal's scope, so that its binding takes none
+    /// made after it.
+    fn open_witness(&mut self, id: GoalId) -> Result<(FoTermId, u32), StepError> {
+        let fault = |reason: &str| StepError::Witness {
+            reason: reason.to_owned(),
+        };
+        let terms = &self.formulas.first_order().terms;
+        let level = self
+            .scope(InfId::new(id.get()))
+            .iter()
+            .filter_map(|t| match terms[t.index()] {
+                FoTerm::Eigen(e) => Some(e.get()),
+                FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
+            })
+            .max()
+            .map_or(Some(0), |e| e.checked_add(1))
+            .ok_or_else(|| fault("an eigenvariable of the goal has the last number"))?;
+        let k = self.witnesses.as_ref().map_or(0, |w| w.unifier.next_meta());
+        if k == u32::MAX {
+            return Err(fault(
+                "the proof has as many open witnesses as it can number",
+            ));
+        }
+        Ok((self.formulas.interner().term(FoTerm::Meta(k)), level))
     }
 
     /// Returns the term of an eigenvariable that no inference of the
@@ -1283,7 +1654,30 @@ impl Interactive {
     /// Fills the goal with the first of the inferences made and appends
     /// the others, every premise after its conclusion, records the step
     /// and returns the goals it opened.
-    fn record(&mut self, goal: GoalId, mut made: Vec<Inference>) -> Vec<GoalId> {
+    fn record(&mut self, goal: GoalId, made: Vec<Inference>) -> Vec<GoalId> {
+        let len = made.len();
+        self.record_made(goal, made, vec![None; len])
+    }
+
+    /// Records a step as [`record`](Self::record) does, `raw` saying for
+    /// each inference made what it was made as where a binding of the step
+    /// changed it.
+    fn record_made(
+        &mut self,
+        goal: GoalId,
+        mut made: Vec<Inference>,
+        raw: Vec<Option<Made>>,
+    ) -> Vec<GoalId> {
+        if let Some(w) = self.witnesses.as_deref_mut() {
+            let mut raw = raw.into_iter();
+            // The goal keeps what its sides were made as; its rule's term
+            // is the step's.
+            let first = raw.next().flatten();
+            if let Some(kept) = &mut w.raw[goal.index()] {
+                kept.term = first.map_or(made.first().and_then(|i| i.term), |m| m.term);
+            }
+            w.raw.extend(raw);
+        }
         let base = self.inferences.len();
         // Inference `k` of the list is the goal for `k = 0`, else the one
         // appended at `base + k - 1`; fewer inferences than a `u32` counts.
@@ -1325,7 +1719,52 @@ impl Interactive {
         inference.principal = None;
         inference.premises.clear();
         inference.term = None;
+        if let Some(w) = self.witnesses.as_deref_mut() {
+            w.raw.truncate(self.inferences.len());
+            if let Some(kept) = &mut w.raw[goal.index()] {
+                kept.term = None;
+            }
+            // The step's number, under which its bindings were trailed.
+            let number = self.history.len() as u32;
+            let bound = w.unifier.trail_len();
+            w.unifier.undo(number);
+            while w.made.last().is_some_and(|&s| s >= number) {
+                w.made.pop();
+            }
+            w.unifier.truncate_metas(w.made.len());
+            if w.unifier.trail_len() != bound {
+                self.reshow();
+            }
+            if self.witnesses.as_ref().is_some_and(|w| w.made.is_empty()) {
+                self.witnesses = None;
+            }
+        }
         Some(GoalId::new(goal.get()))
+    }
+
+    /// Shows the bindings in force in every inference a binding changed,
+    /// from what it was made as.
+    fn reshow(&mut self) {
+        let Some(w) = self.witnesses.as_deref_mut() else {
+            return;
+        };
+        let bindings = w.unifier.metas().iter().map(|m| m.bound).collect();
+        let mut resolution = Resolution::new(bindings);
+        for (inference, raw) in self.inferences.iter_mut().zip(&mut w.raw) {
+            let Some(made) = raw else { continue };
+            let mut again = |list: &[NodeId]| {
+                list.iter()
+                    .map(|&n| resolution.node(&mut self.formulas, n))
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("a binding taken back shows nodes the arena held before")
+            };
+            inference.left = again(&made.left);
+            inference.right = again(&made.right);
+            inference.term = made.term.map(|t| resolution.term(&mut self.formulas, t));
+            if made.shows(inference) {
+                *raw = None;
+            }
+        }
     }
 
     /// Returns the inferences above `id`, excluding it, in no particular
@@ -1643,9 +2082,10 @@ impl Interactive {
             })
             .collect();
         let (left, right) = self.sequent();
+        let (formulas, inferences) = self.finishing(inferences)?;
         let derivation = Derivation::from_parts(
             self.logic,
-            self.formulas.clone(),
+            formulas,
             (left.to_vec(), right.to_vec()),
             inferences,
         );
@@ -1653,6 +2093,58 @@ impl Interactive {
             Structural::Explicit => derivation,
             Structural::Admissible => derivation.admissible().0,
         })
+    }
+
+    /// Returns the formulas and `inferences`, the state's in another
+    /// order, with every open witness no axiom bound replaced by an
+    /// eigenvariable that no inference holds where no goal is open: no
+    /// `∀R` or `∃L` introduces it, so the checker takes it as a constant,
+    /// the domain's element the witness stands for. While a goal is open
+    /// they stay as they are, the witnesses printed `$1`, `$2`, ….
+    fn finishing(&self, inferences: Vec<Inference>) -> Result<(Formulas, Vec<Inference>), Error> {
+        let mut formulas = self.formulas.clone();
+        let Some(w) = self.witnesses.as_deref() else {
+            return Ok((formulas, inferences));
+        };
+        if !self.is_complete() || w.unifier.metas().iter().all(|m| m.bound.is_some()) {
+            return Ok((formulas, inferences));
+        }
+        let full = Error::Refused(Refusal::Index {
+            what: crate::limits::Space::Term,
+            count: u64::from(u32::MAX) + 1,
+            most: u64::from(u32::MAX),
+        });
+        let base = formulas
+            .first_order()
+            .terms
+            .iter()
+            .filter_map(|t| match *t {
+                FoTerm::Eigen(e) => Some(e.get()),
+                FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
+            })
+            .max()
+            .map_or(Some(0), |e| e.checked_add(1));
+        let mut bindings = Vec::with_capacity(w.unifier.metas().len());
+        for (k, meta) in w.unifier.metas().iter().enumerate() {
+            bindings.push(match meta.bound {
+                // The inferences show it bound already.
+                Some(_) => None,
+                None => {
+                    let number = base
+                        .zip(u32::try_from(k).ok())
+                        .and_then(|(b, k)| b.checked_add(k))
+                        .ok_or_else(|| full.clone())?;
+                    let eigen = FoTerm::Eigen(Eigen::new(number));
+                    Some(formulas.interner().term(eigen))
+                }
+            });
+        }
+        let mut resolution = Resolution::new(bindings);
+        let inferences = inferences
+            .iter()
+            .map(|i| shown(&mut resolution, &mut formulas, i))
+            .collect::<Result<_, _>>()?;
+        Ok((formulas, inferences))
     }
 
     /// Returns, for every inference of the derivation that
@@ -1748,6 +2240,27 @@ impl Interactive {
         derivation.check(limits, stop)?;
         Ok(derivation)
     }
+}
+
+/// Returns `inference` with every bound open witness replaced by its term,
+/// as `resolution` replaces them.
+fn shown(
+    resolution: &mut Resolution,
+    formulas: &mut Formulas,
+    inference: &Inference,
+) -> Result<Inference, Error> {
+    let mut side = |list: &[NodeId]| {
+        list.iter()
+            .map(|&n| resolution.node(formulas, n))
+            .collect::<Result<Vec<_>, _>>()
+    };
+    let (left, right) = (side(&inference.left)?, side(&inference.right)?);
+    Ok(Inference {
+        left,
+        right,
+        term: inference.term.map(|t| resolution.term(formulas, t)),
+        ..inference.clone()
+    })
 }
 
 /// Returns the formula at a position of a side of a goal, or the
@@ -1942,13 +2455,51 @@ pub(crate) struct Parts {
     pub(crate) inferences: Vec<Inference>,
     /// The steps, each the inference it closed.
     pub(crate) history: Vec<InfId>,
+    /// The bindings of open witnesses in force, in the order made: the
+    /// witness, its term, the step whose axiom bound it.
+    pub(crate) bindings: Vec<(u32, FoTermId, u32)>,
 }
 
 #[cfg(feature = "serialize")]
 impl Interactive {
-    /// Returns what the state holds, for its JSON form.
-    pub(crate) fn parts(&self) -> (Logic, &Formulas, &[Inference], &[InfId]) {
-        (self.logic, &self.formulas, &self.inferences, &self.history)
+    /// Returns what the state holds, for its JSON form: the logic, the
+    /// formulas, the inferences as their steps made them, before any
+    /// binding of an open witness changed them, the history and the
+    /// bindings in force, each the witness, its term and the step.
+    #[expect(clippy::type_complexity, reason = "the parts of one form, used once")]
+    pub(crate) fn parts(
+        &self,
+    ) -> (
+        Logic,
+        &Formulas,
+        std::borrow::Cow<'_, [Inference]>,
+        &[InfId],
+        Vec<(u32, FoTermId, u32)>,
+    ) {
+        let Some(w) = self.witnesses.as_deref() else {
+            return (
+                self.logic,
+                &self.formulas,
+                std::borrow::Cow::Borrowed(&self.inferences),
+                &self.history,
+                Vec::new(),
+            );
+        };
+        let mut inferences = self.inferences.clone();
+        for (inference, raw) in inferences.iter_mut().zip(&w.raw) {
+            if let Some(made) = raw {
+                inference.left.clone_from(&made.left);
+                inference.right.clone_from(&made.right);
+                inference.term = made.term;
+            }
+        }
+        (
+            self.logic,
+            &self.formulas,
+            std::borrow::Cow::Owned(inferences),
+            &self.history,
+            w.unifier.bindings().collect(),
+        )
     }
 
     /// Returns the state the parts describe, checked as a state built
@@ -1963,14 +2514,26 @@ impl Interactive {
         let Parts {
             logic,
             mut formulas,
-            inferences,
+            mut inferences,
             history,
+            bindings,
         } = parts;
         let inconsistent = |reason| Error::InconsistentSession { reason };
         let root = inferences
             .first()
             .ok_or(inconsistent("the session has no inference"))?;
         bound(&formulas, &root.left, &root.right, limits)?;
+        // Open witnesses make a session whose inferences are read as their
+        // steps made them, each checked under the bindings in force then.
+        let open = !bindings.is_empty()
+            || inferences
+                .iter()
+                .any(|i| i.term.is_some_and(|t| formulas.holds_meta(t)));
+        if formulas.is_first_order()
+            && formulas.holds_open_witness(root.left.iter().chain(&root.right).copied())
+        {
+            return Err(inconsistent("the sequent holds an open witness"));
+        }
         let falsity = Extra::add(&mut formulas)?.falsity;
         let len = inferences.len();
         let mut parents = vec![0u8; len];
@@ -2013,7 +2576,7 @@ impl Interactive {
                 .iter()
                 .map(|p| &inferences[p.index()])
                 .collect();
-            if check_inference(&formulas, logic, inference, &premises).is_err() {
+            if !open && check_inference(&formulas, logic, inference, &premises).is_err() {
                 return Err(inconsistent("an inference breaks the rule it names"));
             }
         }
@@ -2024,7 +2587,7 @@ impl Interactive {
         }
         // The history from the last step back: each step's goal closed,
         // named once, and what it added the suffix of the arena it left.
-        crate::goal_tree::added(
+        let added = crate::goal_tree::added(
             &history,
             len,
             |i| &inferences[i.index()].premises[..],
@@ -2049,6 +2612,19 @@ impl Interactive {
                 "a step of LJ closed a goal that has no formula or several right of ⊢",
             ));
         }
+        let witnesses = if open {
+            let read = Replay {
+                logic,
+                inferences: &inferences,
+                history: &history,
+                added: &added,
+            };
+            let (w, shown) = read.run(&mut formulas, &bindings)?;
+            inferences = shown;
+            Some(Box::new(w))
+        } else {
+            None
+        };
         Ok(Self {
             logic,
             formulas,
@@ -2056,6 +2632,254 @@ impl Interactive {
             inferences,
             history,
             limit: limits.derivation_bytes,
+            witnesses,
+        })
+    }
+}
+
+/// A session document with open witnesses as its reader replays it: the
+/// inferences as their steps made them, the steps and what each added.
+#[cfg(feature = "serialize")]
+struct Replay<'a> {
+    /// The logic.
+    logic: Logic,
+    /// The inferences as made, the root first.
+    inferences: &'a [Inference],
+    /// The steps, each the inference it closed.
+    history: &'a [InfId],
+    /// The inferences each step added, a range per step.
+    added: &'a [(usize, usize)],
+}
+
+#[cfg(feature = "serialize")]
+impl Replay<'_> {
+    /// Replays the steps in order, as a session took them: each step's
+    /// open witness made at the level its scope gives, each axiom that
+    /// unifies its formulas binding them as the session binds them, and
+    /// every inference a step closed checked by the checker's rules under
+    /// the bindings in force after that step. Then every inference is
+    /// checked again under the bindings in force at the end, which can
+    /// only bring eigenvariables in, and the bindings found must be the
+    /// document's. Returns the witnesses and the inferences as they show
+    /// the bindings.
+    fn run(
+        &self,
+        formulas: &mut Formulas,
+        bindings: &[(u32, FoTermId, u32)],
+    ) -> Result<(Witnesses, Vec<Inference>), Error> {
+        let bad = |reason| Error::InconsistentSession { reason };
+        let inferences = self.inferences;
+        let len = inferences.len();
+        // The step that closed each inference, `None` for an open goal or
+        // one no step made.
+        let mut closer: Vec<Option<usize>> = vec![None; len];
+        for (s, (g, &(start, end))) in self.history.iter().zip(self.added).enumerate() {
+            closer[start..end].fill(Some(s));
+            closer[g.index()] = Some(s);
+        }
+        let mut by_step: Vec<Vec<usize>> = vec![Vec::new(); self.history.len() + 1];
+        for (i, inference) in inferences.iter().enumerate() {
+            if inference.rule != Rule::Open {
+                by_step[closer[i].map_or(0, |s| s + 1)].push(i);
+            }
+        }
+        let tree = Tree::of(formulas, inferences);
+        let mut w = Witnesses {
+            raw: vec![None; len],
+            ..Witnesses::default()
+        };
+        // The inferences no step made, then each step's, as the session
+        // made them.
+        for (at, closed) in by_step.iter().enumerate() {
+            let Some(s) = at.checked_sub(1) else {
+                self.check(formulas, &w.unifier, closed)?;
+                continue;
+            };
+            // Fewer steps than inferences, which a `u32` counts.
+            let number = s as u32;
+            for &i in closed {
+                let inference = &inferences[i];
+                let Some(t) = inference.term else { continue };
+                if !formulas.holds_meta(t) {
+                    continue;
+                }
+                let opens = matches!(inference.rule, Rule::ForallLeft | Rule::ExistsRight)
+                    && formulas.first_order().terms[t.index()]
+                        == FoTerm::Meta(w.unifier.next_meta());
+                if !opens {
+                    return Err(bad(
+                        "an open witness is not the witness of the one ∀L or ∃R that left it open",
+                    ));
+                }
+                let level = tree.level[i].ok_or(bad("an eigenvariable of the last number"))?;
+                w.unifier.push_meta(t, level);
+                w.made.push(number);
+            }
+            if let Some(pair) = self.axiom(s) {
+                let g = self.history[s].index();
+                unify_axiom(formulas, &mut w.unifier, pair, number, &|e| {
+                    tree.in_scope(e, g)
+                })
+                .map_err(|_| bad("an axiom's formulas do not unify as the session's would"))?;
+            }
+            self.check(formulas, &w.unifier, closed)?;
+        }
+        if !w.unifier.bindings().eq(bindings.iter().copied()) {
+            return Err(bad("the bindings are not those the axioms make"));
+        }
+        let all: Vec<usize> = (0..len)
+            .filter(|&i| inferences[i].rule != Rule::Open)
+            .collect();
+        let shown = self.check(formulas, &w.unifier, &all)?;
+        let mut shown = shown.unwrap_or_else(|| inferences.to_vec());
+        for ((inference, raw), made) in shown.iter_mut().zip(&mut w.raw).zip(inferences) {
+            if inference.left != made.left
+                || inference.right != made.right
+                || inference.term != made.term
+            {
+                *raw = Some(Made::of(made));
+            }
+        }
+        Ok((w, shown))
+    }
+
+    /// Returns the formulas left and right of `⊢` of the axiom of step `s`,
+    /// where the step is an axiom's (its goal's run of weakenings, each the
+    /// step's, ends in the axiom) and the two differ as made.
+    fn axiom(&self, s: usize) -> Option<(NodeId, NodeId)> {
+        let (start, end) = self.added[s];
+        let mut at = &self.inferences[self.history[s].index()];
+        while matches!(at.rule, Rule::WeakenLeft | Rule::WeakenRight)
+            && let [p] = at.premises[..]
+            && (start..end).contains(&p.index())
+        {
+            at = &self.inferences[p.index()];
+        }
+        match (at.rule, &at.left[..], &at.right[..]) {
+            (Rule::Axiom, &[l], &[r]) if l != r => Some((l, r)),
+            _ => None,
+        }
+    }
+
+    /// Checks the inferences `closed` by the checker's rules as they show
+    /// the bindings `unifier` holds, with their premises likewise, and
+    /// returns every inference as it shows them, `None` where nothing is
+    /// bound.
+    fn check(
+        &self,
+        formulas: &mut Formulas,
+        unifier: &Unifier,
+        closed: &[usize],
+    ) -> Result<Option<Vec<Inference>>, Error> {
+        let bindings: Vec<Option<FoTermId>> = unifier.metas().iter().map(|m| m.bound).collect();
+        let bound = bindings.iter().any(Option::is_some);
+        let mut resolution = Resolution::new(bindings);
+        let mut cache: crate::hash::HashMap<usize, Inference> = crate::hash::HashMap::default();
+        let mut get = |i: usize, formulas: &mut Formulas| -> Result<Inference, Error> {
+            if !bound {
+                return Ok(self.inferences[i].clone());
+            }
+            if let Some(found) = cache.get(&i) {
+                return Ok(found.clone());
+            }
+            let made = shown(&mut resolution, formulas, &self.inferences[i])?;
+            cache.insert(i, made.clone());
+            Ok(made)
+        };
+        for &i in closed {
+            let inference = get(i, formulas)?;
+            let premises = inference
+                .premises
+                .iter()
+                .map(|p| get(p.index(), formulas))
+                .collect::<Result<Vec<_>, _>>()?;
+            let premises: Vec<&Inference> = premises.iter().collect();
+            if check_inference(formulas, self.logic, &inference, &premises).is_err() {
+                return Err(Error::InconsistentSession {
+                    reason: "an inference breaks the rule it names under the bindings in force",
+                });
+            }
+        }
+        if !bound {
+            return Ok(None);
+        }
+        (0..self.inferences.len())
+            .map(|i| get(i, formulas))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some)
+    }
+}
+
+/// What the reader of a session asks of its tree of inferences: each
+/// inference's place in a walk, the eigenvariables the inferences
+/// introduce, and the level an open witness made there takes.
+#[cfg(feature = "serialize")]
+struct Tree {
+    /// When a walk of the tree from the root enters each inference.
+    enter: Vec<u32>,
+    /// When it leaves it, after every inference above it.
+    exit: Vec<u32>,
+    /// The inferences that introduce each eigenvariable, by its term.
+    introduced: crate::hash::HashMap<FoTermId, Vec<usize>>,
+    /// Per inference, one more than the largest eigenvariable a `∀R` or
+    /// `∃L` below it introduces, `Some(0)` for none and `None` past the
+    /// last number.
+    level: Vec<Option<u32>>,
+}
+
+#[cfg(feature = "serialize")]
+impl Tree {
+    /// Returns the tree of `inferences`, every premise after its
+    /// conclusion and each the premise of one inference.
+    fn of(formulas: &Formulas, inferences: &[Inference]) -> Self {
+        let len = inferences.len();
+        let mut introduced: crate::hash::HashMap<FoTermId, Vec<usize>> =
+            crate::hash::HashMap::default();
+        let mut level = vec![Some(0); len];
+        for (i, inference) in inferences.iter().enumerate() {
+            let above = match inference.eigenvariable() {
+                Some(t) => {
+                    introduced.entry(t).or_default().push(i);
+                    match formulas.first_order().terms[t.index()] {
+                        FoTerm::Eigen(e) => {
+                            level[i].zip(e.get().checked_add(1)).map(|(a, b)| a.max(b))
+                        }
+                        FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => level[i],
+                    }
+                }
+                None => level[i],
+            };
+            for p in &inference.premises {
+                level[p.index()] = above;
+            }
+        }
+        let (mut enter, mut exit) = (vec![0; len], vec![0; len]);
+        let mut clock = 0u32;
+        let mut stack = vec![(0usize, false)];
+        while let Some((i, done)) = stack.pop() {
+            clock += 1;
+            if done {
+                exit[i] = clock;
+            } else {
+                enter[i] = clock;
+                stack.push((i, true));
+                stack.extend(inferences[i].premises.iter().map(|p| (p.index(), false)));
+            }
+        }
+        Self {
+            enter,
+            exit,
+            introduced,
+            level,
+        }
+    }
+
+    /// Returns whether a `∀R` or `∃L` below inference `g` introduces the
+    /// eigenvariable `e`.
+    fn in_scope(&self, e: FoTermId, g: usize) -> bool {
+        self.introduced.get(&e).is_some_and(|by| {
+            by.iter()
+                .any(|&b| self.enter[b] < self.enter[g] && self.exit[g] < self.exit[b])
         })
     }
 }
@@ -2891,16 +3715,12 @@ mod tests {
                 .iter()
                 .any(|i| i.rule() == Rule::ExistsLeft)
         );
-        assert!(matches!(
-            quantifier(
-                &mut start("forall x. p(x) |- p(c)", Logic::Classical).0,
-                GoalId::new(0),
-                (Left, "∀x. p(x)"),
-                Rule::ForallLeft,
-                None
-            ),
-            Err(StepError::Witness { .. })
-        ));
+        let (mut open, g) = start("forall x. p(x) |- p(c)", Logic::Classical);
+        let [g] = quantifier(&mut open, g, (Left, "∀x. p(x)"), Rule::ForallLeft, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        at(&open, g, Left, "p($1)");
         #[cfg(feature = "serialize")]
         {
             let json = serde_json::to_string(&s).unwrap();
@@ -2993,5 +3813,152 @@ mod tests {
         let read: Derivation =
             serde_json::from_str(&serde_json::to_string(&derivation).unwrap()).unwrap();
         read.check(&Limits::default(), |_| false).unwrap();
+    }
+
+    /// Applies the axiom to the formula printed as `text` on `side`.
+    fn closes(
+        state: &mut Interactive,
+        goal: GoalId,
+        (side, text): (Side, &str),
+    ) -> Result<Vec<GoalId>, StepError> {
+        let position = at(state, goal, side, text);
+        state.apply(goal, &Step::new(side, position, Rule::Axiom))
+    }
+
+    /// `∀x. p(x) ⊢ ∃x. p(x)` with no constant proves in LK, LJ and LM: two
+    /// open witnesses, one bound to the other by the axiom and the other
+    /// a fresh eigenvariable in the finished derivation, which checks. The
+    /// binding shows in every inference, an undo takes it back, and a
+    /// session document reads back as itself before and after it.
+    #[test]
+    fn an_axiom_fills_the_open_witnesses() {
+        for logic in [Logic::Classical, Logic::Intuitionistic, Logic::Minimal] {
+            let (mut s, g) = start("forall x. p(x) |- exists x. p(x)", logic);
+            let [g] =
+                quantifier(&mut s, g, (Right, "∃x. p(x)"), Rule::ExistsRight, None).unwrap()[..]
+            else {
+                panic!()
+            };
+            let [g] =
+                quantifier(&mut s, g, (Left, "∀x. p(x)"), Rule::ForallLeft, None).unwrap()[..]
+            else {
+                panic!()
+            };
+            assert!(
+                s.rules(g, Left, at(&s, g, Left, "p($2)"))
+                    .unwrap()
+                    .iter()
+                    .any(|r| r.rule == Rule::Axiom)
+            );
+            #[cfg(feature = "serialize")]
+            let before = serde_json::to_string(&s).unwrap();
+            assert_eq!(closes(&mut s, g, (Left, "p($2)")).unwrap(), []);
+            assert_eq!(s.bindings(), [("$2".to_owned(), "$1".to_owned())]);
+            let derivation = s.finished(&Limits::default(), |_| false).unwrap();
+            // The witness left open is an eigenvariable no rule introduces.
+            assert!(derivation.inferences().iter().all(|i| {
+                i.term()
+                    .is_none_or(|t| derivation.formulas().is_eigenvariable(t))
+            }));
+            #[cfg(feature = "serialize")]
+            {
+                let after = serde_json::to_string(&s).unwrap();
+                assert!(after.contains(r#""bindings":[[1,"#), "{after}");
+                let mut read: Interactive = serde_json::from_str(&after).unwrap();
+                assert_eq!(serde_json::to_string(&read).unwrap(), after);
+                read.undo();
+                assert_eq!(serde_json::to_string(&read).unwrap(), before);
+                let read: Interactive = serde_json::from_str(&before).unwrap();
+                assert_eq!(serde_json::to_string(&read).unwrap(), before);
+            }
+            s.undo();
+            assert_eq!(s.bindings(), []);
+            at(&s, g, Left, "p($2)");
+            s.undo();
+            s.undo();
+            assert!(s.witnesses.is_none());
+        }
+    }
+
+    /// An open witness takes no eigenvariable made after it: in
+    /// `∀x. ∃y. r(x, y) ⊢ ∃y. ∀x. r(x, y)` the axiom would have to give
+    /// `$1`, left open first, the eigenvariable of the later `∃L`.
+    #[test]
+    fn an_open_witness_takes_no_later_eigenvariable() {
+        let (mut s, g) = start(
+            "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)",
+            Logic::Classical,
+        );
+        let [g] = quantifier(
+            &mut s,
+            g,
+            (Right, "∃y. ∀x. r(x, y)"),
+            Rule::ExistsRight,
+            None,
+        )
+        .unwrap()[..] else {
+            panic!()
+        };
+        let [g] =
+            quantifier(&mut s, g, (Right, "∀x. r(x, $1)"), Rule::ForallRight, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [g] =
+            quantifier(&mut s, g, (Left, "∀x. ∃y. r(x, y)"), Rule::ForallLeft, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [g] =
+            quantifier(&mut s, g, (Left, "∃y. r($2, y)"), Rule::ExistsLeft, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        let error = closes(&mut s, g, (Left, "r($2, b)")).unwrap_err();
+        assert!(matches!(error, StepError::Binding { .. }), "{error}");
+        assert!(error.to_string().contains("eigenvariable b"), "{error}");
+        assert_eq!(s.bindings(), []);
+        at(&s, g, Left, "r($2, b)");
+    }
+
+    /// A session document with open witnesses is read as its steps made it:
+    /// bindings that are not the axiom's, an axiom whose formulas do not
+    /// unify, and an open witness in the sequent are refused.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_session_document_is_held_to_its_bindings() {
+        let (mut s, g) = start("forall x. p(x) |- exists x. p(x)", Logic::Classical);
+        let [g] = quantifier(&mut s, g, (Right, "∃x. p(x)"), Rule::ExistsRight, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [g] = quantifier(&mut s, g, (Left, "∀x. p(x)"), Rule::ForallLeft, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        closes(&mut s, g, (Left, "p($2)")).unwrap();
+        let json = serde_json::to_string(&s).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let refused = |change: &dyn Fn(&mut serde_json::Value)| {
+            let mut forged = value.clone();
+            change(&mut forged);
+            serde_json::from_value::<Interactive>(forged).is_err()
+        };
+        // No binding, or one the axiom does not make.
+        assert!(refused(&|v| {
+            v.as_object_mut().unwrap().remove("bindings");
+        }));
+        assert!(refused(&|v| v["bindings"][0][2] = 0.into()));
+        // The axiom's formulas, made as `p($2) ⊢ p($1)`, made equal.
+        let ax = value["inferences"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|i| i["rule"] == "ax")
+            .unwrap();
+        assert!(refused(&|v| {
+            let left = v["inferences"][ax]["left"].clone();
+            v["inferences"][ax]["right"] = left;
+        }));
     }
 }
