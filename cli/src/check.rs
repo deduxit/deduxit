@@ -795,21 +795,25 @@ pub(crate) fn check_derivation(
     }
     let line = (show.verdict || result.is_err()).then_some(line);
     let prefix = show.open(out, line.as_deref())?;
-    // `--tree never` leaves the derivation out: neither built as a view
-    // nor written, which for a deep formula is most of the time.
-    if result.is_err() || quiet || show.tree == crate::argument_parsing::Tree::Never {
+    if result.is_err() || quiet {
         return Ok((status, show.close(out, Shown::Nothing, line.as_deref())?));
     }
     let why = || Stop::why(stopped(deadline));
-    let shown = crate::show::shown(
-        crate::ordinary::shown(d.clone(), show),
-        show.fit(),
-        show,
-        every_steps(&over),
-        why,
-        prefix.as_deref(),
-        out,
-    )?;
+    // `--tree never` leaves the derivation out: neither built as a view
+    // nor written, which for a deep formula is most of the time.
+    let shown = if show.tree == crate::argument_parsing::Tree::Never {
+        Shown::Nothing
+    } else {
+        crate::show::shown(
+            crate::ordinary::shown(d.clone(), show),
+            show.fit(),
+            show,
+            every_steps(&over),
+            why,
+            prefix.as_deref(),
+            out,
+        )?
+    };
     let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
     let keep = show.close(out, shown, line.as_deref())?;
     if let (Some(_), Format::Text) = (show.lambda, show.format) {

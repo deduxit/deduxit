@@ -138,11 +138,12 @@ impl Renames {
     }
 }
 
-/// Returns the identifiers of `code` in order, a word after `$` (TPTP's
-/// `$true`) included.
-fn words(code: &str) -> impl Iterator<Item = &str> {
-    code.split(|c: char| !(c == '_' || c.is_alphanumeric()))
+/// Returns the identifiers of `code` in order, each in NFC, as the arena
+/// keys names, a word after `$` (TPTP's `$true`) included.
+fn words(code: &str) -> impl Iterator<Item = std::borrow::Cow<'_, str>> {
+    code.split(|c: char| !unicode_ident::is_xid_continue(c))
         .filter(|word| !word.is_empty())
+        .map(crate::name::normalized)
 }
 
 /// What a formula's list ended with.
@@ -471,26 +472,28 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn renamed_atom(&mut self, name: &str, error: Error) -> Result<NodeId, Error> {
-        match self.renames.and_then(|r| r.keywords.get(name)) {
+        let name = crate::name::normalized(name);
+        match self.renames.and_then(|r| r.keywords.get(&*name)) {
             Some(new) => self.formulas.atom(new),
             None => Err(error),
         }
     }
 
-    /// Returns the name a symbol is read under: a keyword's new name, and
-    /// in term position (`function`) a function symbol's.
-    fn symbol_name<'n>(&self, name: &'n str, function: bool) -> std::borrow::Cow<'n, str> {
+    /// Returns the name a symbol is read under, in NFC: a keyword's new
+    /// name, and in term position (`function`) a function symbol's, which
+    /// a keyword's new name may have too (`par` beside `q(par)`).
+    fn symbol_name(&self, name: &str, function: bool) -> String {
+        let name = crate::name::normalized(name);
         let Some(renames) = self.renames else {
-            return std::borrow::Cow::Borrowed(name);
+            return name.into_owned();
         };
-        let new = renames
-            .keywords
-            .get(name)
-            .or_else(|| function.then(|| renames.functions.get(name)).flatten());
-        match new {
-            Some(new) => std::borrow::Cow::Owned(new.clone()),
-            None => std::borrow::Cow::Borrowed(name),
-        }
+        let base = renames.keywords.get(&*name).map_or(&*name, String::as_str);
+        let renamed = if function {
+            renames.functions.get(base).map_or(base, String::as_str)
+        } else {
+            base
+        };
+        renamed.to_owned()
     }
 
     /// Reads the arguments of the predicate `name`, whose `(` follows,
@@ -529,7 +532,7 @@ impl<'a> Parser<'a> {
                         return Err(self.unexpected(here, &["a bound variable", "a constant"]));
                     }
                     None => {
-                        let word = self.symbol_name(&word, true).into_owned();
+                        let word = self.symbol_name(&word, true);
                         self.formulas.function(&word, &[])?
                     }
                 };
@@ -551,11 +554,11 @@ impl<'a> Parser<'a> {
                     }
                     let (symbol, args) = open.pop().expect("an application is open");
                     if open.is_empty() {
-                        let symbol = self.symbol_name(symbol, false).into_owned();
+                        let symbol = self.symbol_name(symbol, false);
                         let id = self.formulas.predicate(&symbol, &args)?;
                         return self.within(id);
                     }
-                    let symbol = self.symbol_name(symbol, true).into_owned();
+                    let symbol = self.symbol_name(symbol, true);
                     term = Some(self.formulas.function(&symbol, &args)?);
                 }
             }
@@ -1093,6 +1096,13 @@ mod tests {
                 "f ⊢ q(g(f_f))",
             ),
             ("fof(c, conjecture, ! [X] : true(X)).", "⊢ ∀X. true_(X)"),
+            ("fof(c, conjecture, par | q(par)).", "⊢ par_ ∨ q(par__f)"),
+            // `é` written composed and decomposed is one name, so the new
+            // name of its function is fresh against both spellings.
+            (
+                "fof(c, conjecture, q(\u{e9}(a)) | \u{e9}(a) | q(e\u{301}_f(a))).",
+                "⊢ (q(é_f_(a)) ∨ é(a)) ∨ q(é_f(a))",
+            ),
         ] {
             let problem = read_tptp(text, &Limits::default()).unwrap();
             let printed = problem.sequent.to_string();

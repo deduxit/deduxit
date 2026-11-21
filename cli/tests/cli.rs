@@ -480,6 +480,12 @@ fn derivation_limit_and_tree_switch() {
     let (status, out, err) = deduxit(&["check", "--tree", "never"], &outcome);
     assert_eq!(status, 0, "{err}");
     assert_eq!(out.lines().count(), 1, "{out}");
+    // The lambda-term is no tree, so it is still written.
+    let (_, out, _) = deduxit(&["check", "--lambda", "--tree", "never"], &outcome);
+    assert!(
+        out.ends_with("lambda-term: x : a, f : a → b ⊢ f x : b\n"),
+        "{out}"
+    );
 }
 
 /// A drawing past a bound is left out with a line that names the flag,
@@ -781,12 +787,6 @@ fn intuitionistic_mode() {
     assert_eq!((status, out.as_str()), (0, "ILL\n"));
 }
 
-/// `interact --logic` proves an ordinary sequent by the rules of LK or
-/// LJ: formulas named by side and position, a split sending formulas to
-/// the first premise, a rule LJ lacks refused with the reason, an undo,
-/// the session saved and resumed, the finished derivation checked, which
-/// decides the exit status, and an axiom with a context drawn as G3's or
-/// with its weakenings under `--structural explicit`.
 /// A TPTP problem's includes are read from its directory or one above
 /// it; a missing file and an include of itself are refused by name.
 #[test]
@@ -828,6 +828,14 @@ fn tptp_includes_are_read() {
     );
     assert_eq!(answers[2].0, 2);
     assert!(answers[2].2.contains("includes itself"), "{}", answers[2].2);
+    // A problem named relative to the working directory searches above
+    // its own directory too.
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_deduxit"))
+        .args(["prove", "--logic", "classical", "--quiet", "--file", "x.p"])
+        .current_dir(&problems)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
 }
 
 /// A first-order session of LJ takes a witness after `∃R`'s name, names
@@ -865,6 +873,12 @@ fn first_order_ordinary_session() {
     assert_eq!((status, err.as_str()), (0, ""));
 }
 
+/// `interact --logic` proves an ordinary sequent by the rules of LK or
+/// LJ: formulas named by side and position, a split sending formulas to
+/// the first premise, a rule LJ lacks refused with the reason, an undo,
+/// the session saved and resumed, the finished derivation checked, which
+/// decides the exit status, and an axiom with a context drawn as G3's or
+/// with its weakenings under `--structural explicit`.
 #[test]
 fn ordinary_session() {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-ordinary-session");

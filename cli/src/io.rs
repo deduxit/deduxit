@@ -80,8 +80,12 @@ pub(crate) fn included(
     {
         return Ok(text);
     }
+    // Made absolute, so that a problem named `x.p` searches the
+    // directories above its own too.
     let start = match problem {
-        Some(path) if path != Path::new("-") => path.parent().map(Path::to_path_buf),
+        Some(path) if path != Path::new("-") => std::path::absolute(path)
+            .ok()
+            .and_then(|path| path.parent().map(Path::to_path_buf)),
         _ => std::env::current_dir().ok(),
     };
     let roots: Vec<PathBuf> = std::env::var_os("TPTP")
