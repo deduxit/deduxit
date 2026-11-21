@@ -7922,3 +7922,21 @@ move (D26).
   on `main` (`mxyrmqtz`). In its worker: **75c**, the intuitionistic connection prover, beside 75b.
   The ratchet's `ordinary-pigeons` ceiling raised to its count in a commit of its own (74c's and
   75a's accepted costs, on a base 1.55 % over).
+- 2026-11-21, about 13:45: **75b reviewed; 75d started.** 75b (Opus, high; the full panel and the
+  reviewer on Fable): a non-clausal connection prover (nanoCoP's calculus, written from the
+  papers) for classical first-order logic, with regularity, lemmata, deepening on the path's
+  length and restricted backtracking as an option, read back to LK and checked (the least nested
+  pending witness first; a stand-in witness for units under γ-formulas); `--method connection`,
+  `--path-length`, `--restricted-backtracking` in the command and the harness, the protocol's
+  method; "not valid" only for a matrix with no slot searched to exhaustion. ILTP's classical
+  first-order problems at 2 s: the prover 599, the embedding 373, the library's default (the prover
+  to its bound of 8, then the embedding) 593; no verdict against a status. The panel found no
+  wrong verdict in 35 499 generated sequents; its defects (a unit under a γ-formula, the
+  read-back's witness order, five bounds: an 8 GB nest, a work bound overrun by millions of steps,
+  quadratic witness keys, `--path-length 0`, unchecked casts) and the reviewer's six fixed. The
+  behaviour lock reblessed twice in commits of their own. Rebased onto `main`, its check on
+  `ci/step-75b`, then `main`. **For 75d:** the command's default (no bound) loses six theorems the
+  embedding proves to the 2 s limit, so a portfolio or time share; the web page's `connection`
+  call is step 79's. 75c sits on copies of 75b's earlier commits (`jj duplicate`); told to move
+  its own onto `main` and abandon the copies once 75b lands. In 75b's worker: **75d**, the
+  decidable fragments, the defaults, the comparison and the docs.
