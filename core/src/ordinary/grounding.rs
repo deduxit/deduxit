@@ -194,9 +194,22 @@ impl Nnf {
     }
 
     /// Returns `∀x. body` (`forall`) or `∃x. body` with the quantifier moved
-    /// as far in as miniscoping takes it. It descends at most three levels:
-    /// the operands of a flattened junction are no junction of its kind.
+    /// as far in as miniscoping takes it.
     fn quantify(&mut self, forall: bool, x: u32, body: u32) -> u32 {
+        self.quantify_within(forall, x, body, DISTRIBUTE_DEPTH)
+    }
+
+    /// [`quantify`](Self::quantify), distributing at most `depth` times
+    /// more: under `∀`, a disjunction whose operands with `x` include a
+    /// conjunction becomes the conjunction of the disjunctions with each
+    /// of its operands, which `∀` then enters; `∃` dually. Behmann's
+    /// miniscoping, which brings a monadic formula into the
+    /// Bernays–Schönfinkel form. Past the depth or [`DISTRIBUTE_NODES`]
+    /// nodes the quantifier stays where it is, which is equivalent and at
+    /// worst leaves the sequent outside the class. The recursion is at
+    /// most twice the depth and three levels more deep: the operands of a
+    /// flattened junction are no junction of its kind.
+    fn quantify_within(&mut self, forall: bool, x: u32, body: u32, depth: u32) -> u32 {
         if !self.has(body, x) {
             return body;
         }
@@ -206,14 +219,14 @@ impl Nnf {
             (true, G::And(kids)) => {
                 let kids = kids
                     .into_iter()
-                    .map(|k| self.quantify(true, x, k))
+                    .map(|k| self.quantify_within(true, x, k, depth))
                     .collect();
                 self.junction(true, kids)
             }
             (false, G::Or(kids)) => {
                 let kids = kids
                     .into_iter()
-                    .map(|k| self.quantify(false, x, k))
+                    .map(|k| self.quantify_within(false, x, k, depth))
                     .collect();
                 self.junction(false, kids)
             }
@@ -221,6 +234,44 @@ impl Nnf {
             (true, G::Or(kids)) | (false, G::And(kids)) => {
                 let (with, without): (Vec<u32>, Vec<u32>) =
                     kids.into_iter().partition(|&k| self.has(k, x));
+                let and = !forall;
+                // The dual junction among the operands with `x`, to
+                // distribute over.
+                let dual = with.iter().position(|&k| {
+                    matches!(
+                        (forall, &self.nodes[k as usize]),
+                        (true, G::And(_)) | (false, G::Or(_))
+                    )
+                });
+                if let Some(at) = dual
+                    && with.len() > 1
+                    && depth > 0
+                    && self.nodes.len() < DISTRIBUTE_NODES
+                {
+                    let parts = match &self.nodes[with[at] as usize] {
+                        G::And(parts) | G::Or(parts) => parts.clone(),
+                        G::Lit(..) | G::True | G::False | G::Forall(..) | G::Exists(..) => {
+                            unreachable!("a junction")
+                        }
+                    };
+                    let rest: Vec<u32> = with
+                        .iter()
+                        .enumerate()
+                        .filter(|&(i, _)| i != at)
+                        .map(|(_, &k)| k)
+                        .collect();
+                    let mut distributed = Vec::with_capacity(parts.len());
+                    for part in parts {
+                        let mut operands = rest.clone();
+                        operands.push(part);
+                        distributed.push(self.junction(and, operands));
+                    }
+                    let dual = self.junction(!and, distributed);
+                    let quantified = self.quantify_within(forall, x, dual, depth - 1);
+                    let mut all = without;
+                    all.push(quantified);
+                    return self.junction(and, all);
+                }
                 if without.is_empty() {
                     return self.push(if forall {
                         G::Forall(x, body)
@@ -228,7 +279,6 @@ impl Nnf {
                         G::Exists(x, body)
                     });
                 }
-                let and = !forall;
                 let inner = self.junction(and, with);
                 let quantified = if forall {
                     self.push(G::Forall(x, inner))
@@ -418,6 +468,14 @@ const NODE_BYTES: u64 = 32;
 /// The bytes a ground atom holds beside 4 bytes an argument: its entries in
 /// the grounding's tables and the arena's, and its name.
 const ATOM_BYTES: u64 = 128;
+
+/// How many times miniscoping distributes a junction over its dual within
+/// one quantifier.
+const DISTRIBUTE_DEPTH: u32 = 8;
+
+/// The most nodes of the normal form before miniscoping stops
+/// distributing: each distribution copies the operands it spreads.
+const DISTRIBUTE_NODES: usize = 1 << 20;
 
 /// How many steps of the set-up pass between two asks of the stop.
 const POLL: u64 = 4_096;
@@ -980,6 +1038,8 @@ mod tests {
             "forall x. p(x) |- exists y. p(y)",
             "|- (forall x. p(x)) <-> ~exists x. ~p(x)",
             "|- true",
+            // Monadic, distributed: Pelletier's 18 and 20-like shapes.
+            "|- exists y. forall x. ((p(x) /\\ q(y)) \\/ ~p(x) \\/ ~q(y))",
         ];
         for text in valid {
             let outcome = grounded(text, Logic::Classical).unwrap_or_else(|| panic!("{text}"));
@@ -995,6 +1055,10 @@ mod tests {
             "forall x. (p(x) \\/ q(x)) |- forall x. p(x)",
             "exists x. p(x), exists x. q(x) |- exists x. (p(x) /\\ q(x))",
             "|- false",
+            // Monadic, and in the class only once `∨` is distributed over
+            // `∧` under the `∀`.
+            "|- exists y. forall x. (p(x) \\/ (q(x) /\\ s(y)))",
+            "forall y. exists x. (p(x) /\\ (q(x) \\/ s(y))) |-",
         ];
         for text in refuted {
             for &logic in Logic::ALL {
