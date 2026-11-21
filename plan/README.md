@@ -7940,3 +7940,21 @@ move (D26).
   call is step 79's. 75c sits on copies of 75b's earlier commits (`jj duplicate`); told to move
   its own onto `main` and abandon the copies once 75b lands. In 75b's worker: **75d**, the
   decidable fragments, the defaults, the comparison and the docs.
+- 2026-11-22, about 00:30: **75c reviewed; fixup-15 started.** 75c (Opus, high; the full panel
+  and the reviewer on Fable; paused 14:20–21:30 for the author's stop and a reboot): nanoCoP-i's
+  prefixed non-clausal connection calculus for intuitionistic logic, written from the papers (the
+  domain condition with the γ-position's own character; R8/R9 as Otten and Kreitz 1996 print them),
+  under the one `Method::Connection`; "valid" only with a checked LJ derivation. ILTP's first-order
+  problems, intuitionistic, at 2 s: the prover 155 (34 the embedding misses), the embedding 226,
+  together 260; no verdict against a status. The panel found no soundness failure (T-string
+  unification against oracles on 3 969 and 3 200 systems); its bound breaks (a 4.8 GB prefix
+  table, an uncharged read-back, quadratic free variables, a shared term walked as a tree, a lost
+  proof) and the reviewer's five fixed. **Accepted departures:** prefixes unified once per proof
+  (nanoCoP-i's scheme; T-string unification is not unitary); the read-back a G3i search the proof
+  guides (Kreitz and Schmitt's conversion is multi-succedent); a unified proof that does not read
+  back makes the search go on (the checker is the guarantee; a test holds that count to zero on 300
+  sequents); **minimal logic stays on the embedding** (the rewrite's map back is ambiguous with both
+  `¬A` and `A → ⊥`; the differential test not run). Its check on `ci/step-75c`, then `main`. In
+  its worker: **fixup-15**, the shared term code's tree walks (R2's input exponential in both
+  logics). Step 76's prompt drafted (`plan/76-first-order-countermodels.md`), finished at 75d's
+  review.

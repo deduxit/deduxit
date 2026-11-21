@@ -106,5 +106,6 @@ fixup-13	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-21 07:00	20
 74	step	-	-	-	-	-	2026-11-21 09:00	complete: first-order ordinary logic, its language, calculi, checker, sessions, exports
 fixup-14	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-21 09:00	2026-11-21 10:15	the session's leftovers
 75b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-21 10:20	2026-11-21 13:15	the classical connection prover
-75c	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_fe155f72	2026-11-21 11:30		the intuitionistic connection prover
+75c	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_fe155f72	2026-11-21 11:30	2026-11-22 00:25	the intuitionistic connection prover
 75d	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-21 13:45		fragments, comparison, defaults
+fixup-15	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 00:30		shared terms walked once
