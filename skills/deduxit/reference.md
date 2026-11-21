@@ -1440,6 +1440,11 @@ by step by the rules of LK or LJ. It has the linear session's commands
   first order `forallL`, `forallR`, `existsL`, `existsR`.
 - The axiom closes a goal that has its formula on both sides, whatever
   else it holds.
+- At first order, `∀R` and `∃L` (`forallR`, `existsL`) name a fresh
+  eigenvariable, and `∀L` and `∃R` (`forallL`, `existsR`) take a witness
+  term after the rule's name, or none to leave it open as `$1`, `$2`, ….
+  The axiom then fills open witnesses by unification and prints `filled
+  $1 with TERM`; one still open at the end is a fresh constant.
 - A rule with two premises shares the whole context, unless formulas
   named after the rule go to the first premise (`apply G L1 ->L L0`).
 - In intuitionistic and minimal logic every goal keeps exactly one

@@ -3332,6 +3332,19 @@
         },
         "history": {
           "$ref": "#/$defs/indices"
+        },
+        "bindings": {
+          "description": "The open witnesses an axiom filled, in the order filled (level 25, written only where there is one): each the witness's number, `0` for `$1`, its term, an index of the sequent's `fo`, and the step whose axiom filled it. The inferences are written as their steps made them, before a filling changed them, and deduxit replays the fillings when it reads the session.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
         }
       }
     },

@@ -854,7 +854,7 @@ fn first_order_ordinary_session() {
     let (status, out, err) = deduxit(&line, script);
     assert_eq!(
         out,
-        "ax  ∃R (with a witness)\n\
+        "ax  ∃R (with a witness or none)\n\
          error: the witness is not a term here: a is not a symbol of the sequent\n\
          opened goal 1: L0: p(a) ⊢ R0: ∃x. p(x)\n\
          opened goal 2: L0: p(a) ⊢ R0: p(a)\n\
@@ -871,6 +871,55 @@ fn first_order_ordinary_session() {
          one is first-order\n"
     );
     assert_eq!((status, err.as_str()), (0, ""));
+}
+
+/// `∀L` and `∃R` without a term leave their witness open, an axiom fills
+/// it by unification and says so, and a witness left open at the end is a
+/// fresh constant of the proof.
+#[test]
+fn ordinary_open_witness() {
+    let script = "rules 0 R0\napply 0 R0 existsR\napply 1 L0 forallL\napply 2 L0 ax\nproof\n";
+    let line = [
+        "interact",
+        "--logic",
+        "minimal",
+        "forall x. p(x) |- exists x. p(x)",
+    ];
+    let (status, out, err) = deduxit(&line, script);
+    assert_eq!(
+        out,
+        "∃R (with a witness or none)\n\
+         opened goal 1: L0: ∀x. p(x) ⊢ R0: p($1)\n\
+         opened goal 2: L0: p($2), L1: ∀x. p(x) ⊢ R0: p($1)\n\
+         filled $2 with $1\n\
+         closed; no goal is open: `proof` checks the proof\n\
+         valid proof in LJ (minimal logic)\n\
+         ───────────────────── ax\n\
+         p(a), ∀x. p(x) ⊢ p(a)\n\
+         ───────────────────── ∀L\n\
+        \x20  ∀x. p(x) ⊢ p(a)\n\
+        \x20─────────────────── ∃R\n\
+        \x20∀x. p(x) ⊢ ∃x. p(x)\n"
+    );
+    assert_eq!((status, err.as_str()), (0, ""));
+    let script = "apply 0 R0 existsR\napply 1 R0 forallR\napply 2 L0 forallL\napply 3 L0 existsL\n\
+                  apply 4 L0 ax\n";
+    let line = [
+        "interact",
+        "--logic",
+        "classical",
+        "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)",
+    ];
+    let (status, out, _) = deduxit(&line, script);
+    assert!(
+        out.ends_with(
+            "error: the axiom cannot fill the open witnesses: an open witness would take the \
+             eigenvariable b, which a ∀R or ∃L introduced after the witness was left open or on \
+             another branch\n"
+        ),
+        "{out}"
+    );
+    assert_eq!(status, 1);
 }
 
 /// `interact --logic` proves an ordinary sequent by the rules of LK or

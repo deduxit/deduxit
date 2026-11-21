@@ -39,7 +39,8 @@ apply G F RULE [F…] apply a rule, by its name or an ASCII spelling (andR, orR1
                     impL, ~R or notR, iffL, falseL, WL, CR); the formulas F… go to the first
                     premise of a rule with two, the others to the second, which otherwise
                     both take the whole context; ∀L and ∃R (forallL, existsR) take a witness
-                    term in place of F…, and ∀R and ∃L name a fresh eigenvariable
+                    term in place of F…, or none to leave it open as $1, $2, … for an
+                    axiom to fill, and ∀R and ∃L name a fresh eigenvariable
 undo                retract the last step, with the invertible steps that followed it
 invertible on|off   apply every invertible rule by itself, at once to every open goal and
                     then to the goals each step opens (LJ's ->L, ~L, orR1 and orR2 are
@@ -200,7 +201,7 @@ impl Commands for Session {
                         .iter()
                         .map(|r| match r.needs {
                             Needs::Context => format!("{} (with a split or none)", r.rule),
-                            Needs::Witness => format!("{} (with a witness)", r.rule),
+                            Needs::Witness => format!("{} (with a witness or none)", r.rule),
                             _ => r.rule.to_string(),
                         })
                         .collect::<Vec<_>>()
@@ -235,8 +236,13 @@ impl Commands for Session {
                     step = step.split(&left, &right);
                 }
                 let before = self.state.steps();
+                let bound = self.state.bindings().len();
                 let opened = self.state.apply(goal, &step)?;
-                self.stepped(before, opened)?
+                let filled: Vec<String> = self.state.bindings()[bound..]
+                    .iter()
+                    .map(|(witness, term)| format!("filled {witness} with {term}\n"))
+                    .collect();
+                format!("{}{}", filled.concat(), self.stepped(before, opened)?)
             }
             "undo" => {
                 let steps = self.state.steps();

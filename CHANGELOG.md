@@ -28,8 +28,15 @@ second number (0.1.x to 0.2.0), anything else the third.
   `deduxit interact --logic`: `∀R` and `∃L` name a fresh eigenvariable,
   `∀L` and `∃R` take a witness term read by `Interactive::witness`
   (`apply 0 R0 existsR c`); `Step::with_witness`, `Needs::Witness`,
-  `StepError::NoWitness` and `StepError::Witness` are new. A witness is
-  typed: one left open for a later axiom to fill is not offered yet.
+  `StepError::NoWitness` and `StepError::Witness` are new.
+- **Open witnesses in the ordinary session**: `∀L` and `∃R` with no
+  witness leave it open (`$1`, `$2`, …), an axiom fills it by
+  unification, `undo` takes the filling back, and a session document
+  keeps the bindings (`"bindings"`) and is checked under them when read.
+  A witness still open in a finished proof is a fresh constant, so
+  `∀x. p(x) ⊢ ∃x. p(x)` proves with no constant in the sequent.
+  `Interactive::bindings` and `StepError::Binding` are new; `deduxit
+  interact --logic` prints `filled $1 with TERM`.
 - **First-order derivations drawn and read**: LaTeX, Typst and SVG draw
   them, the web bindings' ordinary step takes `"witness"`, and a TPTP
   problem without a conjecture reads as its hypotheses' refutation, a

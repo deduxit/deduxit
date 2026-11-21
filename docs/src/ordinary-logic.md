@@ -539,12 +539,15 @@ and LM:
 - `∀R` and `∃L` (`forallR`, `existsL`) need nothing: the session names
   a fresh eigenvariable, `a`, `b`, … skipping the sequent's own names.
 - `∀L` and `∃R` (`forallL`, `existsR`) take a witness term after the
-  rule's name. It may use the sequent's function symbols and the
-  eigenvariables that a step below the goal introduced. `rules` marks
-  these rules `(with a witness)`.
-- The witness is always typed. A session cannot leave it open for a
-  later axiom to fill in, so a sequent without a constant, such as
-  `∀x. p(x) ⊢ ∃x. p(x)`, has no proof here yet.
+  rule's name, or none. It may use the sequent's function symbols and
+  the eigenvariables that a step below the goal introduced. `rules`
+  marks these rules `(with a witness or none)`.
+- Without a witness the session leaves it open, as `$1`, `$2`, …, and
+  the axiom fills it with the term that makes its formula equal to one
+  on the other side of `⊢`. A witness that would need an eigenvariable
+  introduced after it was left open is refused. One still open when the
+  proof is finished becomes a fresh constant, so `∀x. p(x) ⊢ ∃x. p(x)`
+  proves with no constant in the sequent (below).
 - `close` refuses a first-order goal, as `prove` does.
 
 `check` checks a finished derivation that `proof FILE` wrote:
@@ -554,7 +557,7 @@ $ deduxit interact --logic intuitionistic 'forall x. (p(x) -> q(x)), exists x. p
 > apply 0 L1 existsL
 opened goal 1: L0: ∀x. (p(x) → q(x)), L1: p(a) ⊢ R0: ∃y. q(y)
 > rules 1 R0
-∃R (with a witness)
+∃R (with a witness or none)
 > apply 1 R0 existsR a
 opened goal 2: L0: ∀x. (p(x) → q(x)), L1: p(a) ⊢ R0: q(a)
 > apply 2 L0 forallL a
@@ -582,6 +585,28 @@ valid derivation in LJ of ∀x. (p(x) → q(x)), ∃x. p(x) ⊢ ∃y. q(y) (intu
                 ∀x. (p(x) → q(x)), ∃x. p(x) ⊢ ∃y. q(y)
 ```
 
+Both witnesses of `∀x. p(x) ⊢ ∃x. p(x)` are left open, and the axiom
+fills one with the other:
+
+```console
+$ deduxit interact --logic intuitionistic 'forall x. p(x) |- exists x. p(x)'
+> apply 0 R0 existsR
+opened goal 1: L0: ∀x. p(x) ⊢ R0: p($1)
+> apply 1 L0 forallL
+opened goal 2: L0: p($2), L1: ∀x. p(x) ⊢ R0: p($1)
+> apply 2 L0 ax
+filled $2 with $1
+closed; no goal is open: `proof` checks the proof
+> proof
+valid proof in LJ (intuitionistic logic)
+───────────────────── ax
+p(a), ∀x. p(x) ⊢ p(a)
+───────────────────── ∀L
+   ∀x. p(x) ⊢ p(a)
+ ─────────────────── ∃R
+ ∀x. p(x) ⊢ ∃x. p(x)
+```
+
 The checker takes the rules in G3's form and in G1's: `∀L` may keep
 its formula in the premise or drop it, and so may `∃R` in LK. An
 eigenvariable must occur nowhere in the conclusion of its `∀R` or
@@ -597,7 +622,10 @@ k-th quantifier out, `{"F": [symbol, [terms]]}` an application), each
 atom as `{"P": [symbol, [terms]]}`, and `binders`, one name per
 quantifier. A formula `{"∀": a}` or `{"∃": a}` binds in its operand `a`.
 A quantifier inference names its term by `"term": k`, a position in
-`fo`, where a derivation's eigenvariable is `{"E": n}`.
+`fo`, where a derivation's eigenvariable is `{"E": n}`. A session's open
+witness is `{"M": k}` (`$1` for `k = 0`), and `"bindings": [[k, term,
+step]]` lists the witnesses an axiom filled; its inferences are written
+as their steps made them, and reading the session fills them again.
 
 ## JSON output
 
