@@ -7872,3 +7872,23 @@ move (D26).
   written now rather than at 74's review, so 75a (the design, the embedding's quantifier rows and
   the read-back of first-order linear proofs) starts in fixup-13's worker while 74e runs; 75a
   keeps out of the session's code and rebases onto 74e when it lands.
+- 2026-11-21, about 09:00: **74e reviewed; step 74 complete; fixup-14 started.** 74e (Opus,
+  high; the full panel and the reviewer): the open witness: `∀L`/`∃R` without a term put `$k`, an
+  axiom that unifies binds it (the shared unifier, eigenvariable level and scope checked), a bind
+  substitutes through every shown inference after checking each, `undo` reshows from the
+  inferences as made, the document holds them and the bindings and its reader replays and checks
+  them; a witness no axiom bound becomes a fresh eigenvariable once the proof is finished (the
+  linear session's rule), so `∀x. p(x) ⊢ ∃x. p(x)` proves without a constant in LK, LJ and LM. The
+  goal tree's walks shared (`crate::goal_tree`; the target set equal to `47.csv`); `interact` and
+  the bindings take a step with no witness. The panel found no finished derivation the checker
+  refuses in about 22 000 sessions and 135 000 mutants; its eight findings (reader panics, an
+  equivalence without implications, the reader refusing two session-written documents, bounds, a
+  finished derivation keeping open witnesses) and the reviewer's four answered with tests.
+  **Accepted departures:** the witness's level from the goal's scope (equivalent once scope is
+  asked); the document holds the inferences as made. D17: `read-tptp` 1.12 % over its ceiling at
+  the last gate, one fat-LTO inlining decision measured by function (inside the tolerance; a
+  question for pinned time, not a regression). Its check on `ci/step-74e`, then `main`.
+  **Step 74 complete** (74a to 74e): first-order ordinary logic's language, calculi, checker,
+  sessions with typed and open witnesses, exports, docs and ILTP's first-order problems; search
+  is 75's (75a running). In 74e's worker: **fixup-14**, a binding shown only where its witness is
+  (the panel's quadratic finding) and a typed witness held to the bound on terms.
