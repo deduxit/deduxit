@@ -7807,3 +7807,30 @@ move (D26).
   of their own loaded on the first such export (27 % of the module out of every visitor's first
   load; deduxit's `web/` and the client; Opus, high, the reviewer). Decided unattended: the bindings'
   package gains a second module, which only the client uses.
+- 2026-11-21, about 05:30: **fixup-11 and 74c reviewed; 74d started; 74e planned.**
+  - **fixup-11** (Opus, high; the reviewer on Fable): the PNG and PDF renderers moved into a
+    WebAssembly module of their own (`web-render/`, with `web-tab/` for the tab's settings and the
+    error form both need: a cdylib cannot be a second target of one package, and a dependency on
+    the bindings links their exports), loaded by the client's worker on the first such export and
+    cached by the service worker only when asked. The bindings' module 3 913 893 → 2 438 116 bytes
+    at gzip (ceiling 2 500 000; the renderers' 1 639 598 under 1 700 000); the worker's first
+    answer at 10 Mbit/s 3.18 s → 1.99 s (median of five). The reviewer's finding (the renderers'
+    module refused settings keys of features it lacked) fixed with a test. Pushed: deduxit
+    `yunvyupu`, the client `stkwzklo` with its lock moved in the same push (its quick checks
+    against the real lock passed here first). **Decided unattended:** the package `deduxit-web`
+    ships two modules.
+  - **74c** (Opus, high; the full panel and the reviewer): the checker's `∀L`, `∀R`, `∃L`, `∃R`
+    for G3c, G3i and G3m (eigenvariable condition, instance by lookup), step-by-step proving at
+    first order with typed witnesses and fresh eigenvariables, `interact`/`check` at first order,
+    and the unifier at the crate's root (`crate::unify`, target set equal to `47.csv`). The panel
+    found no accepted invalid derivation in about 230 000 sessions and mutants; its seven findings
+    (a panic, an unbounded check, an unchecked session reader, rule-name doors, the admissible
+    view, a binder-only arena, cubic costs) and the reviewer's four answered with tests. D17:
+    `ordinary-pigeons` +0.10 %, nothing else moved. Its check on `ci/step-74c`, then `main`.
+    **Departures:** the open witness (a `$1` filled by a later axiom) is not built, so the session
+    cannot prove `∀x. p(x) ⊢ ∃x. p(x)` in a signature without constants; the goal tree's free
+    functions stay unshared; ILTP's first-order package moves to 74d. Since the prompt fixes
+    witnesses "as the linear session chooses them", **the open witness gets a session of its own,
+    74e** (Opus, high, the panel), after fixup-12 frees its slot.
+  - **74d** started in 74c's worker (it keeps its conversation): the exports, the protocol's
+    reads, the manual and the guide, ILTP's first-order package.
