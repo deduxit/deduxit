@@ -279,8 +279,9 @@ cores 7 to 9 (the panel on 13 to 15), on 75a's chain (`rzyvstzu`), on
   bound is `search::Options::path_length` (library default 8, the
   command none) and its unknown `Reason::PathLength { length }`
   (`path_length`, setting `search.path_length`).
-- **"Not valid"** only where the matrix has no slot (no `∀` left of `⊢`,
-  no `∃` right), the search exhausted with restricted backtracking off;
+- **"Not valid"** only where the matrix has no slot (no γ-formula: no
+  `∀` with polarity 1, no `∃` with polarity 0), the search exhausted
+  with restricted backtracking off;
   there every copy is the clause and the search is the calculus's whole
   search on positions (Theorem 4 with Lemmas 4 and 5). With slots a
   failed search is `Reason::Incomplete` or `PathLength`.
@@ -340,3 +341,176 @@ cores 7 to 9 (the panel on 13 to 15), on 75a's chain (`rzyvstzu`), on
   bound), so it gives way to the embedding only at another bound; the
   library's default (path 8) gives way there. Six ILTP problems the
   embedding proves at 2 s time out in the prover (below).
+
+### Measurements
+
+`deduxit-bench run --tptp bench/iltp-first-order/Problems --logics
+classical --timeout 2`, three shards on cores 7, 8 and 9, the harness's
+binary copied out of the tree; the first run with `--engines
+embedding,connection` before the read-back's fixes (`zwrynkrq`), the
+second with `--engines connection,auto` after them (`auto` is the
+library's default call: the prover to its bound of 8, then the
+embedding):
+
+| rows (classical, 2 670 problems) | embedding | connection, first | connection, second | default, second |
+|---|--:|--:|--:|--:|
+| refused, equality | 1 730 | 1 730 | 1 730 | 1 730 |
+| proved | 373 | 540 | **599** | 594 |
+| unprovable (propositional problems) | 1 | 1 | 1 | 1 |
+| unknown, `incomplete` | 289 | 30 | 30 | 55 |
+| unknown, time limit | 160 | 284 | 284 | 286 |
+| unknown, memory limit | 111 | 0 | 0 | 0 |
+| unknown, derivation limit | 0 | 80 | 21 | 0 |
+| other (parse errors, occurrences, instances) | 6 | 5 | 5 | 4 |
+
+- A third run with `--engines connection,auto` after the panel's and
+  the reviewer's answers (the chain's head): the prover 599, the default
+  593, the same seven left to the embedding; the one row the matrix
+  refused for its occurrences before is the memory bound's now
+  (`unknown`, `memory_limit`). Over the embedding's first run: both 366,
+  the prover alone 233, the embedding alone 7.
+- No verdict contradicts a file's status, and no problem gets two
+  verdicts. The 30 `incomplete` rows are exhausted searches with
+  variables (the KRS and SWV sets, SYN320 and like): none is stated a
+  theorem, and none is proved by the embedding.
+- Of the problems either proves at 2 s: both 358 (first run), the
+  prover alone 182 (241 in the second), the embedding alone 15, of which
+  the read-back's fixes recovered eight (the derivation limit); the
+  seven left (SYJ035 to SYJ037, SYN067, SYN349, COM003, SYJ018) time out
+  in the prover. The default recovers all but one of them where the
+  prover stops at its bound before the time limit; the command's default
+  (no bound) does not.
+- The generated set: the panel's counterexamples member ran 35 499
+  generated sequents (8 499 mutants), propositional, ground first-order
+  and with mixed quantifiers, against an exact reference and a
+  countermodel search; and the module's test
+  `first_order_sequents_agree_with_the_embedding` holds the prover to
+  prove at least what the embedding proves on 300 generated sequents.
+- D17: the default of a propositional sequent is unchanged; the gate's
+  ratchet holds the journeys' counts (below).
+
+### The panel
+
+- **Counterexamples** (Opus 5.5): no wrong verdict in 35 499 generated
+  sequents and 940 ILTP problems. One defect: a `⊤` right or `⊥` left
+  under a γ-formula (`forall x. false |-`, `|- exists x. true`) proved by
+  the search and refused by the read-back, which found no witness for the
+  γ-formula and weakened it away. Answered: such a unit's γ-formulas get
+  the stand-in witness (`oracle`); five of its witnesses are tests.
+- **Argument** (Fable 5.2): claim 1 ("not valid") holds, every pruning
+  checked against Theorem 4 and Lemmas 4 and 5; claim 2's "valid" is
+  always checked, and the search's proofs are matrix proofs (regions and
+  lemmata sound). One defect: the read-back's last rule took the first
+  pending witness and made a Skolem eigenvariable a constant whose
+  δ-formula a later witness brought in (`forall w. (p(w) -> n), (exists
+  u. s(u)) \/ b, b -> forall y. (s(y) \/ exists z. p(z)), forall v.
+  ~s(v) |- n`, valid, answered `Error::ReadBack`). Answered with its
+  proposal: the least nested pending witness first (`nesting`), which it
+  argued sound; its witness is a test. Also answered: the generated test
+  skipped every error, so it now fails on any but a refusal.
+- **Integers** (Sonnet 5.5): no wrap reached, no recursion, the
+  read-back's bounds hold. Findings and answers:
+  - the matrix's slot tables are quadratic in a nest of quantifiers and
+    were built outside the memory bound and the stop (26 000 nested `∀`
+    took 8 GB): the build now polls both (`matrix::Budget`), counts its
+    lists, and is answered unknown at the bound;
+  - the oracle keyed witnesses by the list of terms, quadratic in the
+    nest (77 s for 30 000): witness lists are interned and it asks the
+    stop;
+  - the stop and the work bound were asked once per loop iteration, so a
+    goal with thousands of failing extensions ran twenty million steps
+    past a work bound of a thousand: every step ticks now, and the
+    matrix's bytes count in the memory bound;
+  - `--path-length 0` was reported as 1: a bound of 0 is one round at 0;
+  - the occurrences past the `u32` indices were `Refusal::Occurrences`
+    with a wrong limit, and the tables' `u32` casts unchecked: `indexed`
+    and `MOST_ENTRIES` refuse with `Refusal::Index` and
+    `Reason::IndexLimit`.
+  `the_bounds_hold_where_steps_are_dear` pins the first, third and
+  fourth.
+
+### The reviewer's round
+
+`fresh-reviewer` (Fable 5.2 at `medium`) on the chain after the panel's
+answers found no soundness break (its differential runs: 2 500
+sequents with δ-quantifiers only against the SAT solver on their
+Skolemized form, 1 700 general first-order sequents against the
+embedding, no mismatch and no read-back failure). Its findings and the
+answers:
+
+1. **The protocol's `ordinary.decide` did not list `connection`** among
+   its method values (`core/src/protocol/ordinary.rs`): added. The web
+   bindings' table of calls (`web/src/calls.rs`) has no entry for it;
+   the page's methods are the web front end's to add (below).
+2. **The docs said "not valid" comes for a sequent with no `∀` left of
+   `⊢` and no `∃` right of it**, which negation and an implication's
+   antecedent make false both ways (`(forall x. p(x)) -> q |- q` is
+   refuted): reworded everywhere by what a quantifier needs, a witness
+   term (every `∀` one to prove, every `∃` one to assume).
+3. **The measurement was not in the report** at the head it read:
+   written above.
+4. **The module docs called the deepening "complete"**, against
+   `Reason::Incomplete`: reworded ("no proof is out of reach for want of
+   copies").
+5. **The manual's limits table lacked `--path-length`** and
+   `--restricted-backtracking` had no invocation: both added
+   (`options.md`, a console block in "First-order sequents").
+6. **A comment narrated an earlier version** of the read-back's last
+   rule: cut.
+
+### What was checked, and by what
+
+- **The gate** (capped, cores 7 to 9) at the panel's answers: Clippy
+  (the workspace, the core crate without `parallel`), every test, both
+  `cargo hack` runs passed; its ratchet failed on `ordinary-pigeons`
+  alone, which `main@origin` fails the same way (below).
+- **`nix flake check --keep-going`** at the chain's head under the
+  machine lock: every check passed but `doc`, `doc-private` and
+  `manual-links` (a redundant explicit link in `connection/mod.rs`,
+  fixed in `yzyosluw`; the three rebuilt and passed) and `ratchet` (the
+  base's excess). `budget`, `web-package`, `wire-schema`, `features`,
+  `test-*`, `export`, `rocq`, `manual` among the passed.
+- **`cargo test -p deduxit-cli`** after the reviewer's answers: the
+  behaviour lock, README's, the manual's and the guide's examples, the
+  CLI's tests, all passed.
+- **The behaviour lock** was reblessed twice in commits of their own
+  (`xupqprul`: four calls of the prover and the help's two flags;
+  `uqtosvxy`: its derivations, which weaken earlier).
+- **ILTP**: the three runs above; no verdict against a status, no two
+  verdicts for one problem.
+- **The panel and the reviewer**: above, every finding answered in the
+  code and pinned by a test where it had a witness.
+
+### What 75c and 75d must know
+
+- **Sharing the method** (agreed with 75c): one `Method::Connection` for
+  every logic it comes to decide; 75c's prover lives under
+  `core/src/ordinary/connection/intuitionistic/`, and changes only
+  `Method::logics`, `decides`, `connection::run`'s refusal and
+  `method_for` for its logics. It may build on `matrix.rs` and
+  `terms.rs`, whose shapes the panel's answers changed (`Matrix::of`
+  takes the stop, `Matrix::opaque`, `Matrix::held_bytes`,
+  `Terms::longest`).
+- **Copies as regions are this prover's own choice**: a prefixed
+  calculus copies per literal instance, and its read-back to LJ needs
+  the same discipline as `read_back.rs` (Skolem terms over every
+  γ-slot around, the order of the last rule by nesting, the stand-in
+  witness for an unbound variable and for units under γ-formulas).
+- **The command's default runs the prover to the time limit**: at the
+  2 s default six ILTP theorems the embedding proves time out in the
+  prover and are not handed over (the library's default, with its path
+  bound of 8, hands them over). A portfolio or a time share (75d, or
+  the planning session's call) would recover them.
+- **The web page has no `connection` call**: `web/src/calls.rs`'s
+  table of the page's methods and the client (`../deduxit.github.io`)
+  are the web front end's; the protocol's `ordinary.decide` lists the
+  method.
+- **The measurement beside nanoCoP and leanCoP is 75d's**: the
+  harness runs `--engines connection` on `--tptp`, and the comparison's
+  drivers are design §8's.
+- **The ratchet's `ordinary-pigeons` is over its ceiling on `main`
+  already** (32 402 779 instructions on `main@origin`, `tuskuswx`, under
+  this session's symbols build; 32 399 463 at this chain's head; the
+  ceiling 31 264 589, +3.6 %): the gate's ratchet fails on it at both,
+  which this chain leaves to the planning session (a ceiling's raise is
+  a commit of its own that says why).
