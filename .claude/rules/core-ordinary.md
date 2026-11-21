@@ -721,6 +721,15 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   other solutions may be the ones whose prefixes unify), every copy that
   renames a variable or a character counts against the path bound, and
   no failure is "not valid" (`Incomplete` or `PathLength`).
+- **The search ticks as the classical one does** (`tick`, `halted`,
+  `Clock`): every start clause and every way a literal tries is a step,
+  the stop, the work, memory and index bounds (`MOST_ENTRIES`) asked
+  every `POLL` units, a poll inside a literal's ways ending the round
+  through `halted`; `eclauses` is cut back with the marks. Counting
+  only the main loop's turns ran 102 million steps (4.9 s at a 1 s
+  limit) on `p(c0), …, p(c199999) |- p(d0) \/ … \/ p(d999)` and
+  ignored `--work-limit` (the fresh review). A bound of 0 is one round
+  in which no step may make a variable.
 - **T-string unification** (`unify`): the ten rules of Otten and Kreitz
   1996, R8 and R9 on `V s⁺` as there (the 2016 and 2017 papers misprint
   them as `V a u`), their alternatives tried depth first. A state holds
@@ -767,7 +776,14 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   charged to the memory bound (`charge`, `LEVEL_BYTES`), whose refusal,
   like the stop's, ends the search as an unknown (`MemoryLimit`,
   `Stopped`): a wide sequent copied per level took 725 MiB under
-  64 MiB. Proof terms share parts, so every walk over one visits each
+  64 MiB. A child of a connective is its parent's instance's operand,
+  and of a binder the body with the term put in (`child`): built again
+  from the matrix's formula, each child cost the whole subformula (900
+  conjuncts over a disjunction of 100 000 took 12.6 s at 1 s); the
+  nodes an instance adds are charged (`NODE_BYTES`) and counted as
+  work. The emitted derivation is charged to the memory bound too, not
+  only to `derivation_bytes` (`Emit::held`: 3.6 GB under 64 MiB with
+  `--derivation-limit none`). Proof terms share parts, so every walk over one visits each
   part once (`tm_of`'s memo by pattern and copy, `term`, `ready`,
   `constants`, and the domain equations in `prefixes_unify`): a chain
   of `f(x, x)` bindings is exponential as a tree. An arena whose

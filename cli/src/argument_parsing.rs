@@ -673,10 +673,11 @@ pub(crate) struct ProveArgs {
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
-    /// The connection prover decides classical logic, first-order
-    /// sequents included: a valid sequent gets a checked derivation of LK,
-    /// and a search with variables that finds no proof is unknown, never
-    /// not valid (--path-length bounds it).
+    /// The connection prover decides classical and intuitionistic logic,
+    /// first-order sequents included: a valid sequent gets a checked
+    /// derivation of LK or LJ, and a search that finds no proof is
+    /// unknown, never not valid, but for a classical sequent without
+    /// quantifiers (--path-length bounds it).
     /// The truth table and the tableau decide classical logic, and print
     /// the table or the tableau in place of a derivation: the table's rows
     /// that falsify the sequent marked `×`, the tableau's lines numbered,
@@ -2202,9 +2203,9 @@ pub(crate) enum MethodArg {
     /// By a signed tableau, for classical logic: a closed tableau is a
     /// checked derivation of LK, an open branch a checked countermodel
     Tableau,
-    /// By a non-clausal connection prover, for classical logic,
-    /// first-order sequents included: a valid sequent gets a checked
-    /// derivation of LK
+    /// By a non-clausal connection prover, for classical and
+    /// intuitionistic logic, first-order sequents included: a valid
+    /// sequent gets a checked derivation of LK or LJ
     Connection,
 }
 

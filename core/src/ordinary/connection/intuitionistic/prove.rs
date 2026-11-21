@@ -177,6 +177,8 @@ struct Marks {
     start: u32,
     /// The prefix equations.
     eqs: u32,
+    /// The extension clauses computed.
+    eclauses: u32,
 }
 
 /// A choice point.
@@ -200,10 +202,38 @@ enum Way {
     Extend(u32, u32, u32),
 }
 
+/// When the search asks its stop and its bounds: at a count of work, and
+/// the count at the last ask. Work is a step, and a step per
+/// [`PREFIX_CHARS`] prefix characters read.
+#[derive(Clone, Copy, Debug, Default)]
+struct Clock {
+    /// The work done.
+    work: u64,
+    /// The work count of the next ask.
+    next: u64,
+    /// The work count of the last.
+    last: u64,
+}
+
+/// The most entries a table of a round holds: past it a round is
+/// [`Reason::IndexLimit`], with room for the steps up to the next poll
+/// before the `u32` indices run out.
+const MOST_ENTRIES: usize = 1 << 31;
+
 /// The state of one round of the search.
-struct Search<'m, 'p> {
+struct Search<'m, 'p, 's> {
     /// The matrix.
     matrix: &'m Matrix,
+    /// The bytes the matrix holds, which the memory bound counts.
+    matrix_bytes: usize,
+    /// The caller's limits.
+    limits: &'s Limits,
+    /// The caller's stop.
+    stop: &'s mut dyn FnMut(Progress) -> bool,
+    /// When the stop and the bounds are asked next, and were last.
+    clock: Clock,
+    /// Why a poll ended the round, once one did.
+    halted: Option<Reason>,
     /// The prefixes' characters.
     prefixes: &'p mut Prefixes,
     /// Per clause node, whether a copy of it renames a character.
@@ -262,12 +292,23 @@ pub(super) fn search(
     let renames: Vec<bool> = (0..matrix.nodes.len() as u32)
         .map(|n| matrix.nodes[n as usize].shape == Shape::Clause && prefixes.renames(n))
         .collect();
-    let mut limit = 1u32;
-    let mut since = 0u64;
+    // A bound of 0 is one round where no step may make a variable.
+    let mut limit = config.path_length.map_or(1, |bound| bound.min(1));
+    let matrix_bytes = matrix.held_bytes();
+    let mut clock = Clock {
+        work: 0,
+        next: POLL,
+        last: 0,
+    };
     loop {
         counts.path_length = limit;
         let mut round = Search {
             matrix,
+            matrix_bytes,
+            limits,
+            stop: &mut *stop,
+            clock,
+            halted: None,
             prefixes,
             renames: &renames,
             eqs: Vec::new(),
@@ -284,7 +325,8 @@ pub(super) fn search(
             limit_hit: false,
             restricted: config.restricted,
         };
-        let ran = round.run(limits, stop, counts, &mut since, accept);
+        let ran = round.run(counts, accept);
+        clock = round.clock;
         rejected.0 += round.rejected.0;
         rejected.1 += round.rejected.1;
         match ran {
@@ -313,27 +355,21 @@ enum Ended {
     Error(Error),
 }
 
-impl Search<'_, '_> {
+impl Search<'_, '_, '_> {
     /// Runs one round: the derivation of a proof, `None` for a failure,
     /// and why a bound, the stop or the caller ended it.
     fn run(
         &mut self,
-        limits: &Limits,
-        stop: &mut dyn FnMut(Progress) -> bool,
         counts: &mut Counts,
-        since: &mut u64,
         accept: &mut Accept<'_>,
     ) -> Result<Option<Derivation>, Ended> {
         let mut current = self.try_start(0, counts);
         loop {
-            counts.steps += 1;
-            // A prefix read costs its length, which a deep nest makes
-            // dear: the stop is asked by that work too.
-            *since += 1 + self.prefixes.take_read() / PREFIX_CHARS;
-            if *since >= POLL {
-                self.poll(limits, stop, counts, *since)
-                    .map_err(Ended::Reason)?;
-                *since = 0;
+            if let Some(reason) = self.halted.take() {
+                return Err(Ended::Reason(reason));
+            }
+            if self.tick(counts) {
+                continue;
             }
             let Some(g) = current else {
                 // Backtrack to the latest choice point with an alternative.
@@ -351,9 +387,7 @@ impl Search<'_, '_> {
             if g == NONE {
                 // Every path holds a connection: the prefixes decide, and
                 // then the read-back.
-                let steps = counts.steps;
-                let mut asked = || stop(Progress::new(Phase::Search, 0, steps));
-                let unified = match self.prefixes_unify(&mut asked) {
+                let unified = match self.prefixes_unify(counts.steps) {
                     Ok(unified) => unified,
                     Err(NoUnifier::Stopped) => return Err(Ended::Reason(Reason::Stopped)),
                     Err(NoUnifier::Failed) => false,
@@ -407,33 +441,59 @@ impl Search<'_, '_> {
         }
     }
 
+    /// Counts a step, and asks the stop and the bounds every [`POLL`]
+    /// units of work. Returns whether the round must end
+    /// ([`halted`](Self::halted)).
+    fn tick(&mut self, counts: &mut Counts) -> bool {
+        counts.steps = counts.steps.saturating_add(1);
+        // A prefix read costs its length, which a deep nest makes dear:
+        // the stop is asked by that work too.
+        let read = self.prefixes.take_read() / PREFIX_CHARS;
+        self.clock.work = self.clock.work.saturating_add(1 + read);
+        if self.halted.is_none() && self.clock.work >= self.clock.next {
+            let work = self.clock.work - self.clock.last;
+            self.clock.next = self.clock.work.saturating_add(POLL);
+            self.clock.last = self.clock.work;
+            self.halted = self.poll(counts, work).err();
+        }
+        self.halted.is_some()
+    }
+
     /// Asks the stop and the bounds.
-    fn poll(
-        &self,
-        limits: &Limits,
-        stop: &mut dyn FnMut(Progress) -> bool,
-        counts: &Counts,
-        since: u64,
-    ) -> Result<(), Reason> {
-        if stop(Progress::new(Phase::Search, since, counts.steps)) {
+    fn poll(&mut self, counts: &Counts, work: u64) -> Result<(), Reason> {
+        if (self.stop)(Progress::new(Phase::Search, work, counts.steps)) {
             return Err(Reason::Stopped);
         }
-        if let Some(limit) = limits.work
+        if let Some(limit) = self.limits.work
             && counts.steps > limit
         {
             return Err(Reason::WorkLimit { limit });
         }
-        if let Some(limit) = limits.memory_bytes
+        if let Some(limit) = self.limits.memory_bytes
             && self.held_bytes() as u64 > limit
         {
             return Err(Reason::MemoryLimit { limit_bytes: limit });
+        }
+        let longest = [
+            self.goals.len(),
+            self.paths.len(),
+            self.lemmas.len(),
+            self.used.len(),
+            self.eclauses.len(),
+            self.choices.len(),
+            self.eqs.len(),
+            self.terms.longest(),
+        ];
+        if longest.into_iter().any(|len| len > MOST_ENTRIES) {
+            return Err(Reason::IndexLimit);
         }
         Ok(())
     }
 
     /// Returns the bytes the round holds, by capacity.
     fn held_bytes(&self) -> usize {
-        self.terms.held_bytes()
+        self.matrix_bytes
+            + self.terms.held_bytes()
             + self.goals.capacity() * size_of::<Goal>()
             + self.paths.capacity() * size_of::<PathNode>()
             + self.lemmas.capacity() * size_of::<Lemma>()
@@ -459,6 +519,7 @@ impl Search<'_, '_> {
             used: self.used.len() as u32,
             start: self.start,
             eqs: self.eqs.len() as u32,
+            eclauses: self.eclauses.len() as u32,
         }
     }
 
@@ -471,6 +532,7 @@ impl Search<'_, '_> {
         self.used.truncate(marks.used as usize);
         self.start = marks.start;
         self.eqs.truncate(marks.eqs as usize);
+        self.eclauses.truncate(marks.eclauses as usize);
     }
 
     /// Puts `item` in front of the list `next` and returns the new list.
@@ -506,7 +568,9 @@ impl Search<'_, '_> {
             if !self.matrix.nodes[clause as usize].positive {
                 continue;
             }
-            counts.steps += 1;
+            if self.tick(counts) {
+                return None;
+            }
             let marks = self.marks();
             self.choices.push(Choice {
                 goal: NONE,
@@ -658,7 +722,11 @@ impl Search<'_, '_> {
     fn try_literal(&mut self, g: u32, mut cursor: Cursor, counts: &mut Counts) -> Option<u32> {
         loop {
             let way = self.next_way(g, &mut cursor)?;
-            counts.steps += 1;
+            // A poll that ends the round ends it here: the caller reads
+            // `halted` before it backtracks.
+            if self.tick(counts) {
+                return None;
+            }
             let marks = self.marks();
             self.choices.push(Choice {
                 goal: g,
@@ -839,9 +907,11 @@ impl Search<'_, '_> {
     /// Returns whether the prefix equations of the proof, with the domain
     /// condition's, have a unifier: for every term variable bound to a term
     /// with an eigenvariable (a Skolem term), the eigenvariable's prefix
-    /// begins the variable's. `NoUnifier::Stopped` where `stop` fired.
-    fn prefixes_unify(&mut self, stop: &mut dyn FnMut() -> bool) -> Result<bool, NoUnifier> {
+    /// begins the variable's. `NoUnifier::Stopped` where the stop fired.
+    fn prefixes_unify(&mut self, steps: u64) -> Result<bool, NoUnifier> {
         let matrix = self.matrix;
+        let ask = &mut *self.stop;
+        let mut stop = || ask(Progress::new(Phase::Search, 0, steps));
         let mut eqs = self.eqs.clone();
         for k in 0..self.terms.copies.len() as u32 {
             let c = self.terms.copies[k as usize];
@@ -906,7 +976,7 @@ impl Search<'_, '_> {
             return Ok(false);
         }
         let mut budget = UNIFY_STEPS;
-        match unify(&eqs, AUXILIARY, &mut budget, stop) {
+        match unify(&eqs, AUXILIARY, &mut budget, &mut stop) {
             Ok(_) => Ok(true),
             Err(NoUnifier::Failed) => Ok(false),
             Err(NoUnifier::Stopped) => Err(NoUnifier::Stopped),

@@ -598,9 +598,9 @@ reached.
 `--method connection` decides intuitionistic sequents too. A classical
 connection proof is an intuitionistic one when its literals' prefixes,
 strings that stand for the worlds of a Kripke model, can be made equal.
-A valid sequent gets a derivation of LJ; any other is unknown, even
-without quantifiers, since this search cannot show that no proof
-exists. The default of intuitionistic logic stays the embedding:
+It answers "valid" only with a checked derivation of LJ, and
+"unknown" otherwise, even without quantifiers: it cannot show that no
+proof exists, and it can miss one. The default of intuitionistic logic stays the embedding:
 
 ```console
 $ deduxit prove --logic intuitionistic --method connection 'exists x. p(x), forall x. (p(x) -> q(x)) |- exists y. q(y)'

@@ -51,6 +51,10 @@ const LEVEL_BYTES: usize = size_of::<Formula>() + 2 * size_of::<NodeId>();
 /// The bytes an instance in the memo holds, its key's terms apart.
 const INSTANCE_BYTES: usize = 64;
 
+/// The bytes a node the read-back adds to the arena holds, with its
+/// share of the tables that intern it.
+const NODE_BYTES: usize = 48;
+
 /// A term of the proof: a symbol of the matrix applied to terms, or a
 /// variable no connection bound, which stands for any term.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -496,7 +500,11 @@ impl Search<'_, '_> {
         // Building an instance is the search's costly part: it counts
         // toward its bound and the stop's cadence as a rule tried does.
         self.tick()?;
+        let before = self.formulas.len();
         let node = self.formulas.instantiate_frame(key.0, &key.1)?;
+        let added = self.formulas.len() - before;
+        self.work((added / HYPOTHESES_PER_UNIT) as u64)?;
+        self.charge(added.saturating_mul(NODE_BYTES))?;
         self.instances.insert(key, node);
         Ok(Formula { node, occ, env })
     }
@@ -516,7 +524,50 @@ impl Search<'_, '_> {
             }
             None => f.env,
         };
-        self.formula(occ, env)
+        // `f.node` is `f`'s instance, so a connective's child is its
+        // operand, and a binder's the body with the bound term put in:
+        // building the child's instance from the matrix's formula again
+        // would cost the whole subformula per child.
+        let before = self.formulas.len();
+        let node = match (self.kind(f), self.formulas.node(f.node)) {
+            (Kind::And | Kind::Or | Kind::Implies | Kind::Part { .. }, node) => match node {
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) => {
+                    if k == 0 {
+                        a
+                    } else {
+                        b
+                    }
+                }
+                Node::Atom(_)
+                | Node::True
+                | Node::False
+                | Node::Not(_)
+                | Node::Iff(..)
+                | Node::Forall(_)
+                | Node::Exists(_) => return self.formula(occ, env),
+            },
+            (Kind::Not, Node::Not(a)) => a,
+            (Kind::Iff, Node::Iff(a, b)) => {
+                let (from, to) = if k == 0 { (a, b) } else { (b, a) };
+                self.formulas.add(Node::Implies(from, to))?
+            }
+            (Kind::Gamma(_) | Kind::Delta(_), Node::Forall(body) | Node::Exists(body)) => {
+                let Some(&(_, _, _, value)) = self.envs.get(env as usize) else {
+                    return self.formula(occ, env);
+                };
+                if bound.is_none() {
+                    return self.formula(occ, env);
+                }
+                self.formulas.instantiate(body, value)?
+            }
+            _ => return self.formula(occ, env),
+        };
+        // An instance costs the nodes it adds: work for the stop's cadence,
+        // bytes for the memory bound.
+        let added = self.formulas.len() - before;
+        self.work((added / HYPOTHESES_PER_UNIT) as u64)?;
+        self.charge(added.saturating_mul(NODE_BYTES))?;
+        Ok(Formula { node, occ, env })
     }
 
     /// Returns `⊥` as a formula of the search.
@@ -1146,6 +1197,10 @@ struct Emit<'s> {
     bytes: u64,
     /// The bound on it.
     limit: Option<u64>,
+    /// The bytes the inferences hold.
+    held: usize,
+    /// The memory bound, `None` for none.
+    memory: Option<u64>,
     /// The caller's stop.
     stop: &'s mut dyn FnMut(Progress) -> bool,
 }
@@ -1162,6 +1217,8 @@ impl<'s> Emit<'s> {
             inferences: Vec::new(),
             bytes: 0,
             limit: limits.derivation_bytes,
+            held: 0,
+            memory: limits.memory_bytes,
             stop,
         }
     }
@@ -1194,6 +1251,21 @@ impl<'s> Emit<'s> {
                 estimate_bytes: self.bytes,
                 limit_bytes: limit,
                 least_bytes: None,
+            }));
+        }
+        // The derivation is held in memory too, whatever its own bound.
+        self.held = self.held.saturating_add(
+            size_of::<Inference>()
+                + (left.len() + right.len()) * size_of::<NodeId>()
+                + premises.len() * size_of::<InfId>(),
+        );
+        if let Some(limit) = self.memory
+            && self.held as u64 > limit
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: limit,
+                needed_bytes: None,
             }));
         }
         let id = u32::try_from(n).map_err(|_| {

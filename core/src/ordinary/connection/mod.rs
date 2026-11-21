@@ -1,9 +1,10 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A connection prover of classical logic, first-order included:
-//! [`decide`] answers "valid" with a checked derivation of LK, "not valid"
-//! where its search is exhaustive, and "unknown" at a bound.
+//! A connection prover of classical and intuitionistic logic, first-order
+//! included: [`decide`] answers "valid" with a checked derivation of LK or
+//! LJ, "not valid" in classical logic where its search is exhaustive, and
+//! "unknown" otherwise.
 //!
 //! The search is in Otten's non-clausal connection calculus, the calculus
 //! of the prover nanoCoP ("A Non-clausal Connection Calculus", TABLEAUX
@@ -88,14 +89,14 @@ pub struct Outcome {
     pub statistics: Statistics,
 }
 
-/// Decides a classical sequent, first-order or not, by the connection
-/// prover within `limits`, asking `stop` as it goes. It reads the search
+/// Decides a classical or intuitionistic sequent, first-order or not, by
+/// the connection prover within `limits`, asking `stop` as it goes. It reads the search
 /// options' [`path_length`](search::Options::path_length) and
 /// [`restricted_backtracking`](search::Options::restricted_backtracking)
 /// and nothing else of them.
 ///
-/// The verdict is "valid" with a derivation of LK that
-/// [`Derivation::check`](super::Derivation::check) accepted, "not valid" only where the sequent's
+/// The verdict is "valid" with a derivation of LK (or LJ) that
+/// [`Derivation::check`](super::Derivation::check) accepted, "not valid" only in classical logic, where the sequent's
 /// matrix has no variable and the whole search failed, and otherwise
 /// "unknown": [`Reason::PathLength`] at the bound on the active path,
 /// [`Reason::Incomplete`] where a search with variables failed without
@@ -104,7 +105,8 @@ pub struct Outcome {
 ///
 /// # Errors
 ///
-/// [`Error::Logic`] for a logic other than classical logic;
+/// [`Error::Logic`] for minimal logic; [`Error::Succedents`] for an
+/// intuitionistic sequent with more than one formula right of `⊢`;
 /// [`Refusal::Occurrences`] for a sequent that
 /// unfolds past `limits.occurrences` (an equivalence's operands unfold
 /// twice); a refusal of the derivation by a bound or the stop, as from
