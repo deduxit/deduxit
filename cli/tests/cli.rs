@@ -777,7 +777,7 @@ fn intuitionistic_mode() {
 #[test]
 fn first_order_ordinary_session() {
     let script = "rules 0 R0\napply 0 R0 existsR a\napply 0 L0 existsL\napply 1 R0 existsR a\n\
-                  apply 2 R0 ax\nproof\n";
+                  apply 2 R0 ax\nproof\nproof --rocq\n";
     let line = [
         "interact",
         "--logic",
@@ -798,7 +798,10 @@ fn first_order_ordinary_session() {
          ─────────────── ∃R\n  \
          p(a) ⊢ ∃x. p(x)\n\
          ─────────────────── ∃L\n\
-         ∃x. p(x) ⊢ ∃x. p(x)\n"
+         ∃x. p(x) ⊢ ∃x. p(x)\n\
+         valid proof in LJ (intuitionistic logic)\n\
+         no certificate: a certificate over Prop takes propositional sequents only, and this \
+         one is first-order\n"
     );
     assert_eq!((status, err.as_str()), (0, ""));
 }

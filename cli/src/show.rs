@@ -918,6 +918,11 @@ pub(crate) fn shown(
         // Refused before anything is written, so the verdict stands, as a
         // disproof's does.
         Err(Error::Unsupported(e)) => Ok(Shown::LeftOut(format!("no certificate: {e}"))),
+        // A first-order derivation, which the certificate over `Prop`
+        // refuses as it refuses an unsupported one.
+        Err(error @ Error::FirstOrder { .. }) => {
+            Ok(Shown::LeftOut(format!("no certificate: {error}")))
+        }
         // The output's own error, which finishing it reports.
         Err(_) => Ok(Shown::Written),
     }

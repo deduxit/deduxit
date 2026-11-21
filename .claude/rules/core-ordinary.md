@@ -344,8 +344,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     atoms by key; an atom form names the arena's atom by index. Tables
     without a term whose atoms are all nullary read as a propositional
     sequent (`None`), so first-order means a binder or arguments. A sequent or derivation is
-    written at 25 when its arena is first-order; the session refuses
-    first-order input, so none is written. `wire/level-25.txt` pins a
+    written at 25 when its arena is first-order, a goal state too.
+    `wire/level-25.txt` pins a
     sequent and a derivation.
 
 ## The native engine (`ljt.rs`)

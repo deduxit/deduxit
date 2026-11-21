@@ -28,7 +28,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   `deduxit interact --logic`: `∀R` and `∃L` name a fresh eigenvariable,
   `∀L` and `∃R` take a witness term read by `Interactive::witness`
   (`apply 0 R0 existsR c`); `Step::with_witness`, `Needs::Witness`,
-  `StepError::NoWitness` and `StepError::Witness` are new.
+  `StepError::NoWitness` and `StepError::Witness` are new. A witness is
+  typed: one left open for a later axiom to fill is not offered yet.
 - **First-order formulas in ordinary logic**: predicates applied to
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
@@ -37,8 +38,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   method that decides or transforms propositional sequents (the SAT
   solver, LJT, the embedding, the truth table, the tableau, the normal
   forms, resolution, the interpolants, the negative translations, the
-  Kripke model's check, the goal state, the certificate over `Prop`, the
-  lambda-term) refuses a first-order sequent by name.
+  Kripke model's check, the goal state's `close` and `hint`, the
+  certificate over `Prop`, the lambda-term) refuses a first-order sequent
+  by name.
 
 ### Changed
 

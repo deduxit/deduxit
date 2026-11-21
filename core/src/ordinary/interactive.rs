@@ -2019,8 +2019,13 @@ impl Interactive {
             }
             if inference.rule == Rule::Open {
                 let right = inference.right.len();
-                if inference.principal.is_some() || !inference.premises.is_empty() {
-                    return Err(inconsistent("an open goal has a principal or premises"));
+                if inference.principal.is_some()
+                    || !inference.premises.is_empty()
+                    || inference.term.is_some()
+                {
+                    return Err(inconsistent(
+                        "an open goal has a principal, premises or a term",
+                    ));
                 }
                 if logic != Logic::Classical && right != 1 {
                     return Err(inconsistent(
