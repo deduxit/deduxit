@@ -514,3 +514,283 @@ answers:
   ceiling 31 264 589, +3.6 %): the gate's ratchet fails on it at both,
   which this chain leaves to the planning session (a ceiling's raise is
   a commit of its own that says why).
+
+## Session 75c: the intuitionistic connection prover
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`,
+cores 10 to 12, continuing 75a's conversation. Nothing was pushed.
+
+### Outcome
+
+- `ordinary::connection::decide` and `prove --logic intuitionistic
+  --method connection` decide intuitionistic sequents, first-order ones
+  included, by nanoCoP-i's prefixed non-clausal connection calculus
+  (Otten, TABLEAUX 2017; ARQNL 2016), under the one `Method::Connection`
+  agreed with 75b. "Valid" comes with a derivation of LJ that
+  `Derivation::check` accepted; every other answer is "unknown"
+  (`Incomplete`, `PathLength`, the time limit), since the search is no
+  decision procedure even without quantifiers.
+- The module `core/src/ordinary/connection/intuitionistic/`: `prefix.rs`
+  (the prefix characters, their copies, Otten and Kreitz's Lemma 8 test
+  and T-string unification), `prove.rs` (the classical search, copied
+  and changed), `read_back.rs` (a G3i search the proof guides, and the
+  emission of LJ), `mod.rs`, `tests.rs`.
+- **Minimal logic stays on the embedding**: the connection prover
+  refuses it (`Error::Logic`). The plan (`⊥` an atom, `¬A` as `A → ⊥`)
+  needs a map from the rewritten sequent's derivation back to the
+  original, which is ambiguous where the original holds both `¬A` and
+  `A → ⊥`; the differential test was not run, so nothing says it agrees.
+  (departs from the brief, which asked for the differential result)
+- The default of intuitionistic logic does not change (75d's call).
+
+### The calculus, from the papers
+
+A research agent read the papers (not the provers' GPL code) into notes
+kept with the step's scratch files; what the code rests on:
+- Prefix characters: a variable for `¬`, `→`, `∀` and an atom with
+  polarity 1, a constant with polarity 0 (Otten 2017, Table 1); a
+  literal's prefix the characters from the root down to it, its own
+  included.
+- The domain condition compares the prefix of the γ-position *with* its
+  own character (ileanCoP 2005, Definition 6): with the plain prefix
+  `∀x(A ∨ B(x)) ⊢ A ∨ ∀x B(x)`, not intuitionistically valid, would be
+  proved.
+- T-string unification's rules R8 and R9 read `V s⁺` (Otten and Kreitz
+  1996); the 2016 and 2017 papers print `V a u`, a misprint.
+- nanoCoP-i searches classically, filters each connection's prefixes by
+  Lemma 8, and unifies all the equations once a classical proof is found,
+  backtracking on failure (Otten 2016 §3.2, 2017 §6).
+- Kreitz and Schmitt's conversion (Information and Computation 2000)
+  gives a multi-succedent LJ proof; its second step to single-succedent
+  LJ (Egly and Schmitt 1999) was not available.
+
+### Departures
+
+- **Prefix unification at the end of each proof, not after each
+  connection** (departs from the design, §4): nanoCoP-i's own scheme;
+  unifying per connection means backtracking over the unifiers inside
+  the search, since T-string unification is not unitary.
+- **The read-back is a G3i search the proof guides, not Kreitz and
+  Schmitt's conversion** (departs from the design, §4): the conversion
+  is multi-succedent. The search takes only the substitution's instances,
+  each Skolem term as the eigenvariable its δ-rule made on the branch or
+  as a constant of the branch (75b's finding: its δ-rule may lie on
+  another branch), so it is complete where Kreitz and Schmitt's theorem
+  says the instances suffice, within its bounds.
+- **A proof whose prefixes unified but that does not read back is
+  rejected and the search goes on** (departs from the brief, which calls
+  that a bug's refusal): the reduction ordering's cycles through prefix
+  constants are not checked apart (the classical Skolem terms do not take
+  prefix variables), so the read-back is the admissibility check of last
+  resort. `decide_counting` counts such proofs; `agrees_with_ljt` holds
+  the count to zero on 300 generated sequents.
+- **Based on 75b's moving chain** (departs from the brief's `jj new
+  mxyrmqtz`), to share its matrix and terms: three times a rewrite in
+  75b's workspace raced a snapshot here, and files vanished from disk;
+  each time jj's operation log held the work (`jj --at-op OP
+  --ignore-working-copy diff`, then the full side of the divergence kept;
+  once I kept the wrong side and restored the lost file from the
+  abandoned commit). From then on the chain sat on `jj duplicate`d copies
+  of 75b's commits, and moved onto `main` when 75b landed. A jj command
+  here once signed six of 75b's unsigned commits (75b was told).
+
+### What went wrong on the way, found by the measurements
+
+- Copies renamed a prefix variable only where every literal of its
+  position lay in the clause, and constants per copy: `⊢ ¬¬(a ∨ ¬a)`
+  was unknown. Definition 5's renaming and constants as Skolem terms over
+  the variables above fixed it.
+- The final unification cloned the whole system at each step and asked
+  no stop: 8 to 12 s under a 2 s limit (SYN070, TOP022). Now one equation
+  and the bindings per state, the stop every 256 steps.
+- The read-back's search asked the stop per sequent only, while one
+  sequent built an instance per witness: 6.7 s under 2 s (SYJ004).
+  Instances are now built once and every child counts as work.
+- Six problems failed the checker: a child re-read its parent's binders
+  through the branch's current map of Skolem terms, which the branch had
+  changed. Each binder's term is now kept as bound.
+- A δ-formula whose variable no literal holds has no Skolem symbol in
+  the matrix: four panics (SYN346, SYN400, SYN932, SYN933).
+
+### Measurements
+
+ILTP's first-order problems, intuitionistic logic, `deduxit-bench run
+--tptp bench/iltp-first-order/Problems --logics intuitionistic
+--engines connection --timeout 2`, three shards on cores 10 to 12, at
+`qkvktkmy` (after the panel's and the review's fixes), beside the
+embedding's row of 75a
+(the default, `auto`):
+
+| rows | connection | embedding (75a) |
+|---|--:|--:|
+| proved | 155 | 226 |
+| proved by this one only | 34 | 105 |
+| unknown, time limit | 667 | 28 |
+| unknown, `incomplete` | 107 | 34 |
+| unknown, derivation limit | 6 | 1 |
+| unknown, memory limit / copy bound | 1 / 0 | 0 / 614 |
+| refused, equality | 1 730 | 1 730 |
+| error, the TPTP reader (GEJ056, GEJ057) | 4 | 4 |
+
+- No verdict contradicts a status; no crash; no row past 2.4 s. The
+  four errors are the TPTP reader's (an unbound name where a term is
+  expected), the same under both methods.
+- Before the fixes (at `szpmmnsy`): 148 proved; the fixes lost none
+  (the same 155 at `uztnoqsq` and at `qkvktkmy`) and gained seven (SET575+3, SYJ018+1, SYJ022+1, SYJ027+1, SYN362+1,
+  SYN375+1, SYN382+1), the read-back's order of witnesses most likely.
+- Together they prove 260 of ILTP's first-order theorems, the
+  embedding alone 226. nanoCoP-i proves 704 to 839 at 100 s (Otten 2017
+  Table 3; 2021 Table 4), so the prover's search, not its idea, is what
+  is behind: no restricted backtracking schedule, no strategy portfolio,
+  2 s.
+- Generated propositional sequents against LJT (`agrees_with_ljt`): no
+  "valid" LJT refutes, at least four fifths of LJT's valid ones proved
+  within a path bound of 6, every unified proof read back.
+
+### Panel and review
+
+The panel ran on the chain rebased onto `main` (75b landed). The machine
+stop at 14:20 cut the counterexamples and integers members; they ran
+again from the start after the reboot, on the same commit, told of the
+argument member's findings.
+- **Argument** (Fable 5.2, `high`): soundness holds (no "valid" without
+  the check; every arm of `Emit::emit` is a form `check_inference`
+  takes; a child keeps its parent's binders' terms; a reused
+  eigenvariable passes `mentions`); T-string unification holds (a
+  transcription against an oracle on all 3 969 pairs up to length 5: no
+  false "no" from `unifiable`, no wrong unifier); copies and constants
+  as the rules say. Breaks of the bounds and one lost proof:
+  - B1: `Prefixes::of` kept every literal's chain and keyed each
+    constant by the list of variables above it, neither charged nor
+    polled: `|- ~…~p` with 100 000 negations took 4.8 GB and 4.8 s
+    under `--memory-limit 64MiB --timeout 2s`.
+  - B2: the read-back's search copied the sequent per level, uncharged:
+    725 MiB under 64 MiB on `a0, …, a29999 |- a0 /\ (… /\ a1499)`.
+  - The read-back lost `forall x. exists y. r(x,y) |- exists y z w.
+    (r(c,y) /\ r(y,z) /\ r(z,w))` (valid).
+  - Notes: constants ignore term variables (Definition 8 has them), so
+    the read-back rejects more than the cycles the rules name (`|-
+    exists x. (p(x) -> p(f(x)))`; sound, a lost proof); an arena
+    holding `Eigen(u32::MAX)` saturated `next_eigen`.
+- **Counterexamples** (Opus 5.5, `high`): no soundness failure. 2 200
+  random propositional sequents against a G4ip of its own, LJT and
+  random Kripke models; 2 400 random first-order ones and 26 by hand
+  (DNS, CD, the drinker, IP, Markov unknown, their valid forms proved)
+  against random constant-domain models; 3 200 unification systems
+  against a brute-force solver (no wrong unifier, no false "no" from
+  `unifiable`, the ten rules checked against the 1996 table). One
+  break: `free_vars`' suffix unions were quadratic in a clause's width
+  (`|- ((a0 -> b0) \/ (c0 -> d0)) /\ …` with 8 000 conjuncts: 5.1 s
+  past a 2 s stop, 16 000 past 8 GB). It also saw the derivation bound
+  (64 MiB) refuse the read-back of small valid sequents (4 of 400 at
+  depth 5): a refusal, exit 2, as the rules say for any read-back.
+- **Integers** (Sonnet 5.5, `high`): no wrap, panic or wrong verdict.
+  Two breaks of the time limit: R1, the same width as above (100 000
+  hypotheses, 7 s at 1 s); R2, the read-back walked shared proof terms
+  as trees (`p0(a), forall x. (p_k(x) -> p_{k+1}(f(x,x))) |- exists y.
+  p_n(y)`: 13.5 s at 2 s for n = 22, doubling per level), and so did
+  the domain equations. Noted: `Prefixes::count` could reach the
+  auxiliary variables' numbers after 2³¹ fresh variables; the
+  recursion depth held at 16 300 levels in release.
+- **What was fixed** (one commit after the prover's):
+  - prefixes read up parent links, constants keyed by an interned list,
+    the free variables' lists made by walking variable-only links and
+    charged and polled (`Tally`), the barred sets counted per variable
+    over a clause's kids; the search counts prefix characters read
+    towards its polls and charges the prefixes' tables and equations;
+  - unification bounded by the characters its waiting states hold
+    (`UNIFY_HELD`) and polled by the characters it handles;
+  - the read-back charges every open level and every step to the
+    memory bound (a refusal there is `MemoryLimit`, as the stop is
+    `Stopped`), polls by hypotheses copied, recurses to half the
+    recursion depth (a level takes 14.9 KiB of stack unoptimized
+    against the 13 KiB a level is sized for: 2 000 nested implications
+    overflowed a debug build), and visits each part of a shared term
+    once (`tm_of`'s memo, `term`, `ready`, `constants`, the domain
+    equations);
+  - the order: the goal's `∃R` with witnesses the branch has met, then
+    the hypotheses' choices, then the goal's other witnesses, the
+    anonymous witness last everywhere (it fit the goal first and spent
+    the step bound on the lost sequent, which now reads back and is in
+    the test);
+  - `Prefixes::exhausted` refuses to unify past 2³¹ numbers;
+    eigenvariable numbers that run out give no derivation.
+  - After: B1's witness 0.02 s and 22 MB; B2's refused at the bound;
+    30 000 nested implications 0.86 s and 35 MB (1.9 GB before); the
+    wide witnesses 0.1 s (refused at the memory bound where it is
+    64 MiB); R2's n = 22 0.4 s.
+- **Left, in the classical prover's shared code**: R2's input stays
+  exponential in `connection/terms.rs` or `matrix.rs`, the same in both
+  logics (n = 26 at 2 s: classical 8.5 s and 2 GB, intuitionistic
+  5.2 s). Not this session's code; a follow-up for 75b's files
+  (`Terms::occurs` walks a shared term as a tree).
+- **`fresh-reviewer`** (Fable 5.2, `high`, at `uztnoqsq`): soundness
+  and the read-back's promise held (about 12 300 fuzzed sequents and 28
+  by hand: no `Error::ReadBack`, no panic, no "not valid"; 16 000-deep
+  chains did not overflow). It found five breaks of the bounds and
+  three wrong texts, all fixed in `qkvktkmy` (the lock's help in
+  `wuplrsyt`):
+  - F1: the copied search counted the ways a literal tries but polled
+    only in its main loop, without the classical prover's later
+    `tick`/`halted`, `MOST_ENTRIES` and `eclauses` mark: 102 million
+    steps, 5.3 s at a 1 s limit, 981 MB under 64 MiB, and `--work-limit
+    1000` ignored. Now ported: 1.1 s, and the work limit at 1 024
+    steps.
+  - F2: each child in the read-back instantiated its subformula afresh
+    and counted one unit: 12.6 s at 1 s (900 conjuncts over a
+    disjunction of 100 000). A child is now its parent's instance's
+    operand or the binder's body instantiated: 0.3 s.
+  - F3: instances charged 64 bytes each: 4.56 GB under 64 MiB. Now by
+    the nodes they add: refused at the memory bound, 237 MB peak (the
+    input alone is 950 KB of text and its matrix), 2.54 s at a 2 s
+    limit.
+  - F4: the emitted derivation held to `derivation_bytes` alone:
+    3.64 GB under 64 MiB with `--derivation-limit none`. Now charged:
+    the memory limit at 67 ms.
+  - F5: `--path-length 0` searched at 1. Now one round at 0, as the
+    classical prover.
+  - T1, T2: `connection::decide`'s docs and `prove --help` still said
+    classical logic only; T3: "any other is unknown" read as a promise
+    that every valid sequent is proved. All three reworded.
+
+### Checks
+
+- `cargo test --workspace` passed on the chain rebased onto `main`
+  (`vuyutrwt`), and again at `uztnoqsq` (after the panel's fixes);
+  `cargo clippy --workspace --all-targets -- --deny warnings` clean at
+  both; the gate passed at both (`ordinary-pigeons` 32 380 060 against
+  its ceiling of 31 797 472, +1.83 %, within the tolerance, as on
+  `main`).
+- The prover as first committed had not been through `nix fmt`; the
+  fixes' commit carries its formatting.
+- `nix flake check` under the machine lock: the first run (23:29)
+  failed `doc-private` (a redundant link target in the prover's
+  `decide`, fixed in its commit) and `budget` (the web module at
+  2 590 533 bytes at `gzip -9`, over 2 560 000: raised to 2 650 000 in
+  `llzyrxmy`, which says what earned the room); the second (23:46 to
+  00:15, at the head with this report) passed every check. Only this
+  section's text changed after it.
+
+### What 75d must know
+
+- **The method**: intuitionistic logic goes through `Method::Connection`
+  (`connection::run` dispatches by logic); minimal logic is refused
+  there (`Error::Logic`) and stays on the embedding: its differential
+  test was not run (the Outcome above says why).
+- **Not a default yet**: `Options::method_for` still sends a
+  first-order intuitionistic sequent to the embedding. The measurement
+  says the two complement each other (155 and 226 proved, 260 together,
+  34 by the connection prover alone), so a race or a fallback, not a
+  switch, is what the data supports; the classical default's
+  `gives_way` already treats `Incomplete` as giving way.
+- **It never answers "not valid"**: every failure is `Incomplete` or
+  `PathLength`; a race may treat its unknowns as no information.
+- **Its unknowns at the time limit dominate** (667 of the ILTP rows at
+  2 s): the search has no restricted-backtracking schedule and no
+  portfolio; nanoCoP-i's numbers are at 100 s.
+- **Refusals**: a read-back past `derivation_bytes` is an error (exit
+  2), as for every read-back; the stop and the memory bound are
+  unknowns.
+- **Open in shared code**: chains of shared bindings are exponential in
+  `connection/terms.rs` (both logics); constants ignore term variables,
+  which loses proofs, never soundness.
