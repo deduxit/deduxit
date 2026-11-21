@@ -23,8 +23,10 @@ fn invertible(logic: Logic, side: Side, node: Node) -> Option<Rule> {
     let classical = matches!(logic, Logic::Classical);
     match (side, node) {
         (_, Node::Atom(_)) => None,
-        // The goal state refuses a first-order sequent.
-        (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", super::REFUSED),
+        // A fresh eigenvariable loses nothing; a witness is a choice.
+        (Right, Node::Forall(_)) => Some(Rule::ForallRight),
+        (Left, Node::Exists(_)) => Some(Rule::ExistsLeft),
+        (Left, Node::Forall(_)) | (Right, Node::Exists(_)) => None,
         (Left, Node::And(..)) => Some(Rule::AndLeft),
         (Left, Node::Or(..)) => Some(Rule::OrLeft),
         (Left, Node::Iff(..)) => Some(Rule::IffLeft),
@@ -125,7 +127,7 @@ impl Interactive {
         // own estimate, an axiom's weakenings included. The sum saturates,
         // but the bound stops the run long before that.
         let mut held = 0u64;
-        let widths = self.widths();
+        let mut widths = self.widths();
         while let Some(goal) = todo.pop() {
             let Some(step) = self.invertible_step(goal) else {
                 open.push(goal);
@@ -139,6 +141,10 @@ impl Interactive {
                 continue;
             };
             steps += 1;
+            // A quantifier step adds its instance to the arena.
+            if widths.len() < self.formulas().len() {
+                widths = self.widths();
+            }
             held = held.saturating_add(self.added_bytes(&widths, goal, from));
             if let Some(limit) = limits.memory_bytes
                 && held > limit

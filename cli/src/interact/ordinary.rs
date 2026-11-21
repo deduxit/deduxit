@@ -38,7 +38,8 @@ rules G F           the rules that act on formula F of goal G, such as R0
 apply G F RULE [F…] apply a rule, by its name or an ASCII spelling (andR, orR1, ->L or
                     impL, ~R or notR, iffL, falseL, WL, CR); the formulas F… go to the first
                     premise of a rule with two, the others to the second, which otherwise
-                    both take the whole context
+                    both take the whole context; ∀L and ∃R (forallL, existsR) take a witness
+                    term in place of F…, and ∀R and ∃L name a fresh eigenvariable
 undo                retract the last step, with the invertible steps that followed it
 invertible on|off   apply every invertible rule by itself, at once to every open goal and
                     then to the goals each step opens (LJ's ->L, ~L, orR1 and orR2 are
@@ -199,6 +200,7 @@ impl Commands for Session {
                         .iter()
                         .map(|r| match r.needs {
                             Needs::Context => format!("{} (with a split or none)", r.rule),
+                            Needs::Witness => format!("{} (with a witness)", r.rule),
                             _ => r.rule.to_string(),
                         })
                         .collect::<Vec<_>>()
@@ -211,12 +213,18 @@ impl Commands for Session {
                 let rule: Rule = word.parse().map_err(|error| match error {
                     Error::UnknownName { .. } => anyhow::anyhow!(
                         "{}",
-                        super::unknown_rule(word, &ordinary_rules(self.state.logic()), ASCII)
+                        super::unknown_rule(
+                            word,
+                            &ordinary_rules(self.state.logic(), binders(&self.state)),
+                            ASCII
+                        )
                     ),
                     error => error.into(),
                 })?;
                 let mut step = Step::new(side, position, rule);
-                if rest.len() > 3 {
+                if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) && rest.len() > 3 {
+                    step = step.with_witness(self.state.witness(goal, &rest[3..].join(" "))?);
+                } else if rest.len() > 3 {
                     let (mut left, mut right) = (Vec::new(), Vec::new());
                     for word in &rest[3..] {
                         match address(word)? {
@@ -594,23 +602,45 @@ pub(super) const ASCII: &[(&str, &str)] = &[
     ("⊥R", "falseR"),
     ("⊤L", "trueL"),
     ("⊤R", "trueR"),
+    ("∀L", "forallL"),
+    ("∀R", "forallR"),
+    ("∃L", "existsL"),
+    ("∃R", "existsR"),
 ];
 
 /// Returns the names of the rules a step takes in `logic`: every rule of
 /// LK but a cut, and in LJ and minimal logic none that would leave other
-/// than one formula right of `⊢` (nor `⊥L` in minimal logic).
-pub(super) fn ordinary_rules(logic: Logic) -> Vec<&'static str> {
-    const LK: [&str; 25] = [
+/// than one formula right of `⊢` (nor `⊥L` in minimal logic); the
+/// quantifier rules only where the sequent has `binders`.
+pub(super) fn ordinary_rules(logic: Logic, binders: bool) -> Vec<&'static str> {
+    const LK: [&str; 29] = [
         "ax", "WL", "WR", "CL", "CR", "∧L", "∧L₁", "∧L₂", "∧R", "∨L", "∨R", "∨R₁", "∨R₂", "→L",
-        "→R", "¬L", "¬R", "↔L", "↔L₁", "↔L₂", "↔R", "⊥L", "⊥R", "⊤L", "⊤R",
+        "→R", "¬L", "¬R", "↔L", "↔L₁", "↔L₂", "↔R", "⊥L", "⊥R", "⊤L", "⊤R", "∀L", "∀R", "∃L", "∃R",
     ];
     LK.into_iter()
         .filter(|&name| match name {
             "WR" | "CR" | "⊥R" | "∨R" => logic == Logic::Classical,
             "⊥L" => logic != Logic::Minimal,
+            "∀L" | "∀R" | "∃L" | "∃R" => binders,
             _ => true,
         })
         .collect()
+}
+
+/// Returns whether the session's formulas have a quantifier.
+fn binders(state: &Interactive) -> bool {
+    let formulas = state.formulas();
+    let (left, right) = state.sequent();
+    let mut stack: Vec<_> = left.iter().chain(right).copied().collect();
+    while let Some(k) = stack.pop() {
+        let node = formulas.node(k);
+        if matches!(node, ordinary::Node::Forall(_) | ordinary::Node::Exists(_)) {
+            return true;
+        }
+        let (a, b) = node.operands();
+        stack.extend(a.into_iter().chain(b));
+    }
+    false
 }
 
 #[cfg(test)]

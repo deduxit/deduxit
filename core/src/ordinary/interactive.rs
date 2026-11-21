@@ -19,6 +19,7 @@ use super::translate::Extra;
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side};
 use super::{Translation, Verdict, bound, decide_within};
 use crate::Error;
+use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
@@ -114,6 +115,21 @@ pub enum StepError {
         estimate_bytes: u64,
         /// The bound, `Limits::derivation_bytes`.
         limit_bytes: u64,
+    },
+    /// A witness was given to a rule that takes none: only `∀L` and `∃R`
+    /// take one, and the session names the eigenvariable of `∀R` and `∃L`.
+    #[non_exhaustive]
+    NoWitness {
+        /// The rule asked for.
+        rule: Rule,
+    },
+    /// The witness of `∀L` or `∃R` is missing, or is not a term of the
+    /// goal: a term of the sequent's function symbols and of the
+    /// eigenvariables in the goal's scope.
+    #[non_exhaustive]
+    Witness {
+        /// Why, in words.
+        reason: String,
     },
 }
 
@@ -237,6 +253,12 @@ impl Display for StepError {
                     "the rule {rule} has fewer than two premises and takes no split"
                 )
             }
+            StepError::NoWitness { rule } => write!(
+                f,
+                "the rule {rule} takes no witness: only ∀L and ∃R take one, and the session \
+                 names the eigenvariable of ∀R and ∃L"
+            ),
+            StepError::Witness { reason } => write!(f, "the witness is not a term here: {reason}"),
         }
     }
 }
@@ -280,6 +302,10 @@ pub struct Step {
     pub rule: Rule,
     /// How two premises take the context.
     pub context: Context,
+    /// The witness of `∀L` or `∃R`, a term of the proof's formulas
+    /// ([`Interactive::witness`] reads one from text); `None` for every
+    /// other rule.
+    pub witness: Option<FoTermId>,
 }
 
 impl Step {
@@ -291,6 +317,16 @@ impl Step {
             position,
             rule,
             context: Context::Shared,
+            witness: None,
+        }
+    }
+
+    /// Returns the step with the witness given, for `∀L` or `∃R`.
+    #[must_use]
+    pub fn with_witness(self, witness: FoTermId) -> Self {
+        Self {
+            witness: Some(witness),
+            ..self
         }
     }
 
@@ -333,6 +369,8 @@ pub enum Needs {
     /// A context for its two premises: shared unless the step gives a
     /// split.
     Context,
+    /// A witness term for the bound variable: `∀L` and `∃R`.
+    Witness,
 }
 
 /// What [`Interactive::close`] did: the outcome of deciding the goal, and
@@ -383,6 +421,9 @@ enum Shape {
     Unary(Vec<NodeId>, Vec<NodeId>),
     /// Two premises, which take the context as a step says.
     Binary([(Vec<NodeId>, Vec<NodeId>); 2]),
+    /// One premise holding an instance of the quantified formula's body,
+    /// built by the step from its witness or eigenvariable.
+    Instance,
 }
 
 /// A proof in progress of an ordinary sequent in LK or LJ. It starts with
@@ -428,7 +469,8 @@ enum Shape {
 /// `sequent` has the form of an ordinary [`Sequent`]. `inferences` lists
 /// the inferences in the state's own order, the conclusion first, each
 /// `{"left": [ids], "right": [ids], "rule": name, "principal": ["left",
-/// position], "premises": [indices]}`; an open goal has its two sides
+/// position], "premises": [indices]}`, a quantifier step with its
+/// `"term"` as a derivation's has it; an open goal has its two sides
 /// alone. `history` lists, in order, the inference each step closed.
 /// Reading the form back checks every inference by the checker's rules,
 /// so a state read from JSON is as sound as one built through
@@ -487,7 +529,6 @@ impl Interactive {
     ///
     /// As [`new`](Self::new) does, the bound being `limits.occurrences`.
     pub fn within(sequent: &Sequent, logic: Logic, limits: &Limits) -> Result<Self, Error> {
-        sequent.formulas.propositional("the goal state")?;
         if logic != Logic::Classical && sequent.right.len() > 1 {
             return Err(Error::Succedents {
                 count: sequent.right.len(),
@@ -671,7 +712,10 @@ impl Interactive {
                     rule,
                     needs: match shape {
                         Shape::Binary(_) => Needs::Context,
-                        Shape::Leaf | Shape::Unary(..) => Needs::Nothing,
+                        Shape::Instance if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) => {
+                            Needs::Witness
+                        }
+                        Shape::Leaf | Shape::Unary(..) | Shape::Instance => Needs::Nothing,
                     },
                 });
             }
@@ -694,8 +738,10 @@ impl Interactive {
         let node = self.formulas.node(x);
         let fits = match rule {
             Axiom | Cut | Open => false,
-            // The goal state refuses a first-order sequent at its door.
-            ForallLeft | ForallRight | ExistsLeft | ExistsRight => false,
+            ForallLeft => side == Left && matches!(node, Node::Forall(_)),
+            ForallRight => side == Right && matches!(node, Node::Forall(_)),
+            ExistsLeft => side == Left && matches!(node, Node::Exists(_)),
+            ExistsRight => side == Right && matches!(node, Node::Exists(_)),
             WeakenLeft | ContractLeft => side == Left,
             WeakenRight | ContractRight => side == Right,
             AndLeft | AndLeft1 | AndLeft2 => side == Left && matches!(node, Node::And(..)),
@@ -741,6 +787,7 @@ impl Interactive {
         let iff = |a, b| (ids[&Node::Implies(a, b)], ids[&Node::Implies(b, a)]);
         let falsity = self.falsity;
         Ok(match (rule, node) {
+            (ForallLeft | ForallRight | ExistsLeft | ExistsRight, _) => Shape::Instance,
             (WeakenLeft | WeakenRight | TrueLeft | FalseRight, _) => Shape::Unary(vec![], vec![]),
             (ContractLeft | ContractRight, _) => Shape::Unary(vec![x, x], vec![]),
             (TrueRight | FalseLeft, _) => Shape::Leaf,
@@ -805,8 +852,266 @@ impl Interactive {
     /// intuitionistic and minimal logic one formula right of `⊢` in every
     /// premise.
     pub fn apply(&mut self, goal: GoalId, step: &Step) -> Result<Vec<GoalId>, StepError> {
+        if matches!(
+            step.rule,
+            Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight
+        ) {
+            let made = self.instance_step(goal, step)?;
+            return Ok(self.record(goal, made));
+        }
+        if step.witness.is_some() {
+            return Err(StepError::NoWitness { rule: step.rule });
+        }
         let made = self.expand(goal, step)?;
         Ok(self.record(goal, made))
+    }
+
+    /// Returns the inferences a step of a quantifier rule makes: the goal's
+    /// own, with the step's witness or a fresh eigenvariable as its term,
+    /// and its premise, open, which holds the instance of the quantified
+    /// formula's body in its place (beside it for `∀L`, and for `∃R` in
+    /// LK). The instance is built in the arena where it is new.
+    fn instance_step(&mut self, id: GoalId, step: &Step) -> Result<Vec<Inference>, StepError> {
+        let (side, position, rule) = (step.side, step.position, step.rule);
+        let x = formula_at(self.open(id)?, side, position)?;
+        self.shape(rule, side, position, x)?;
+        if step.context != Context::Shared {
+            return Err(StepError::NoSplit { rule });
+        }
+        let (Node::Forall(body) | Node::Exists(body)) = self.formulas.node(x) else {
+            unreachable!("{rule} fits a quantified formula alone")
+        };
+        let eigenvariable = matches!(rule, Rule::ForallRight | Rule::ExistsLeft);
+        // `∀L` keeps its principal, and `∃R` where the right side has room.
+        let keep = !eigenvariable && (rule == Rule::ForallLeft || self.logic == Logic::Classical);
+        let term = match step.witness {
+            Some(_) if eigenvariable => return Err(StepError::NoWitness { rule }),
+            None if eigenvariable => self.fresh_eigenvariable()?,
+            Some(t) => self.held(id, t)?,
+            None => {
+                return Err(StepError::Witness {
+                    reason: format!("{rule} needs a witness term for the bound variable"),
+                });
+            }
+        };
+        let instance =
+            self.formulas
+                .instantiate(body, term)
+                .map_err(|error| StepError::Witness {
+                    reason: error.to_string(),
+                })?;
+        let goal = self.open(id)?;
+        let same = if keep {
+            vec![instance, x]
+        } else {
+            vec![instance]
+        };
+        let made = vec![
+            Inference {
+                term: Some(term),
+                left: goal.left.clone(),
+                right: goal.right.clone(),
+                rule,
+                principal: Some((side, position)),
+                premises: vec![InfId::new(1)],
+            },
+            premise(goal, side, position, &same, &[], |_, _| true),
+        ];
+        Ok(self.checked(made))
+    }
+
+    /// Returns the term of an eigenvariable that no inference of the
+    /// proof holds: one numbered past every eigenvariable its inferences'
+    /// formulas and terms hold, so that taking back a step and taking it
+    /// again names the same one.
+    fn fresh_eigenvariable(&mut self) -> Result<FoTermId, StepError> {
+        let formulas = &self.formulas;
+        let next = self
+            .inferences
+            .iter()
+            .filter_map(|i| {
+                let roots = i.left.iter().chain(&i.right).copied();
+                let in_formulas = formulas.largest_eigenvariable(roots, None);
+                let in_term = i
+                    .term
+                    .and_then(|t| formulas.largest_eigenvariable(std::iter::empty(), Some(t)));
+                in_formulas.max(in_term)
+            })
+            .max()
+            .map_or(Some(0), |k| k.checked_add(1))
+            .ok_or_else(|| StepError::Witness {
+                reason: "the proof holds an eigenvariable of the last number, so none is fresh"
+                    .to_owned(),
+            })?;
+        Ok(self
+            .formulas
+            .interner()
+            .term(FoTerm::Eigen(Eigen::new(next))))
+    }
+
+    /// Returns the witness `t` for a step on the goal `id` where it is a
+    /// term of the goal: a term of the arena without a bound variable or
+    /// an open witness, whose eigenvariables are in the goal's scope
+    /// ([`scope`](Self::scope)).
+    fn held(&self, id: GoalId, t: FoTermId) -> Result<FoTermId, StepError> {
+        let fault = |reason: &str| StepError::Witness {
+            reason: reason.to_owned(),
+        };
+        let terms = &self.formulas.first_order().terms;
+        if t.index() >= terms.len() {
+            return Err(fault("it is no term of the proof"));
+        }
+        if !self.formulas.is_closed(t) || self.formulas.holds_meta(t) {
+            return Err(fault("it holds a variable"));
+        }
+        let scope = self.scope(InfId::new(id.get()));
+        let mut stack = vec![t];
+        while let Some(u) = stack.pop() {
+            match terms[u.index()] {
+                FoTerm::App(_, args) => {
+                    stack.extend_from_slice(self.formulas.first_order().list(args))
+                }
+                FoTerm::Eigen(_) if !scope.contains(&u) => {
+                    return Err(fault(
+                        "it holds an eigenvariable that no ∀R or ∃L below the goal introduces",
+                    ));
+                }
+                FoTerm::Eigen(_) | FoTerm::Bound(_) | FoTerm::Meta(_) => {}
+            }
+        }
+        Ok(t)
+    }
+
+    /// Returns the eigenvariables in the scope of the inference `id`: those
+    /// the `∀R` and `∃L` inferences below it introduce, on its path from
+    /// the root.
+    fn scope(&self, id: InfId) -> Vec<FoTermId> {
+        let mut parent = vec![None; self.inferences.len()];
+        for (n, inference) in self.inferences.iter().enumerate() {
+            for p in &inference.premises {
+                parent[p.index()] = Some(n);
+            }
+        }
+        let mut scope = Vec::new();
+        let mut at = parent[id.index()];
+        while let Some(n) = at {
+            scope.extend(self.inferences[n].eigenvariable());
+            at = parent[n];
+        }
+        scope
+    }
+
+    /// Reads a witness for a step on the goal `goal` from text: a term of
+    /// the sequent's function symbols, written `f(t, …)` or by its name
+    /// for a constant, and of the eigenvariables in the goal's scope by
+    /// the names the proof prints them with (`a`, `b`, …, past the
+    /// sequent's symbols). Returns its term, made in the proof's formulas
+    /// where it is new, for [`Step::with_witness`].
+    ///
+    /// # Errors
+    ///
+    /// [`StepError::NoGoal`] for a goal that is not open, and
+    /// [`StepError::Witness`] for text that is not such a term: an unknown
+    /// name, a predicate, a symbol given the wrong number of arguments, an
+    /// eigenvariable outside the goal's scope, or a stray bracket or comma.
+    pub fn witness(&mut self, goal: GoalId, text: &str) -> Result<FoTermId, StepError> {
+        self.open(goal)?;
+        let fault = |reason: String| StepError::Witness { reason };
+        let eigens = self.formulas.eigen_names();
+        let scope = self.scope(InfId::new(goal.get()));
+        // The tokens: names, brackets and commas.
+        let mut tokens = Vec::new();
+        let mut name = String::new();
+        for c in text.chars().chain([' ']) {
+            if c.is_whitespace() || matches!(c, '(' | ')' | ',') {
+                if !name.is_empty() {
+                    tokens.push(std::mem::take(&mut name));
+                }
+                if !c.is_whitespace() {
+                    tokens.push(c.to_string());
+                }
+            } else {
+                name.push(c);
+            }
+        }
+        // The open applications wait on a stack with their arguments.
+        let mut open: Vec<(String, Vec<FoTermId>)> = Vec::new();
+        let mut done: Option<FoTermId> = None;
+        let mut tokens = tokens.into_iter().peekable();
+        while let Some(token) = tokens.next() {
+            match token.as_str() {
+                "(" if done.is_none() => {
+                    return Err(fault("a bracket follows no function symbol".into()));
+                }
+                "(" | ")" | "," if done.is_none() => {
+                    return Err(fault(format!("a term is missing before {token:?}")));
+                }
+                "," | ")" => {
+                    let (Some((_, args)), Some(arg)) = (open.last_mut(), done.take()) else {
+                        return Err(fault(format!("{token:?} closes no application")));
+                    };
+                    args.push(arg);
+                    if token == ")"
+                        && let Some((f, args)) = open.pop()
+                    {
+                        done = Some(self.applied(&f, &args).map_err(fault)?);
+                    }
+                }
+                _ if done.is_some() => {
+                    return Err(fault(format!("{token:?} follows a term without a comma")));
+                }
+                word => {
+                    let applied = tokens.peek().is_some_and(|t| t == "(");
+                    if let Some(&(k, _)) = eigens.iter().find(|(_, n)| n == word) {
+                        if applied {
+                            return Err(fault(format!(
+                                "the eigenvariable {word} takes no arguments"
+                            )));
+                        }
+                        let term = self.formulas.interner().term(FoTerm::Eigen(Eigen::new(k)));
+                        if !scope.contains(&term) {
+                            return Err(fault(format!(
+                                "the eigenvariable {word} is not in the goal's scope: no ∀R or \
+                                 ∃L below the goal introduces it"
+                            )));
+                        }
+                        done = Some(term);
+                    } else if applied {
+                        tokens.next();
+                        open.push((word.to_owned(), Vec::new()));
+                    } else {
+                        done = Some(self.applied(word, &[]).map_err(fault)?);
+                    }
+                }
+            }
+        }
+        if !open.is_empty() {
+            return Err(fault("a bracket is not closed".into()));
+        }
+        done.ok_or_else(|| fault("there is no term".into()))
+    }
+
+    /// Returns the term of the sequent's function symbol `name` applied to
+    /// `args`, or why there is none.
+    fn applied(&mut self, name: &str, args: &[FoTermId]) -> Result<FoTermId, String> {
+        let tables = self.formulas.first_order();
+        let Some(f) = tables.symbols.iter().position(|(s, _)| s == name) else {
+            return Err(format!("{name} is not a symbol of the sequent"));
+        };
+        if tables.atoms.iter().any(|&(p, _)| p.index() == f) {
+            return Err(format!("{name} is a predicate, not a term"));
+        }
+        let arity = tables.symbols[f].1 as usize;
+        if args.len() != arity {
+            return Err(format!(
+                "{name} takes {arity} arguments, not {}",
+                args.len()
+            ));
+        }
+        let symbol = crate::first_order::Symbol::new(f as u32);
+        let interner = self.formulas.interner();
+        let args = interner.list(args);
+        Ok(interner.term(FoTerm::App(symbol, args)))
     }
 
     /// Returns the inferences a step makes, the goal's own first with its
@@ -851,6 +1156,7 @@ impl Interactive {
                 return Ok(self.checked(contracted(goal, position, rule, first, second)));
             }
             let premises = match &shape {
+                Shape::Instance => unreachable!("apply takes the quantifier rules apart"),
                 Shape::Leaf => vec![],
                 Shape::Unary(same, other) => {
                     vec![premise(goal, side, position, same, other, |_, _| true)]
@@ -1014,6 +1320,7 @@ impl Interactive {
         inference.rule = Rule::Open;
         inference.principal = None;
         inference.premises.clear();
+        inference.term = None;
         Some(GoalId::new(goal.get()))
     }
 
@@ -1669,7 +1976,6 @@ impl Interactive {
             inferences,
             history,
         } = parts;
-        formulas.propositional("the goal state")?;
         let inconsistent = |reason| Error::InconsistentSession { reason };
         let root = inferences
             .first()
@@ -2468,5 +2774,170 @@ mod tests {
         let lacking = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0},{"V":1},"⊤"],"atoms":["a","b"],"left":[],"right":[1,1]},"inferences":[{"left":[],"right":[0,2],"rule":"⊤R","principal":["right",1]},{"left":[],"right":[1],"rule":"WR","principal":["right",0],"premises":[0]},{"left":[],"right":[1,1],"rule":"WR","principal":["right",0],"premises":[1]}]}"#;
         let lacking = derivation_of(lacking).unwrap();
         assert_eq!(lacking.shown(Structural::Admissible).inferences().len(), 2);
+    }
+
+    /// Applies the quantifier rule `rule` to the formula printed as `text`
+    /// on `side`, with the witness read from `witness` if any, and returns
+    /// the goals opened.
+    fn quantifier(
+        state: &mut Interactive,
+        goal: GoalId,
+        (side, text): (Side, &str),
+        rule: Rule,
+        witness: Option<&str>,
+    ) -> Result<Vec<GoalId>, StepError> {
+        let mut step = Step::new(side, at(state, goal, side, text), rule);
+        if let Some(witness) = witness {
+            step = step.with_witness(state.witness(goal, witness)?);
+        }
+        state.apply(goal, &step)
+    }
+
+    /// The quantifier rules take a typed witness, held to the goal's
+    /// scope, and name a fresh eigenvariable, the same one again after an
+    /// undo; the finished proof checks and its JSON reads back.
+    #[test]
+    fn the_quantifier_rules_take_witnesses_and_eigenvariables() {
+        let (mut s, g) = start(
+            "forall x. p(x) -> q(x), p(c) |- exists y. q(y)",
+            Logic::Intuitionistic,
+        );
+        let [g] =
+            quantifier(&mut s, g, (Right, "∃y. q(y)"), Rule::ExistsRight, Some("c")).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [g] = quantifier(
+            &mut s,
+            g,
+            (Left, "∀x. (p(x) → q(x))"),
+            Rule::ForallLeft,
+            Some("c"),
+        )
+        .unwrap()[..] else {
+            panic!()
+        };
+        let [first, second] = step(&mut s, g, (Left, "p(c) → q(c)"), Rule::ImpliesLeft, None)[..]
+        else {
+            panic!()
+        };
+        axiom(&mut s, first, "p(c)");
+        axiom(&mut s, second, "q(c)");
+        s.finished(&Limits::default(), |_| false).unwrap();
+        for (witness, why) in [
+            ("d", "not a symbol"),
+            ("p", "predicate"),
+            ("c(c)", "arguments"),
+            ("", "no term"),
+        ] {
+            let (mut s, g) = start("forall x. p(x) |- p(c)", Logic::Classical);
+            let error = quantifier(
+                &mut s,
+                g,
+                (Left, "∀x. p(x)"),
+                Rule::ForallLeft,
+                Some(witness),
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains(why), "{witness}: {error}");
+        }
+        // `∃L` names `a`, the first name no symbol has; undone and taken
+        // The right side's `∃y. p(y)` is the hypotheses' formula, which
+        // prints with the name written first.
+        // again, it names `a` again. The other branch cannot use it.
+        let (mut s, g) = start(
+            "(exists x. p(x)) \\/ (exists x. p(x)) |- exists y. p(y)",
+            Logic::Classical,
+        );
+        let [g, other] = step(
+            &mut s,
+            g,
+            (Left, "(∃x. p(x)) ∨ (∃x. p(x))"),
+            Rule::OrLeft,
+            None,
+        )[..] else {
+            panic!()
+        };
+        let made = |s: &mut Interactive| {
+            let [h] = quantifier(s, g, (Left, "∃x. p(x)"), Rule::ExistsLeft, None).unwrap()[..]
+            else {
+                panic!()
+            };
+            at(s, h, Left, "p(a)");
+            h
+        };
+        made(&mut s);
+        s.undo();
+        let h = made(&mut s);
+        let error = quantifier(
+            &mut s,
+            other,
+            (Right, "∃x. p(x)"),
+            Rule::ExistsRight,
+            Some("a"),
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("not in the goal's scope"),
+            "{error}"
+        );
+        let [h] =
+            quantifier(&mut s, h, (Right, "∃x. p(x)"), Rule::ExistsRight, Some("a")).unwrap()[..]
+        else {
+            panic!()
+        };
+        axiom(&mut s, h, "p(a)");
+        let [o] =
+            quantifier(&mut s, other, (Left, "∃x. p(x)"), Rule::ExistsLeft, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        let [o] =
+            quantifier(&mut s, o, (Right, "∃x. p(x)"), Rule::ExistsRight, Some("b")).unwrap()[..]
+        else {
+            panic!()
+        };
+        axiom(&mut s, o, "p(b)");
+        let derivation = s.finished(&Limits::default(), |_| false).unwrap();
+        assert!(
+            derivation
+                .inferences()
+                .iter()
+                .any(|i| i.rule() == Rule::ExistsLeft)
+        );
+        assert!(matches!(
+            quantifier(
+                &mut start("forall x. p(x) |- p(c)", Logic::Classical).0,
+                GoalId::new(0),
+                (Left, "∀x. p(x)"),
+                Rule::ForallLeft,
+                None
+            ),
+            Err(StepError::Witness { .. })
+        ));
+        #[cfg(feature = "serialize")]
+        {
+            let json = serde_json::to_string(&s).unwrap();
+            let mut read: Interactive = serde_json::from_str(&json).unwrap();
+            assert_eq!(serde_json::to_string(&read).unwrap(), json);
+            read.undo();
+            read.undo();
+            assert!(!read.is_complete());
+        }
+    }
+
+    /// `∀R` and `∃L` are invertible, `∀L` and `∃R` are not.
+    #[test]
+    fn the_eigenvariable_rules_are_invertible() {
+        let (mut s, _) = start(
+            "exists x. p(x) |- forall y. (q -> q)",
+            Logic::Intuitionistic,
+        );
+        s.invert_all(&Limits::default());
+        assert!(s.is_complete(), "{:?}", s.goals().collect::<Vec<_>>());
+        s.finished(&Limits::default(), |_| false).unwrap();
+        let (mut s, _) = start("forall x. p(x) |- exists y. p(y)", Logic::Classical);
+        s.invert_all(&Limits::default());
+        assert_eq!(s.steps(), 0);
     }
 }

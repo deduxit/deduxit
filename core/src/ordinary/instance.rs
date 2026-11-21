@@ -27,7 +27,7 @@ impl Formulas {
     /// the instance would capture, and
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     #[cfg_attr(
-        not(test),
+        not(any(test, feature = "interactive")),
         expect(
             dead_code,
             reason = "the goal state's quantifier rules are its first caller"
@@ -141,28 +141,79 @@ impl Formulas {
         false
     }
 
-    /// Returns the names the eigenvariables of the arena are written with,
-    /// by number up to the largest the terms hold: `a`, `b`, … `z`, then
-    /// `a_1`, `b_1`, …, skipping the names of the arena's symbols, so that
-    /// a sequent of a derivation reads as a sequent with its
-    /// eigenvariables as new constants.
-    pub(crate) fn eigen_names(&self) -> Vec<String> {
+    /// Returns the eigenvariables of the arena with the names they are
+    /// written with, by ascending number: `a`, `b`, … `z`, then `a_1`,
+    /// `b_1`, …, skipping the names of the arena's symbols, so that a
+    /// sequent of a derivation reads as a sequent with its eigenvariables
+    /// as new constants. A name goes by rank among the numbers the terms
+    /// hold, not by the number, so a document's large numbers cost
+    /// nothing; an eigenvariable made later takes a larger number and
+    /// leaves the earlier names as they were.
+    pub(crate) fn eigen_names(&self) -> Vec<(u32, String)> {
         let tables = self.tables();
-        let count = tables
+        let mut numbers: Vec<u32> = tables
             .terms
             .iter()
             .filter_map(|term| match *term {
-                FoTerm::Eigen(e) => Some(e.get() as usize + 1),
+                FoTerm::Eigen(e) => Some(e.get()),
                 FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
             })
-            .max()
-            .unwrap_or(0);
-        eigen_names(tables, count)
+            .collect();
+        numbers.sort_unstable();
+        numbers.dedup();
+        let names = eigen_names(tables, numbers.len());
+        numbers.into_iter().zip(names).collect()
+    }
+
+    /// Returns the largest number of an eigenvariable that occurs in one
+    /// of the formulas `roots` or in the term `term`, or `None` where none
+    /// does. It walks on stacks of its own, each shared node and term once.
+    #[cfg(feature = "interactive")]
+    pub(crate) fn largest_eigenvariable(
+        &self,
+        roots: impl Iterator<Item = NodeId>,
+        term: Option<FoTermId>,
+    ) -> Option<u32> {
+        let tables = self.tables();
+        let mut nodes_seen = vec![false; self.nodes.len()];
+        let mut terms_seen = vec![false; tables.terms.len()];
+        let mut nodes: Vec<NodeId> = roots.collect();
+        let mut terms: Vec<FoTermId> = term.into_iter().collect();
+        while let Some(k) = nodes.pop() {
+            if std::mem::replace(&mut nodes_seen[k.index()], true) {
+                continue;
+            }
+            match self.nodes[k.index()] {
+                Node::Atom(a) => {
+                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                        terms.extend_from_slice(tables.list(args));
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    nodes.push(a);
+                    nodes.push(b);
+                }
+            }
+        }
+        let mut largest = None;
+        while let Some(u) = terms.pop() {
+            if std::mem::replace(&mut terms_seen[u.index()], true) {
+                continue;
+            }
+            match tables.terms[u.index()] {
+                FoTerm::Eigen(e) => largest = largest.max(Some(e.get())),
+                FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
+                FoTerm::Bound(_) | FoTerm::Meta(_) => {}
+            }
+        }
+        largest
     }
 
     /// Returns whether the term `t` has no bound variable. It walks on a
     /// stack of its own, each shared term once.
-    fn is_closed(&self, t: FoTermId) -> bool {
+    pub(super) fn is_closed(&self, t: FoTermId) -> bool {
         let tables = self.tables();
         let mut seen = vec![false; tables.terms.len()];
         let mut stack = vec![t];
@@ -198,7 +249,7 @@ trait Maker {
 
 /// An arena that adds what it lacks.
 #[cfg_attr(
-    not(test),
+    not(any(test, feature = "interactive")),
     expect(
         dead_code,
         reason = "the goal state's quantifier rules are its first caller"

@@ -24,6 +24,11 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
   `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
   recording its witness or eigenvariable (`Inference::term`).
+- **First-order proofs step by step** in `ordinary::Interactive` and
+  `deduxit interact --logic`: `∀R` and `∃L` name a fresh eigenvariable,
+  `∀L` and `∃R` take a witness term read by `Interactive::witness`
+  (`apply 0 R0 existsR c`); `Step::with_witness`, `Needs::Witness`,
+  `StepError::NoWitness` and `StepError::Witness` are new.
 - **First-order formulas in ordinary logic**: predicates applied to
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas

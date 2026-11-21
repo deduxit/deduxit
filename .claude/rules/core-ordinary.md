@@ -256,7 +256,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     `within`, `ljt::run`, `sat::run`, `truth_table`, `Tableau::of`,
     `normal`'s `rewrite_dyn`, `Clauses::of_sequent`, `interpolate` and
     `interpolant`, `negative::translate`, `translate` (the embedding),
-    `Model::forcing_with`, `Interactive::within` and `from_parts`,
+    `Model::forcing_with`, the goal state's `close` and `hint` (through
+    `decide`; the goal state itself takes first-order sequents),
     `WrittenTableau::review_dyn` (its own and the expected sequent),
     the Rocq certificate (`rocq::write`), `Derivation::term`,
     `lambda::enumerate` (whose search reads the types itself; `has_type`
@@ -1031,6 +1032,24 @@ factored out of the two until the kernel crate is.
   word forms because the command's word splitter takes `\` as an
   escape. `open` is refused: no step takes it. The serde form stays the
   name alone.
+- **The quantifier steps** (`instance_step`, apart from `expand`, since
+  they build the instance with `instantiate` and so need `&mut self`):
+  `∀R` and `∃L` take no witness (`StepError::NoWitness`) and name a fresh
+  eigenvariable, numbered past every eigenvariable the live inferences'
+  formulas and terms hold (`largest_eigenvariable`), so that an undo and
+  the same step again name the same one (`undo` clears the inference's
+  `term`, which that count reads); `∀L` and `∃R` need a witness
+  (`Step::with_witness`, `StepError::Witness`), held to the goal's scope
+  (`held`, `scope`: the eigenvariables of the `∀R` and `∃L` below the
+  goal; an eigenvariable of a sibling branch is refused though it would
+  be sound as a constant, as the linear session does). `∀L` keeps its
+  principal (G3), `∃R` only in LK. `Interactive::witness(goal, text)`
+  reads a term of the sequent's function symbols and the scope's
+  eigenvariables by their printed names. `∀R` and `∃L` are invertible,
+  `∀L` and `∃R` not (a choice); the invertible run recomputes its
+  widths when a step grew the arena. An open witness (`$1`, filled by a
+  later axiom's unification) is not built: with no constant in the
+  sequent, `∀x. p(x) ⊢ ∃x. p(x)` has no witness to type.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.

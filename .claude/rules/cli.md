@@ -1312,6 +1312,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   first-order sequent read from JSON numbers its argument lists apart
   from the parsed one, so `==` called a text-started session's own file
   another sequent's.
+- **`interact --logic` with quantifiers**: `apply G F RULE TERM…` reads
+  the words after `∀L` or `∃R` as the witness
+  (`ordinary::Interactive::witness`); `ordinary_rules` lists the
+  quantifier rules only for a sequent with a binder (`binders`), so a
+  propositional session's messages are as before; `close` answers the
+  library's first-order refusal.
 - **An `interact` command**: an arm in `Session::answer` (linear) or
   `ordinary::Session::command` (LK and LJ), a line in that module's
   `HELP`, and the session test in `cli/tests/cli.rs`

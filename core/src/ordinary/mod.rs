@@ -116,9 +116,9 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
-use crate::first_order::{Args, FirstOrder, FoTerm, Interner};
 #[cfg(any(test, feature = "parse", feature = "serialize"))]
 use crate::first_order::FoTermId;
+use crate::first_order::{Args, FirstOrder, FoTerm, Interner};
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -1009,10 +1009,10 @@ impl Formulas {
     /// Returns the atom of `symbol` applied to `args`, both of the tables,
     /// adding it unless the arena has it. The arena must be first-order.
     #[cfg_attr(
-        not(any(test, feature = "parse")),
+        not(any(test, feature = "parse", feature = "interactive")),
         expect(
             dead_code,
-            reason = "the text readers and the checker's instances call it"
+            reason = "the text readers and the goal state's instances call it"
         )
     )]
     fn predicate_atom(
@@ -1188,7 +1188,7 @@ impl Formulas {
             .symbols
             .iter()
             .map(|(s, _)| s.as_str())
-            .chain(eigens.iter().map(String::as_str))
+            .chain(eigens.iter().map(|(_, name)| name.as_str()))
             .collect();
         // The names of the open binders, the innermost last.
         let mut scope: Vec<String> = Vec::new();
@@ -1266,7 +1266,7 @@ impl Formulas {
         out: &mut W,
         a: u32,
         scope: &[String],
-        eigens: &[String],
+        eigens: &[(u32, String)],
         atom: &impl Fn(&mut W, u32) -> FmtResult,
         name: &impl Fn(&mut W, &str) -> FmtResult,
     ) -> FmtResult {
@@ -1293,7 +1293,12 @@ impl Formulas {
                     None => write!(o, "#{index}"),
                 },
                 &mut |o, other| match other {
-                    FoTerm::Eigen(e) => name(o, &eigens[e.get() as usize]),
+                    FoTerm::Eigen(e) => {
+                        let at = eigens
+                            .binary_search_by_key(&e.get(), |&(k, _)| k)
+                            .expect("every eigenvariable of the arena has its name");
+                        name(o, &eigens[at].1)
+                    }
                     FoTerm::Meta(k) => {
                         name(o, &crate::linear::occurrences::instances::meta_name(k))
                     }
@@ -1961,8 +1966,14 @@ mod first_order_tests {
                     |_| false,
                 ),
             );
+            // The goal state takes the sequent; its search refuses it.
             #[cfg(feature = "interactive")]
-            refused(Interactive::within(&sequent, logic, &limits));
+            {
+                let mut state = Interactive::within(&sequent, logic, &limits).unwrap();
+                let goal = state.goals().next().unwrap();
+                refused(state.close(goal, None, &search, &limits, |_| false));
+                refused(state.hint(goal, None, &search, &limits, |_| false));
+            }
         }
         refused(truth_table(&sequent, &limits, |_| false));
         let partition = interpolant::Partition::hypotheses(&sequent);

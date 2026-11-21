@@ -1254,7 +1254,7 @@ mod tests {
         }
         let mut names: Vec<&str> = ordinary::ASCII.iter().map(|&(name, _)| name).collect();
         for &logic in deduxit::ordinary::Logic::ALL {
-            names.extend(ordinary::ordinary_rules(logic));
+            names.extend(ordinary::ordinary_rules(logic, true));
         }
         for name in names {
             let as_typed = typed(&shown(name, ordinary::ASCII)).and_then(|word| lk(&word));

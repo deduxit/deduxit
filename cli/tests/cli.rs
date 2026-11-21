@@ -771,6 +771,38 @@ fn intuitionistic_mode() {
 /// the session saved and resumed, the finished derivation checked, which
 /// decides the exit status, and an axiom with a context drawn as G3's or
 /// with its weakenings under `--structural explicit`.
+/// A first-order session of LJ takes a witness after `∃R`'s name, names
+/// a fresh eigenvariable for `∃L`, and refuses a witness that names
+/// neither a symbol nor an eigenvariable made.
+#[test]
+fn first_order_ordinary_session() {
+    let script = "rules 0 R0\napply 0 R0 existsR a\napply 0 L0 existsL\napply 1 R0 existsR a\n\
+                  apply 2 R0 ax\nproof\n";
+    let line = [
+        "interact",
+        "--logic",
+        "intuitionistic",
+        "exists x. p(x) |- exists y. p(y)",
+    ];
+    let (status, out, err) = deduxit(&line, script);
+    assert_eq!(
+        out,
+        "ax  ∃R (with a witness)\n\
+         error: the witness is not a term here: a is not a symbol of the sequent\n\
+         opened goal 1: L0: p(a) ⊢ R0: ∃x. p(x)\n\
+         opened goal 2: L0: p(a) ⊢ R0: p(a)\n\
+         closed; no goal is open: `proof` checks the proof\n\
+         valid proof in LJ (intuitionistic logic)\n    \
+         ─────────── ax\n    \
+         p(a) ⊢ p(a)\n  \
+         ─────────────── ∃R\n  \
+         p(a) ⊢ ∃x. p(x)\n\
+         ─────────────────── ∃L\n\
+         ∃x. p(x) ⊢ ∃x. p(x)\n"
+    );
+    assert_eq!((status, err.as_str()), (0, ""));
+}
+
 #[test]
 fn ordinary_session() {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-ordinary-session");

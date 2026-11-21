@@ -927,13 +927,14 @@ struct SessionForm {
 
 #[cfg(feature = "interactive")]
 impl Serialize for Interactive {
-    /// Serializes the proof in progress as a document: at level 9 where an
-    /// inference is a cut, else at level 8.
+    /// Serializes the proof in progress as a document: at level 25 where
+    /// its arena is first-order, else at level 9 where an inference is a
+    /// cut, else at level 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let (logic, formulas, inferences, history) = self.parts();
         let (left, right) = self.sequent();
         SessionForm {
-            version: Some(level(inferences)),
+            version: Some(terms(formulas, level(inferences))),
             logic,
             sequent: SequentForm::of(formulas, left, right),
             inferences: inferences
