@@ -2783,3 +2783,13 @@ the crate by the step named, none by a session of its own:
 | The checkers' meter and the model checks' memory pre-check | `rules/check.rs:29`, `modal/model.rs:376`; `ordinary/model.rs:263-282`, `modal/model.rs:245-263` | the next checker that would write the struct a third time (step 68's tableau checker is the candidate): one in `limits` |
 | `protocol::Limit` built from a `Reason` three times | `protocol/linear.rs:529`, `modal.rs:480`, `ordinary.rs:475` | any session that edits them |
 | The command's and the bindings' per-suite copies (`goals`, `opened`, `Changed`, `session_of`, `written`) | `cli/src/interact/`, `web/src/{calls,ordinary,rules}.rs` | the front ends' own matter, when a fourth session kind is added |
+
+## The modal walk in depth: rows it slows (fixup-10, 2026-11-21)
+
+fixup-10's cache of world keys in K4, KD4 and S4 needs the worlds made in depth, which slows
+single small rows up to 29 times while every total falls (its report's measurements), and a valid
+KD4 sequent whose rerun's derivation is five times the old one's is refused at work 2·10⁶ where
+the old code decided. Two answers, for when a user meets one: a walk that meets a closing sibling
+first without breaking the finished parts, or a replay of an unsat entry's proof under a renaming
+(it needs other `Trans` steps when the key's boxes sit at other worlds). Source: the fixup-10
+section of `plan/reports/fixups.md`.

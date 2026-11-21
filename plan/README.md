@@ -7791,3 +7791,19 @@ move (D26).
   ILTP's first-order package if reached; the panel and the reviewer). Also fixed:
   `plan/push-ci.sh` reads the run's conclusion (a dropped connection had made `gh run watch` exit
   0 with 74b's check still running, so 74b reached `main` before its check, which then passed).
+- 2026-11-21, about 03:30: **fixup-10 reviewed and pushed; fixup-11 started.** fixup-10 (Opus,
+  high; the full panel and the reviewer) made the modal search of K4, KD4 and S4 keep a cache of
+  world keys across branches (exact keys; sat entries once their part is finished inside it, kept
+  as model fragments and grafted; unsat entries learnt, a proof resting on one searched again so
+  every "valid" keeps a derivation of calculus rules), after reading Goré and Nguyen, Goré and
+  Widmann, Horrocks and Patel-Schneider, and Nguyen and Szałas. The panel's KD4 witness: 20.5
+  million units (3.8 s) to 58 100 (4.5 ms). 64 500 decisions on three generated sets: no verdict
+  differs, the twelve other systems' units unchanged, every K4/KD4/S4 total down. The panel found
+  no unsound answer and three bound faults (an uncharged graft, an unpolled n³ copy, an uncounted
+  merge), all fixed; the reviewer's three answered (the twelve systems' memory estimate restored).
+  **Accepted departures:** the walk in depth (single small rows up to 29 times slower, totals
+  down), the rerun, exact keys only; what is left went to `later.md`. Full check passed at
+  `wlktzrpv`; on `main`. In its slot after a clear: fixup-11, the PNG and PDF renderers in a module
+  of their own loaded on the first such export (27 % of the module out of every visitor's first
+  load; deduxit's `web/` and the client; Opus, high, the reviewer). Decided unattended: the bindings'
+  package gains a second module, which only the client uses.
