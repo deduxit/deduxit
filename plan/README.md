@@ -7904,3 +7904,21 @@ move (D26).
   chain (`rzyvstzu`) while 75a is in its review. Next, the ratchet's `read-tptp` and `read-lltp`
   ceilings raised to their counts in a commit of their own, for the costs accepted at 74b, 74d,
   fixup-13 and one LTO inlining decision.
+- 2026-11-21, about 11:30: **75a reviewed and pushed; 75c started beside 75b.** 75a (Opus, high;
+  the full panel and the reviewer on Fable) wrote the design
+  (`plan/notes/first-order-search-design.md`: the embedding's quantifier rows, nanoCoP's
+  non-clausal calculus for classical logic and nanoCoP-i's prefixes for intuitionistic logic, both
+  written from the papers since their code is GPL, read back to G3 by Kreitz and Schmitt's
+  conversion; the fragments, the bounds, the dispatch, the comparison) and made `decide` and
+  `prove --logic` answer first-order sequents through the embedding: "valid" with a checked
+  derivation, "unknown" (`Reason::Incomplete`) where the image is unprovable, never "not valid".
+  ILTP's first-order pass: `refused first_order` 1 732 → 0, classical proofs 69 → 357,
+  intuitionistic 35 → 226, the rest unknown, no verdict against a status. The panel's two breaks
+  (a panic on an arena holding eigenvariables; a cubic frame instantiation, 8 GiB → 84 MiB) and the
+  reviewer's six findings fixed. **Accepted departures:** a three-line door in the session's
+  `Interactive::decide` (74e's file; without it `close` reached an `unreachable!`), and the
+  command's quiet path answering "valid" on the image's evidence at first order as it does for
+  propositional sequents (the library's `decide` stays strict). The full check passed at its head;
+  on `main` (`mxyrmqtz`). In its worker: **75c**, the intuitionistic connection prover, beside 75b.
+  The ratchet's `ordinary-pigeons` ceiling raised to its count in a commit of its own (74c's and
+  75a's accepted costs, on a base 1.55 % over).
