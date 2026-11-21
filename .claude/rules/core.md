@@ -43,7 +43,11 @@ The root holds what every suite shares: `errors`, `limits`, `settings`,
 linear suite re-exporting the terms' public types under
 `linear::sequents::fo`), the unifier of the interactive sessions' open
 witnesses `unify` (crate-private, behind `interactive`: a `Unifier` over
-any store of terms, `unify::Terms`), and the suites beside each
+any store of terms, `unify::Terms`), the walks over a proof in progress
+`goal_tree` (crate-private, behind `interactive`: `subtree`,
+`postorder`, the history walk `added` and the graft's `grafted`, over
+each inference's premises, which the linear and ordinary goal states
+share), and the suites beside each
 other: `linear` (`core/src/linear/`), `ordinary`, `modal` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
 to no suite, `protocol` (behind its feature), what each suite offers

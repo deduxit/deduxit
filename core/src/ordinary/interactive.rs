@@ -1331,13 +1331,7 @@ impl Interactive {
     /// Returns the inferences above `id`, excluding it, in no particular
     /// order.
     fn subtree(&self, id: InfId) -> Vec<InfId> {
-        let mut ids = self.inferences[id.index()].premises.clone();
-        let mut i = 0;
-        while i < ids.len() {
-            ids.extend(self.inferences[ids[i].index()].premises.iter().copied());
-            i += 1;
-        }
-        ids
+        crate::goal_tree::subtree(|i| &self.inferences[i.index()].premises[..], id)
     }
 
     /// Decides the open goal as a sequent of its own in the state's logic
@@ -1468,18 +1462,9 @@ impl Interactive {
         }
         let ids = Self::ids_of(&mut self.formulas, found.formulas())?;
         let map = |list: &[NodeId]| list.iter().map(|k| ids[k.index()]).collect::<Vec<_>>();
-        let root = found.inferences().len() - 1;
-        let base = self.inferences.len();
         let at = InfId::new(goal.get());
-        // The root is the goal; inference `k` below it goes to
-        // `base + root - 1 - k`. Fewer inferences than a `u32` counts.
-        let renumber = |id: InfId| {
-            if id.index() == root {
-                at
-            } else {
-                InfId::new((base + root - 1 - id.index()) as u32)
-            }
-        };
+        let renumber =
+            crate::goal_tree::grafted(at, self.inferences.len(), found.inferences().len() - 1);
         let mut grafted: Vec<Inference> = found
             .inferences()
             .iter()
@@ -1733,20 +1718,9 @@ impl Interactive {
     /// Returns the arena's inferences in postorder, premises before
     /// conclusions, the order of [`derivation`](Self::derivation).
     fn postorder(&self) -> Vec<InfId> {
-        let mut order = Vec::with_capacity(self.inferences.len());
-        // Postorder without recursion: a frame is an inference and whether
-        // its premises were visited.
-        let mut stack = vec![(InfId::new(0), false)];
-        while let Some((id, visited)) = stack.pop() {
-            if visited {
-                order.push(id);
-            } else {
-                stack.push((id, true));
-                let premises = &self.inferences[id.index()].premises;
-                stack.extend(premises.iter().rev().map(|&p| (p, false)));
-            }
-        }
-        order
+        crate::goal_tree::postorder(self.inferences.len(), |i| {
+            &self.inferences[i.index()].premises[..]
+        })
     }
 
     /// Returns the derivation of a finished proof, every structural rule
@@ -2049,40 +2023,31 @@ impl Interactive {
             ));
         }
         // The history from the last step back: each step's goal closed,
-        // named once, and what it added the suffix of the arena it left,
-        // walked without entering what a later step added.
-        let mut end = len;
-        let mut named = vec![false; len];
-        for &goal in history.iter().rev() {
-            let g = goal.index();
-            if g >= end || named[g] || inferences[g].rule == Rule::Open {
-                return Err(inconsistent(
-                    "a step names no inference it could have closed",
-                ));
-            }
-            // Its undo reopens the inference as a goal, which in LJ has
-            // one formula right of `⊢`.
-            if logic != Logic::Classical && inferences[g].right.len() != 1 {
-                return Err(inconsistent(
-                    "a step of LJ closed a goal that has no formula or several right of ⊢",
-                ));
-            }
-            named[g] = true;
-            let mut added = 0;
-            let mut least = end;
-            let mut stack: Vec<InfId> = inferences[g].premises.clone();
-            while let Some(p) = stack.pop() {
-                if p.index() >= end {
-                    continue;
+        // named once, and what it added the suffix of the arena it left.
+        crate::goal_tree::added(
+            &history,
+            len,
+            |i| &inferences[i.index()].premises[..],
+            |i| inferences[i.index()].rule != Rule::Open,
+        )
+        .map_err(|fault| {
+            inconsistent(match fault {
+                crate::goal_tree::Fault::NotClosed => {
+                    "a step names no inference it could have closed"
                 }
-                added += 1;
-                least = least.min(p.index());
-                stack.extend(inferences[p.index()].premises.iter().copied());
-            }
-            if least != end - added || g >= end - added {
-                return Err(inconsistent("a step did not add the suffix of the arena"));
-            }
-            end -= added;
+                crate::goal_tree::Fault::NotSuffix => "a step did not add the suffix of the arena",
+            })
+        })?;
+        // Its undo reopens each step's inference as a goal, which in LJ has
+        // one formula right of `⊢`.
+        if logic != Logic::Classical
+            && history
+                .iter()
+                .any(|g| inferences[g.index()].right.len() != 1)
+        {
+            return Err(inconsistent(
+                "a step of LJ closed a goal that has no formula or several right of ⊢",
+            ));
         }
         Ok(Self {
             logic,

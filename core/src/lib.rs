@@ -306,6 +306,10 @@ mod errors;
 pub mod export;
 /// The first-order terms, symbols and binders of a formula arena.
 mod first_order;
+/// The walks over a proof in progress as a tree of inferences, for the
+/// interactive sessions.
+#[cfg(feature = "interactive")]
+mod goal_tree;
 /// The hash tables of this crate.
 mod hash;
 pub mod kripke;

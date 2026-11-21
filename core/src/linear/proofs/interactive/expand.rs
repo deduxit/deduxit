@@ -688,13 +688,7 @@ impl Interactive {
     /// Returns the inferences above `id`, excluding it, in no particular
     /// order.
     pub(super) fn subtree(&self, id: InfId) -> Vec<InfId> {
-        let mut ids = self.inferences[id.index()].premises.clone();
-        let mut i = 0;
-        while i < ids.len() {
-            ids.extend(self.inferences[ids[i].index()].premises.iter().copied());
-            i += 1;
-        }
-        ids
+        crate::goal_tree::subtree(|i| &self.inferences[i.index()].premises[..], id)
     }
 
     /// Runs the search on an open goal, as
@@ -853,15 +847,7 @@ impl Interactive {
     /// before conclusions, and appends the rest in reverse, so that every
     /// premise has a larger index than its conclusion.
     pub(super) fn graft(&mut self, goal: InfId, mut found: Vec<Inference>) {
-        let root = found.len() - 1;
-        let base = self.inferences.len();
-        let renumber = |id: InfId| {
-            if id.index() == root {
-                goal
-            } else {
-                InfId::new((base + root - 1 - id.index()) as u32)
-            }
-        };
+        let renumber = crate::goal_tree::grafted(goal, self.inferences.len(), found.len() - 1);
         for inference in &mut found {
             for premise in &mut inference.premises {
                 *premise = renumber(*premise);

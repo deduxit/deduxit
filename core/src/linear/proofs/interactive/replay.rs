@@ -139,50 +139,23 @@ impl Interactive {
         }
         // Walking from the last step back: the inferences a step added are
         // those of its subtree that exist at that point, and they must be
-        // the end of the arena then.
-        let mut len = n;
-        let mut seen = vec![false; n];
-        // Per step, the inferences it added: `start..len`.
-        let mut added_by: Vec<(usize, usize)> = Vec::with_capacity(history.len());
-        for &goal in history.iter().rev() {
-            // The goal must lie below `len`, in the arena as this step left
-            // it: an entry inside a later step's subtree would make `undo`
-            // index past the arena.
-            let closed = goal.index() < len
-                && state.inferences[goal.index()].rule.rule != Rule::Open
-                && !std::mem::replace(&mut seen[goal.index()], true);
-            if !closed {
-                return Err(Error::InconsistentSession {
-                    reason: "the history names an inference that is not a closed one, or names one twice",
-                });
-            }
-            // The inferences this step added: those of its subtree below
-            // `len`. A premise has a larger index than its conclusion, so
-            // the walk enters no inference a later step added, and every
-            // inference is walked by one step only.
-            let (mut added, mut lowest) = (0, len);
-            let mut walk = state.inferences[goal.index()].premises.clone();
-            while let Some(id) = walk.pop() {
-                if id.index() >= len {
-                    continue;
+        // the end of the arena then. Per step, the inferences it added.
+        let added_by = crate::goal_tree::added(
+            &history,
+            n,
+            |i| &state.inferences[i.index()].premises[..],
+            |i| state.inferences[i.index()].rule.rule != Rule::Open,
+        )
+        .map_err(|fault| Error::InconsistentSession {
+            reason: match fault {
+                crate::goal_tree::Fault::NotClosed => {
+                    "the history names an inference that is not a closed one, or names one twice"
                 }
-                added += 1;
-                lowest = lowest.min(id.index());
-                walk.extend(state.inferences[id.index()].premises.iter().copied());
-            }
-            // Each inference is the premise of one other only, so the walk
-            // counts each once. `added` of them below `len`, none below
-            // `start`, are exactly the suffix `start..len`.
-            let start = len - added;
-            if lowest < start {
-                return Err(Error::InconsistentSession {
-                    reason: "the history does not match the order of the inferences",
-                });
-            }
-            added_by.push((start, len));
-            len = start;
-        }
-        added_by.reverse();
+                crate::goal_tree::Fault::NotSuffix => {
+                    "the history does not match the order of the inferences"
+                }
+            },
+        })?;
         // The cut formulas are those of the cuts, in the order they were
         // made, so that `undo` takes back the last one with its cut.
         let made = state

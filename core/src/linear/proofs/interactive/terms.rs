@@ -16,21 +16,9 @@ impl Interactive {
     /// Returns the session's inferences in postorder, premises before
     /// conclusions: the order of [`derivation`](Self::derivation).
     pub(super) fn postorder(&self) -> Vec<InfId> {
-        let mut order = Vec::with_capacity(self.inferences.len());
-        // Postorder without recursion, since a derivation may be higher
-        // than the call stack allows. An entry is an inference and whether
-        // its premises were visited.
-        let mut stack = vec![(InfId::new(0), false)];
-        while let Some((id, visited)) = stack.pop() {
-            if visited {
-                order.push(id);
-            } else {
-                stack.push((id, true));
-                let premises = &self.inferences[id.index()].premises;
-                stack.extend(premises.iter().rev().map(|&p| (p, false)));
-            }
-        }
-        order
+        crate::goal_tree::postorder(self.inferences.len(), |i| {
+            &self.inferences[i.index()].premises[..]
+        })
     }
 
     /// Returns the proof of the finished derivation: its proof term, which
