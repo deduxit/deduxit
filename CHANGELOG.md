@@ -35,8 +35,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   keeps the bindings (`"bindings"`) and is checked under them when read.
   A witness still open in a finished proof is a fresh constant, so
   `∀x. p(x) ⊢ ∃x. p(x)` proves with no constant in the sequent.
-  `Interactive::bindings` and `StepError::Binding` are new; `deduxit
-  interact --logic` prints `filled $1 with TERM`.
+  `Interactive::bindings`, `StepError::Binding` and `StepError::Terms`
+  are new; `deduxit interact --logic` prints `filled $1 with TERM`. A
+  step whose instance or filling would make the proof's terms pass
+  `limits.terms` is refused, so a session writes no document its reader
+  refuses.
 - **First-order derivations drawn and read**: LaTeX, Typst and SVG draw
   them, the web bindings' ordinary step takes `"witness"`, and a TPTP
   problem without a conjecture reads as its hypotheses' refutation, a

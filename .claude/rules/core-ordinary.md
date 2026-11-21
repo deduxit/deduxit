@@ -1100,7 +1100,15 @@ factored out of the two until the kernel crate is.
   has bounded, and the last arena plus an earlier step's growth refused
   a session's own document. A witness an undone step made stays in the
   arena's atoms numbered past the live ones; `unfolded` takes it as a
-  leaf (resolving it indexed past the unifier's witnesses). Why levels and scope: the eigenvariables a binding may name
+  leaf (resolving it indexed past the unifier's witnesses).
+- **Every instance is held to the same measure** (`instance_within`,
+  before `instantiate`): each atom of the body holding a bound variable
+  makes at most one atom more, every bound variable counted as the
+  witness's size, so a typed witness, an open one or an eigenvariable
+  can no more make a document the reader refuses than a binding can; a
+  typed witness's text is refused past the bound before it is made (a
+  text term shares nothing, so its names are its size). Both refusals,
+  and a binding's, are `StepError::Terms`. Why levels and scope: the eigenvariables a binding may name
   are those of the `∀R`/`∃L` below the step that left the witness open,
   so none lands in its own rule's conclusion.
   - **Every inference shows the bindings in force** (`bind`: a

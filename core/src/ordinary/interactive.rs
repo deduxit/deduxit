@@ -142,6 +142,19 @@ pub enum StepError {
         /// Why, in words.
         reason: String,
     },
+    /// The step would make the proof's terms unfold to more symbols
+    /// written out than the bound on terms (`Limits::terms`) the proof
+    /// was started or read under: an instance, or the terms an axiom
+    /// fills open witnesses with. A document of such a proof would be
+    /// refused when read.
+    #[non_exhaustive]
+    Terms {
+        /// The terms written out, as a document's reader counts them, or
+        /// a number past the bound.
+        terms: u64,
+        /// The bound.
+        limit: u64,
+    },
 }
 
 /// Returns `left of ⊢` or `right of ⊢`.
@@ -273,6 +286,12 @@ impl Display for StepError {
             StepError::Binding { reason } => {
                 write!(f, "the axiom cannot fill the open witnesses: {reason}")
             }
+            StepError::Terms { terms, limit } => write!(
+                f,
+                "the step would make the proof's terms unfold to {terms} symbols written out, \
+                 more than the bound of {limit} on terms the proof was started or read with: \
+                 start it with a higher bound"
+            ),
         }
     }
 }
@@ -1348,12 +1367,9 @@ impl Interactive {
                         ),
                     }
                 }
-                Unbound::Large(size) => StepError::Binding {
-                    reason: format!(
-                        "the proof's terms would unfold to {size} symbols written out once the \
-                         witnesses are filled, more than the bound of {} on terms",
-                        self.terms
-                    ),
+                Unbound::Large(size) => StepError::Terms {
+                    terms: size,
+                    limit: self.terms,
                 },
                 Unbound::Differ => StepError::NoPartner { side, position },
             });
@@ -1494,6 +1510,7 @@ impl Interactive {
                 term
             }
         };
+        self.instance_within(body, term)?;
         let instance =
             self.formulas
                 .instantiate(body, term)
@@ -1530,6 +1547,67 @@ impl Interactive {
             premise(goal, side, position, &same, &[], |_, _| true),
         ];
         Ok(self.checked(made))
+    }
+
+    /// Refuses the instance of `body` by `term` where the arena's terms
+    /// would pass the state's bound on terms once it is built, by the
+    /// measure a document's reader takes ([`arena_terms`]): each atom of
+    /// `body` that holds a bound variable makes at most one atom more,
+    /// every bound variable in it written as `term`. So a session writes no
+    /// document its reader refuses. Nothing is built.
+    fn instance_within(&self, body: NodeId, term: FoTermId) -> Result<(), StepError> {
+        let tables = self.formulas.first_order();
+        let unfolded = tables.unfolded();
+        let witness = unfolded.get(term.index()).copied().unwrap_or(1);
+        // Each term written out with its bound variables as the witness;
+        // a term comes after its arguments.
+        let mut sizes = vec![0u64; tables.terms.len()];
+        for (n, t) in tables.terms.iter().enumerate() {
+            sizes[n] = match *t {
+                FoTerm::Bound(_) => witness,
+                FoTerm::Eigen(_) | FoTerm::Meta(_) => 1,
+                FoTerm::App(_, args) => tables
+                    .list(args)
+                    .iter()
+                    .fold(1u64, |sum, a| sum.saturating_add(sizes[a.index()])),
+            };
+        }
+        let loose = tables.loose();
+        let mut added = 0u64;
+        let mut seen = crate::hash::HashSet::default();
+        let mut stack = vec![body];
+        while let Some(n) = stack.pop() {
+            if !seen.insert(n) {
+                continue;
+            }
+            match self.formulas.node(n) {
+                Node::Atom(a) => {
+                    let Some(&(_, args)) = tables.atoms.get(a as usize) else {
+                        continue;
+                    };
+                    let list = tables.list(args);
+                    if list.iter().any(|t| loose[t.index()] > 0) {
+                        for t in list {
+                            added = added.saturating_add(sizes[t.index()]);
+                        }
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    stack.push(a);
+                    stack.push(b);
+                }
+            }
+        }
+        let total = arena_terms(tables).max(witness).saturating_add(added);
+        if total > self.terms {
+            return Err(StepError::Terms {
+                terms: total,
+                limit: self.terms,
+            });
+        }
+        Ok(())
     }
 
     /// Returns the term of the next open witness, `$1` for the first, and
@@ -1672,6 +1750,18 @@ impl Interactive {
             } else {
                 name.push(c);
             }
+        }
+        // A term of text shares nothing, so it is as long as its names; one
+        // past the bound on terms is refused before any of it is made.
+        let names = tokens
+            .iter()
+            .filter(|t| !matches!(t.as_str(), "(" | ")" | ","))
+            .count() as u64;
+        if names > self.terms {
+            return Err(fault(format!(
+                "it has {names} symbols, more than the bound of {} on terms",
+                self.terms
+            )));
         }
         // The open applications wait on a stack with their arguments.
         let mut open: Vec<(String, Vec<FoTermId>)> = Vec::new();
@@ -4539,7 +4629,7 @@ mod tests {
             .parse()
             .unwrap();
         let limits = Limits {
-            terms: Some(2),
+            terms: Some(8),
             ..Limits::default()
         };
         let mut s = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
@@ -4551,7 +4641,16 @@ mod tests {
             panic!()
         };
         let error = closes(&mut s, first, (Left, "p($1)")).unwrap_err();
-        assert!(error.to_string().contains("bound of 2 on terms"), "{error}");
+        assert!(
+            matches!(
+                error,
+                StepError::Terms {
+                    terms: 11,
+                    limit: 8
+                }
+            ),
+            "{error}"
+        );
         assert_eq!(s.bindings(), []);
     }
 
@@ -4720,5 +4819,57 @@ mod tests {
             }
         }
         assert!(bound > 20, "only {bound} fillings");
+    }
+
+    /// A typed witness and every instance are held to the bound on terms
+    /// by the measure the reader takes, so a session under a small bound
+    /// writes documents its reader takes under it.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn an_instance_is_held_to_the_bound_on_terms() {
+        let within = |text: &str, terms| {
+            let sequent: Sequent = text.parse().unwrap();
+            let limits = Limits {
+                terms: Some(terms),
+                ..Limits::default()
+            };
+            (
+                Interactive::within(&sequent, Logic::Classical, &limits).unwrap(),
+                limits,
+            )
+        };
+        let (mut s, _) = within("forall x. p(x, x) |- q", 4);
+        let error = s.witness(GoalId::new(0), "f(f(f(f(a))))").unwrap_err();
+        assert!(error.to_string().contains("5 symbols"), "{error}");
+        let (mut s, _) = within("forall x. p(x, x), r(f(a)) |- q", 5);
+        let witness = s.witness(GoalId::new(0), "f(a)").unwrap();
+        let step = Step::new(Left, 0, Rule::ForallLeft).with_witness(witness);
+        let error = s.apply(GoalId::new(0), &step).unwrap_err();
+        assert!(
+            matches!(error, StepError::Terms { limit: 5, .. }),
+            "{error}"
+        );
+        // The review's session: whatever steps the bound leaves, the
+        // document reads back under it.
+        for terms in 3..8 {
+            let (mut s, limits) = within(
+                "forall x. p(x) |- (exists x. p(x)) /\\ (exists x. p(x))",
+                terms,
+            );
+            let steps = [
+                (0, Right, Rule::AndRight),
+                (1, Right, Rule::ExistsRight),
+                (3, Left, Rule::ForallLeft),
+                (2, Right, Rule::ExistsRight),
+                (5, Left, Rule::ForallLeft),
+            ];
+            for (goal, side, rule) in steps {
+                let _ = s.apply(GoalId::new(goal), &Step::new(side, 0, rule));
+            }
+            let json = serde_json::to_string(&s).unwrap();
+            let mut reader = serde_json::Deserializer::from_str(&json);
+            let read: Result<Interactive, _> = crate::wire::upgrade(&mut reader, &limits);
+            assert!(read.is_ok(), "terms {terms}: {:?}", read.err());
+        }
     }
 }
