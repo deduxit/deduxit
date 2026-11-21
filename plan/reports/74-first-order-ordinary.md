@@ -485,3 +485,240 @@ by the gate, so the arm that ends the formula stays (as
     `binders`) in its ordinary sequent and derivation.
 - **For the planning session:** the D17 cost on `read-tptp` (+1.05 %)
   and the unifier left for 74c, both marked as departures above.
+
+## Session 74c: the quantifier rules and the sessions
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`,
+cores 10 to 12, on `main@origin` (`pxkvxurv`). Nothing was pushed.
+
+### Outcome
+
+Items 1 and 2 of the brief landed, and the command part of item 3;
+the open witness of the design's section 6, the goal tree's free
+functions and item 4 (ILTP's first-order package) did not (below).
+
+| change | subject |
+|---|---|
+| `vwzkwrvq` | Check the quantifier rules of LK, LJ and LM |
+| `yvsrmstl` | Prove first-order sequents step by step in LK, LJ and LM |
+| `vwklqmwk` | Answer the panel on the quantifier rules |
+| `zyqttuyl` | Answer the review of the quantifier rules |
+| `tlnqlrvn` | Move the interactive sessions' unifier to the crate's root |
+
+This report is the change after them.
+
+- **Item 1, the checker** (`vwzkwrvq`): `ordinary::Rule` gains
+  `ForallLeft`, `ForallRight`, `ExistsLeft`, `ExistsRight` (after `Open`,
+  so that no discriminant moves; `NAMES` and the new `TAKEN` skip `Cut`
+  and `Open` by name), and `Inference` a `term`, the witness or the
+  eigenvariable, `"term": k` in the JSON (an index of the sequent's `fo`,
+  an eigenvariable there `{"E": n}`). `check_inference` takes G3's forms
+  and G1's (the principal of `∀L` and `∃R` dropped; `∃R` keeps it in LK
+  only), finds the instance with `Formulas::instance` (which builds no
+  node), refuses a term on any other rule and a quantifier rule without
+  one, and for `∀R` and `∃L` asks that the term be an eigenvariable
+  occurring in no formula of the conclusion (`Formulas::mentions`).
+  `Derivation::check` refuses a witness holding an open witness. The
+  derivation reader takes `{"E": n}` (`serialize::sequents::Extension`)
+  and refuses `{"M": k}`; the admissible view keeps a weakening that
+  would bring an eigenvariable into its rule's conclusion. The marks
+  `expect(dead_code)` on `instance`, `find_term` and `find_list` are
+  gone; `instantiate` and `predicate_atom` keep one where `interactive`
+  is off, since the goal state is the caller of `instantiate`.
+- **Item 2, the sessions** (`yvsrmstl`): `ordinary::Interactive` takes
+  first-order sequents (`within` and its reader lifted). `∀R` and `∃L`
+  name a fresh eigenvariable, numbered past every eigenvariable of the
+  live inferences, so that an undo and the same step again name the same
+  one; `∀L` and `∃R` take a witness, `Step::with_witness`, read from text
+  by `Interactive::witness` (the sequent's function symbols and the
+  eigenvariables in the goal's scope, by the names they print with) and
+  held to the goal's scope, as the linear session holds a given witness.
+  `Needs::Witness`, `StepError::NoWitness` and `StepError::Witness` are
+  new. `∀R` and `∃L` are invertible, `∀L` and `∃R` not. `close` and
+  `hint` answer the first-order refusal through `decide` until step 75.
+  Eigenvariables print as `a`, `b`, …, skipping the symbols, ranked by
+  number (`Formulas::eigen_names`; the linear proofs' scheme, where the
+  design said `y`, `z`, …, so both suites print alike).
+- **Item 3, the command**: `deduxit interact --logic …` at first order
+  (`apply G F forallL TERM`, `rules` saying `∃R (with a witness)`, the
+  quantifier rules listed in an unknown rule's message only for a
+  sequent with a binder) and `deduxit check` of a first-order derivation,
+  both pinned by `first_order_ordinary_session` in `cli/tests/cli.rs`.
+  The manual's chapter and the guide are 74d's by the design; nothing of
+  them changed here.
+- **The unifier's move** (`tlnqlrvn`): the linear session's unifier
+  (metavariables, levels, the trail, the occurs check) is
+  `crate::unify::Unifier` over the trait `unify::Terms`, which the
+  linear session's terms and `FirstOrder` implement; written by the
+  sub-agent `deduxit-unify-74c` (Opus 5.5 at `high`) in a workspace of
+  its own, brought in by `jj restore`, read and gated here. The linear
+  session's behaviour is unchanged (its tests, and the target set below).
+
+### Not done, and why
+
+- **The open witness** (design section 6: `$1`, filled by a later
+  axiom's unification, a bind substituting through every stored sequent)
+  (departs from the design). A witness is typed or the step is refused.
+  The design's substitution needs, for `undo` and for a document read
+  back, either the replaced sequents per step or the raw sequents beside
+  the shown ones, and a reader that checks every closed inference under
+  the bindings made by its step; that is a piece of its own, and it did
+  not fit beside the panel's and the reviewer's rounds. What it costs: a
+  sequent with no constant, `∀x. p(x) ⊢ ∃x. p(x)`, has no witness to
+  type, so the session cannot prove it (the checker takes a derivation
+  of it with an eigenvariable as the witness). The unifier it needs is
+  at the root now, with `FirstOrder` implementing its trait.
+- **The goal tree's free functions** (kernel-boundary item 5) were not
+  factored out (departs from the design, section 4a): without the open
+  witness the ordinary session shares nothing more with the linear one
+  than before, and the item is a refactoring with no caller asking for
+  it yet. For the session that builds the open witness.
+- **Item 4, ILTP's first-order package**: not reached; for 74d.
+
+### The measurements (D17)
+
+The ratchet's instruction counts (callgrind, the gate's build), against
+74b's last:
+
+| journey | 74b | `vwzkwrvq` | `yvsrmstl` | `vwklqmwk` |
+|---|--:|--:|--:|--:|
+| `read-text` | 12 433 368 | 12 433 368 | 12 433 368 | 12 433 368 |
+| `read-json` | 12 226 550 | 12 226 551 | 12 226 551 | 12 226 553 |
+| `read-tptp` | 33 661 297 | 33 661 297 | 33 661 297 | 33 661 297 |
+| `read-lltp` | 28 308 772 | 28 308 772 | 28 308 772 | 28 308 772 |
+| `ordinary-pigeons` | 31 718 052 | 31 750 478 | 31 750 475 | 31 750 475 |
+| `render-latex` | 5 780 834 | 5 780 834 | 5 780 834 | 5 780 834 |
+| `render-svg` | 79 508 723 | 79 508 723 | 79 508 723 | 79 508 723 |
+
+- `read-tptp` and `read-lltp` did not move, so their tolerance left is
+  what 74b left (0.89 % and 0.10 % over their ceilings).
+- `ordinary-pigeons` +0.10 % at the checker: every inference now asks
+  whether its rule is a quantifier rule and whether it has a term.
+- The unifier's move (`tlnqlrvn`) left every journey's count as it was
+  at `vwklqmwk`, the search journeys included.
+- The focused engine's target set after the move
+  (`bench/targets/74c.csv`, the script as it stands, its two streams on
+  cores 2 and 3): `summary --against bench/targets/47.csv
+  bench/targets/74c.csv --counters` names no verdict that differs, no
+  problem one decides and the other not, and of the 145 problems both
+  decide alike on one thread none whose `nodes`, `splits`, `memo_hits`,
+  `memo_entries`, `links` or `tests` differ.
+
+### The panel
+
+On `vwzkwrvq` and `yvsrmstl`, from one brief
+(the claims: the checker's soundness, the readers, the goal state's
+steps and reader, the admissible view):
+`deduxit-panel-argument-74c` (`panel-argument`, Fable 5.2 at `high`),
+`deduxit-panel-counterexamples-74c` (`panel-counterexamples`, Opus 5.5
+at `high`), `deduxit-panel-integers-74c` (`panel-integers`, Sonnet 5.5
+at `high`). None found an accepted invalid derivation: the
+counterexamples member ran 9 000 random sessions in the three logics
+(115 138 steps, 51 609 save and load trips), 153 600 mutants of 768
+finished derivations and 72 000 mutants of sessions, each closed
+inference checked against random classical structures and constant-
+domain Kripke models by a reference of its own; the argument member
+stated the invariant (the local eigenvariable condition, the instance
+by lookup, closed witnesses, injective atom keys) and found it at every
+site. Their findings, each answered in `vwklqmwk` with a test:
+
+1. **A panic in the goal state** (argument and counterexamples): an
+   instance holding an equivalence the arena lacked had no implications,
+   which `shape` looks up (`apply 0 L0 forallL c` then `rules 1 L0` on
+   `forall x. (p(x) <-> q(x)) |- p(c)`; the invertible run on
+   `|- forall x. (p(x) <-> p(x))`). A quantifier step runs `Extra::add`
+   now (`an_instance_s_equivalence_has_its_implications`).
+2. **An unbounded check** (argument and integers): a shared term no atom
+   names, as a witness, had its instance's key written out in full
+   (`t(n+1) = f(t(n), t(n))`: a 1 KB document took 11.6 s and 427 MB at
+   26 levels). `Tables::read` counts the largest term against
+   `limits.terms` now, and `held` walks a witness with a seen set
+   (`documents_with_quantifier_rules_stay_within_their_bounds`).
+3. **The session reader** (argument and counterexamples) ran no `closed`
+   pass and took `{"M": k}`, which no step makes: a session of
+   `p(#0) ⊢ p(#0)` finished as a "valid proof in LK". It runs the pass
+   and refuses open witnesses now
+   (`a_first_order_session_document_is_held_to_its_steps`).
+4. **Two `unreachable!` arms on rule names** (argument): a propositional
+   derivation document naming `∀L` passed the arena's door of
+   `Tableau::of` and `rules::Derivation::from_ordinary` and panicked.
+   `Derivation::propositional` (the arena and no quantifier rule) is
+   their door now, and the interpolant's, the term's and the
+   certificate's.
+5. **`derivation_ids(Admissible)` diverged from the admissible view**
+   (argument) on a session document with a weakening below `∀R` that
+   brings in its eigenvariable (the web page's map of drawn inferences
+   to goals). It maps a first-order state with its formulas now.
+6. **A derivation of an arena with a binder and no atom did not read
+   back** (counterexamples): `|- forall x. true` was written without its
+   terms, so `"term"` named none. `Tables::of_tables` writes the terms
+   where there are any.
+7. **Cost** (integers): the walks allocated vectors as long as the arena
+   per inference (a chain of 20 000 vacuous `∀R` checked in 90 s in a
+   debug build), and the fresh eigenvariable walked every inference per
+   step. The walks keep sets of what they visit now, and freshness is one
+   walk. Looking at that chain, the first-order printer renamed nested
+   binders of one name by scanning the scope for each suffix tried
+   (cubic in the depth: `check` printing the verdict's sequent took
+   minutes); it keeps a next suffix per name now, lowered when a binder
+   closes. What remains is the command's text tree size, which it
+   estimates even under `--tree never` and which is quadratic in a
+   formula's depth, propositional ones too (a follow-up below).
+
+### The reviewer's round
+
+`deduxit-review-74c` (`fresh-reviewer`, Fable 5.2 at `medium`) read the
+three code commits against the brief, the design and the rules, and ran
+tampered derivations and sessions through the command. It found no
+soundness fault, no reachable panic and no dead item in five feature
+sets, and:
+
+1. **An empty Rocq certificate with exit 0** for a first-order
+   derivation: the command's writer took `Error::FirstOrder` for an
+   error of its output. It says `no certificate: …` now
+   (`cli/src/show.rs`), pinned in `first_order_ordinary_session`.
+2. **No open witness**: the departure above, now in the changelog too.
+3. **The session reader took an open goal with a term**, which no step
+   makes; refused now.
+4. **Two false statements**: the changelog's list of refusals named the
+   goal state, and the rules said the session writes no level 25; both
+   corrected.
+
+Its question, whether a document marked at a lower level that holds
+quantifier rules should be refused: no reader refuses content newer than
+its stated level elsewhere (the level is the lowest that holds a
+document, and a reader refuses a higher one), so it is left as it is.
+
+### What was checked, and by what
+
+- The gate (clippy, the tests, both `cargo hack` runs, the ratchet),
+  capped on cores 10 to 12, at `vwzkwrvq`, `yvsrmstl` and `vwklqmwk`;
+  at `zyqttuyl` clippy and `cargo test --workspace`; at `tlnqlrvn` the
+  gate again, which covers `zyqttuyl` too.
+- The target set after the unifier's move: equal to the oracle (above).
+- `nix flake check` at the last commit: in the session's last message.
+
+### What the next sessions must know
+
+- **For 74d, the exports and the docs:**
+  - A derivation's inference has `term()`; an eigenvariable prints by
+    `Formulas::eigen_names` (`a`, `b`, … past the symbols, ranked by
+    number). The exports draw first-order derivations through
+    `Formulas::write`; the rule labels `∀L`, `∀R`, `∃L`, `∃R` are in
+    `LABELS`. No snapshot pins a first-order drawing yet.
+  - The Rocq certificate refuses a first-order derivation
+    (`Derivation::propositional`); the command says `no certificate: …`.
+  - The manual and the guide describe none of this step: `interact
+    --logic` at first order (`apply 0 R0 existsR c`, `forallR`), `check`
+    of a first-order derivation, the JSON's `"term"` and `{"E": n}`
+    (the wire schema too).
+  - ILTP's first-order package (item 4 of 74c's brief) is still to do.
+- **For the open witness** (a later session): the unifier is
+  `crate::unify::Unifier`, and `FirstOrder<K>` implements `unify::Terms`.
+  The design's bind substitutes through every stored sequent; `undo`
+  and the reader then need what each binding replaced. The checker
+  already takes an inference with a `Meta` witness (`check_inference`),
+  and `Derivation::check` refuses one.
+- **Follow-ups found, not fixed:** the command computes a derivation's
+  text tree size even under `--tree never` (`check` of a 5 000-deep
+  formula spends most of its time there, propositional or not).
