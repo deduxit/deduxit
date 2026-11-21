@@ -2,8 +2,8 @@ $ deduxit prove --logic classical --method connection --stats --deterministic '|
 --- status 0
 --- stdout
 valid (classical logic by the connection prover)
- ──────────────────────────────────────────────────── ax
- p(b), p(a) ⊢ p(b), ∃x. (p(x) → (∀y. p(y))), ∀y. p(y)
+              ─────────────────────────── ax
+              p(b), p(a) ⊢ p(b), ∀y. p(y)
 ─────────────────────────────────────────────────────── →R
 p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), p(b), p(b) → (∀y. p(y))
 ─────────────────────────────────────────────────────── ∃R
