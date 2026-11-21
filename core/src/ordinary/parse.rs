@@ -767,13 +767,19 @@ pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
                 }
             })
     };
-    let left = clauses
+    let left: Vec<_> = clauses
         .hypotheses()
         .map(&mut read)
         .collect::<Result<_, _>>()?;
-    // Without a conjecture TPTP asks for the hypotheses' refutation.
+    // Without a conjecture TPTP asks for the hypotheses' refutation; a
+    // file of no formula at all, empty or cut short, is no problem.
     let right = match clauses.conjecture() {
         Some(conjecture) => vec![read(conjecture)?],
+        None if left.is_empty() => {
+            return Err(Error::Tptp {
+                message: "no formula".to_owned(),
+            });
+        }
         None => Vec::new(),
     };
     Ok(Problem {
@@ -950,6 +956,11 @@ mod tests {
         let refuted =
             read_tptp("fof(a, axiom, p).\nfof(b, lemma, ~p).", &Limits::default()).unwrap();
         assert_eq!(refuted.sequent.to_string(), "p, ¬p ⊢");
+        assert!(read_tptp("% nothing\n", &Limits::default()).is_err());
+        // An intuitionistic status that claims nothing is not replaced by
+        // the classical one.
+        let open = "% Status : Theorem\n% Status (intuit.) : Open\nfof(c, conjecture, p).";
+        assert_eq!(read_tptp(open, &Limits::default()).unwrap().status, None);
         // TPTP's constants are `$true` and `$false`; a plain `true` would
         // name an atom that this syntax reads as the constant, and is
         // refused. The message says what is wrong.

@@ -258,8 +258,10 @@ impl Clauses {
 /// makes.
 pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses, Error> {
     // The first status for the problem's logic, `(intuit.)` or `(linear)`,
-    // and the first plain one.
-    let (mut status, mut plain) = (None, None);
+    // and the first plain one. A status for the logic that says neither
+    // `Theorem` nor `Non-Theorem` (`Open`, `Unsolved`) is no claim, and
+    // the plain one, a classical claim, does not stand in for it.
+    let (mut status, mut plain): (Option<Option<Status>>, Option<Option<Status>>) = (None, None);
     let mut code = String::with_capacity(text.len());
     for line in text.lines() {
         let (before, comment) = line.split_once('%').unwrap_or((line, ""));
@@ -281,7 +283,7 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
                 &mut plain
             };
             if slot.is_none() {
-                *slot = value;
+                *slot = Some(value);
             }
         }
         let chars: Vec<char> = before.chars().collect();
@@ -380,7 +382,7 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
         code,
         hypotheses,
         conjecture,
-        status: status.or(plain),
+        status: status.unwrap_or_else(|| plain.flatten()),
     })
 }
 

@@ -580,6 +580,17 @@ eigenvariable must occur nowhere in the conclusion of its `∀R` or
 `∃L`. LaTeX, Typst and SVG draw such a derivation as they draw any
 other; it has no Rocq certificate yet (`no certificate: …`).
 
+A first-order sequent, derivation or session is JSON at wire level 25
+(the manual's schema, `wire.schema.json`, has every key). Beside the
+propositional keys the sequent has the first-order sequent's of linear
+logic ([Prove in first-order logic](first-order.md)): `symbols` (each a
+name and its arity), `fo` (the terms: `{"B": k}` the variable of the
+k-th quantifier out, `{"F": [symbol, [terms]]}` an application), each
+atom as `{"P": [symbol, [terms]]}`, and `binders`, one name per
+quantifier. A formula `{"∀": a}` or `{"∃": a}` binds in its operand `a`.
+A quantifier inference names its term by `"term": k`, a position in
+`fo`, where a derivation's eigenvariable is `{"E": n}`.
+
 ## JSON output
 
 With `--format json` every method writes the outcome of the ordinary

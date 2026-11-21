@@ -23,6 +23,10 @@ the generated families are read or changed; the harness that runs them is
   or `Status (linear)` comment's, else the first plain one's, because the
   translated ILLTP problems carry the classical source's `Status` first
   (39 files, the excluded middle among them, would read as theorems);
+  a status for the logic that claims neither (`Open`, `Unsolved`) is no
+  claim, and the plain one does not stand in for it (120 of ILTP's
+  first-order problems say `Theorem` plainly and `Open` intuitionistically;
+  no propositional ILTP or LLTP file reads otherwise for it);
   roles other than `axiom`, `hypothesis`, `lemma`, `theorem` (the last
   two claimed true, so hypotheses; ILTP's first-order problems use
   `lemma`) and `conjecture`, an
@@ -33,7 +37,8 @@ the generated families are read or changed; the harness that runs them is
   `ordinary::read_tptp` shares. A file without a conjecture is refused
   by `lltp::read` alone: `read_tptp` reads it as the hypotheses'
   refutation, nothing right of `⊢`, as TPTP means it (182 of ILTP's
-  first-order problems). A `-` between two name
+  first-order problems), and refuses a file of no formula at all, which
+  an empty or cut file is. A `-` between two name
   characters is part of the name unless it starts `-o` (and `-o` between
   two name characters, `a-ob`, is refused: a name to the library's
   convention and `a ⊸ b` to this crate's, H6; no file of the LLTP or
