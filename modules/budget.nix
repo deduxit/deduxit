@@ -20,9 +20,13 @@
 
       # The modules the web page loads, in bytes at `gzip -9', what a
       # browser downloads. The bindings' module, which every visitor's
-      # worker loads: 2 590 533 on 2026-11-21 with both connection provers
+      # worker loads: 2 631 105 on 2026-11-22 with grounding (the
+      # decidable classes' normal form, miniscoping, the ground walk) and
+      # the finite structure's evaluator and reader beside both connection
+      # provers; 2 590 533 on 2026-11-21 with both connection provers
       # (the classical one's matrix and search, the intuitionistic one's
-      # prefixes, their unification and its read-back to LJ); 2 502 108 that day with the ordinary session's
+      # prefixes, their unification and its read-back to LJ); 2 502 108
+      # that day with the ordinary session's
       # open witnesses (their fillings and the reader's replay of them,
       # the inferences each witness shows, the bound on terms for every
       # step) and first-order derivations drawn; 2 438 116 that day, once the PNG and PDF
