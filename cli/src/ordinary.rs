@@ -98,7 +98,7 @@ pub(crate) fn translated(
 /// Either flag beside `--method ljt` or `sat`, or beside a settings
 /// file's `ordinary.method` of either.
 pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Result<()> {
-    if let Some(method @ (Method::Ljt | Method::Sat)) = options.method
+    if let Some(method @ (Method::Ljt | Method::Sat | Method::Connection)) = options.method
         && (args.logic.translation.is_some() || args.linear)
     {
         bail!(
@@ -117,21 +117,26 @@ pub(crate) const fn by(method: Method) -> &'static str {
         Method::Sat => "the SAT solver",
         Method::Table => "its truth table",
         Method::Tableau => "a tableau",
+        Method::Connection => "the connection prover",
         _ => "LJT",
     }
 }
 
-/// Decides an ordinary sequent by LJT or the SAT solver, as the options'
-/// method says, under `stop`. With no method given, the SAT solver takes
-/// LJT's derivation where LJT gives one, as the library's default does.
+/// Decides an ordinary sequent by a method other than the embedding, as
+/// the options' method for it says, under `stop`. With no method given,
+/// the SAT solver takes LJT's derivation where LJT gives one, as the
+/// library's default does.
 pub(crate) fn decide_natively(
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
+    search: &deduxit::linear::search::Options,
     limits: &deduxit::Limits,
     stop: impl FnMut(deduxit::Progress) -> bool,
 ) -> Result<ordinary::Outcome, Error> {
     let logic = options.logic;
-    match options.method() {
+    match options.method_for(sequent) {
+        Method::Connection => ordinary::connection::decide(sequent, logic, search, limits, stop)
+            .map(ordinary::Outcome::from),
         Method::Sat if options.method.is_none() => {
             sat::decide_preferring_ljt(sequent, logic, limits, stop).map(ordinary::Outcome::from)
         }
@@ -166,8 +171,10 @@ pub(crate) type GaveWay = Option<String>;
 /// Returns whether the options' method is the classical default, the SAT
 /// solver that keeps the embedding's evidence where the embedding gives
 /// it within [`bounded`].
-pub(crate) fn keeps_evidence(options: &ordinary::Options) -> bool {
-    options.method.is_none() && options.method() == Method::Sat && options.logic == Logic::Classical
+pub(crate) fn keeps_evidence(options: &ordinary::Options, sequent: &ordinary::Sequent) -> bool {
+    options.method.is_none()
+        && options.method_for(sequent) == Method::Sat
+        && options.logic == Logic::Classical
 }
 
 /// Returns the limits of the embedding's translation and search for the
@@ -267,8 +274,8 @@ pub(crate) fn by_native(
     sequent: &ordinary::Sequent,
     deadline: &Deadline,
 ) -> Result<Native<Status>> {
-    let method = options.method();
-    let keeps = keeps_evidence(options);
+    let method = options.method_for(sequent);
+    let keeps = keeps_evidence(options, sequent);
     if args.output.net {
         if keeps {
             return Ok(Native::GivesWay(None));
@@ -287,7 +294,7 @@ pub(crate) fn by_native(
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
         let halt = || interrupted() || deadline.passed();
-        let decided = decide_natively(options, sequent, &limits, |_| halt());
+        let decided = decide_natively(options, sequent, &settings.search, &limits, |_| halt());
         drop(notice);
         if gives_way && ordinary::gives_way(&decided) {
             return Ok(Native::GivesWay(gave_way(method, &decided)));
@@ -595,6 +602,13 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
         ordinary::Search::Table(table) => &[
             ("rows", table.rows()),
             ("falsifying rows", table.falsifying().len() as u64),
+        ],
+        ordinary::Search::Connection(s) => &[
+            ("steps", s.steps),
+            ("extension steps", s.extensions),
+            ("reduction steps", s.reductions),
+            ("literals closed by a lemma", s.lemmata),
+            ("bound on the active path", u64::from(s.path_length)),
         ],
         ordinary::Search::Tableau(tableau) => &[
             ("lines", u64::from(tableau.line_count())),

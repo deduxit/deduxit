@@ -60,7 +60,9 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     }
     match method {
         Method::Embedding => embedded(args, logic, &problem.sequent, expected),
-        Method::Ljt | Method::Sat => native(args, logic, &problem.sequent, expected, method),
+        Method::Ljt | Method::Sat | Method::Connection => {
+            native(args, logic, &problem.sequent, expected, method)
+        }
         Method::Table | Method::Tableau => {
             classical(args, logic, &problem.sequent, expected, method)
         }
@@ -137,15 +139,17 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
     })
 }
 
-/// Decides the sequent by LJT or the SAT solver within the run's memory
-/// bound and time limit, and returns the tail of its row. The evidence is
+/// Decides the sequent by LJT, the SAT solver or the connection prover
+/// within the run's memory bound and time limit, and returns the tail of
+/// its row. The evidence is
 /// checked inside the time measured. A proof whose derivation a bound
 /// refuses is `unknown`, with the bound as the reason (`derivation_limit`
 /// for its size).
 ///
 /// LJT's `nodes` and `work` are its sequents expanded; the SAT solver's
 /// `nodes` are its conflicts and `work` its calls and conflicts, the
-/// units its work bound counts.
+/// units its work bound counts. The connection prover's `nodes` are its
+/// extension steps and `work` its steps, with no bound on the active path.
 fn native(
     args: &OneArgs,
     logic: Logic,
@@ -168,7 +172,21 @@ fn native(
     let stop = |_| clock.expired.load(Ordering::Relaxed);
     // The verdict and the counters `nodes`, `memo_hits`, `memo_entries`
     // and `work`, empty where the method has none.
-    let outcome = if method == Method::Sat {
+    let outcome = if method == Method::Connection {
+        let search = Options::default().with_path_length(None);
+        ordinary::connection::decide(sequent, logic, &search, &limits, stop).map(|outcome| {
+            let s = outcome.statistics;
+            (
+                outcome.verdict,
+                [
+                    s.extensions.to_string(),
+                    String::new(),
+                    String::new(),
+                    s.steps.to_string(),
+                ],
+            )
+        })
+    } else if method == Method::Sat {
         sat::decide(sequent, logic, &limits, stop).map(|outcome| {
             let s = outcome.statistics;
             let work = s.calls.saturating_add(s.conflicts);
@@ -198,7 +216,11 @@ fn native(
         ("engine", method.name()),
         (
             "fragment",
-            if method == Method::Sat { "SAT" } else { "LJT" },
+            match method {
+                Method::Sat => "SAT",
+                Method::Connection => "connection",
+                _ => "LJT",
+            },
         ),
         ("time_ms", &time),
         ("cpu_ms", &cpu),

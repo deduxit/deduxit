@@ -904,8 +904,8 @@ impl Shared {
         plan: &batch::Plan,
         deadline: &Deadline,
     ) -> Result<Native<Done>> {
-        let method = options.method();
-        let keeps = ordinary::keeps_evidence(options);
+        let method = options.method_for(sequent);
+        let keeps = ordinary::keeps_evidence(options, sequent);
         if self.show.net {
             if keeps {
                 return Ok(Native::GivesWay(None));
@@ -918,7 +918,8 @@ impl Shared {
         let gives_way = options.method.is_none();
         let start = Instant::now();
         let halt = || interrupted() || deadline.passed() || self.batch.passed();
-        let decided = ordinary::decide_natively(options, sequent, &plan.limits, |_| halt());
+        let decided =
+            ordinary::decide_natively(options, sequent, &plan.search, &plan.limits, |_| halt());
         if gives_way && ordinary_logic::gives_way(&decided) {
             return Ok(Native::GivesWay(None));
         }

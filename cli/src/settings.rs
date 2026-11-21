@@ -164,6 +164,12 @@ impl SearchArgs {
         if apply.set("instances") {
             search.instances = self.instances;
         }
+        if apply.set("path_length") {
+            search.path_length = self.path_length.0;
+        }
+        if apply.set("restricted_backtracking") {
+            search.restricted_backtracking = self.restricted_backtracking;
+        }
         if apply.set("test_period") {
             search.test_period = self.test_period;
         }
@@ -782,6 +788,8 @@ mod tests {
             --classical-work 4      /search/classical_work     3                 4
             --witness-depth 4       /search/witness_depth      3                 4
             --instances 4           /search/instances          3                 4
+            --path-length 4         /search/path_length        3                 4
+            --restricted-backtracking /search/restricted_backtracking false true
             --test-period 3         /search/test_period        2                 3
             --schedule auto         /search/schedule           "turns"           "auto"
             --jobs 3                /search/jobs               2                 3

@@ -710,6 +710,10 @@ pub(crate) fn advice(reason: Reason, at: &str, ended: &Ended) -> String {
         (Reason::Instances { .. }, _) => {
             format!("{reason} {after}{at}; raise it with --instances N")
         }
+        (Reason::PathLength { .. }, _) => format!(
+            "{reason} {after}{at}; raise it with --path-length N, or lift it with --path-length \
+             none to deepen it while the time limit lasts"
+        ),
         // Any other reason, which no flag changes.
         _ => format!("{reason} {after}{at}"),
     }

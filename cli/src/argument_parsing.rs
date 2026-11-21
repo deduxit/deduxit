@@ -658,25 +658,32 @@ pub(crate) struct ProveArgs {
     #[arg(help_heading = LOGIC, long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
     pub(crate) system: Option<deduxit::modal::System>,
     /// With --logic, how to decide the sequent: through its embedding into
-    /// linear logic, by LJT, by a SAT solver, by its truth table or by a
-    /// tableau (ordinary.method)
+    /// linear logic, by LJT, by a SAT solver, by its truth table, by a
+    /// tableau or by a connection prover (ordinary.method)
     ///
     /// By default every logic is decided by the SAT solver: intuitionistic
     /// and minimal logic with LJT's derivation where LJT gives one, and
     /// classical logic with the embedding's output (its derivation of LK,
     /// refutation and certificate) where the embedding decides within a
-    /// short bound of work. A first-order sequent is decided through the
-    /// embedding, the only method that takes one.
+    /// short bound of work. A first-order sequent is decided by the
+    /// connection prover in classical logic and through the embedding in
+    /// the others, the methods that take one; where the connection prover
+    /// gives up at a bound, the embedding decides in its place.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
+    /// The connection prover decides classical logic, first-order
+    /// sequents included: a valid sequent gets a checked derivation of LK,
+    /// and a search with variables that finds no proof is unknown, never
+    /// not valid (--path-length bounds it).
     /// The truth table and the tableau decide classical logic, and print
     /// the table or the tableau in place of a derivation: the table's rows
     /// that falsify the sequent marked `×`, the tableau's lines numbered,
     /// each branch closed with `×` or left open. --table-atoms bounds the
     /// table.
-    /// Under LJT, the SAT solver, the table and the tableau, --stats prints
+    /// Under LJT, the SAT solver, the table, the tableau and the
+    /// connection prover, --stats prints
     /// the method's counters. Under every method --format json writes the
     /// outcome of the ordinary sequent, its "search" tagged by "method".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
@@ -869,6 +876,23 @@ pub(crate) struct SearchArgs {
     /// (exit status 3), not unprovable.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_INSTANCES)]
     pub(crate) instances: u32,
+    /// The longest active path the connection prover searches with, or
+    /// `none` for no bound (search.path_length)
+    ///
+    /// The connection prover (--method connection) tries the bounds 1, 2,
+    /// … in turn, and only a step that makes a fresh variable is held to
+    /// the bound. By default it goes on until it decides or the time limit
+    /// passes; with a bound, a sequent with no proof within it is unknown
+    /// (exit status 3).
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
+    pub(crate) path_length: Count<u32>,
+    /// Keep the connection prover's first solution of each literal, never
+    /// trying another (search.restricted_backtracking)
+    ///
+    /// The search often ends sooner, but it may miss a proof, so a sequent
+    /// it finds no proof of is unknown (exit status 3), never not valid.
+    #[arg(help_heading = SEARCH, hide_short_help = true, long)]
+    pub(crate) restricted_backtracking: bool,
     /// The most memory the search may hold: a number of bytes with a unit
     /// such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
     ///
@@ -2178,6 +2202,10 @@ pub(crate) enum MethodArg {
     /// By a signed tableau, for classical logic: a closed tableau is a
     /// checked derivation of LK, an open branch a checked countermodel
     Tableau,
+    /// By a non-clausal connection prover, for classical logic,
+    /// first-order sequents included: a valid sequent gets a checked
+    /// derivation of LK
+    Connection,
 }
 
 impl From<MethodArg> for deduxit::ordinary::Method {
@@ -2188,6 +2216,7 @@ impl From<MethodArg> for deduxit::ordinary::Method {
             MethodArg::Sat => Self::Sat,
             MethodArg::Table => Self::Table,
             MethodArg::Tableau => Self::Tableau,
+            MethodArg::Connection => Self::Connection,
         }
     }
 }

@@ -229,8 +229,9 @@ pub struct RunArgs {
     /// engine that does not apply to a problem gives a `refused` row. A
     /// TPTP problem also takes the methods of ordinary logic: `embedding`
     /// (its image searched by the engine the library picks, or by the
-    /// linear engine named) or `ljt`. On a TPTP problem, `auto` is the
-    /// logic's default method
+    /// linear engine named), `ljt`, `sat`, `table`, `tableau` or
+    /// `connection`. On a TPTP problem, `auto` is the logic's default
+    /// method
     #[arg(long, value_delimiter = ',', default_value = "auto", value_parser = run::EngineChoice::parser())]
     engines: Vec<run::EngineChoice>,
     /// The thread counts to run every problem with; `all` is every core
