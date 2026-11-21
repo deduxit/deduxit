@@ -653,7 +653,7 @@ each predicate holds of:
 $ deduxit prove --logic classical 'exists x. p(x), q |- forall x. p(x)'; echo "exit $?"
 not valid (classical logic by grounding): a checked finite structure of 2 elements refutes it
 domain: {0, 1}
-p: {0}
+p: {1}
 q: true
 exit 1
 ```
@@ -667,7 +667,7 @@ classical validity says nothing of them:
 $ deduxit prove --logic intuitionistic 'exists x. p(x) |- forall x. p(x)'; echo "exit $?"
 not valid (intuitionistic logic by grounding): a checked finite structure of 2 elements refutes it
 domain: {0, 1}
-p: {0}
+p: {1}
 exit 1
 $ deduxit prove --logic minimal --method grounding '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
 unknown (minimal logic by grounding): the sequent is valid in classical logic, which says nothing of minimal logic
@@ -686,7 +686,7 @@ exit 1
 $ deduxit check s.json
 valid refutation of ∃x. p(x), q ⊢ ∀x. p(x) (classical logic): a finite structure of 2 elements refutes it
 domain: {0, 1}
-p: {0}
+p: {1}
 q: true
 ```
 

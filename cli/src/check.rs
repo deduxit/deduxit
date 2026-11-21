@@ -598,6 +598,7 @@ pub(crate) fn check_ordinary(
                 let by = match outcome.method() {
                     ordinary::Method::Sat => "the SAT solver",
                     ordinary::Method::Connection => "the connection prover",
+                    ordinary::Method::Grounding => "grounding",
                     _ => "LJT",
                 };
                 let line = format!(
