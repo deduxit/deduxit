@@ -2858,3 +2858,51 @@ LinearOne 3.2 s, and the one row LinearOne wins of those both decide,
 `witness-fo/10#3`, takes deduxit 2.5 s and LinearOne 46 ms; LinearOne
 also decides the three deduxit leaves undecided.
 
+
+## deduxit against Otten's connection provers on ILTP's first-order problems
+
+Not a baseline: ordinary first-order logic came after the baselines, and
+leanCoP 2.1, nanoCoP 2.0 (classical), nanoCoP-i 2.0 and iLeanCoP 1.2
+(intuitionistic) are the provers its comparison is made with
+(`bench/TOOLS.md`, "Connection provers of first-order logic", says how
+they run). The runs, 2026-11-21, each problem once with each tool under
+runexec at 2 s, the command's default time limit, and 4 GiB, three
+streams on cores 7, 8 and 9 (`comparison/2026-11-21-iltp-first-order/runs-{1,2,3}.csv`, one per stream,
+`ranking.md` beside it):
+
+- **The problems**: ILTP's 940 first-order problems without equality
+  (the brief asked for a TPTP subset beside them; the flake fetches no
+  TPTP library, and ILTP's problems are themselves TPTP problems read
+  intuitionistically and classically),
+  which deduxit refuses (the provers decide equality by adding its
+  axioms, so the 1 730 with equality would compare nothing of
+  deduxit's). 107 of them hold Latin-1 in their comments, which the
+  command refuses as not UTF-8; every tool got those converted to UTF-8.
+  Four problems that no reader takes (a variable used outside its
+  quantifier) are errors for every tool.
+- **deduxit** is `prove --logic … --deterministic` as a user runs it,
+  one thread: grounding for the decidable classes, the connection
+  prover with 90% of the time limit and the embedding with the rest
+  (classical), the embedding (intuitionistic). Every "valid" is a checked
+  derivation or clausal proof, every "not valid" a checked structure,
+  countermodel or exhausted search.
+
+| logic | tool | decided | proved | not valid | contradictions |
+|---|---|--:|--:|--:|--:|
+| classical | deduxit | **766** | 689 | 77 | 0 |
+| classical | nanoCoP 2.0 | 713 | 629 | 84 | 0 |
+| classical | leanCoP 2.1 | 666 | 640 | 26 | 0 |
+| intuitionistic | nanoCoP-i 2.0 | **568** | 482 | 86 | 0 |
+| intuitionistic | iLeanCoP 1.2 | 559 | 485 | 74 | 0 |
+| intuitionistic | deduxit | 486 | 377 | 109 | 0 |
+
+No verdict contradicts a file's status or another tool's. In classical
+logic all three decide 626 problems, in a median of 5.3 ms for deduxit,
+35 ms for leanCoP and 39 ms for nanoCoP (SWI-Prolog's start is most of
+the provers' floor); 124 problems are deduxit's alone (grounding's
+refutations and the SYJ2xx families among them), 51 nanoCoP's alone
+(NLP, KRS) and 4 leanCoP's. In intuitionistic logic all three decide
+376, in 6.0 ms, 41 ms and 35 ms; deduxit alone decides 98 (refutations
+by grounding and the SAT solver among them), nanoCoP-i alone 21 and
+iLeanCoP alone 18, most of those GEJ theorems the embedding leaves
+undecided within 2 s.

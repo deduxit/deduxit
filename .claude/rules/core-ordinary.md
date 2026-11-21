@@ -815,18 +815,46 @@ the clausal proof's checker is the trust for "valid".
 - **The pipeline** (`run`): `prepare` builds `⋀Γ → ⋁Δ` in negation
   normal form with named variables (`Nnf`, `G` nodes: an equivalence
   expanded both ways, a `Meta` or `Eigen` term, a function symbol with
-  arguments or a loose variable is "not in the class", `None`),
-  `miniscope` moves every quantifier inward (`Nnf::quantify`: `∀` into a
-  conjunction's operands and out of a disjunction's operands that do not
-  mention it, `∃` dually, to three levels), `in_class` asks that no `∀`
-  stands in the scope of an `∃` whose variable is free in it (BS after
-  Skolemization) unless every predicate is monadic, then `ground` makes
-  `⊢ F` over the domain: the constants the formula names, then one
-  Skolem constant per `∀` reached, one element where there is none;
-  each `∃` the disjunction of its body over the domain. Atoms are named
-  `g_N` by index, tuples flat in `Ground::args` (one allocation for all:
-  freeing per-atom keys after a stop overran a 4 s limit by 1.7 s, now
-  1.1 s, the arena's names left).
+  arguments or a loose variable is "not in the class", `None`; a chain
+  of one connective, negations seen through, is one n-ary junction as it
+  is entered: built binary it copied the operands at every level, and a
+  chain of 100 000 conjuncts took 8 GB), `miniscope` moves every
+  quantifier inward (`Nnf::quantify_within`: `∀` into a conjunction's
+  operands and out of a disjunction's operands that do not mention it,
+  `∃` dually, and Behmann's distribution of `∨` over `∧` under `∀` (`∧`
+  over `∨` under `∃`) where several operands hold the variable, at most
+  `DISTRIBUTE_DEPTH` times and only where the copies fit
+  `DISTRIBUTE_NODES` nodes and operands, checked before it copies), and
+  `in_class` asks that no `∀` node has a variable of an `∃` free (one
+  pass over the reachable nodes: each variable is bound by quantifiers of
+  one kind, and the formula is closed; a walk of the DAG as a tree took
+  256⁴ paths on a sequent of 815 bytes). Then `ground` makes `⊢ F` over
+  the domain: the constants the formula names, then **one Skolem
+  constant per `∀` node and value of the `∀` variables free in it** (a
+  first pass visits each such pair once), one element where there is
+  none; each `∃` the disjunction of its body over the domain. Atoms are
+  named `g_N` by index, tuples flat in `Ground::args` (one allocation for
+  all: freeing per-atom keys after a stop overran a 4 s limit by 1.7 s,
+  now 1.1 s, the arena's names left).
+- **One Skolem constant per `∀` variable was unsound** (the argument
+  panel's witness, `q(a), ~q(b) ⊢ ∃z. ∀x. ((p(x) ∨ q(z)) ∧ (¬p(x) ∨
+  ¬q(z)))`, answered valid): miniscoping splits `∀x.(A ∧ B)` into
+  `∀x.A ∧ ∀x.B`, two nodes of one variable, and a falsifier may need them
+  false at different elements. Herbrand's grounding needs a Skolem symbol
+  per `∀` occurrence of the formula grounded; a node shared under two
+  bindings of its free `∀` variables is two occurrences. A change of
+  miniscoping that copies or splits a quantifier relies on this.
+  **Equal `∀` nodes share their constant** (`canonical`: a number per
+  node content; the key is that number and the values): the δ⁺⁺ rule of
+  Beckert, Hähnle and Schmitt, sound because equal δ-formulas under equal
+  values are one instance. Without it each copy distribution makes was
+  an element more of the domain; the split's parts have different bodies
+  and stay apart.
+- **The ground walk is memoised** (`Task::Store`, keyed by node and the
+  values of its free variables): distribution shares subformulas, and
+  the walk took them as a tree (a sequent of 37 nodes, 1 940 after
+  distribution, ran ninety million steps). Literals are not memoised,
+  being as cheap as a lookup.
 - **Why it is sound and complete** (Herbrand for the BS class after
   Skolemization; Löwenheim and Behmann for the monadic class, whose
   miniscoped form is BS): the ground sequent is valid exactly when the
@@ -834,8 +862,12 @@ the clausal proof's checker is the trust for "valid".
   which in validity form are δ (eigenvariables); the domain is the
   Herbrand universe, finite because no function symbol is left.
   Miniscoping is an equivalence, so the class test after it decides
-  more sequents and the verdict is unchanged. A change to `quantify` or
-  `in_class` must keep both.
+  more sequents and the verdict is unchanged; the grounding is Herbrand's
+  only with the Skolem constants per occurrence (above). "Not valid"
+  holds for anything `prepare` returns, in the class or not: the
+  solver's assignment is a structure over the domain that falsifies the
+  miniscoped formula, since `∀x.B` implies `B[c]`. A change to
+  `quantify_within` or `in_class` must keep both.
 - **Valid only in classical logic**: a ground valid sequent is
   `Valid(Clausal)` classically, `Unknown(Incomplete)` in the others
   (classical validity says nothing there), which the default gives way
@@ -851,7 +883,12 @@ the clausal proof's checker is the trust for "valid".
   every term of the sequent's tables checked up front (so a skipped
   branch hides no uninterpretable constant), `limits.work` evaluations
   at most (`Structure::WORK`, 2²⁶, where none is set), the stop every
-  4 096. A structure that fails its check is `Error::Countermodel` (a
+  4 096, the structure's tables charged to `limits.memory_bytes` before
+  its sets are built (`ENTRY_BYTES`: a structure read from JSON is 8 to
+  13 times its text; serde's own reading of the document is not
+  bounded below the document's size), and only the terms the sequent's
+  formulas use checked up front (an unused constant of the arena made a
+  right refutation invalid). A structure that fails its check is `Error::Countermodel` (a
   defect) from grounding, `Error::Structure` (kind invalid, code
   `invalid_structure`) from `check`. A check refused at a bound drops
   the structure and keeps the verdict, as `Countermodel::found` does
@@ -859,19 +896,30 @@ the clausal proof's checker is the trust for "valid".
   rests on the grounding), and the stop during it is `Unknown(Stopped)`.
   Six NLP problems needed the short cuts: the original formula evaluated
   in `d^k` where the miniscoped ground formula is small.
-- **Bounds**: `prepare` and `ground` ask the stop every `POLL` steps (a
-  stop there is `Unknown(Stopped)`), refuse past `limits.occurrences`
-  nodes or pending tasks, and `ground` charges its arena, atoms
-  (`ATOM_BYTES` and 4 bytes an argument), tasks, bindings and results to
-  `limits.memory_bytes` (`Refusal::Memory`): ILTP's SYJ020
-  (`∃x₁…x₁₀ p(…) ↔ ¬∀x₁…x₁₀ ¬p(…)`) once grew to gigabytes and was
-  killed. Its bindings are never freed during the walk (a leak bounded
-  by the work, charged).
-- **The default** (`decide.rs`, `by_grounding`): in classical logic a
-  valid sequent takes the connection prover's derivation of LK where it
-  gives one within `EVIDENCE_WORK`, and a sequent grounding gives way on
-  (a bound, outside the classes) goes to the connection prover, before
-  the embedding. The command does the same in `decide_natively`.
+- **Bounds**: `prepare`, the Skolem pass and `ground` ask the stop every
+  `POLL` steps (a stop there is `Unknown(Stopped)`), refuse past
+  `limits.occurrences` nodes, operands or pending tasks, and charge
+  `limits.memory_bytes`: the normal form at `NNF_BYTES` a node or
+  operand, the ground arena at `NODE_BYTES`, each atom at `ATOM_BYTES`
+  and 4 bytes an argument, and the tables beside (tasks, bindings,
+  results, the hash index), twice the sizes measured since the integers
+  panel found the first estimate 1.4 to 2.2 times short. A memory
+  refusal in the set-up is `Unknown(MemoryLimit)`, as the solver's is;
+  the solver gets the bound less what the ground formula holds
+  (`Ground::bytes`). ILTP's SYJ020 (`∃x₁…x₁₀ p(…) ↔ ¬∀x₁…x₁₀ ¬p(…)`) once
+  grew to gigabytes and was killed. The bindings are never freed during
+  the walk (a leak bounded by the work, charged). `grounds` (the
+  default's class test in `method_for`, run several times per command)
+  is bounded by `GROUNDS_NODES` and is linear now, but has no stop.
+- **The default** (`decide.rs`, `by_grounding`): grounds within
+  `grounding::DEFAULT_NODES` (2²¹; ILTP's largest grounding decided
+  within 2 s has 65 540 atoms, and SYJ020's grew until the time limit,
+  keeping the connection prover from proving it in under a second); in
+  classical logic a valid sequent takes the connection prover's
+  derivation of LK where it gives one within `EVIDENCE_WORK`, and a
+  sequent grounding gives way on (a bound, outside the classes) goes to
+  the connection prover, before the embedding. The command does the same
+  in `decide_natively`; `--method grounding` keeps the general limits.
 - **What step 76 must keep** (its countermodels own and extend this
   type): `FiniteCountermodel::check` is the one trust for a finite
   "not valid"; `Structure`'s JSON (`{"size", "constants",
