@@ -489,3 +489,131 @@ the checker accepts it. It noted that the report section was still to come, and 
 ### Left open
 
 Nothing of the three entries. The signing hook signed every commit.
+
+## Session fixup-13: TPTP names and the command's costs
+
+Opus 5.5 at `high`, the conversation of 74c and 74d, in the workspace
+`../deduxit-wt-step-58b-8c0bbc`, cores 10 to 12, on 74d's `zyvpyomm`.
+Nothing was pushed.
+
+### Outcome
+
+The three items landed, one commit each:
+
+| change | subject |
+|---|---|
+| `ovstsxkv` | Rename TPTP names this syntax keeps for itself, or uses in two roles, on reading |
+| `kwxpkskr` | Leave out an ordinary derivation's tree in check --tree never |
+| `mmktqzrk` | Inline a TPTP problem's includes in the command |
+| `sztmxwxm` | Answer the review of fixup-13 |
+
+- **Item 1, TPTP names renamed** (the planning session's decision of
+  2026-11-21): `ordinary::read_tptp` reads a file again when its reading
+  was refused for a keyword name (`Error::AtomName` of an identifier:
+  `par`, `true`, `exists` …) or for a name in two roles
+  (`SymbolFault::Role`), with that name renamed: a keyword gets `_`
+  after it, a function symbol `_f`, each with more `_` until no word of
+  the file is it (`Renames::fresh`). One name more per try, so the tries
+  end. The parser applies a keyword's new name only in the atom's error
+  path (`renamed_atom`) and in the cold first-order paths
+  (`symbol_name`), a function symbol's in term position alone, so a file
+  that needs no renaming reads exactly as before. Tests: `reads_tptp`
+  (a keyword atom, a keyword argument whose `_` name is taken, both
+  orders of a function and a predicate of one name, a keyword predicate
+  under a quantifier, each printed and read back in the native syntax)
+  and `false_is_no_atom_of_the_sequent`, whose refusal of `false` is
+  now a renaming to `false_` (the behaviour the test pinned was meant to
+  change; its point, that the atom never is minimal logic's false,
+  holds). **The LLTP reader renames nothing** (departs from the brief,
+  which named both readers): its syntax is the linear one, where `top`
+  and `bot` are the units LLTP's own files write (`lcm_*.p`,
+  `nonconserv*.p`), so renaming them would change those problems.
+- **Item 2, `--tree never`**: the size estimate was not the cost: `check`
+  of an ordinary derivation ignored `--tree never` and wrote the whole
+  tree (the size is computed only for a terminal's fit, which `never`
+  turns off). `check_derivation` now leaves the derivation out under
+  `never` before any view of it is made, as `prove` already did. A deep
+  derivation (5 000 nested `∀R`, 700 KB) checked with `--tree never` in
+  6.9 s in a debug build, where it ran past 300 s before (the check
+  itself is the 6.9 s); the output without the flag is unchanged
+  (`derivation_limit_and_tree_switch` pins the verdict line alone).
+- **Item 3, `include` in the command**: `io::included` inlines each
+  `include('NAME').` from `$TPTP`, where set, then the problem's
+  directory and each above it (the working directory's for a problem
+  given as the argument or on standard input), on a stack of its own,
+  refusing a missing file by name, an include of itself through others
+  and a nesting past 32; the batch inlines per entry with the entry's
+  path. `tptp_includes_are_read` pins the three cases. The manual's
+  TPTP section and the guide say so.
+
+### ILTP's first-order problems, before and after
+
+`deduxit-bench run --tptp bench/iltp-first-order/Problems --logics
+intuitionistic,classical --engines auto --timeout 2`, three shards on
+cores 10 to 12:
+
+| rows | at 74d | after the renaming |
+|---|--:|--:|
+| refused, equality | 3 356 | 3 460 |
+| refused, first_order | 1 580 | 1 732 |
+| proved | 103 | 104 |
+| unprovable | 34 | 34 |
+| unknown, timeout | 3 | 2 |
+| error, a keyword name | 156 | 0 |
+| error, a name in two roles | 104 | 0 |
+| error, a variable no quantifier binds | 4 | 8 |
+
+No verdict disagrees with a status. The 130 problems refused for their
+names read now (76 reach the first-order refusal, 52 the equality one,
+and two more show the library's own fault): the four left with errors,
+GEJ056+1, GEJ056+2, GEJ057+1 and GEJ057+2, use a variable outside its
+quantifier in their conjecture (`(! [L,M] : …) => (? [X] : … apt(X,L)
+…)`), a fault of the files. The last column is the run after the
+review's answers; one run between them had one problem more at the time
+limit, by day.
+
+### The measurements (D17)
+
+The ratchet at `ovstsxkv`: `read-tptp` 33 667 473 → 33 695 629 (+0.08 %;
+0.99 % over its ceiling, inside the tolerance), the atom's `?` turned
+into a `match` whose error arm is the renaming; `read-lltp` 28 412 648,
+unchanged. `read-json` read 12 283 897 where 74d's gate read 12 226 553:
+the base moved under the chain (fixup-12 on `main`), and no change of
+this session touches the JSON reader.
+
+### The reviewer's round
+
+`deduxit-review-fixup-13` (`fresh-reviewer`, Fable 5.2 at `medium`)
+found that the LLTP reader's reason for renaming nothing holds, the
+retries end, `$true` and `$false` stay, function symbols are renamed in
+term position alone, the include reader is a bounded stack honouring
+`$TPTP`, and `--tree never` changes nothing else. Its five findings,
+each answered in `sztmxwxm` with a test:
+
+1. **A keyword that is also a constant** (`par | q(par)`) stayed
+   refused: the second retry's key was the keyword's new name, which the
+   lookup by the file's word never found. A function's new name is now
+   looked up under the keyword's new name (`⊢ par_ ∨ q(par__f)`).
+2. **Freshness compared raw words with names in NFC**, and split words
+   at combining marks: `é` written decomposed could make a new name equal
+   to the file's other function. Words are cut by `XID_Continue` and
+   compared in NFC, and every lookup is by the NFC name.
+3. **`check --lambda --tree never` lost the lambda-term line**: the early
+   return came before it. The tree alone is left out now.
+4. **A problem named relative to the working directory** (`--file x.p`)
+   never searched the directories above its own: the path is made
+   absolute first.
+5. **A test's doc comment on the wrong test** (74c's insertion put
+   `ordinary_session`'s above the tests inserted before it): moved
+   back.
+
+### What was checked, and by what
+
+- The gate at `ovstsxkv`, at `mmktqzrk` (which covers `kwxpkskr`, whose
+  own run picked up item 3's edits half-way and failed on them) and at
+  `sztmxwxm`, capped on cores 10 to 12.
+- `nix build` of the checks `manual` and `manual-links` at `mmktqzrk`.
+- The ILTP pass before and after (above), and the deep derivation's
+  `check --tree never` timed before and after.
+- `nix flake check` at the last commit, after the rebase: in the
+  session's last message.
