@@ -345,7 +345,7 @@ pub fn interpolant(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolant, Error> {
-    derivation.formulas().propositional("an interpolant")?;
+    derivation.propositional("an interpolant")?;
     let logic = derivation.logic();
     if derivation.inferences().iter().any(|i| i.rule == Rule::Cut) {
         return Err(Error::NotCutFree);

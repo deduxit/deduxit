@@ -9,7 +9,7 @@
 use super::{Formulas, Node, NodeId};
 use crate::Error;
 use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
-use crate::hash::HashMap;
+use crate::hash::{HashMap, HashSet};
 
 impl Formulas {
     /// Returns `body` with the variable of the binder around it replaced
@@ -85,10 +85,10 @@ impl Formulas {
         if t.index() >= tables.terms.len() {
             return false;
         }
-        let mut seen = vec![false; tables.terms.len()];
+        let mut seen = HashSet::default();
         let mut stack = vec![t];
         while let Some(u) = stack.pop() {
-            if std::mem::replace(&mut seen[u.index()], true) {
+            if !seen.insert(u) {
                 continue;
             }
             match tables.terms[u.index()] {
@@ -105,12 +105,12 @@ impl Formulas {
     /// stacks of its own, each shared node and term once.
     pub(crate) fn mentions(&self, roots: impl Iterator<Item = NodeId>, term: FoTermId) -> bool {
         let tables = self.tables();
-        let mut nodes_seen = vec![false; self.nodes.len()];
-        let mut terms_seen = vec![false; tables.terms.len()];
+        let mut nodes_seen = HashSet::default();
+        let mut terms_seen = HashSet::default();
         let mut nodes: Vec<NodeId> = roots.collect();
         let mut terms: Vec<FoTermId> = Vec::new();
         while let Some(k) = nodes.pop() {
-            if std::mem::replace(&mut nodes_seen[k.index()], true) {
+            if !nodes_seen.insert(k) {
                 continue;
             }
             match self.nodes[k.index()] {
@@ -131,7 +131,7 @@ impl Formulas {
             if u == term {
                 return true;
             }
-            if std::mem::replace(&mut terms_seen[u.index()], true) {
+            if !terms_seen.insert(u) {
                 continue;
             }
             if let FoTerm::App(_, args) = tables.terms[u.index()] {
@@ -166,21 +166,21 @@ impl Formulas {
     }
 
     /// Returns the largest number of an eigenvariable that occurs in one
-    /// of the formulas `roots` or in the term `term`, or `None` where none
-    /// does. It walks on stacks of its own, each shared node and term once.
+    /// of the formulas `roots` or in one of the terms `term`, or `None`
+    /// where none does. It walks on stacks of its own, each shared node and term once.
     #[cfg(feature = "interactive")]
     pub(crate) fn largest_eigenvariable(
         &self,
         roots: impl Iterator<Item = NodeId>,
-        term: Option<FoTermId>,
+        term: impl Iterator<Item = FoTermId>,
     ) -> Option<u32> {
         let tables = self.tables();
-        let mut nodes_seen = vec![false; self.nodes.len()];
-        let mut terms_seen = vec![false; tables.terms.len()];
+        let mut nodes_seen = HashSet::default();
+        let mut terms_seen = HashSet::default();
         let mut nodes: Vec<NodeId> = roots.collect();
-        let mut terms: Vec<FoTermId> = term.into_iter().collect();
+        let mut terms: Vec<FoTermId> = term.collect();
         while let Some(k) = nodes.pop() {
-            if std::mem::replace(&mut nodes_seen[k.index()], true) {
+            if !nodes_seen.insert(k) {
                 continue;
             }
             match self.nodes[k.index()] {
@@ -199,7 +199,7 @@ impl Formulas {
         }
         let mut largest = None;
         while let Some(u) = terms.pop() {
-            if std::mem::replace(&mut terms_seen[u.index()], true) {
+            if !terms_seen.insert(u) {
                 continue;
             }
             match tables.terms[u.index()] {
@@ -215,10 +215,10 @@ impl Formulas {
     /// stack of its own, each shared term once.
     pub(super) fn is_closed(&self, t: FoTermId) -> bool {
         let tables = self.tables();
-        let mut seen = vec![false; tables.terms.len()];
+        let mut seen = HashSet::default();
         let mut stack = vec![t];
         while let Some(u) = stack.pop() {
-            if std::mem::replace(&mut seen[u.index()], true) {
+            if !seen.insert(u) {
                 continue;
             }
             match tables.terms[u.index()] {

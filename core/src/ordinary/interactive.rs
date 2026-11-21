@@ -900,6 +900,11 @@ impl Interactive {
                 .map_err(|error| StepError::Witness {
                     reason: error.to_string(),
                 })?;
+        // An instance may hold an equivalence the arena did not have, whose
+        // implications `shape` looks up.
+        Extra::add(&mut self.formulas).map_err(|error| StepError::Witness {
+            reason: error.to_string(),
+        })?;
         let goal = self.open(id)?;
         let same = if keep {
             vec![instance, x]
@@ -925,19 +930,14 @@ impl Interactive {
     /// formulas and terms hold, so that taking back a step and taking it
     /// again names the same one.
     fn fresh_eigenvariable(&mut self) -> Result<FoTermId, StepError> {
-        let formulas = &self.formulas;
-        let next = self
+        let roots = self
             .inferences
             .iter()
-            .filter_map(|i| {
-                let roots = i.left.iter().chain(&i.right).copied();
-                let in_formulas = formulas.largest_eigenvariable(roots, None);
-                let in_term = i
-                    .term
-                    .and_then(|t| formulas.largest_eigenvariable(std::iter::empty(), Some(t)));
-                in_formulas.max(in_term)
-            })
-            .max()
+            .flat_map(|i| i.left.iter().chain(&i.right));
+        let terms = self.inferences.iter().filter_map(|i| i.term);
+        let next = self
+            .formulas
+            .largest_eigenvariable(roots.copied(), terms)
             .map_or(Some(0), |k| k.checked_add(1))
             .ok_or_else(|| StepError::Witness {
                 reason: "the proof holds an eigenvariable of the last number, so none is fresh"
@@ -965,8 +965,12 @@ impl Interactive {
             return Err(fault("it holds a variable"));
         }
         let scope = self.scope(InfId::new(id.get()));
+        let mut seen = crate::hash::HashSet::default();
         let mut stack = vec![t];
         while let Some(u) = stack.pop() {
+            if !seen.insert(u) {
+                continue;
+            }
             match terms[u.index()] {
                 FoTerm::App(_, args) => {
                     stack.extend_from_slice(self.formulas.first_order().list(args))
@@ -1684,30 +1688,42 @@ impl Interactive {
                 for (i, id) in order.iter().enumerate() {
                     new_id[id.index()] = InfId::new(i as u32);
                 }
+                // At first order the formulas decide too: a weakening that
+                // brings an eigenvariable into its rule's conclusion stays.
+                let first_order = self.formulas.is_first_order();
                 let shape: Vec<Inference> = order
                     .iter()
                     .map(|id| {
                         let inference = &self.inferences[id.index()];
-                        Inference {
-                            term: None,
-                            left: Vec::new(),
-                            right: Vec::new(),
-                            rule: inference.rule,
-                            principal: None,
-                            premises: inference
-                                .premises
-                                .iter()
-                                .map(|p| new_id[p.index()])
-                                .collect(),
+                        let premises = inference
+                            .premises
+                            .iter()
+                            .map(|p| new_id[p.index()])
+                            .collect();
+                        if first_order {
+                            Inference {
+                                premises,
+                                ..inference.clone()
+                            }
+                        } else {
+                            Inference {
+                                term: None,
+                                left: Vec::new(),
+                                right: Vec::new(),
+                                rule: inference.rule,
+                                principal: None,
+                                premises,
+                            }
                         }
                     })
                     .collect();
-                let skeleton = Derivation::from_parts(
-                    self.logic,
-                    Formulas::default(),
-                    (Vec::new(), Vec::new()),
-                    shape,
-                );
+                let formulas = if first_order {
+                    self.formulas.clone()
+                } else {
+                    Formulas::default()
+                };
+                let skeleton =
+                    Derivation::from_parts(self.logic, formulas, (Vec::new(), Vec::new()), shape);
                 let (_, origin) = skeleton.admissible();
                 origin.into_iter().map(|i| goal(order[i.index()])).collect()
             }
@@ -2939,5 +2955,73 @@ mod tests {
         let (mut s, _) = start("forall x. p(x) |- exists y. p(y)", Logic::Classical);
         s.invert_all(&Limits::default());
         assert_eq!(s.steps(), 0);
+    }
+
+    /// An instance holding an equivalence the arena lacked gets its
+    /// implications, so the rules on it are offered and taken.
+    #[test]
+    fn an_instance_s_equivalence_has_its_implications() {
+        let (mut s, g) = start("forall x. (p(x) <-> q(x)), p(c) |- q(c)", Logic::Classical);
+        let [g] = quantifier(
+            &mut s,
+            g,
+            (Left, "∀x. (p(x) ↔ q(x))"),
+            Rule::ForallLeft,
+            Some("c"),
+        )
+        .unwrap()[..] else {
+            panic!()
+        };
+        let at = at(&s, g, Left, "p(c) ↔ q(c)");
+        assert!(
+            s.rules(g, Left, at)
+                .unwrap()
+                .iter()
+                .any(|r| r.rule == Rule::IffLeft)
+        );
+        let (mut s, _) = start("|- forall x. (p(x) <-> p(x))", Logic::Intuitionistic);
+        s.invert_all(&Limits::default());
+        assert!(s.is_complete());
+    }
+
+    /// A session document is held to what a step makes: closed formulas,
+    /// no open witness; and the drawn inferences' goals follow the
+    /// admissible view, which keeps a weakening that brings an
+    /// eigenvariable into its rule's conclusion.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_first_order_session_document_is_held_to_its_steps() {
+        let session = |fo: &str| {
+            format!(
+                r#"{{"version":25,"logic":"classical","sequent":{{"formulas":[{{"V":0}}],"atoms":[{{"P":[0,[0]]}}],"symbols":[["p",1]],"fo":[{fo}],"left":[0],"right":[0]}},"inferences":[{{"left":[0],"right":[0]}}],"history":[]}}"#
+            )
+        };
+        assert!(serde_json::from_str::<Interactive>(&session(r#"{"B":0}"#)).is_err());
+        assert!(serde_json::from_str::<Interactive>(&session(r#"{"M":0}"#)).is_err());
+        let view = r#"{"version":25,"logic":"classical","sequent":{"formulas":[{"V":0},{"∀":0},{"V":1},{"V":2}],"atoms":[{"P":[0,[0]]},{"P":[1,[1]]},{"P":[0,[1]]}],"symbols":[["p",1],["q",1]],"fo":[{"B":0},{"E":0}],"binders":["x"],"left":[2,1],"right":[1]},"inferences":[{"left":[2,1],"right":[1],"rule":"WL","principal":["left",0],"premises":[1]},{"left":[1],"right":[1],"rule":"∀R","principal":["right",0],"premises":[2],"term":1},{"left":[1],"right":[3],"rule":"∀L","principal":["left",0],"premises":[3],"term":1},{"left":[3,1],"right":[3],"rule":"WL","principal":["left",1],"premises":[4]},{"left":[3],"right":[3],"rule":"ax"}],"history":[0,1,2,3]}"#;
+        let state: Interactive = serde_json::from_str(view).unwrap();
+        let shown = state
+            .derivation_within(&ViewOptions::default(), &Limits::default(), |_| false)
+            .unwrap();
+        assert_eq!(
+            state.derivation_ids(Structural::Admissible).len(),
+            shown.inferences().len()
+        );
+        // An eigenvariable where no atom is reads back with its term.
+        let (mut s, g) = start("|- forall x. true", Logic::Classical);
+        let [g] = quantifier(&mut s, g, (Right, "∀x. ⊤"), Rule::ForallRight, None).unwrap()[..]
+        else {
+            panic!()
+        };
+        step(&mut s, g, (Right, "⊤"), Rule::TrueRight, None);
+        let json = serde_json::to_string(&s).unwrap();
+        assert_eq!(
+            serde_json::to_string(&serde_json::from_str::<Interactive>(&json).unwrap()).unwrap(),
+            json
+        );
+        let derivation = s.finished(&Limits::default(), |_| false).unwrap();
+        let read: Derivation =
+            serde_json::from_str(&serde_json::to_string(&derivation).unwrap()).unwrap();
+        read.check(&Limits::default(), |_| false).unwrap();
     }
 }

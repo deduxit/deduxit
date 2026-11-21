@@ -26,8 +26,8 @@ pub(super) enum FoExpression {
     /// proof adds to the arena, never in a sequent's.
     #[serde(rename = "E")]
     Eigen(u32),
-    /// An open witness of a proof in progress, by its number. It stands
-    /// only in the terms of an ordinary goal state.
+    /// An open witness of a proof in progress, by its number. No document
+    /// that is read holds one.
     #[serde(rename = "M")]
     Meta(u32),
 }
@@ -38,10 +38,8 @@ pub(super) enum FoExpression {
 pub(super) enum Extension {
     /// A sequent's: none.
     Sequent,
-    /// An ordinary derivation's: eigenvariables.
+    /// An ordinary derivation's or goal state's: eigenvariables.
     Derivation,
-    /// An ordinary goal state's: eigenvariables and open witnesses.
-    Session,
 }
 
 /// The serialized form of an atom. A propositional sequent writes its
@@ -217,7 +215,8 @@ impl Tables {
     /// called `names`: the atoms by name where none is a predicate, else
     /// every atom as a predicate. Any suite's arena has such tables.
     pub(super) fn of_tables<K>(fo: &Generic<K>, names: &[String]) -> Self {
-        if fo.atoms.is_empty() {
+        // A derivation's eigenvariables are terms where no atom is.
+        if fo.atoms.is_empty() && fo.terms.is_empty() {
             return Self {
                 symbols: vec![],
                 fo: vec![],
@@ -309,7 +308,6 @@ impl Tables {
                 FoExpression::Eigen(a) if extension != Extension::Sequent => {
                     FoTerm::Eigen(crate::first_order::Eigen::new(a))
                 }
-                FoExpression::Meta(k) if extension == Extension::Session => FoTerm::Meta(k),
                 FoExpression::Eigen(_) => {
                     return Err(crate::Error::Json {
                         form: "sequent",
@@ -349,12 +347,19 @@ impl Tables {
         // their unfolded size is within the limit.
         tables.check(tables.atoms.len())?;
         let unfolded = tables.unfolded();
-        let terms = tables.atoms.iter().fold(0u64, |sum, &(_, args)| {
-            tables
-                .list(args)
-                .iter()
-                .fold(sum, |sum, t| sum.saturating_add(unfolded[t.index()]))
-        });
+        // A term no atom names may still be a derivation's witness, whose
+        // instance's key is written out: the largest term counts too.
+        let largest = unfolded.iter().copied().max().unwrap_or(0);
+        let terms = tables
+            .atoms
+            .iter()
+            .fold(0u64, |sum, &(_, args)| {
+                tables
+                    .list(args)
+                    .iter()
+                    .fold(sum, |sum, t| sum.saturating_add(unfolded[t.index()]))
+            })
+            .max(largest);
         if let Some(limit) = limits.terms
             && terms > limit
         {

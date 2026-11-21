@@ -265,9 +265,7 @@ impl Tableau {
         derivation: &Derivation,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Self, Error> {
-        derivation
-            .formulas()
-            .propositional(super::Method::Tableau.title())?;
+        derivation.propositional(super::Method::Tableau.title())?;
         if derivation.logic() != Logic::Classical {
             return Err(Error::Logic {
                 logic: derivation.logic(),

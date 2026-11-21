@@ -390,9 +390,7 @@ pub(crate) fn write(
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
-    derivation
-        .formulas()
-        .propositional("a certificate over Prop")?;
+    derivation.propositional("a certificate over Prop")?;
     // A proof in progress, or a derivation read from a document, may break
     // the rules of its logic, and the terms are sound only for one that
     // keeps them.

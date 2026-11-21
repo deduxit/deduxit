@@ -291,8 +291,16 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     that does not hold it). `Derivation::check` refuses a witness holding
     an open witness (`Meta`), which `check_inference` takes for a goal
     state's steps; the derivation's reader takes `{"E": n}` and refuses
-    `{"M": k}`, which only the goal state's reader takes
-    (`serialize::sequents::Extension`).
+    `{"M": k}`, as the goal state's reader does, since no step makes an
+    open witness (`serialize::sequents::Extension`). `Tables::read`
+    counts the largest term against `limits.terms` beside the atoms'
+    arguments: a witness no atom names is written out in full as its
+    instance's key, and a shared term of a few hundred bytes unfolded
+    past any memory in the checker (the panel's finding). A method that
+    reads a derivation's rules asks `Derivation::propositional` (the arena
+    and no quantifier rule), not the arena's door alone: a propositional
+    document may name `∀L`, and `Tableau::of` and `from_ordinary` reached
+    their `unreachable!` arms on rule names.
   - **Eigenvariables are named by number** (`Formulas::eigen_names`): `a`,
     `b`, … `z`, `a_1`, … skipping the symbols, the linear proofs' scheme;
     the printer counts them as taken when it renames a binder, and an
@@ -1047,7 +1055,13 @@ factored out of the two until the kernel crate is.
   reads a term of the sequent's function symbols and the scope's
   eigenvariables by their printed names. `∀R` and `∃L` are invertible,
   `∀L` and `∃R` not (a choice); the invertible run recomputes its
-  widths when a step grew the arena. An open witness (`$1`, filled by a
+  widths when a step grew the arena. A quantifier step runs `Extra::add`
+  after `instantiate`: an instance may hold an equivalence the arena
+  lacked, whose implications `shape` looks up (`rules` on one panicked).
+  The session reader runs the `closed` pass and takes no `{"M": k}`, as
+  the derivation reader does; `derivation_ids(Admissible)` maps a
+  first-order state with its formulas and terms, since the admissible
+  view reads them there. An open witness (`$1`, filled by a
   later axiom's unification) is not built: with no constant in the
   sequent, `∀x. p(x) ⊢ ∃x. p(x)` has no witness to type.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears

@@ -974,13 +974,24 @@ impl Readable for Interactive {
 /// Returns the proof in progress a form holds, within the limits.
 #[cfg(feature = "interactive")]
 fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
-    let (read, left, right) = form.sequent.within(limits, Extension::Session)?;
+    // No step makes an open witness, so a session's terms are a
+    // derivation's.
+    let (read, left, right) = form.sequent.within(limits, Extension::Derivation)?;
     let len = form.inferences.len();
     let inferences = form
         .inferences
         .into_iter()
         .map(|i| i.read(&read, len))
         .collect::<Result<Vec<_>, _>>()?;
+    // Every formula of every inference is closed, as a sequent's are.
+    if read.formulas.is_first_order() {
+        crate::ordinary::closed(
+            &read.formulas,
+            inferences
+                .iter()
+                .flat_map(|i| i.left.iter().chain(&i.right)),
+        )?;
+    }
     if inferences
         .first()
         .is_some_and(|root| root.left != left || root.right != right)

@@ -570,7 +570,7 @@ impl Derivation {
     ) -> Result<crate::lambda::Term, Error> {
         // A derivation of LK or with an open goal has no term whether it
         // checks or not: the read-back refuses it before it reads anything.
-        self.formulas.propositional("a lambda-term")?;
+        self.propositional("a lambda-term")?;
         let refused =
             self.logic == Logic::Classical || self.inferences.iter().any(|i| i.rule == Rule::Open);
         if !self.trusted.get() && !refused {
@@ -621,6 +621,23 @@ impl Derivation {
     pub(crate) fn untrusted(self) -> Self {
         self.trusted.0.store(false, Ordering::Relaxed);
         self
+    }
+
+    /// Fails with [`Error::FirstOrder`] naming `method` where the
+    /// derivation is first-order: its arena is, or an inference names a
+    /// quantifier rule, as a document may over a propositional arena.
+    pub(crate) fn propositional(&self, method: &'static str) -> Result<(), Error> {
+        self.formulas.propositional(method)?;
+        let quantified = self.inferences.iter().any(|i| {
+            matches!(
+                i.rule,
+                Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight
+            )
+        });
+        if quantified {
+            return Err(Error::FirstOrder { method });
+        }
+        Ok(())
     }
 
     /// Returns the sequent the derivation concludes, its two sides.
@@ -2303,5 +2320,41 @@ mod tests {
         derivation.check(&Limits::default(), |_| false).unwrap();
         let shown = derivation.shown(Structural::Admissible);
         assert_eq!(shown.inferences().len(), derivation.inferences().len());
+    }
+
+    /// A derivation document whose witness unfolds past `limits.terms`
+    /// is refused before any key is written, and a propositional one that
+    /// names a quantifier rule is refused by the methods that read rules.
+    #[cfg(all(feature = "serialize", feature = "interactive"))]
+    #[test]
+    fn documents_with_quantifier_rules_stay_within_their_bounds() {
+        // `t(n+1) = f(t(n), t(n))`, sixty times: a few hundred bytes for a
+        // term of 2⁶⁰ symbols.
+        let mut fo = vec![r#"{"F":[1,[]]}"#.to_owned()];
+        for n in 0..60 {
+            fo.push(format!(r#"{{"F":[2,[{n},{n}]]}}"#));
+        }
+        let json = format!(
+            r#"{{"version":25,"logic":"classical","sequent":{{"formulas":[{{"V":0}},{{"∀":0}}],"atoms":[{{"P":[0,[61]]}}],"symbols":[["p",1],["c",0],["f",2]],"fo":[{},{{"B":0}}],"binders":["x"],"left":[1],"right":[0]}},"inferences":[{{"left":[1],"right":[0],"rule":"∀L","principal":["left",0],"term":60}}]}}"#,
+            fo.join(",")
+        );
+        let read = crate::wire::upgrade::<Derivation, _>(
+            &mut serde_json::Deserializer::from_str(&json),
+            &Limits::default(),
+        );
+        assert!(
+            matches!(read, Err(Error::Refused(Refusal::Terms { .. }))),
+            "{read:?}"
+        );
+        let quantified = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0}],"atoms":["p"],"left":[0],"right":[0]},"inferences":[{"left":[0],"right":[0],"rule":"∀L","principal":["left",0]}]}"#;
+        let derivation: Derivation = serde_json::from_str(quantified).unwrap();
+        assert!(matches!(
+            crate::ordinary::Tableau::of(&derivation, |_| false),
+            Err(Error::FirstOrder { .. })
+        ));
+        assert!(matches!(
+            crate::rules::Derivation::from_ordinary(&derivation),
+            Err(Error::FirstOrder { .. })
+        ));
     }
 }

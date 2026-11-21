@@ -1190,8 +1190,17 @@ impl Formulas {
             .map(|(s, _)| s.as_str())
             .chain(eigens.iter().map(|(_, name)| name.as_str()))
             .collect();
-        // The names of the open binders, the innermost last.
+        // The names of the open binders, the innermost last, and how many
+        // open binders have each, so that a clash costs one lookup.
         let mut scope: Vec<String> = Vec::new();
+        let mut open_names: HashMap<String, u32> = HashMap::default();
+        // Per recorded name, the suffix to try first (0 the name itself):
+        // every smaller one is taken. A binder's exit lowers it again, so
+        // the name written is the first free one, found in constant time
+        // where binders of one name nest deep.
+        let mut next: HashMap<&str, u32> = HashMap::default();
+        // Per open binder, its recorded name and the suffix written.
+        let mut suffixes: Vec<(&str, u32)> = Vec::new();
         // Per compound formula entered, whether a bracket was opened.
         let mut opened: Vec<bool> = Vec::new();
         // Whether the next formula entered is a binder's body.
@@ -1227,17 +1236,26 @@ impl Formulas {
                             })?;
                             let recorded = tables.binder_name(k).unwrap_or("x");
                             let clashes = |candidate: &str| {
-                                taken.contains(candidate)
-                                    || scope.iter().any(|open| open == candidate)
+                                taken.contains(candidate) || open_names.contains_key(candidate)
                             };
-                            let mut written = recorded.to_owned();
-                            let mut n = 0u32;
+                            let candidate = |n: u32| {
+                                if n == 0 {
+                                    recorded.to_owned()
+                                } else {
+                                    format!("{recorded}_{n}")
+                                }
+                            };
+                            let mut n = next.get(recorded).copied().unwrap_or(0);
+                            let mut written = candidate(n);
                             while clashes(&written) {
                                 n += 1;
-                                written = format!("{recorded}_{n}");
+                                written = candidate(n);
                             }
+                            next.insert(recorded, n + 1);
+                            suffixes.push((recorded, n));
                             name(out, &written)?;
                             out.write_str(symbols.dot)?;
+                            *open_names.entry(written.clone()).or_insert(0) += 1;
                             scope.push(written);
                             body = true;
                         }
@@ -1245,8 +1263,17 @@ impl Formulas {
                 }
                 Stop::Between(k) => self.between(out, k, symbols)?,
                 Stop::Exit(k, _) => {
-                    if matches!(self.node(k), Node::Forall(_) | Node::Exists(_)) {
-                        scope.pop();
+                    if matches!(self.node(k), Node::Forall(_) | Node::Exists(_))
+                        && let Some(name) = scope.pop()
+                        && let Some((recorded, n)) = suffixes.pop()
+                        && let Some(count) = open_names.get_mut(&name)
+                    {
+                        let first = next.entry(recorded).or_insert(n);
+                        *first = (*first).min(n);
+                        *count -= 1;
+                        if *count == 0 {
+                            open_names.remove(&name);
+                        }
                     }
                     if opened.pop() == Some(true) {
                         out.write_char(')')?;
