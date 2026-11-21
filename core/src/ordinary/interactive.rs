@@ -2913,7 +2913,12 @@ impl Interactive {
         // Open witnesses make a session whose inferences are read as their
         // steps made them, each checked under the bindings in force then.
         if formulas.is_first_order()
-            && formulas.holds_open_witness(root.left.iter().chain(&root.right).copied())
+            && !formulas
+                .metas_in(
+                    root.left.iter().chain(&root.right).copied(),
+                    std::iter::empty(),
+                )
+                .is_empty()
         {
             return Err(inconsistent("the sequent holds an open witness"));
         }
@@ -2922,12 +2927,15 @@ impl Interactive {
                 .iter()
                 .any(|i| i.term.is_some_and(|t| formulas.holds_meta(t)))
             || formulas.is_first_order()
-                && formulas.holds_open_witness(
-                    inferences
-                        .iter()
-                        .flat_map(|i| i.left.iter().chain(&i.right))
-                        .copied(),
-                );
+                && !formulas
+                    .metas_in(
+                        inferences
+                            .iter()
+                            .flat_map(|i| i.left.iter().chain(&i.right))
+                            .copied(),
+                        std::iter::empty(),
+                    )
+                    .is_empty();
         let falsity = Extra::add(&mut formulas)?.falsity;
         let len = inferences.len();
         let mut parents = vec![0u8; len];
@@ -3088,13 +3096,14 @@ impl Replay<'_> {
         for (at, closed) in by_step.iter().enumerate() {
             let Some(s) = at.checked_sub(1) else {
                 if formulas
-                    .largest_meta(
+                    .metas_in(
                         closed.iter().flat_map(|&i| {
                             let inference = &inferences[i];
                             inference.left.iter().chain(&inference.right).copied()
                         }),
                         closed.iter().filter_map(|&i| inferences[i].term),
                     )
+                    .last()
                     .is_some()
                 {
                     return Err(bad("an inference no step closed holds an open witness"));
@@ -3132,8 +3141,9 @@ impl Replay<'_> {
             let roots = sequents.flat_map(|i| i.left.iter().chain(&i.right).copied());
             let terms = closed.iter().filter_map(|&i| inferences[i].term);
             if formulas
-                .largest_meta(roots, terms)
-                .is_some_and(|k| k >= made)
+                .metas_in(roots, terms)
+                .last()
+                .is_some_and(|&k| k >= made)
             {
                 return Err(bad(
                     "an inference holds an open witness no step left open before",

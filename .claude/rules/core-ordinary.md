@@ -1176,7 +1176,7 @@ factored out of the two until the kernel crate is.
     next `Meta` (any other term holding one is refused) is made at the
     level the tree gives (`Tree::level`, one pass down the tree); no
     inference of the step, nor its premises' sequents, holds a witness
-    not made yet (`largest_meta`; a premise's term is its own step's);
+    not made yet (`metas_in`; a premise's term is its own step's);
     an axiom step (its goal's weakenings, each closed by this step, end
     in an `A ⊢ A` made unequal) binds by `unify_axiom` on those two
     formulas resolved under the bindings before the step, which are the
