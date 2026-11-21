@@ -162,7 +162,12 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   statement without atoms or hypotheses binds nothing (`exact (I)`, no
   `fun =>`, H29). A
   negation is bracketed like a binary formula, since it is an
-  application. Minimal logic's `⊥` is Rocq's `False`, so a certificate
+  application. LK's one-premise `¬L`, which the checker takes in LJ
+  too, is `h (premise)` in LJ (the premise a term of `A`) and a
+  continuation `k : ~ A` in LK; until a test read such a derivation from
+  JSON the LJ arm wrote LK's term, which Rocq refused
+  (`ordinary_certificate_of_the_unary_negation_rules`, whose snapshots
+  `ordinary_negation_*.v` the `rocq` check compiles). Minimal logic's `⊥` is Rocq's `False`, so a certificate
   of minimal logic proves the intuitionistic statement only (minimality
   rests on the checker).
 - **Deciding** is `decide(&sequent, &ordinary::Options)` within the

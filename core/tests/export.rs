@@ -439,6 +439,38 @@ fn ordinary_certificate_without_binders() {
     }
 }
 
+/// LK's forms of `¬L` and `¬R`, one premise each, which the checker takes
+/// in LJ too (`Γ, ¬A ⊢` from `Γ ⊢ A`), have a certificate in both logics.
+/// No search makes them, so the derivation of `a ⊢ ¬¬a` is read from a
+/// file; the flake's Rocq check compiles the snapshots.
+#[test]
+fn ordinary_certificate_of_the_unary_negation_rules() {
+    use deduxit::ordinary::{Derivation, Logic};
+    for (name, logic) in [("lk", Logic::Classical), ("lj", Logic::Intuitionistic)] {
+        let derivation: Derivation = deduxit::wire::upgrade(
+            serde_json::json!({
+                "version": 8, "logic": logic.to_string(),
+                "sequent": {"formulas": [{"V": 0}, {"¬": 0}, {"¬": 1}, "⊥"],
+                    "atoms": ["a"], "left": [0], "right": [2]},
+                "inferences": [
+                    {"left": [0], "right": [0], "rule": "ax"},
+                    {"left": [0, 1], "right": [], "rule": "¬L",
+                        "principal": ["left", 1], "premises": [0]},
+                    {"left": [0], "right": [2], "rule": "¬R",
+                        "principal": ["right", 0], "premises": [1]}
+                ]
+            }),
+            &Limits::default(),
+        )
+        .unwrap();
+        derivation.check(&Limits::default(), |_| false).unwrap();
+        let options = rocq::Options::default().with_form(Form::Standalone);
+        let mut out = String::new();
+        rocq::write(&derivation, &options, &mut out, |_| false).unwrap();
+        snapshot(&format!("ordinary_negation_{name}.v"), out.trim_end());
+    }
+}
+
 /// A compact derivation draws a run of weakenings as one inference with a
 /// starred label in every drawn target.
 #[test]

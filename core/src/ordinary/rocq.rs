@@ -315,6 +315,13 @@ impl Certificate<'_> {
                 }
                 tasks.push(text(if classical { "))" } else { ")" }.to_owned()));
             }
+            // LK's `¬L` in LJ: `Γ, ¬A ⊢` from `Γ ⊢ A`, so the premise is
+            // a term of `A` and `¬A` applied to it a term of `False`.
+            NotLeft if premises.len() == 1 && !classical => {
+                tasks.push(text(format!("({} (", self.of(p, Left))));
+                tasks.extend(premise(0, vec![]));
+                tasks.push(text("))".to_owned()));
+            }
             NotLeft if premises.len() == 1 => {
                 let k = self.name('k');
                 tasks.push(text(format!(

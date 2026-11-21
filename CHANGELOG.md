@@ -63,6 +63,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   nullary atoms only, joined with a first-order sequent, gave its atoms
   the other sequent's names: `⊢ ∀x. (a ⅋ ~b)` with `⊢ p(c), q` added
   printed `⊢ ∀x. (p(c) ⅋ ~q), p(c), q`.
+- The Rocq certificate of an LJ derivation read from JSON that uses
+  LK's one-premise `¬L` (`Γ, ¬A ⊢` from `Γ ⊢ A`, which the checker
+  takes) was a term Rocq refused. No search makes that form.
 
 ### Wire forms
 
