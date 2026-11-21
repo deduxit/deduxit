@@ -7782,3 +7782,12 @@ move (D26).
   The module's ceiling raised to 3 950 000 bytes (3 903 905 now). 74c (ILTP's first-order package,
   the quantifier rules and the checker, the sessions) waits for the author's "go" after the 22:45
   stop.
+- 2026-11-21, about 01:50: **Resumed after the 22:45 stop; 74c started.** The machine was freed by
+  22:45 (74b finished before, fixup-10 stopped with its uncommitted cache code and a checklist).
+  At the author's resume: signing tested (it had lapsed with the warm loop at about 22:25 and was
+  unlocked again), `keys-warm` restarted, the fallback review cron recreated, fixup-10 resumed
+  from its checklist (cores 7-9), and 74c started in 74b's worker after a clear (Opus, high, cores
+  10-12; the quantifier rules and their checker, the sessions with the lifted unifier, the command,
+  ILTP's first-order package if reached; the panel and the reviewer). Also fixed:
+  `plan/push-ci.sh` reads the run's conclusion (a dropped connection had made `gh run watch` exit
+  0 with 74b's check still running, so 74b reached `main` before its check, which then passed).
