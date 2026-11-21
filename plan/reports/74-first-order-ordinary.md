@@ -722,3 +722,153 @@ document, and a reader refuses a higher one), so it is left as it is.
 - **Follow-ups found, not fixed:** the command computes a derivation's
   text tree size even under `--tree never` (`check` of a 5 000-deep
   formula spends most of its time there, propositional or not).
+
+## Session 74d: the exports, the docs and ILTP's problems
+
+Opus 5.5 at `high`, the same conversation as 74c, in the workspace
+`../deduxit-wt-step-58b-8c0bbc`, cores 10 to 12, on 74c's `ttvlrvqv`.
+Nothing was pushed.
+
+### Outcome
+
+All four items landed.
+
+| change | subject |
+|---|---|
+| `ntvpoqru` | Pin the exports of a first-order derivation of LJ |
+| `lwzspuss` | Take a witness in the bindings' ordinary step, and run the protocol at first order |
+| `pkoxyyvk` | Read TPTP problems without a conjecture, and lemmas and theorems as hypotheses |
+| `wnquroov` | Fetch ILTP's first-order problems and read them in the harness |
+| `ryyruyqq` | Describe first-order ordinary logic in the manual, the wire schema and the guide |
+
+- **Item 1, the exports**: `first_order_ordinary_derivation` in
+  `core/tests/export.rs` builds `∃x. ∀y. r(x, y) ⊢ ∀y. ∃x. r(x, y)` in LJ
+  through the public goal state (`∀R`, `∃L`, `∀L a`, `∃R b`, the axiom)
+  and pins it in LaTeX, Typst and SVG (`ordinary-first-order.{tex,typ,
+  svg}`): the binders (`\forall y.\,`, `∀y.`), the eigenvariables `a`
+  and `b` by `Formulas::eigen_names`, the labels `∀L` … `∃R`. The export
+  check compiles every snapshot by its glob, so it covers them with no
+  change of `modules/export.nix`. No code of the exporters changed: 74b's
+  printer and 74c's names were enough.
+- **Item 2, the protocol and the bindings**: the protocol's `reads`
+  named `limits.terms` everywhere already, and its operations take
+  first-order values as they stand (design section 9: no new kind or
+  operation). `a_first_order_statement_is_proved_step_by_step_and_rendered`
+  pins that `ordinary.decide` and `ordinary.certificate` answer
+  `first_order`, `ordinary.start` writes a level-25 session, and a
+  finished session's `ordinary.derivation` is read, exported in LaTeX and
+  drawn. The bindings' ordinary step (`web/src/ordinary.rs`, `StepForm`)
+  takes `"witness": "TEXT"` (read by `Interactive::witness`), and
+  `ordinary_rules` writes `"witness": true` only where a rule takes one,
+  so propositional answers are as before
+  (`a_first_order_step_takes_a_witness`).
+- **Item 3, the docs**: the manual's ordinary chapter has a section
+  "First-order sequents" (the syntax, the refusal, a session with `∃L`,
+  `∃R a`, `∀L a` and `check` of its derivation, the typed witness and the
+  open one to come, G3's and G1's forms); `status.md` moves first-order
+  ordinary logic from planned to built, with what is still planned;
+  `docs/src/wire.schema.json` has the level-25 keys of the ordinary
+  sequent (`symbols`, `fo`, `binders`, predicate atoms), `∀` and `∃` among
+  the formulas, the quantifier rules, an inference's `term` and `{"E": n}`
+  in an ordinary derivation's terms, and the `wire-schema` check writes a
+  first-order session and derivation to validate them
+  (`modules/_schema/documents.sh`). The guide for AI models
+  (`skills/deduxit/reference.md`) has "First-order sequents in LK or LJ"
+  with a session that runs, the quantifier rules' spellings, and the
+  bindings' `witness`; the summary did not change (it names no ordinary
+  session's rules).
+- **Item 4, ILTP's first-order problems**: the flake's package
+  `iltp-first-order` (`modules/bench.nix`, v1.1.2, no licence stated, as
+  `iltp`), `bench/iltp-first-order` ignored by jj. The harness reads them
+  with `--tptp`: `load_ordinary` inlines `include('Axioms/…')` from the
+  nearest directory above the problem that has the file, and reads a
+  Latin-1 byte (some SYJ headers) as U+FFFD; a method's first-order
+  refusal is a `refused` row `first_order`, the reader's refusal of `=` a
+  `refused` row `equality`. The reader takes a problem without a
+  conjecture as the hypotheses' refutation (TPTP's meaning; 182 problems)
+  and the roles `lemma` and `theorem` as hypotheses (11 problems).
+
+### The verdict pass
+
+`deduxit-bench run --tptp bench/iltp-first-order/Problems --logics
+intuitionistic,classical --engines auto --timeout 2`, three shards on
+cores 10 to 12, after the reader's fixes: 2 670 problems, 5 340 rows.
+
+| rows | verdict, reason |
+|--:|---|
+| 3 356 | refused, equality |
+| 1 580 | refused, first_order |
+| 103 | proved (ground problems, decided as propositional ones) |
+| 34 | unprovable |
+| 3 | unknown, timeout |
+| 156 | error: a symbol named `par`, a keyword of the linear syntax (78 problems) |
+| 104 | error: a name used as a predicate and as a function symbol (52 problems) |
+| 4 | error: a variable no quantifier binds (GEJ056+1, GEJ056+2: a fault of the files, whose conjecture writes `(! [A,B] : …) => (? [X] : … apt(A,X) …)`) |
+
+No verdict disagrees with a status. The 130 problems of the first two
+error kinds are refusals the design made on purpose (one role per name,
+the keywords of every suite refused as names, so that a formula reads
+back and a translation keeps its names): accepting them needs a
+renaming of names in the TPTP reader, which changes the library's
+behaviour, so it is a question for the author, with the recommendation
+to rename on reading (`par` as `par_`, a function symbol beside a
+predicate of its name as `name_f`), the names TPTP allows being no names
+of this syntax. Before the fixes the pass also had 182 problems without
+a conjecture, 11 with `lemma` clauses and 98 Latin-1 files as errors.
+
+### The measurements (D17)
+
+The ratchet at `ryyruyqq`, against 74c's last:
+- `read-lltp` 28 308 772 → 28 412 656 (+0.37 %; 0.47 % over its ceiling,
+  inside the 2 % tolerance): the clause splitter's two roles more and
+  its optional conjecture, which LLTP's reader shares.
+- `read-tptp` 33 661 297 → 33 667 470 (+0.02 %).
+- Every other journey as it was; the exports and the bindings touch no
+  journey's code.
+
+### The reviewer's round
+
+`deduxit-review-74d` (`fresh-reviewer`, Fable 5.2 at `medium`) read the
+five commits against the brief, the design and the rules, reran the
+verdict pass (the same counts up to one timeout) and the docs'
+examples (byte for byte), and checked that every `equality` row has a
+real `=` or `!=` and that `first_order` comes from the methods alone.
+Its finding and questions, each answered in the change after
+`ryyruyqq`:
+
+1. **A wrong expected verdict for 120 first-order problems**: an
+   `(intuit.)` status of `Open` fell back to the plain classical
+   `Theorem`, so step 75 would have called an unprovable verdict a
+   mismatch. A status for the logic that claims neither is now no claim
+   (`lltp::clauses`); no propositional ILTP or LLTP file reads otherwise.
+2. **An empty `.p` file was decided** once a missing conjecture read as
+   `Γ ⊢`. `read_tptp` refuses a file of no formula now.
+3. **The manual's prose had no word of the level-25 JSON** (the schema
+   had every key): the ordinary chapter's first-order section now names
+   them.
+
+### What was checked, and by what
+
+- The gate at `ryyruyqq` (clippy, the tests, both `cargo hack` runs, the
+  ratchet) on cores 10 to 12; at the review's answer the gate again.
+- `nix build` of the checks `export`, `manual`, `manual-links` and
+  `wire-schema` at `ryyruyqq`, under the machine lock: passed.
+- The verdict pass over ILTP's first-order problems (above).
+- `nix flake check` at the last commit: in the session's last message.
+
+### What 74e and step 75 must know
+
+- **74e, the open witness**: the manual's section "First-order
+  sequents" says the witness is typed and that a sequent without a
+  constant has no proof yet; the open witness changes that paragraph and
+  the guide's matching bullet. The bindings' step takes `"witness"` as
+  text; an open one is that key left out, which today the library
+  refuses with "needs a witness term".
+- **Step 75, the searches**: the first-order ILTP pass is the measure
+  waiting: `refused first_order` rows turn into verdicts. The statuses
+  are read as the propositional ones, and 3 356 rows wait for equality
+  (step 78). The command's own TPTP reader (`--input-format tptp`) does
+  not inline includes; the harness does.
+- **Follow-ups**: the 130 problems the reader refuses by their names
+  (above, for the author); the command's text tree size under `--tree
+  never` (74c's).
