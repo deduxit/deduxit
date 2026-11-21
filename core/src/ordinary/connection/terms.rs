@@ -8,9 +8,46 @@
 //! A term is shared, never copied: a variable is bound to a pattern and
 //! the copy it is read in. Every binding is trailed, so that backtracking
 //! takes it back. Every walk over a term keeps a stack of its own, since a
-//! term may be deeper than the call stack allows.
+//! term may be deeper than the call stack allows, and visits each shared
+//! part once ([`Seen`]): bindings share terms, so a term read as a tree can
+//! be exponentially larger than the terms it is made of.
 
 use super::matrix::{Matrix, NONE, Pat};
+use crate::hash::HashSet;
+
+/// The parts a walk has visited, kept once it has visited more than
+/// [`Seen::SMALL`]: a small term costs no set, a shared one is walked as
+/// the graph it is.
+pub(super) struct Seen<K> {
+    /// The parts visited so far.
+    visits: usize,
+    /// The parts visited, once there were more than [`Seen::SMALL`].
+    set: Option<HashSet<K>>,
+}
+
+impl<K: std::hash::Hash + Eq> Seen<K> {
+    /// The visits a walk makes before it keeps a set.
+    const SMALL: usize = 64;
+
+    /// A walk that has visited nothing.
+    pub(super) const fn new() -> Self {
+        Self {
+            visits: 0,
+            set: None,
+        }
+    }
+
+    /// Returns whether `key` is visited for the first time. A walk that
+    /// skips a part visited before sees the same constraint twice, which
+    /// the first visit already handles.
+    pub(super) fn first(&mut self, key: K) -> bool {
+        self.visits += 1;
+        if self.visits <= Self::SMALL {
+            return true;
+        }
+        self.set.get_or_insert_with(HashSet::default).insert(key)
+    }
+}
 
 /// A copy of a clause: where it lies and the variables of its slots.
 #[derive(Clone, Copy, Debug)]
@@ -196,6 +233,7 @@ impl Terms {
     /// ([`Matrix::opaque`]).
     fn occurs(&self, matrix: &Matrix, v: u32, t: Term) -> bool {
         let mut stack = vec![t];
+        let mut seen = Seen::new();
         while let Some(u) = stack.pop() {
             match self.head(matrix, u) {
                 Head::Var(w) => {
@@ -206,6 +244,9 @@ impl Terms {
                 Head::App(f, (s, len), c) => {
                     if matrix.opaque[f as usize] {
                         return true;
+                    }
+                    if !seen.first((f, s, c)) {
+                        continue;
                     }
                     for &a in &matrix.pat_args[s as usize..(s + len) as usize] {
                         stack.push((a, c));
@@ -234,6 +275,7 @@ impl Terms {
                 )
             })
             .collect();
+        let mut seen = Seen::new();
         while let Some((a, b)) = stack.pop() {
             match (self.head(matrix, a), self.head(matrix, b)) {
                 (Head::Var(v), Head::Var(w)) if v == w => {}
@@ -252,6 +294,9 @@ impl Terms {
                 (Head::App(f, (s, len), c), Head::App(g, (t, len2), d)) => {
                     if f != g || len != len2 {
                         return false;
+                    }
+                    if !seen.first(((s, c), (t, d))) {
+                        continue;
                     }
                     for k in 0..len {
                         stack.push((
@@ -282,6 +327,7 @@ impl Terms {
                 )
             })
             .collect();
+        let mut seen = Seen::new();
         while let Some((a, b)) = stack.pop() {
             match (self.head(matrix, a), self.head(matrix, b)) {
                 (Head::Var(v), Head::Var(w)) => {
@@ -292,6 +338,9 @@ impl Terms {
                 (Head::App(f, (s, len), c), Head::App(g, (t, len2), d)) => {
                     if f != g || len != len2 {
                         return false;
+                    }
+                    if !seen.first(((s, c), (t, d))) {
+                        continue;
                     }
                     for k in 0..len {
                         stack.push((
@@ -313,10 +362,14 @@ impl Terms {
             .iter()
             .map(|&p| (p, cx))
             .collect();
+        let mut seen = Seen::new();
         while let Some(t) = stack.pop() {
             match self.head(matrix, t) {
                 Head::Var(_) => return false,
                 Head::App(_, (s, len), c) => {
+                    if !seen.first((s, len, c)) {
+                        continue;
+                    }
                     for &a in &matrix.pat_args[s as usize..(s + len) as usize] {
                         stack.push((a, c));
                     }

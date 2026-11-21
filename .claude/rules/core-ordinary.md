@@ -653,6 +653,27 @@ the search, `read_back.rs` the derivation of LK.
   was quadratic in the depth of a nest of quantifiers (77 s for 30 000);
   it asks the stop every 1 024 literals. A branch nothing closes is `Error::ReadBack`, a defect;
   the derivation is checked by `Derivation::check` in `decide`.
+- **Shared terms are walked as graphs** (`terms::Seen`): a binding is a
+  pattern read in a copy, so terms share parts, and `f(x, x)` bound
+  again and again is exponential as a tree. `occurs`, `unify`, `equal`
+  and `ground` keep a set of the parts visited once a walk passes
+  `Seen::SMALL` (a small term costs no set; skipping a part or pair seen
+  before only skips a constraint the first visit handles), as do the
+  read-backs' walks (`available`, `skolem_eigens`, `convert`'s memo, the
+  intuitionistic `tm_of`, `term`, `ready`, `constants` and the domain
+  equations). Without them `p0(a), ∀x. (p_k(x) → p_{k+1}(f(x, x))) ⊢
+  ∃y. p_n(y)` doubled per level (8.5 s at a 2 s limit for n = 26).
+- **An instance is held to `limits.terms` before it is built**
+  (`sizes::TermBudget`, both read-backs): an atom is keyed by its text,
+  so building an instance writes every argument out in full; `check`
+  bounds what the instance's atoms can add (each atom with a bound
+  variable one atom more, the variable written as the widest witness)
+  against the arena's measure, the one a document's reader holds to
+  the bound, and `count` adds what was added. Past it the read-back is
+  `Refusal::Terms`, as any reader of its derivation would refuse it;
+  each instance is built once (`instances`), since its keys are written
+  again at each build. With the bound lifted the build of one instance
+  is not polled (R2 at n = 26: 5.5 s at a 5 s limit).
 - **The dispatch**: `Options::method_for` makes grounding the default of
   a first-order sequent of its classes (feature `sat`, `grounds`: the
   class test within `GROUNDS_NODES`, 2²⁰ nodes of the normal form, any

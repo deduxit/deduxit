@@ -326,3 +326,37 @@ fn the_bounds_hold_where_steps_are_dear() {
         Verdict::Unknown(Reason::PathLength { length: 0 })
     ));
 }
+
+/// A chain of witnesses `f(x, x)`, each bound to the one before, shares
+/// its parts: walked as trees, its terms are exponential in its length.
+/// Both logics answer at once, by a proof where the derivation's atoms fit
+/// the bound on terms, else by the bound's refusal before any is built.
+#[test]
+fn shared_witnesses_are_walked_once_and_held_to_the_terms_bound() {
+    let chain = |n: usize| -> Sequent {
+        let mut hypotheses = vec!["p0(a)".to_owned()];
+        hypotheses.extend((0..n).map(|i| format!("forall x. (p{i}(x) -> p{}(f(x, x)))", i + 1)));
+        format!("{} |- exists y. p{n}(y)", hypotheses.join(", "))
+            .parse()
+            .unwrap()
+    };
+    let small = connection(&chain(6));
+    assert!(
+        matches!(small.verdict, Verdict::Valid(_)),
+        "{:?}",
+        small.verdict
+    );
+    let limits = Limits::default().with_terms(Some(100_000));
+    // No bound on the active path, as the command searches.
+    let options = search::Options::default().with_path_length(None);
+    for logic in [Logic::Classical, Logic::Intuitionistic] {
+        let refused = decide(&chain(40), logic, &options, &limits, |_| false);
+        assert!(
+            matches!(
+                refused,
+                Err(crate::Error::Refused(crate::Refusal::Terms { .. }))
+            ),
+            "{logic:?}: {refused:?}"
+        );
+    }
+}

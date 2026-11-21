@@ -42,6 +42,7 @@ mod intuitionistic;
 mod matrix;
 mod prove;
 mod read_back;
+mod sizes;
 mod terms;
 #[cfg(all(test, feature = "parse"))]
 mod tests;

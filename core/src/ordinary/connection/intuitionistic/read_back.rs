@@ -24,6 +24,7 @@
 //! taken. Every derivation it makes is checked by the caller.
 
 use super::super::matrix::{Kind, Matrix, NONE, Symbol};
+use super::super::sizes::TermBudget;
 use super::super::terms::{Head, Terms};
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
@@ -150,6 +151,8 @@ struct Search<'m, 's> {
     /// Every instance built: a formula and the terms put in for its
     /// binders' variables, innermost first.
     instances: HashMap<(NodeId, Box<[FoTermId]>), NodeId>,
+    /// The arena's terms, held to `limits.terms`.
+    budget: TermBudget,
 }
 
 /// Reads the proof `terms` of `matrix`, a matrix of `sequent`, back to a
@@ -181,6 +184,7 @@ pub(super) fn read_back(
         })
         .max()
         .unwrap_or(0);
+    let budget = TermBudget::new(&formulas, limits.terms);
     let mut search = Search {
         matrix,
         stop: &mut *stop,
@@ -207,6 +211,7 @@ pub(super) fn read_back(
         gave_up: false,
         out_of_numbers: first == u32::MAX,
         instances: HashMap::default(),
+        budget,
     };
     search.collect_candidates(terms);
     let roots = &matrix.roots;
@@ -501,7 +506,9 @@ impl Search<'_, '_> {
         // toward its bound and the stop's cadence as a rule tried does.
         self.tick()?;
         let before = self.formulas.len();
+        self.budget.check(&self.formulas, key.0, &key.1)?;
         let node = self.formulas.instantiate_frame(key.0, &key.1)?;
+        self.budget.count(&self.formulas);
         let added = self.formulas.len() - before;
         self.work((added / HYPOTHESES_PER_UNIT) as u64)?;
         self.charge(added.saturating_mul(NODE_BYTES))?;
@@ -558,7 +565,18 @@ impl Search<'_, '_> {
                 if bound.is_none() {
                     return self.formula(occ, env);
                 }
-                self.formulas.instantiate(body, value)?
+                // Each instance once: building one writes its atoms' keys,
+                // which a shared witness makes long.
+                let key = (body, vec![value].into_boxed_slice());
+                if let Some(&node) = self.instances.get(&key) {
+                    node
+                } else {
+                    self.budget.check(&self.formulas, body, &[value])?;
+                    let node = self.formulas.instantiate(body, value)?;
+                    self.budget.count(&self.formulas);
+                    self.instances.insert(key, node);
+                    node
+                }
             }
             _ => return self.formula(occ, env),
         };

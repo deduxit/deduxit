@@ -27,7 +27,8 @@
 //! walk keeps a stack of its own.
 
 use super::matrix::{Kind, Matrix, NONE, Symbol};
-use super::terms::{Head, Terms};
+use super::sizes::TermBudget;
+use super::terms::{Head, Seen, Terms};
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
@@ -132,6 +133,11 @@ struct ReadBack<'m, 's> {
     bytes: u64,
     /// The caller's limits.
     limits: &'s Limits,
+    /// Every instance built, by body and term: building one writes its
+    /// atoms' keys, which a shared witness makes long.
+    instances: HashMap<(NodeId, FoTermId), NodeId>,
+    /// The arena's terms, held to `limits.terms`.
+    budget: TermBudget,
 }
 
 /// Reads the proof back as a derivation of LK of `sequent`, unchecked.
@@ -140,6 +146,7 @@ struct ReadBack<'m, 's> {
 ///
 /// [`Error::ReadBack`] where a branch stays open, a defect;
 /// [`Refusal::Output`] past `limits.derivation_bytes`,
+/// [`Refusal::Terms`] where an instance's atoms would pass `limits.terms`,
 /// [`Refusal::Index`] past `u32` inferences and [`Refusal::Stopped`] when
 /// the stop fires.
 pub(super) fn read_back(
@@ -163,6 +170,7 @@ pub(super) fn read_back(
         .max()
         .unwrap_or(0);
     let widths = super::super::derivation::widths(&formulas);
+    let budget = TermBudget::new(&formulas, limits.terms);
     let mut back = ReadBack {
         matrix,
         terms,
@@ -182,6 +190,8 @@ pub(super) fn read_back(
         inferences: Vec::new(),
         bytes: 0,
         limits,
+        instances: HashMap::default(),
+        budget,
     };
     back.oracle(used, stop)?;
     let mut root = Branch::default();
@@ -399,7 +409,11 @@ impl ReadBack<'_, '_> {
     fn available(&self, t: FoTermId, branch: &Branch) -> bool {
         let tables = self.formulas.first_order();
         let mut stack = vec![t];
+        let mut seen = Seen::new();
         while let Some(u) = stack.pop() {
+            if !seen.first(u) {
+                continue;
+            }
             match tables.terms[u.index()] {
                 FoTerm::Eigen(e) if e.get() >= self.first_skolem => {
                     if !branch.introduced.contains(&u) && !branch.constants.contains(&u) {
@@ -417,7 +431,11 @@ impl ReadBack<'_, '_> {
     fn skolem_eigens(&self, t: FoTermId) -> Vec<FoTermId> {
         let tables = self.formulas.first_order();
         let (mut found, mut stack) = (Vec::new(), vec![t]);
+        let mut seen = Seen::new();
         while let Some(u) = stack.pop() {
+            if !seen.first(u) {
+                continue;
+            }
             match tables.terms[u.index()] {
                 FoTerm::Eigen(e) if e.get() >= self.first_skolem => {
                     if !found.contains(&u) {
@@ -985,7 +1003,15 @@ impl ReadBack<'_, '_> {
             (Node::Exists(body), false) => (Rule::ExistsRight, body),
             _ => unreachable!("a γ- or δ-occurrence holds a binder"),
         };
-        let node = self.formulas.instantiate(body, t)?;
+        let node = if let Some(&node) = self.instances.get(&(body, t)) {
+            node
+        } else {
+            self.budget.check(&self.formulas, body, &[t])?;
+            let node = self.formulas.instantiate(body, t)?;
+            self.budget.count(&self.formulas);
+            self.instances.insert((body, t), node);
+            node
+        };
         let mut child = self.child(branch, at, 0, node);
         let premise = if keep {
             child.env = self.env_with(item.env, t);
