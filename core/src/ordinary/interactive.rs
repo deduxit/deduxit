@@ -574,16 +574,17 @@ enum Unbound {
     /// A witness would take this eigenvariable, made after it or on
     /// another branch.
     Eigen(Eigen),
-    /// A witness would stand for a term of this many symbols written out,
+    /// The proof's terms would unfold to this many symbols written out,
     /// past the bound on terms.
     Large(u64),
 }
 
 /// Unifies the formulas `left` and `right` of an axiom in `formulas`,
 /// binding open witnesses under `step`. A binding takes no eigenvariable at
-/// or above its witness's level, none that `in_scope` refuses, and no term
-/// that unfolds to more than `most` symbols. On a refusal nothing is left
-/// bound.
+/// or above its witness's level and none that `in_scope` refuses, and the
+/// terms of the arena once the bindings are shown must unfold to at most
+/// `most` symbols by the measure a document's reader takes
+/// ([`arena_terms`]). On a refusal nothing is left bound.
 fn unify_axiom(
     formulas: &Formulas,
     unifier: &mut Unifier,
@@ -611,12 +612,37 @@ fn unify_axiom(
         .filter(|&(_, &was)| !was)
         .filter_map(|(m, _)| m.bound)
         .collect();
+    let mut total = arena_terms(terms);
     for &t in &new {
-        let size = unfolded(terms, unifier, t, &mut sizes);
-        if size > most {
-            unifier.undo_to(mark);
-            return Err(Unbound::Large(size));
+        total = total.max(unfolded(terms, unifier, t, &mut sizes));
+    }
+    // Each atom that holds a witness bound now makes at most one atom more,
+    // its arguments resolved: what showing the bindings builds.
+    let fresh: Vec<bool> = unifier
+        .metas()
+        .iter()
+        .zip(&was)
+        .map(|(m, &was)| !was && m.bound.is_some())
+        .collect();
+    let mut holds = vec![false; terms.terms.len()];
+    for (n, term) in terms.terms.iter().enumerate() {
+        holds[n] = match *term {
+            FoTerm::Meta(k) => fresh.get(k as usize).copied().unwrap_or(false),
+            FoTerm::App(_, args) => terms.list(args).iter().any(|a| holds[a.index()]),
+            FoTerm::Bound(_) | FoTerm::Eigen(_) => false,
+        };
+    }
+    for &(_, args) in &terms.atoms {
+        let list = terms.list(args);
+        if list.iter().any(|a| holds[a.index()]) {
+            for &a in list {
+                total = total.saturating_add(unfolded(terms, unifier, a, &mut sizes));
+            }
         }
+    }
+    if total > most {
+        unifier.undo_to(mark);
+        return Err(Unbound::Large(total));
     }
     // Every eigenvariable a new binding names, its bindings followed.
     let mut seen = crate::hash::HashSet::default();
@@ -636,6 +662,24 @@ fn unify_axiom(
         }
     }
     Ok(())
+}
+
+/// Returns the measure of an arena's terms that a document's reader holds
+/// to `limits.terms`: the terms the atoms' arguments unfold to, summed over
+/// the atoms, or the largest term where it is larger.
+fn arena_terms(terms: &crate::first_order::FirstOrder<NodeId>) -> u64 {
+    let unfolded = terms.unfolded();
+    let largest = unfolded.iter().copied().max().unwrap_or(0);
+    terms
+        .atoms
+        .iter()
+        .fold(0u64, |sum, &(_, args)| {
+            terms
+                .list(args)
+                .iter()
+                .fold(sum, |sum, t| sum.saturating_add(unfolded[t.index()]))
+        })
+        .max(largest)
 }
 
 /// Returns how many symbols the term `t` has written out, its bound
@@ -1199,8 +1243,8 @@ impl Interactive {
                 }
                 Unbound::Large(size) => StepError::Binding {
                     reason: format!(
-                        "an open witness would stand for a term of {size} symbols written out, \
-                         more than the bound of {} on terms",
+                        "the proof's terms would unfold to {size} symbols written out once the \
+                         witnesses are filled, more than the bound of {} on terms",
                         self.terms
                     ),
                 },

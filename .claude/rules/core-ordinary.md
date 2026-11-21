@@ -1085,10 +1085,16 @@ factored out of the two until the kernel crate is.
   `⊢` first, then the shared `crate::unify::Unifier`, trailed under the
   step's number), refusing an eigenvariable at or above a witness's
   level, one outside the goal's scope (`StepError::Binding`, which
-  names it), and a binding whose term written out passes
-  `limits.terms` (`unfolded`, the state's `terms`; shared terms bound in
-  a chain stand for exponentially long ones, whose atom keys and text
-  the arena would build: 20 links took 3.9 s and 44 MB before). Why levels and scope: the eigenvariables a binding may name
+  names it), and a binding after which the arena's terms would pass
+  `limits.terms` by the measure a document's reader takes
+  (`arena_terms`: the atoms' arguments written out, summed over the
+  atoms, or the largest term), predicted before anything is built: each
+  atom holding a newly bound witness makes at most one atom more, of its
+  arguments resolved (`unfolded`). Shared terms bound in a chain stand
+  for exponentially long ones (20 links took 3.9 s and 44 MB), and a
+  bound per binding alone let a session of 96 steps write a document of
+  129 KB that its own reader refused (1.5 to 4.8 GB at its peak); the
+  arena only grows, so the check cannot come after the build. Why levels and scope: the eigenvariables a binding may name
   are those of the `∀R`/`∃L` below the step that left the witness open,
   so none lands in its own rule's conclusion.
   - **Every inference shows the bindings in force** (`bind`: a
