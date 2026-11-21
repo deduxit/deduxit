@@ -20,7 +20,10 @@
 
       # The modules the web page loads, in bytes at `gzip -9', what a
       # browser downloads. The bindings' module, which every visitor's
-      # worker loads: 2 438 116 on 2026-11-21, once the PNG and PDF
+      # worker loads: 2 502 108 on 2026-11-21 with the ordinary session's
+      # open witnesses (their fillings and the reader's replay of them,
+      # the inferences each witness shows, the bound on terms for every
+      # step) and first-order derivations drawn; 2 438 116 that day, once the PNG and PDF
       # renderers left it for a module of their own (3 913 893 that day
       # before, with the modal search's reuse of worlds); 3 903 905 on
       # 2026-11-20 with first-order ordinary formulas (the arena's binders
@@ -36,7 +39,7 @@
       # whose runs and checks link every suite's operations; 3 166 704
       # before that; 3 111 006 on 2026-11-15, with calculi given as data;
       # 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
-      mostModuleBytes = 2500000;
+      mostModuleBytes = 2560000;
       # The renderers' module, loaded on a visitor's first PNG or PDF
       # export: 1 639 598 on 2026-11-21 (resvg and krilla with their
       # fonts', images' and filters' code, and the reader of every key of
