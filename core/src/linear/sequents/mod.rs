@@ -297,7 +297,7 @@ impl Sequent {
                 .map(|e| e.offset(offset_atoms, offset_terms)),
         );
         self.atoms.extend(formula.atoms);
-        self.join_first_order(formula.fo, offset_terms);
+        self.join_first_order(formula.fo, offset_atoms, offset_terms);
         self.merge_atoms();
         self.push_cuts(&[TermId::new(formula.roots[0].get() + offset_terms)]);
         Ok(())
@@ -867,7 +867,7 @@ impl Sequent {
         );
 
         self.atoms.extend(s.atoms);
-        self.join_first_order(s.fo, offset_terms);
+        self.join_first_order(s.fo, offset_atoms, offset_terms);
         // The roots of `s` follow this sequent's, so its antecedents are
         // not the first roots of the sum.
         self.antecedents = None;
@@ -885,25 +885,15 @@ impl Sequent {
     /// - Every atom's name becomes its canonical text over the joined
     ///   symbols.
     ///
+    /// `own_atoms` is how many atoms of the table are this sequent's, and
     /// `terms_offset` is where the other sequent's formula terms start.
-    fn join_first_order(&mut self, other: fo::FirstOrder, terms_offset: u32) {
+    /// Neither side's tables tell its atoms apart: a table of binders
+    /// alone, which a JSON sequent may hold, has no atom entries.
+    fn join_first_order(&mut self, other: fo::FirstOrder, own_atoms: u32, terms_offset: u32) {
         if other.is_empty() && self.fo.is_empty() {
             return;
         }
-        let own_atoms = if self.fo.is_empty() {
-            self.atoms.len() - other_atoms(&other, self.atoms.len())
-        } else {
-            self.fo.atoms.len()
-        };
-        /// How many atoms of the joined table are the other sequent's.
-        fn other_atoms(other: &fo::FirstOrder, total: usize) -> usize {
-            if other.is_empty() {
-                0
-            } else {
-                other.atoms.len()
-            }
-            .min(total)
-        }
+        let own_atoms = own_atoms as usize;
         let mut interner = fo::Interner::new();
         let mut atoms = Vec::with_capacity(self.atoms.len());
         let names = std::mem::take(&mut self.atoms);

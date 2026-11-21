@@ -60,7 +60,11 @@ the parser or the serialization is read or changed.
   merge), `renumber_atoms` and `merge_atoms` keep `fo.atoms` parallel,
   `pop_cut` drops the names of truncated terms, and `add` re-interns
   both sides' tables (`join_first_order`: a name of another arity or role
-  gets `_` after it, a nullary atom of a propositional side its symbol).
+  gets `_` after it, a nullary atom of a propositional side its symbol). The
+  caller passes `join_first_order` its own atom count: neither side's
+  tables tell it, since a JSON sequent may hold binders' names and no
+  atom entries, and a count read off them gave such a sequent's atoms
+  the other side's names.
 
 **A term only references subterms with a strictly smaller index**, so the
 arena is topologically sorted: one ascending pass sees every subterm before

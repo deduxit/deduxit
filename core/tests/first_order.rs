@@ -173,6 +173,27 @@ fn adding_sequents_joins_their_tables() {
     );
 }
 
+/// A JSON sequent whose tables hold a binder's name and no atom (a
+/// binder over nullary atoms) keeps its atoms' names when a first-order
+/// sequent or cut formula joins it, and when it joins one.
+#[test]
+fn a_table_of_binders_alone_joins_by_its_atoms() {
+    let binders = r#"{"version":7,"terms":[{"V":0},{"D":1},{"⅋":[0,1]},{"∀":2}],"roots":[3],"atoms":["a","b"],"binders":["x"]}"#;
+    let read = || serde_json::from_str::<Sequent>(binders).unwrap();
+    assert_eq!(read().to_string(), "⊢ ∀x. (a ⅋ ~b)");
+    let mut s = read();
+    s.add("|- p(c), q".parse().unwrap());
+    assert_eq!(s.to_string(), "⊢ ∀x. (a ⅋ ~b), p(c), q");
+    assert_eq!(s.atom_names(), ["a", "b", "p(c)", "q"]);
+    let mut s = read();
+    s.add_cut("|- p(c)".parse().unwrap()).unwrap();
+    assert_eq!(s.atom_names(), ["a", "b", "p(c)"]);
+    let mut t: Sequent = "|- p(c), q".parse().unwrap();
+    t.add(read());
+    assert_eq!(t.to_string(), "⊢ p(c), q, ∀x. (a ⅋ ~b)");
+    assert_eq!(t.atom_names(), ["p(c)", "q", "a", "b"]);
+}
+
 /// The proofs written by hand under `tests/first-order/`, read through
 /// the wire: those the library's own tests accept are proofs in the mode
 /// they record, and the others are no proofs, with a fault whose message

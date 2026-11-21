@@ -57,6 +57,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   loads it on a visitor's first PNG or PDF export, so the module every
   visitor loads is 2.4 MB at gzip, down from 3.9 MB.
 
+### Fixed
+
+- `Sequent::add` and `add_cut` on a JSON sequent with quantifiers over
+  nullary atoms only, joined with a first-order sequent, gave its atoms
+  the other sequent's names: `⊢ ∀x. (a ⅋ ~b)` with `⊢ p(c), q` added
+  printed `⊢ ∀x. (p(c) ⅋ ~q), p(c), q`.
+
 ### Wire forms
 
 - **Level 25**: a first-order ordinary sequent or derivation, its
