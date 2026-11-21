@@ -274,6 +274,26 @@ impl Formulas {
         Some(pairs)
     }
 
+    /// Writes every atom's canonical text again from the tables, and the
+    /// index of each, after terms were changed in place.
+    pub(crate) fn rekey_atoms(&mut self) {
+        let tables = self.tables();
+        if tables.atoms.len() != self.atoms.len() {
+            return;
+        }
+        let keys: Vec<String> = tables
+            .atoms
+            .iter()
+            .map(|&(p, args)| tables.atom_key(p, args))
+            .collect();
+        self.names.clear();
+        for (i, key) in keys.into_iter().enumerate() {
+            // As many atoms as a `u32` numbers.
+            self.names.insert(key.clone(), i as u32);
+            self.atoms[i] = key;
+        }
+    }
+
     /// Returns the closed term `t` as text: `f(t, …)`, an eigenvariable by
     /// the name the proof prints it with, an open witness as `$1`, `$2`, ….
     pub(crate) fn term_text(&self, t: FoTermId) -> String {

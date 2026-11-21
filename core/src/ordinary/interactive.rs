@@ -2243,56 +2243,47 @@ impl Interactive {
     }
 
     /// Returns the formulas and `inferences`, the state's in another
-    /// order, with every open witness no axiom bound replaced by an
-    /// eigenvariable that no inference holds where no goal is open: no
-    /// `∀R` or `∃L` introduces it, so the checker takes it as a constant,
-    /// the domain's element the witness stands for. While a goal is open
-    /// they stay as they are, the witnesses printed `$1`, `$2`, ….
+    /// order, where no goal is open: with every open witness of the arena
+    /// made an eigenvariable that no inference holds, numbered past every
+    /// one the arena holds. No `∀R` or `∃L` introduces it, so the checker
+    /// takes it as a constant, the domain's element a witness no axiom
+    /// bound stands for; a bound witness the inferences no longer hold,
+    /// and one an undone step left in the arena, go the same way, so the
+    /// derivation's arena holds no open witness, which its reader refuses.
+    /// The terms are changed in place, so every formula keeps its id.
+    /// While a goal is open the formulas stay as they are, the witnesses
+    /// printed `$1`, `$2`, ….
     fn finishing(&self, inferences: Vec<Inference>) -> Result<(Formulas, Vec<Inference>), Error> {
         let mut formulas = self.formulas.clone();
-        let Some(w) = self.witnesses.as_deref() else {
-            return Ok((formulas, inferences));
-        };
-        if !self.is_complete() || w.unifier.metas().iter().all(|m| m.bound.is_some()) {
+        let terms = &formulas.first_order().terms;
+        if !self.is_complete() || !terms.iter().any(|t| matches!(t, FoTerm::Meta(_))) {
             return Ok((formulas, inferences));
         }
-        let full = Error::Refused(Refusal::Index {
-            what: crate::limits::Space::Term,
-            count: u64::from(u32::MAX) + 1,
-            most: u64::from(u32::MAX),
-        });
-        let base = formulas
-            .first_order()
-            .terms
+        let full = || {
+            Error::Refused(Refusal::Index {
+                what: crate::limits::Space::Term,
+                count: u64::from(u32::MAX) + 1,
+                most: u64::from(u32::MAX),
+            })
+        };
+        let base = terms
             .iter()
             .filter_map(|t| match *t {
                 FoTerm::Eigen(e) => Some(e.get()),
                 FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
             })
             .max()
-            .map_or(Some(0), |e| e.checked_add(1));
-        let mut bindings = Vec::with_capacity(w.unifier.metas().len());
-        for (k, meta) in w.unifier.metas().iter().enumerate() {
-            bindings.push(match meta.bound {
-                // The inferences show it bound already.
-                Some(_) => None,
-                None => {
-                    let number = base
-                        .zip(u32::try_from(k).ok())
-                        .and_then(|(b, k)| b.checked_add(k))
-                        .ok_or_else(|| full.clone())?;
-                    let eigen = FoTerm::Eigen(Eigen::new(number));
-                    Some(formulas.interner().term(eigen))
-                }
-            });
+            .map_or(Some(0), |e| e.checked_add(1))
+            .ok_or_else(full)?;
+        // A fresh eigenvariable is no term of the arena, so no two terms
+        // become equal.
+        for term in &mut formulas.interner().tables.terms {
+            if let FoTerm::Meta(k) = *term {
+                let number = base.checked_add(k).ok_or_else(full)?;
+                *term = FoTerm::Eigen(Eigen::new(number));
+            }
         }
-        let built = formulas.len();
-        let mut resolution = Resolution::new(bindings);
-        let inferences = inferences
-            .iter()
-            .map(|i| shown(&mut resolution, &mut formulas, i))
-            .collect::<Result<_, _>>()?;
-        implications_from(&mut formulas, built)?;
+        formulas.rekey_atoms();
         Ok((formulas, inferences))
     }
 
@@ -2837,21 +2828,36 @@ impl Replay<'_> {
             closer[start..end].fill(Some(s));
             closer[g.index()] = Some(s);
         }
-        let mut by_step: Vec<Vec<usize>> = vec![Vec::new(); self.history.len()];
+        // Per step, the inferences it closed; those no step closed (a reader
+        // without witnesses takes them) come first, before any witness.
+        let mut by_step: Vec<Vec<usize>> = vec![Vec::new(); self.history.len() + 1];
         for (i, inference) in inferences.iter().enumerate() {
-            if inference.rule == Rule::Open {
-                continue;
+            if inference.rule != Rule::Open {
+                by_step[closer[i].map_or(0, |s| s + 1)].push(i);
             }
-            // Every closed inference of a session is a step's.
-            let s = closer[i].ok_or(bad("an inference is closed by no step"))?;
-            by_step[s].push(i);
         }
         let tree = Tree::of(formulas, inferences);
         let mut w = Witnesses {
             raw: vec![None; len],
             ..Witnesses::default()
         };
-        for (s, closed) in by_step.iter().enumerate() {
+        for (at, closed) in by_step.iter().enumerate() {
+            let Some(s) = at.checked_sub(1) else {
+                if formulas
+                    .largest_meta(
+                        closed.iter().flat_map(|&i| {
+                            let inference = &inferences[i];
+                            inference.left.iter().chain(&inference.right).copied()
+                        }),
+                        closed.iter().filter_map(|&i| inferences[i].term),
+                    )
+                    .is_some()
+                {
+                    return Err(bad("an inference no step closed holds an open witness"));
+                }
+                self.check(formulas, &w.unifier, closed, false)?;
+                continue;
+            };
             // Fewer steps than inferences, which a `u32` counts.
             let number = s as u32;
             for &i in closed {
@@ -4062,11 +4068,18 @@ mod tests {
             assert_eq!(closes(&mut s, g, (Left, "p($2)")).unwrap(), []);
             assert_eq!(s.bindings(), [("$2".to_owned(), "$1".to_owned())]);
             let derivation = s.finished(&Limits::default(), |_| false).unwrap();
-            // The witness left open is an eigenvariable no rule introduces.
+            // The witness left open is an eigenvariable no rule introduces,
+            // and the derivation's document holds no open witness.
             assert!(derivation.inferences().iter().all(|i| {
                 i.term()
                     .is_none_or(|t| derivation.formulas().is_eigenvariable(t))
             }));
+            #[cfg(feature = "serialize")]
+            {
+                let json = serde_json::to_string(&derivation).unwrap();
+                let read: Derivation = serde_json::from_str(&json).unwrap();
+                read.check(&Limits::default(), |_| false).unwrap();
+            }
             #[cfg(feature = "serialize")]
             {
                 let after = serde_json::to_string(&s).unwrap();
@@ -4287,6 +4300,20 @@ mod tests {
         let mut value = serde_json::to_value(&s).unwrap();
         value["history"] = serde_json::json!([]);
         assert!(serde_json::from_value::<Interactive>(value).is_err());
+        // An inference no step closed, which the reader takes, stays
+        // readable once a witness is left open after it.
+        let (mut s, g) = start(
+            "exists x. forall y. s |- forall y. exists x. s",
+            Logic::Intuitionistic,
+        );
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ForallRight).unwrap()[..] else {
+            panic!()
+        };
+        let mut value = serde_json::to_value(&s).unwrap();
+        value["history"] = serde_json::json!([]);
+        let mut read: Interactive = serde_json::from_value(value).unwrap();
+        at_position(&mut read, g, (Right, 0), Rule::ExistsRight).unwrap();
+        assert!(reads_back(&read));
     }
 
     /// A binding whose term would unfold past the bound on terms is

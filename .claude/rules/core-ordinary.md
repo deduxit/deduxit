@@ -1113,11 +1113,17 @@ factored out of the two until the kernel crate is.
     and shows the rest again from it (`reshow`); the witnesses go once
     none is left.
   - **A finished derivation holds no open witness**
-    (`finishing`, in `derivation_within` when no goal is open): each one
-    no axiom bound becomes an eigenvariable numbered past every one the
-    arena holds, which no `∀R` or `∃L` introduces, so the checker reads
-    it as a constant (the linear session's rule). While a goal is open
-    the derivation shows `$1`.
+    (`finishing`, in `derivation_within` when no goal is open): every
+    `Meta` term of the arena's copy becomes, in place, an eigenvariable
+    numbered past every one the arena holds, which no `∀R` or `∃L`
+    introduces, so the checker reads it as a constant (the linear
+    session's rule), and the atoms' keys are written again
+    (`rekey_atoms`), since the checker finds an instance by its key. In
+    place, because the derivation's document writes the whole arena and
+    its reader refuses `{"M": k}`: a bound witness, or one an undone step
+    left in the arena, would otherwise stay in the document (the
+    manual's own example wrote a proof `check` refused). While a goal is
+    open the derivation shows `$1`.
   - The invertible run's axiom closes equal formulas only, and
     `invertible_steps` leaves out an axiom that bound a witness: a
     binding is a choice. `rules` lists the axiom where a formula unifies
@@ -1131,7 +1137,8 @@ factored out of the two until the kernel crate is.
   - **The reader replays them** (`Replay::run`, only for a document with
     a bound or opened witness, so a propositional one reads as before):
     every closed inference belongs to the step that made it (the goal
-    tree's `added` ranges), and one no step closed is refused; a
+    tree's `added` ranges); one no step closed, which the plain reader
+    takes, is checked before the first step and may hold no `Meta`. A
     document whose formulas hold a `Meta` anywhere takes this path too.
     Per step in order: the witness of its one `∀L`/`∃R` whose term is the
     next `Meta` (any other term holding one is refused) is made at the
