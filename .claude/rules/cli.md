@@ -1323,6 +1323,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   first-order sequent read from JSON numbers its argument lists apart
   from the parsed one, so `==` called a text-started session's own file
   another sequent's.
+- **The connection prover** (`--method connection`, the default of a
+  first-order classical sequent): `by_native` and the batch's
+  `by_native` ask `Options::method_for(sequent)`, `decide_natively`
+  takes the settings' search options for `--path-length` and
+  `--restricted-backtracking` (`SearchArgs`, keys `search.path_length`
+  and `search.restricted_backtracking`), `native_statistics` prints its
+  five counters, and an unknown at its bound names `--path-length`
+  (`advice`). Where it gives way at a bound the embedding answers, as
+  for the other defaults.
 - **`interact --logic` with quantifiers**: `apply G F RULE TERM…` reads
   the words after `∀L` or `∃R` as the witness
   (`ordinary::Interactive::witness`), none leaving it open (`$1`), and

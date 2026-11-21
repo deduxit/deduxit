@@ -67,6 +67,24 @@ second number (0.1.x to 0.2.0), anything else the third.
   unknown with the new reason `Reason::Incomplete` (exit 3), since the
   translation may lose first-order proofs. `Formulas::is_first_order` is
   public.
+- **A connection prover of classical logic** (`ordinary::connection`,
+  `Method::Connection`, `prove --logic classical --method connection`):
+  Otten's non-clausal connection calculus, nanoCoP's, on the formulas'
+  own structure, with regularity, lemmata and a bound on the active path
+  that it deepens. It decides classical sequents, first-order ones
+  included, and is the default for a first-order classical sequent, the
+  embedding deciding where it gives up at a bound. A valid sequent gets
+  a derivation of LK built from the proof's substitution and checked;
+  one where no quantifier needs a witness term (every `∀` one to prove,
+  every `∃` one to assume, negations and implications taken into
+  account) is refuted by an exhaustive search; the others are unknown at the
+  bound, the new reason `Reason::PathLength` (`--path-length N|none`,
+  `search::Options::path_length`, by default 8 in the library and none
+  in the command), or `Reason::Incomplete`.
+  `search::Options::restricted_backtracking`
+  (`--restricted-backtracking`) keeps each literal's first solution,
+  never answering "not valid". `deduxit-bench run --engines connection`
+  runs it.
 - **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
   method that decides or transforms propositional sequents (the SAT
   solver, LJT, the truth table, the tableau, the normal
@@ -109,7 +127,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   derivation's quantifier rule names its term by `"term": k`, an
   eigenvariable among the terms being `{"E": n}`. An ordinary outcome
   with a first-order derivation, or unknown for the new reason
-  `{"kind": "incomplete"}`, is written at level 25 too.
+  `{"kind": "incomplete"}`, is written at level 25 too, and so is one
+  decided by the connection prover (`"search": {"method": "connection",
+  "statistics": {…}}`) or unknown at its bound (`{"kind": "path_length",
+  "length": 8}`). The search options have the keys `path_length` and
+  `restricted_backtracking`.
 
 ## [0.7.0] - 2026-11-20
 

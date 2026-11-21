@@ -445,7 +445,9 @@ by `kind`: `stopped`, `copy_bound`, `memory_limit`, `work_limit`,
 `recursion_limit`, `index_limit`, `unchecked`, and for a first-order
 search `witness_depth`, `instances` and `incomplete` (an ordinary
 first-order sequent whose image has no proof: the embedding may miss
-proofs there).
+proofs there; or one the connection prover searched to the end with
+variables in it), and the connection prover's `path_length` (raise it
+with `--path-length N`).
 
 ```console
 $ deduxit prove -q --copies 1 "!(A & B) |- A * B"
@@ -480,6 +482,7 @@ recursion, witnesses or instances is unknown (exit status 3).
 | `--classical-work N` | `67108864` | the classical refutation after the search (section 5) |
 | `--witness-depth N` | `64` | the deepest term a first-order search fills a witness in with |
 | `--instances N` | `65536` | the instances of quantified formulas a first-order search holds at once |
+| `--path-length N` | `none` | the longest active path the connection prover searches with; `none` deepens while the time limit lasts |
 | `--derivation-limit SIZE` | `64MiB` | the derivation built from a proof; above it the verdict stands without it |
 | `--occurrence-limit N` | `50000000` | the sequent's subformula occurrences; a larger sequent is refused, exit status 2 |
 | `--term-limit N` | `50000000` | the first-order terms the sequent's atoms unfold to, and a proof's instance table; past it, refused |
@@ -1164,6 +1167,23 @@ cuts than LJT's.
 - `--stats` prints `solver calls`, `conflicts`, `lemmas`, `worlds`,
   `facts derived`, `clauses` and `proof steps`.
 
+`connection` is a non-clausal connection prover (nanoCoP's calculus),
+for classical logic only (exit status 2 for another), first-order
+sequents included; it is the default of a first-order classical
+sequent.
+
+- `valid` comes with a checked derivation of LK.
+- `not valid` comes only where no quantifier needs a witness term (every
+  `forall` one to prove, every `exists` one to assume, negations and
+  implications taken into account): its search then ends. Otherwise a failed search is
+  `unknown`: at `--path-length N` (by default none: it deepens while the
+  time limit lasts) or with the reason `incomplete`; by default the
+  embedding then decides in its place.
+- `--restricted-backtracking` keeps each literal's first solution: often
+  faster, never `not valid`.
+- `--stats` prints `steps`, `extension steps`, `reduction steps`,
+  `literals closed by a lemma` and `bound on the active path`.
+
 `table` and `tableau` decide classical logic only (exit status 2 for
 another), and print the table or the tableau in place of a derivation:
 
@@ -1486,11 +1506,16 @@ An ordinary formula may apply predicates to terms and bind variables
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed
 (`par` as `par_`, a function symbol named like a predicate as `name_f`). `prove` decides a first-order
-sequent through the embedding, its default method there: valid with a
-checked derivation, or unknown (exit 3, reason `incomplete`) where the
-image is unprovable, since the translation may lose first-order proofs;
-never "not valid". The other methods refuse it, naming themselves
-(exit 2). A session proves one with the quantifier rules:
+classical sequent by the connection prover (`--method connection`) and
+an intuitionistic or minimal one through the embedding: valid with a
+checked derivation; not valid only from the connection prover, where
+no quantifier needs a witness term (every `forall` one to prove, every
+`exists` one to assume); otherwise
+unknown (exit 3). Where the connection prover gives up at a bound the
+embedding decides; an unprovable image is unknown (reason
+`incomplete`), since the translation may lose first-order proofs. The
+other methods refuse a first-order sequent, naming themselves (exit
+2). A session proves one with the quantifier rules:
 - `forallR` and `existsL` (`∀R`, `∃L`) name a fresh eigenvariable, `a`,
   `b`, … past the sequent's own names.
 - `forallL` and `existsR` (`∀L`, `∃R`) take a witness term after the

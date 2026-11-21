@@ -69,7 +69,10 @@ serde_json, which the CLI and the core's tests already have.
   `sat::decide` in all three logics the same way (its derivation, clausal
   proof or model checked inside), `fragment` `SAT`, `nodes` its conflicts,
   `work` its calls and conflicts (the units of its work bound), the memo
-  columns empty; `table` and `tableau` (classical logic only, the
+  columns empty; `connection` times `connection::decide` (classical
+  logic only, the others `refused`) with no bound on the active path,
+  its derivation checked inside, `fragment` `connection`, `nodes` its
+  extension steps, `work` its steps; `table` and `tableau` (classical logic only, the
   others `refused`) time `ordinary::decide_within` with the method
   named, within `Limits::default()` (the command's bound of ten atoms on
   a table) and the run's memory bound, the tableau's derivation and

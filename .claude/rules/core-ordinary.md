@@ -23,7 +23,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Display` the command prints, `affine MALL`, `ILL`); `derivation.rs`:
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
-  `decide.rs`: `decide`, translation, search, read-back and check in one
+  `connection/` (public): the connection prover of classical logic,
+  below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
@@ -282,7 +283,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     binder it builds keeps the copied one's name. `instance` is the
     find-only form for the checker, which builds nothing (the interner's
     `find_term`, `find_list`); `instantiate`'s callers are the goal state
-    and the embedding's read-back.
+    and the read-backs of the embedding and the connection prover.
   - **The checker's quantifier rules** (G3c, G3i, G3m of Troelstra and
     Schwichtenberg, §3.1; `Rule::{ForallLeft, ForallRight, ExistsLeft,
     ExistsRight}`, last in `Rule::ALL` after `Cut` and `Open`, so `NAMES`
@@ -519,6 +520,151 @@ its search and translation are untrusted, the checker is the trust.
   memo keyed by the sequent, the arena of proof steps, the stop's poll
   cadence and the memory account (`linear::search::memory::Account`,
   used as is).
+
+## The connection prover (`connection/`)
+
+Otten's non-clausal connection calculus (TABLEAUX 2011, Fig. 6;
+nanoCoP, IJCAR 2016), classical logic only, public as
+`ordinary::connection::decide` and `Method::Connection`
+(`plan/notes/first-order-search-design.md` §3). Written from the papers,
+never from nanoCoP's code (GPL). `matrix.rs` builds the occurrence tree
+and the matrix, `terms.rs` the copies and the substitution, `prove.rs`
+the search, `read_back.rs` the derivation of LK.
+
+- **The matrix** (`Matrix::of`): the signed occurrences unfolded within
+  `limits.occurrences` (an equivalence's operands twice, as its two
+  implications, `Kind::Part`), then the matrix built bottom-up by ropes
+  (`Ropes`: a list of clauses or elements as a tree, concatenated in
+  O(1), a rope of one item always a leaf) with Otten's simplification
+  applied as it is built: an α-part of one clause gives that clause's
+  elements, a β-part of one matrix element gives that matrix's clauses.
+  `⊤` right and `⊥` left are a clause of no element (no path), `⊤` left
+  and `⊥` right a matrix of no clause (one empty path, unprovable as an
+  element). Nodes are in preorder (`MNode::end`), so "inside" is an
+  interval test.
+- **Slots and Skolem terms**: every γ-occurrence (`∀` left, `∃` right)
+  is a slot; every δ-occurrence a Skolem symbol applied to the slots of
+  **every** γ-occurrence around it, not only those free in its body
+  (departs from the design, which says the free ones): so each Skolem
+  ground term names one δ-instance of the expanded formula, which the
+  read-back maps to one eigenvariable. Inner Skolemization shared a
+  Skolem constant between copies whose δ-formulas are one formula on two
+  branches, which a read-back cannot give two eigenvariables.
+- **Free slots** (`free_slots`, Definition 5): a slot is free in a
+  clause where no strict clause ancestor has another element with a
+  literal under that slot (the LCA of the clause and every other
+  literal of the slot is a matrix). Monotone upward, which the copies'
+  inheritance rests on.
+- **An open witness of the arena is opaque** (`Matrix::opaque`): a
+  session's `Meta` term is a constant to the search, but no derivation
+  names it as a quantifier's witness (`Derivation::check` refuses one), so
+  unification refuses to bind a variable to a term that holds one
+  (`Terms::occurs`).
+- **Copies are regions** (`terms::Copy`): a copy of clause `C` gets
+  fresh variables for its free slots and takes the others from the copy
+  it lies in (`parent`, the region), so a copy is a sibling of `C` in
+  that region's matrix (the matrix with multiplicity, M^μ, of Theorem 1,
+  not nanoCoP's replacement `M[C1\C2]`). The start clause's copy lies
+  in the matrix itself (copy 0). Terms are shared, never copied: a
+  variable is bound to a pattern read in a copy (`terms::Term`).
+- **The extension clause** (`region_for`, Definition 8 read on paths):
+  a clause around the target is one where every path through the active
+  path and the extending literal enters the clause's parent matrix in
+  the chosen region: a literal of the path lies in that matrix there
+  (`inside`, following a copy's regions up), or the clause is one of the
+  sequent's matrix. The region is the latest copy on the path whose
+  clause holds the clause strictly and passes that test. The β-clause is
+  the other elements of every clause from the target's to the extension
+  clause. A larger extension clause is kept only where it frees more
+  slots than the last kept; without slots only the smallest.
+- **Without slots the search is the calculus's** (`Matrix::is_ground`):
+  every copy is the clause, the extension clause is tested on positions
+  alone, and an exhausted search answers "not valid": Theorem 4
+  (completeness) with Lemma 4 (positive start clauses, non-positive
+  clauses dropped from the start clause's matrices) and Lemma 5
+  (regularity); lemmata only add closings; the cut after a literal is
+  taken only where it bound no older variable, which no alternative can
+  improve on. With slots a failed search is `Reason::Incomplete` (the
+  regions are one choice, not every one) or `Reason::PathLength`;
+  restricted backtracking turns every exhausted search into
+  `Incomplete` (`decide`).
+- **Lemmata are confined to their clause** (`Lemma`, `may_be_lemma`,
+  `in_clause_of`): a solved literal closes an equal one only inside the
+  solved literal's clause, in its copy's region, under a path extending
+  the one it was solved under, and only where no literal of that path
+  lies in the clause. Then swapping one for the other in any path keeps
+  the path argument. nanoCoP's wider sharing (the rest of the clause and
+  its descendants) let a literal solved inside a decomposed sub-clause
+  close one outside it whose extension would not have been allowed: a
+  "proof" of a propositional sequent that is not valid
+  (`sequents_decided_by_hand`, its last refuted case).
+- **The deepening** (`prove::search`): a round per bound on the active
+  path from 1 (one round at 0 for a bound of 0); an extension whose copy
+  makes a fresh variable may only lengthen a shorter path (`limit_hit`);
+  the next round only where the bound refused a step. Every round starts
+  afresh. **Every step ticks** (`Search::tick`: a goal taken up, a way
+  tried, a start clause), and every `POLL` steps it asks the stop, the
+  work bound (`Counts::steps`), the memory bound (`held_bytes`, by
+  capacity, the matrix's bytes included) and the tables' lengths against
+  `MOST_ENTRIES` (`IndexLimit`); a poll inside a literal's ways sets
+  `halted`, which `run` reads before it backtracks. Polling once per
+  loop iteration let a goal with thousands of failing extensions run
+  twenty million steps past a work bound of a thousand (the integers
+  review's witness, `the_bounds_hold_where_steps_are_dear`).
+- **The matrix's build is bounded** (`matrix::Budget`): the unfolding
+  polls the stop and the memory bound every `POLL` occurrences, and
+  `free_slots` counts the slot lists it holds, which a deep nest of
+  quantifiers makes quadratic (each literal has every slot around it;
+  3 000 nested `∀` under 16 MiB end at once, 26 000 took 8 GB unbounded);
+  `connection::run` answers a stop or the memory bound there as unknown
+  (`Stopped`, `MemoryLimit`), and every table is checked against the
+  `u32` indices (`indexed`, `Refusal::Index`; the occurrences past the
+  indices where `limits.occurrences` is larger).
+- **The read-back is an oracle construction** (`read_back.rs`): from
+  the literals used (each in its copy) it takes the occurrences above
+  them (`relevant`; `⊤` right and `⊥` left count, since they close with
+  no literal) and the witnesses each γ-occurrence needs per witness list
+  of the γ-occurrences around it (`needed`), a Skolem ground term as an
+  eigenvariable numbered past the arena's (`skolems`), an unbound
+  variable as one more eigenvariable that no rule introduces (`default`,
+  made at first use). It then derives the sequent as written in G3's
+  form by a fixed order per branch: an axiom (any formula on both sides,
+  weakened down to `A ⊢ A`), `⊤R`, `⊥L`; a rule of one premise; `∀R`/`∃L`
+  with the Skolem term's eigenvariable (a δ-formula whose eigenvariable
+  the branch has is a copy taken apart already, left alone); `∀L`/`∃R`
+  keeping the principal, each needed witness whose Skolem eigenvariables
+  the branch introduced or holds as constants; a rule of two premises;
+  and last a needed witness whose Skolem eigenvariable lies on another
+  branch, which becomes a constant of this one (`Branch::constants`): a
+  δ-formula of that Skolem term met later gets a fresh eigenvariable.
+  Without that last rule ILTP's SYN069, SYN374, SYN375 and SYN377 did
+  not read back. **The last rule takes, of all pending witnesses, one
+  whose Skolem terms nest least** (`nesting`): a δ-instance arrives only
+  through a witness that is an argument of its Skolem term, which nests
+  strictly less, so no eigenvariable made a constant there arrives
+  later. Taking the first pending witness in order made one constant
+  whose δ-formula a later witness brought in, a valid sequent answered
+  with `Error::ReadBack` (the argument review's witness, in
+  `sequents_decided_by_hand`). A `⊤` right or `⊥` left under γ-formulas
+  needs a witness for each, the stand-in term (`oracle`). **Witness lists
+  are interned** (`env_with`, `env_ids`), so `needed` is keyed by an
+  occurrence and a list's index: keyed by the list's terms, the oracle
+  was quadratic in the depth of a nest of quantifiers (77 s for 30 000);
+  it asks the stop every 1 024 literals. A branch nothing closes is `Error::ReadBack`, a defect;
+  the derivation is checked by `Derivation::check` in `decide`.
+- **The dispatch**: `Options::method_for` makes the connection prover
+  the default of a first-order classical sequent with no method and no
+  translation given; where it gives way (`gives_way`: unknown at a bound
+  other than the stop, `Incomplete` included) the embedding decides.
+  `decide`'s door lets `Embedding` and `Connection` through at first
+  order. The command asks `method_for` in `by_native`,
+  `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`).
+- **The bound** is `search::Options::path_length` (library default
+  `DEFAULT_PATH_LENGTH`, 8; `Settings::default()` none, the command
+  deepening under its clock) and `restricted_backtracking`; the reason
+  `Reason::PathLength { length }` names `search.path_length`. The
+  outcome is `Search::Connection(Statistics)`, written at level 25
+  (`"method": "connection"`).
 
 ## The SAT engine (`sat/`, behind `sat`)
 

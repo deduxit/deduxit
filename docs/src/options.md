@@ -36,6 +36,7 @@ entries' ([Decide many sequents at once](batch.md)).
 | `--classical-work N` | `67108864` | the classical reading after the search (`0` turns it off) |
 | `--witness-depth N` | `64` | the deepest term a first-order search fills a witness in with |
 | `--instances N` | `65536` | the instances of quantified formulas a first-order search holds at once |
+| `--path-length N` | `none` | the connection prover's active path (`--method connection`); with `none` the bound deepens while the time limit lasts |
 | `--derivation-limit SIZE` | `64MiB` | the derivation built from a proof; above it the verdict stands without it |
 | `--occurrence-limit N` | `50000000` | the sequent's subformula occurrences |
 | `--term-limit N` | `50000000` | the first-order terms the sequent's atoms unfold to, and a proof's instance table |

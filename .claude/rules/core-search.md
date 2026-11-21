@@ -475,7 +475,12 @@ copies they had are gone (F103, F104).
   `--instances` (settings `search.witness_depth`, `search.instances`),
   each answered by a `Reason` of its own (`WitnessDepth`, `Instances`,
   `Reason::setting` naming the key, the command's line naming the
-  flag). Only the first-order zone reads them.
+  flag). Only the first-order zone reads them. `path_length`
+  (`DEFAULT_PATH_LENGTH` 8, `None` in `Settings::default()`) and
+  `restricted_backtracking` are the ordinary connection prover's
+  (`core-ordinary.md`), which no linear engine reads; its unknown is
+  `Reason::PathLength { length }` (`search.path_length`,
+  `--path-length`).
 - **An ordered mode at the front door** (`prepare`, `read`): `Mode::check`
   first (`OrderedMode`), then a fragment beyond unit-free MLL is
   `OrderedFragment` (before the dispatch, so that it is named and not

@@ -675,6 +675,22 @@
               "$ref": "#/$defs/index"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "length"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "path_length"
+            },
+            "length": {
+              "$ref": "#/$defs/index"
+            }
+          }
         }
       ]
     },
@@ -2757,6 +2773,35 @@
         }
       }
     },
+    "connection_statistics": {
+      "description": "What a search by the connection prover cost: its steps, extension and reduction steps, literals closed by a lemma, and the bound on the active path of its last round. A reader reads a missing counter as zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "$ref": "#/$defs/count"
+        },
+        "extensions": {
+          "$ref": "#/$defs/count"
+        },
+        "reductions": {
+          "$ref": "#/$defs/count"
+        },
+        "lemmata": {
+          "$ref": "#/$defs/count"
+        },
+        "path_length": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "required": [
+        "steps",
+        "extensions",
+        "reductions",
+        "lemmata",
+        "path_length"
+      ]
+    },
     "kripke_model_keys": {
       "description": "The keys of a Kripke model, at the top of a document or nested without `version`: each world's atoms by name, `falsity` where it forces `⊥` (minimal logic), its arrows to the worlds directly above it, and the world the model is about (0 where absent). The reader of a model given by hand refuses a key it does not know.",
       "type": "object",
@@ -2981,7 +3026,7 @@
       ]
     },
     "search": {
-      "description": "How an ordinary sequent was decided, tagged by `method`: through the embedding into linear logic with its translation and the image's outcome, by LJT or the SAT solver with their statistics, or by a truth table or a tableau (level 14).",
+      "description": "How an ordinary sequent was decided, tagged by `method`: through the embedding into linear logic with its translation and the image's outcome, by LJT, the SAT solver or the connection prover with their statistics, or by a truth table or a tableau (level 14; the connection prover's at level 25).",
       "oneOf": [
         {
           "type": "object",
@@ -3079,6 +3124,22 @@
                   "version"
                 ]
               }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "statistics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "connection"
+            },
+            "statistics": {
+              "$ref": "#/$defs/connection_statistics"
             }
           }
         }

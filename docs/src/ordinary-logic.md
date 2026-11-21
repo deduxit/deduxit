@@ -101,6 +101,9 @@ sequent with nothing on the left.
 - `table` and `tableau`, for classical logic, decide the sequent by its
   truth table or by a tableau, as a first logic course does, and print
   the table or the tableau ([Truth tables and tableaux](#truth-tables-and-tableaux)).
+- `connection` is a connection prover for classical logic, first-order
+  sequents included, and the default for a first-order classical
+  sequent ([First-order sequents](#first-order-sequents)).
 
 ```console
 $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
@@ -525,11 +528,26 @@ binds it, else a constant or a function symbol, as in `p(f(a), x)`. TPTP's
 `! [X] :` and `? [X] :` read the same way. There is no equality yet: `=`
 is refused, with a hint to write a predicate.
 
-`prove` decides a first-order sequent through the embedding, which is
-the default method there. A valid one gets a checked derivation with the
-quantifier rules:
+`prove` decides a first-order sequent in classical logic by the
+connection prover, and in intuitionistic and minimal logic through the
+embedding. A valid one gets a checked derivation with the quantifier
+rules:
 
 ```console
+$ deduxit prove --logic classical '|- exists x. (p(x) -> forall y. p(y))'
+valid (classical logic by the connection prover)
+              ─────────────────────────── ax
+              p(b), p(a) ⊢ p(b), ∀y. p(y)
+─────────────────────────────────────────────────────── →R
+p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), p(b), p(b) → (∀y. p(y))
+─────────────────────────────────────────────────────── ∃R
+         p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), p(b)
+       ──────────────────────────────────────── ∀R
+       p(a) ⊢ ∃x. (p(x) → (∀y. p(y))), ∀y. p(y)
+     ──────────────────────────────────────────── →R
+     ⊢ ∃x. (p(x) → (∀y. p(y))), p(a) → (∀y. p(y))
+     ──────────────────────────────────────────── ∃R
+              ⊢ ∃x. (p(x) → (∀y. p(y)))
 $ deduxit prove --logic intuitionistic 'forall x. p(x) |- exists y. p(y)'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
     ─────────── ax
@@ -540,14 +558,49 @@ valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
 ∀x. p(x) ⊢ ∃y. p(y)
 ```
 
-The translation may lose a first-order proof: the classical image cannot
-use a hypothesis twice, and the drinker's sequent below needs its
-witness twice. So where the image is unprovable, the answer is unknown
-(exit 3), never "not valid". The other methods refuse a first-order
-sequent, naming themselves (exit 2):
+The connection prover works on the formulas as they are written, not
+on a clausal form. It connects each literal with a complementary one,
+renaming the variables of a quantified formula where it needs the
+formula more than once, so the drinker's sequent above, which uses its
+witness twice, is valid. Its search deepens a bound on the length of
+the path of literals it has entered. It answers "not valid" only where
+no quantifier needs a witness term: every `∀` is one to prove and every
+`∃` one to assume, negations and implications taken into account. Its
+search then ends:
 
 ```console
-$ deduxit prove --logic classical '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
+$ deduxit prove --logic classical 'exists x. p(x) |- forall y. p(y)'; echo "exit $?"
+not valid (classical logic by the connection prover): the search was exhaustive
+exit 1
+$ deduxit prove --logic classical --method connection --path-length 2 'forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(a))))'; echo "exit $?"
+unknown (classical logic by the connection prover): the bound of 2 on the active path was reached after …; raise it with --path-length N, or lift it with --path-length none to deepen it while the time limit lasts
+exit 3
+```
+
+Any other sequent it finds no proof of is unknown: by default it
+deepens while the time limit lasts (`--path-length N` stops it at a
+bound), and where it gives up at a bound the embedding decides in its
+place. `--restricted-backtracking` keeps the first way it closes each
+literal, which often finds a proof sooner but may miss one, so a sequent
+it finds none of is unknown, even one the search above refuted:
+
+```console
+$ deduxit prove --logic classical --method connection --restricted-backtracking 'p(a) |- p(b)'; echo "exit $?"
+unknown (classical logic by the connection prover): no proof was found, but the search may miss proofs here after …
+exit 3
+```
+
+`--stats` prints its steps, its extension and reduction steps, the
+literals it closed by an equal one solved before, and the bound it
+reached.
+
+The translation into linear logic may lose a first-order proof: the
+classical image cannot use a hypothesis twice. So where the image is
+unprovable, the answer is unknown (exit 3), never "not valid". The
+other methods refuse a first-order sequent, naming themselves (exit 2):
+
+```console
+$ deduxit prove --logic classical --method embedding '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
 unknown (classical logic by the affine translation into affine MALL, focus engine): the translated sequent is unprovable, which leaves a first-order sequent open, since the translation may lose its proofs
 exit 3
 $ deduxit prove --logic classical --method sat 'forall x. p(x) |- p(a)'; echo "exit $?"

@@ -205,10 +205,13 @@ in use.
   outside its quantifier), proved
   step by step in LK, LJ and LM with the quantifier rules
   (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
-  Typst and SVG. `prove` decides them through the embedding: valid with
-  a checked derivation, or unknown where the image is unprovable, since
-  the translation may lose first-order proofs. The other methods refuse
-  them by name.
+  Typst and SVG. `prove` decides classical ones by a connection prover
+  (nanoCoP's non-clausal calculus) and the others through the
+  embedding: valid with a checked derivation; not valid from the
+  connection prover where no quantifier needs a witness term (every `∀`
+  one to prove and every `∃` one to assume, negations and implications
+  taken into account); otherwise unknown, since neither search shows a
+  first-order sequent not valid. The other methods refuse them by name.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's.
