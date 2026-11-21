@@ -464,6 +464,22 @@ fn derivation_limit_and_tree_switch() {
         err.starts_with("the derivation is not written: its 3 inferences"),
         "{err}"
     );
+
+    // So is `check` of an ordinary derivation: the verdict alone.
+    let (_, outcome, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "json",
+            "a, a -> b |- b",
+        ],
+        "",
+    );
+    let (status, out, err) = deduxit(&["check", "--tree", "never"], &outcome);
+    assert_eq!(status, 0, "{err}");
+    assert_eq!(out.lines().count(), 1, "{out}");
 }
 
 /// A drawing past a bound is left out with a line that names the flag,

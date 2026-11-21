@@ -181,7 +181,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   in `check_countermodel` for a refutation that holds, and in
   `check_model` for the failing world (the model with that world as its
   own). A bare derivation of LK or LJ is checked
-  the same way. `read_proof`'s ordinary message is `eliminate`'s now. `seq print --logic`
+  the same way, and `--tree never` leaves its derivation out before any
+  view of it is made (`check_derivation`: writing a deep formula's tree
+  was most of a check's time). `read_proof`'s ordinary message is `eliminate`'s now. `seq print --logic`
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.

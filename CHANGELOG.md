@@ -36,6 +36,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   `lemma` or a `theorem` as a hypothesis. The flake's package
   `iltp-first-order` fetches ILTP's 2 670 first-order problems, which
   `deduxit-bench run --tptp` reads, includes inlined.
+- **`check --tree never` writes no tree of an ordinary derivation**, as
+  `prove` already did; a deep derivation's check no longer spends its
+  time writing a tree nobody sees.
 - **TPTP names renamed on reading**: a name this syntax keeps for itself
   (`par`, `true`) gets `_` after it, and a function symbol named like a
   predicate `_f`, so that the sequent reads back.

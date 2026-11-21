@@ -795,7 +795,9 @@ pub(crate) fn check_derivation(
     }
     let line = (show.verdict || result.is_err()).then_some(line);
     let prefix = show.open(out, line.as_deref())?;
-    if result.is_err() || quiet {
+    // `--tree never` leaves the derivation out: neither built as a view
+    // nor written, which for a deep formula is most of the time.
+    if result.is_err() || quiet || show.tree == crate::argument_parsing::Tree::Never {
         return Ok((status, show.close(out, Shown::Nothing, line.as_deref())?));
     }
     let why = || Stop::why(stopped(deadline));
