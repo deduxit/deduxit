@@ -63,6 +63,10 @@ struct Branch {
     items: Vec<Item>,
     /// The eigenvariables of `∀R` and `∃L` below it.
     introduced: Vec<FoTermId>,
+    /// The eigenvariables of Skolem terms a witness below it holds though
+    /// the branch never introduced them: constants here, which no `∀R` or
+    /// `∃L` above may introduce.
+    constants: Vec<FoTermId>,
 }
 
 /// A step of the construction.
@@ -96,13 +100,19 @@ struct ReadBack<'m, 's> {
     formulas: Formulas,
     /// The width of each of its formulas, for the size estimate.
     widths: Vec<u64>,
-    /// The witness lists: a term and the list before it.
+    /// The witness lists: a term and the list before it, each list once,
+    /// so that a list is known by its index.
     envs: Vec<(FoTermId, u32)>,
+    /// The index of every witness list, by its last term and the list
+    /// before it.
+    env_ids: HashMap<(u32, FoTermId), u32>,
     /// Whether each occurrence lies above a literal the proof used.
     relevant: Vec<bool>,
     /// The witnesses each γ-formula needs, by its occurrence and the
     /// witnesses of the γ-formulas around it.
-    needed: HashMap<(u32, Vec<FoTermId>), Vec<FoTermId>>,
+    needed: HashMap<(u32, u32), Vec<FoTermId>>,
+    /// Every witness [`needed`](Self::needed) holds, with its key.
+    needed_seen: HashSet<(u32, u32, FoTermId)>,
     /// The eigenvariable of each Skolem term, by its index and arguments.
     skolems: HashMap<(u32, Vec<FoTermId>), FoTermId>,
     /// The terms the proof's terms became, by pattern and copy.
@@ -111,9 +121,11 @@ struct ReadBack<'m, 's> {
     next_eigen: u32,
     /// The eigenvariables numbered at or past it are Skolem terms'.
     first_skolem: u32,
-    /// The term an unbound variable stands for: an eigenvariable no rule
-    /// introduces, a constant to the checker.
-    default: FoTermId,
+    /// The term an unbound variable stands for, once one is met: an
+    /// eigenvariable no rule introduces, a constant to the checker.
+    default: Option<FoTermId>,
+    /// The number of that eigenvariable.
+    default_number: u32,
     /// The inferences made, premises first.
     inferences: Vec<Inference>,
     /// Their estimated size.
@@ -138,7 +150,7 @@ pub(super) fn read_back(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Derivation, Error> {
-    let mut formulas = sequent.formulas().clone();
+    let formulas = sequent.formulas().clone();
     // The eigenvariables of the arena are parameters: number past them.
     let base = formulas
         .first_order()
@@ -150,11 +162,6 @@ pub(super) fn read_back(
         })
         .max()
         .unwrap_or(0);
-    let default = if formulas.is_first_order() {
-        formulas.interner().term(FoTerm::Eigen(Eigen::new(base)))
-    } else {
-        FoTermId::new(0)
-    };
     let widths = super::super::derivation::widths(&formulas);
     let mut back = ReadBack {
         matrix,
@@ -162,18 +169,21 @@ pub(super) fn read_back(
         formulas,
         widths,
         envs: Vec::new(),
+        env_ids: HashMap::default(),
         relevant: vec![false; matrix.occs.len()],
         needed: HashMap::default(),
+        needed_seen: HashSet::default(),
         skolems: HashMap::default(),
         converted: HashMap::default(),
         next_eigen: base.saturating_add(1),
         first_skolem: base.saturating_add(1),
-        default,
+        default: None,
+        default_number: base,
         inferences: Vec::new(),
         bytes: 0,
         limits,
     };
-    back.oracle(used);
+    back.oracle(used, stop)?;
     let mut root = Branch::default();
     for &occ in &matrix.roots {
         let o = matrix.occs[occ as usize];
@@ -212,9 +222,32 @@ fn position(branch: &Branch, at: usize) -> (Side, usize) {
 }
 
 impl ReadBack<'_, '_> {
+    /// Returns the witness list `before` with `t` after it.
+    fn env_with(&mut self, before: u32, t: FoTermId) -> u32 {
+        if let Some(&id) = self.env_ids.get(&(before, t)) {
+            return id;
+        }
+        self.envs.push((t, before));
+        let id = (self.envs.len() - 1) as u32;
+        self.env_ids.insert((before, t), id);
+        id
+    }
+
+    /// Records that the γ-occurrence `occ` under the witness list `env`
+    /// needs the witness `t`.
+    fn need(&mut self, occ: u32, env: u32, t: FoTermId) {
+        if self.needed_seen.insert((occ, env, t)) {
+            self.needed.entry((occ, env)).or_default().push(t);
+        }
+    }
+
     /// Takes from the proof the occurrences it reaches and the witnesses
-    /// its copies need.
-    fn oracle(&mut self, used: &[(u32, u32)]) {
+    /// its copies need, asking `stop` as it goes.
+    fn oracle(
+        &mut self,
+        used: &[(u32, u32)],
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
         // `⊤` right of `⊢` and `⊥` left of it close every path through
         // them, with no literal.
         for o in 0..self.matrix.occs.len() {
@@ -228,10 +261,24 @@ impl ReadBack<'_, '_> {
                     self.relevant[up as usize] = true;
                     up = self.matrix.occs[up as usize].parent;
                 }
+                // The γ-formulas around it need a witness, any: the term
+                // an unbound variable stands for.
+                let env = self.matrix.env(o as u32);
+                let default = self.default();
+                let mut list = NONE;
+                for &slot in &env {
+                    self.need(self.matrix.slot_occ[slot as usize], list, default);
+                    list = self.env_with(list, default);
+                }
             }
         }
         let mut seen: HashSet<(u32, u32)> = HashSet::default();
-        for &(lit, copy) in used {
+        for (n, &(lit, copy)) in used.iter().enumerate() {
+            if n % 1024 == 1023 && stop(Progress::new(Phase::ReadBack, 1024, n as u64)) {
+                return Err(Error::Refused(Refusal::Stopped {
+                    phase: Phase::ReadBack,
+                }));
+            }
             if !seen.insert((lit, copy)) {
                 continue;
             }
@@ -249,14 +296,13 @@ impl ReadBack<'_, '_> {
                     self.var_term(v)
                 })
                 .collect();
+            let mut list = NONE;
             for (i, &slot) in env.iter().enumerate() {
-                let key = (self.matrix.slot_occ[slot as usize], values[..i].to_vec());
-                let list = self.needed.entry(key).or_default();
-                if !list.contains(&values[i]) {
-                    list.push(values[i]);
-                }
+                self.need(self.matrix.slot_occ[slot as usize], list, values[i]);
+                list = self.env_with(list, values[i]);
             }
         }
+        Ok(())
     }
 
     /// Returns the term variable `v` is bound to, the default where it is
@@ -264,7 +310,7 @@ impl ReadBack<'_, '_> {
     fn var_term(&mut self, v: u32) -> FoTermId {
         let (p, c) = self.terms.bound[v as usize];
         if p == NONE {
-            self.default
+            self.default()
         } else {
             self.convert((p, c))
         }
@@ -280,7 +326,7 @@ impl ReadBack<'_, '_> {
                 continue;
             }
             let made = match self.terms.head(self.matrix, t) {
-                Head::Var(_) => self.default,
+                Head::Var(_) => self.default(),
                 Head::App(f, (s, len), c) => {
                     let args: Vec<(u32, u32)> = self.matrix.pat_args
                         [s as usize..(s + len) as usize]
@@ -306,6 +352,20 @@ impl ReadBack<'_, '_> {
             self.converted.insert(t, made);
         }
         self.converted[&term]
+    }
+
+    /// Returns the term an unbound variable stands for, made at the first
+    /// call.
+    fn default(&mut self) -> FoTermId {
+        if let Some(term) = self.default {
+            return term;
+        }
+        let term = self
+            .formulas
+            .interner()
+            .term(FoTerm::Eigen(Eigen::new(self.default_number)));
+        self.default = Some(term);
+        term
     }
 
     /// Returns the eigenvariable of the Skolem term `k` applied to `args`.
@@ -335,14 +395,14 @@ impl ReadBack<'_, '_> {
     }
 
     /// Returns whether every eigenvariable of a Skolem term in `t` is one
-    /// the branch introduced.
+    /// the branch introduced or holds as a constant.
     fn available(&self, t: FoTermId, branch: &Branch) -> bool {
         let tables = self.formulas.first_order();
         let mut stack = vec![t];
         while let Some(u) = stack.pop() {
             match tables.terms[u.index()] {
                 FoTerm::Eigen(e) if e.get() >= self.first_skolem => {
-                    if !branch.introduced.contains(&u) {
+                    if !branch.introduced.contains(&u) && !branch.constants.contains(&u) {
                         return false;
                     }
                 }
@@ -351,6 +411,34 @@ impl ReadBack<'_, '_> {
             }
         }
         true
+    }
+
+    /// Returns the eigenvariables of Skolem terms in `t`.
+    fn skolem_eigens(&self, t: FoTermId) -> Vec<FoTermId> {
+        let tables = self.formulas.first_order();
+        let (mut found, mut stack) = (Vec::new(), vec![t]);
+        while let Some(u) = stack.pop() {
+            match tables.terms[u.index()] {
+                FoTerm::Eigen(e) if e.get() >= self.first_skolem => {
+                    if !found.contains(&u) {
+                        found.push(u);
+                    }
+                }
+                FoTerm::App(_, args) => stack.extend_from_slice(tables.list(args)),
+                FoTerm::Eigen(_) | FoTerm::Bound(_) | FoTerm::Meta(_) => {}
+            }
+        }
+        found
+    }
+
+    /// Returns an eigenvariable no Skolem term has.
+    fn fresh_eigen(&mut self) -> FoTermId {
+        let e = self
+            .formulas
+            .interner()
+            .term(FoTerm::Eigen(Eigen::new(self.next_eigen)));
+        self.next_eigen = self.next_eigen.saturating_add(1);
+        e
     }
 
     /// Derives the root branch, on stacks of its own.
@@ -556,6 +644,26 @@ impl ReadBack<'_, '_> {
     /// Returns the first rule the order gives for the branch, with its
     /// premises, or `None` where none applies.
     fn step(&mut self, branch: &mut Branch) -> Result<Option<Step>, Error> {
+        // 1: weaken what can no longer help, so that no inference above
+        // carries it: a formula above no literal the proof used, a copy
+        // of a δ-formula taken apart, a γ-formula with every needed
+        // witness in.
+        for at in 0..branch.items.len() {
+            if self.useless(branch, at) {
+                let item = &branch.items[at];
+                let rule = if item.left {
+                    Rule::WeakenLeft
+                } else {
+                    Rule::WeakenRight
+                };
+                return Ok(Some(Step {
+                    rule,
+                    principal: position(branch, at),
+                    term: None,
+                    premises: vec![Self::replaced(branch, at, Vec::new())],
+                }));
+            }
+        }
         // 2: one premise, no eigenvariable.
         for at in 0..branch.items.len() {
             let item = &branch.items[at];
@@ -576,11 +684,15 @@ impl ReadBack<'_, '_> {
                 continue;
             };
             let args = self.env_values(item.env);
-            let e = self.skolem(k, args);
+            let mut e = self.skolem(k, args);
             if branch.introduced.contains(&e) {
                 // A copy of a δ-formula the branch took apart.
                 branch.items[at].inert = true;
                 continue;
+            }
+            if branch.constants.contains(&e) {
+                // The branch used it as a constant: a fresh one stands in.
+                e = self.fresh_eigen();
             }
             return self.instance(branch, at, e, false).map(Some);
         }
@@ -593,7 +705,7 @@ impl ReadBack<'_, '_> {
             if !matches!(self.matrix.occs[item.occ as usize].kind, Kind::Gamma(_)) {
                 continue;
             }
-            let key = (item.occ, self.env_values(item.env));
+            let key = (item.occ, item.env);
             let Some(witnesses) = self.needed.get(&key) else {
                 continue;
             };
@@ -606,7 +718,16 @@ impl ReadBack<'_, '_> {
                 return self.instance(branch, at, t, true).map(Some);
             }
         }
-        // 5: two premises.
+        // 5: two premises, one that closes a premise at once first.
+        let closing = (0..branch.items.len()).find(|&at| {
+            let item = &branch.items[at];
+            self.relevant[item.occ as usize] && !item.inert && self.closes_a_premise(branch, at)
+        });
+        if let Some(at) = closing
+            && let Some(step) = self.binary(branch, at)?
+        {
+            return Ok(Some(step));
+        }
         for at in 0..branch.items.len() {
             let item = &branch.items[at];
             if !self.relevant[item.occ as usize] || item.inert {
@@ -616,7 +737,120 @@ impl ReadBack<'_, '_> {
                 return Ok(Some(step));
             }
         }
+        // 6: a needed witness with an eigenvariable the branch did not
+        // introduce, whose δ-formula lies on another branch: a constant
+        // here, kept from every `∀R` and `∃L` above. Of all pending
+        // witnesses, one whose Skolem terms nest least: a δ-instance
+        // arrives only through a witness that is an argument of its Skolem
+        // term, which nests strictly less, so none of the eigenvariables
+        // made constants here arrives later.
+        let nesting = self.nesting();
+        let mut best: Option<(u32, usize, FoTermId)> = None;
+        for (at, item) in branch.items.iter().enumerate() {
+            if !self.relevant[item.occ as usize] || item.inert {
+                continue;
+            }
+            if !matches!(self.matrix.occs[item.occ as usize].kind, Kind::Gamma(_)) {
+                continue;
+            }
+            let key = (item.occ, item.env);
+            let Some(witnesses) = self.needed.get(&key) else {
+                continue;
+            };
+            for &t in witnesses.iter().filter(|t| !item.done.contains(t)) {
+                let rank = self
+                    .skolem_eigens(t)
+                    .iter()
+                    .map(|e| nesting.get(e).copied().unwrap_or(0))
+                    .max()
+                    .unwrap_or(0);
+                if best.is_none_or(|(least, _, _)| rank < least) {
+                    best = Some((rank, at, t));
+                }
+            }
+        }
+        if let Some((_, at, t)) = best {
+            let constants = self.skolem_eigens(t);
+            branch.items[at].done.push(t);
+            let mut step = self.instance(branch, at, t, true)?;
+            for premise in &mut step.premises {
+                for &e in &constants {
+                    if !premise.introduced.contains(&e) && !premise.constants.contains(&e) {
+                        premise.constants.push(e);
+                    }
+                }
+            }
+            return Ok(Some(step));
+        }
         Ok(None)
+    }
+
+    /// Returns how deep each Skolem term's eigenvariable nests: 1 more than
+    /// the deepest of those in its arguments. An argument's eigenvariable
+    /// is made before the term's, so one pass in the order of their numbers
+    /// sees each argument first.
+    fn nesting(&self) -> HashMap<FoTermId, u32> {
+        let mut terms: Vec<(FoTermId, &Vec<FoTermId>)> = self
+            .skolems
+            .iter()
+            .map(|((_, args), &e)| (e, args))
+            .collect();
+        let tables = self.formulas.first_order();
+        let number = |e: FoTermId| match tables.terms[e.index()] {
+            FoTerm::Eigen(n) => n.get(),
+            FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => 0,
+        };
+        terms.sort_unstable_by_key(|&(e, _)| number(e));
+        let mut nesting: HashMap<FoTermId, u32> = HashMap::default();
+        for (e, args) in terms {
+            let inner = args
+                .iter()
+                .flat_map(|&a| self.skolem_eigens(a))
+                .map(|d| nesting.get(&d).copied().unwrap_or(0))
+                .max()
+                .unwrap_or(0);
+            nesting.insert(e, inner.saturating_add(1));
+        }
+        nesting
+    }
+
+    /// Returns whether item `at` can no longer help close the branch: it
+    /// lies above no literal the proof used, or is a copy of a δ-formula
+    /// taken apart, or is a γ-formula whose needed witnesses are all in.
+    fn useless(&self, branch: &Branch, at: usize) -> bool {
+        let item = &branch.items[at];
+        if !self.relevant[item.occ as usize] || item.inert {
+            return true;
+        }
+        if !matches!(self.matrix.occs[item.occ as usize].kind, Kind::Gamma(_)) {
+            return false;
+        }
+        let key = (item.occ, item.env);
+        self.needed
+            .get(&key)
+            .is_none_or(|witnesses| witnesses.iter().all(|t| item.done.contains(t)))
+    }
+
+    /// Returns whether a rule of two premises on item `at` would close one
+    /// of them at once: an operand that stands on the other side, or `⊤`
+    /// going right or `⊥` going left.
+    fn closes_a_premise(&self, branch: &Branch, at: usize) -> bool {
+        let item = &branch.items[at];
+        let operands = match (self.formulas.node(item.node), item.left) {
+            (Node::And(a, b), false) => [(a, false), (b, false)],
+            (Node::Or(a, b), true) => [(a, true), (b, true)],
+            (Node::Implies(a, b), true) => [(a, false), (b, true)],
+            _ => return false,
+        };
+        operands.iter().any(|&(node, left)| {
+            let shape = self.formulas.node(node);
+            (left && shape == Node::False)
+                || (!left && shape == Node::True)
+                || branch
+                    .items
+                    .iter()
+                    .any(|other| other.left != left && other.node == node)
+        })
     }
 
     /// Returns the item for operand `k` of item `at`'s occurrence, with
@@ -754,8 +988,7 @@ impl ReadBack<'_, '_> {
         let node = self.formulas.instantiate(body, t)?;
         let mut child = self.child(branch, at, 0, node);
         let premise = if keep {
-            self.envs.push((t, item.env));
-            child.env = (self.envs.len() - 1) as u32;
+            child.env = self.env_with(item.env, t);
             let mut premise = branch.clone();
             premise.items.push(child);
             premise

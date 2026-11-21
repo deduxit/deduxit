@@ -67,6 +67,20 @@ fn sequents_decided_by_hand() {
         "exists x. p(x) \\/ exists x. q(x) |- exists x. (p(x) \\/ q(x))",
         "forall x. exists y. r(x, y), forall x. forall y. (r(x, y) -> s(y)) |- exists z. s(z)",
         "|- exists x. forall y. (p(x) -> p(y))",
+        // A witness made a constant on one branch whose δ-formula a later
+        // witness brings in.
+        "forall w. (p(w) -> n), (exists u. s(u)) \\/ b, b -> forall y. (s(y) \\/ exists z. p(z)), forall v. ~s(v) |- n",
+        // A unit that closes its clause under a γ-formula.
+        "forall x. false |-",
+        "|- exists x. true",
+        "|- exists x. (false -> false)",
+        "forall x. (p(x) /\\ false) |-",
+        "|- forall x. exists y. true",
+        // A witness whose δ-formula lies on another branch (ILTP's SYN375,
+        // SYN374 and SYN069, Pelletier's 45).
+        "|- (forall x. (p(x) <-> exists y. p(y))) <-> ((forall x. p(x)) <-> exists y. p(y))",
+        "|- (exists x. forall y. (p(x) <-> p(y))) <-> ((exists x. p(x)) <-> forall y. p(y))",
+        "forall x. ((f(x) /\\ forall y. ((g(y) /\\ h(x, y)) -> j(x, y))) -> forall y. (g(y) /\\ h(x, y) /\\ k(y))), ~exists y. (l(y) /\\ k(y)), exists x. (f(x) /\\ (forall y. (h(x, y) -> l(y))) /\\ forall y. ((g(y) /\\ h(x, y)) -> j(x, y))) |- exists x. (f(x) /\\ ~exists y. (g(y) /\\ h(x, y)))",
     ];
     for text in valid {
         let sequent: Sequent = text.parse().unwrap();
@@ -207,9 +221,11 @@ fn first_order_sequents_agree_with_the_embedding() {
         let text = format!("{} |- {goal}", hypotheses.join(", "));
         let sequent: Sequent = text.parse().unwrap();
         let options = search::Options::default();
-        let ours = decide(&sequent, Logic::Classical, &options, &limits, |_| false);
-        let Ok(ours) = ours else {
-            continue;
+        // A bound may refuse a derivation; any other error is a defect.
+        let ours = match decide(&sequent, Logic::Classical, &options, &limits, |_| false) {
+            Ok(ours) => ours,
+            Err(crate::Error::Refused(_)) => continue,
+            Err(error) => panic!("{text}: {error}"),
         };
         let theirs = crate::ordinary::decide_within(
             &sequent,
@@ -231,4 +247,77 @@ fn first_order_sequents_agree_with_the_embedding() {
     }
     assert!(proved >= embedded, "{proved} against {embedded}");
     assert!(proved > 0);
+}
+
+/// The bounds hold where a search's cost is not in its steps: a deep nest
+/// of quantifiers makes the matrix's tables quadratic, which the memory
+/// bound refuses as unknown; a goal with thousands of failing extensions
+/// meets the work bound at its step, not a thousand steps later; and a
+/// bound of 0 on the active path is reported as 0.
+#[test]
+fn the_bounds_hold_where_steps_are_dear() {
+    let k = 3_000;
+    let binders: String = (0..k).map(|i| format!("forall x{i}. ")).collect();
+    let body: Vec<String> = (0..k).map(|i| format!("q{i}(x0)")).collect();
+    let text = format!("{binders}({}) |- r(a)", body.join(" /\\ "));
+    let sequent: Sequent = text.parse().unwrap();
+    let limits = Limits {
+        memory_bytes: Some(16 << 20),
+        ..Limits::default()
+    };
+    let outcome = decide(
+        &sequent,
+        Logic::Classical,
+        &search::Options::default(),
+        &limits,
+        |_| false,
+    )
+    .unwrap();
+    assert!(
+        matches!(
+            outcome.verdict,
+            Verdict::Unknown(Reason::MemoryLimit { .. })
+        ),
+        "{:?}",
+        outcome.verdict
+    );
+
+    let hypotheses: Vec<String> = (0..2_000).map(|i| format!("p(c{i})")).collect();
+    let goals: Vec<String> = (0..50).map(|j| format!("p(d{j})")).collect();
+    let text = format!("{} |- {}", hypotheses.join(", "), goals.join(", "));
+    let sequent: Sequent = text.parse().unwrap();
+    let limits = Limits {
+        work: Some(1_000),
+        ..Limits::default()
+    };
+    let outcome = decide(
+        &sequent,
+        Logic::Classical,
+        &search::Options::default(),
+        &limits,
+        |_| false,
+    )
+    .unwrap();
+    assert!(matches!(
+        outcome.verdict,
+        Verdict::Unknown(Reason::WorkLimit { limit: 1_000 })
+    ));
+    assert!(outcome.statistics.steps <= 1_000 + 2 * 1_024);
+
+    let sequent: Sequent = "forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(a)))"
+        .parse()
+        .unwrap();
+    let options = search::Options::default().with_path_length(Some(0));
+    let outcome = decide(
+        &sequent,
+        Logic::Classical,
+        &options,
+        &Limits::default(),
+        |_| false,
+    )
+    .unwrap();
+    assert!(matches!(
+        outcome.verdict,
+        Verdict::Unknown(Reason::PathLength { length: 0 })
+    ));
 }
