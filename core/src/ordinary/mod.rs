@@ -1691,16 +1691,19 @@ mod tests {
         assert!(Sequent::new(formulas, vec![], vec![x]).is_ok());
     }
 
-    /// A TPTP problem cannot name an atom `false`, which the ordinary
-    /// syntax reads as the constant and minimal logic's false is the atom
-    /// of.
+    /// A TPTP problem's atom `false`, which the ordinary syntax reads as
+    /// the constant and minimal logic's false is the atom of, is renamed:
+    /// it never stands for minimal logic's false.
     #[test]
     fn false_is_no_atom_of_the_sequent() {
         let read = read_tptp(
             "fof(a, axiom, p). fof(b, axiom, ~p). fof(c, conjecture, false).",
             &crate::Limits::default(),
-        );
-        assert!(matches!(read, Err(Error::AtomName { name }) if name == FALSE));
+        )
+        .unwrap();
+        let names = read.sequent.formulas().atom_names();
+        assert!(names.iter().all(|n| n != FALSE), "{names:?}");
+        assert_eq!(read.sequent.to_string(), "p, ¬p ⊢ false_");
     }
 
     /// Every translation decides the sequents of its logic as the logic

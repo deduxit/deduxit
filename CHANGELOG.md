@@ -36,6 +36,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   `lemma` or a `theorem` as a hypothesis. The flake's package
   `iltp-first-order` fetches ILTP's 2 670 first-order problems, which
   `deduxit-bench run --tptp` reads, includes inlined.
+- **TPTP names renamed on reading**: a name this syntax keeps for itself
+  (`par`, `true`) gets `_` after it, and a function symbol named like a
+  predicate `_f`, so that the sequent reads back.
 - **First-order formulas in ordinary logic**: predicates applied to
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas

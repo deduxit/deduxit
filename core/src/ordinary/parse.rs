@@ -12,7 +12,7 @@ use crate::Error;
 use crate::errors::ParseError;
 use crate::first_order::FoTermId;
 use crate::limits::{Limits, Refusal};
-use crate::linear::lltp::{Status, clauses};
+use crate::linear::lltp::{Clauses, Status, clauses};
 
 /// The hint for `=` and `!=`, which ordinary formulas do not have.
 const EQUALITY: &str =
@@ -102,6 +102,47 @@ struct Parser<'a> {
     /// The names of the variables of the binders waiting for their body,
     /// the innermost last, in NFC.
     scope: Vec<String>,
+    /// The names a TPTP problem's reading renames, none on its first try.
+    renames: Option<&'a Renames>,
+}
+
+/// The names a TPTP problem's reading renames, so that the sequent reads
+/// back in this crate's syntax: a name that is a keyword of it (`par`,
+/// `true`), and a function symbol that shares a predicate's name.
+#[derive(Debug, Default)]
+struct Renames {
+    /// A keyword's new name, wherever it stands.
+    keywords: crate::hash::HashMap<String, String>,
+    /// A function symbol's new name, in term position alone.
+    functions: crate::hash::HashMap<String, String>,
+}
+
+impl Renames {
+    /// Returns a name that no word of `code` is and no renaming gives yet:
+    /// `base`, else `base` with `_` after it as often as that takes.
+    #[cold]
+    #[inline(never)]
+    fn fresh(&self, code: &str, base: String) -> String {
+        let taken = |name: &str| {
+            self.keywords
+                .values()
+                .chain(self.functions.values())
+                .any(|n| n == name)
+                || words(code).any(|word| word == name)
+        };
+        let mut name = base;
+        while taken(&name) {
+            name.push('_');
+        }
+        name
+    }
+}
+
+/// Returns the identifiers of `code` in order, a word after `$` (TPTP's
+/// `$true`) included.
+fn words(code: &str) -> impl Iterator<Item = &str> {
+    code.split(|c: char| !(c == '_' || c.is_alphanumeric()))
+        .filter(|word| !word.is_empty())
 }
 
 /// What a formula's list ended with.
@@ -311,7 +352,10 @@ impl<'a> Parser<'a> {
             Some("false") if native => self.add(Node::False),
             Some(name) if self.input.as_bytes().get(self.at) == Some(&b'(') => self.predicate(name),
             Some(name) => {
-                let id = self.formulas.atom(name)?;
+                let id = match self.formulas.atom(name) {
+                    Ok(id) => id,
+                    Err(error) => self.renamed_atom(name, error)?,
+                };
                 self.within(id)
             }
             None => Err(self.unexpected(at, &["a formula"])),
@@ -422,6 +466,33 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Returns the atom of a keyword's new name where the reading renames
+    /// it, else `error`, which the arena gave for `name`.
+    #[cold]
+    #[inline(never)]
+    fn renamed_atom(&mut self, name: &str, error: Error) -> Result<NodeId, Error> {
+        match self.renames.and_then(|r| r.keywords.get(name)) {
+            Some(new) => self.formulas.atom(new),
+            None => Err(error),
+        }
+    }
+
+    /// Returns the name a symbol is read under: a keyword's new name, and
+    /// in term position (`function`) a function symbol's.
+    fn symbol_name<'n>(&self, name: &'n str, function: bool) -> std::borrow::Cow<'n, str> {
+        let Some(renames) = self.renames else {
+            return std::borrow::Cow::Borrowed(name);
+        };
+        let new = renames
+            .keywords
+            .get(name)
+            .or_else(|| function.then(|| renames.functions.get(name)).flatten());
+        match new {
+            Some(new) => std::borrow::Cow::Owned(new.clone()),
+            None => std::borrow::Cow::Borrowed(name),
+        }
+    }
+
     /// Reads the arguments of the predicate `name`, whose `(` follows,
     /// and returns its atom. A term is a variable of a binder waiting for
     /// its body, the innermost of that name, or a function symbol applied
@@ -457,7 +528,10 @@ impl<'a> Parser<'a> {
                     {
                         return Err(self.unexpected(here, &["a bound variable", "a constant"]));
                     }
-                    None => self.formulas.function(&word, &[])?,
+                    None => {
+                        let word = self.symbol_name(&word, true).into_owned();
+                        self.formulas.function(&word, &[])?
+                    }
                 };
                 // The term may end its own application and those around.
                 let mut term = Some(term);
@@ -477,10 +551,12 @@ impl<'a> Parser<'a> {
                     }
                     let (symbol, args) = open.pop().expect("an application is open");
                     if open.is_empty() {
-                        let id = self.formulas.predicate(symbol, &args)?;
+                        let symbol = self.symbol_name(symbol, false).into_owned();
+                        let id = self.formulas.predicate(&symbol, &args)?;
                         return self.within(id);
                     }
-                    term = Some(self.formulas.function(symbol, &args)?);
+                    let symbol = self.symbol_name(symbol, true).into_owned();
+                    term = Some(self.formulas.function(&symbol, &args)?);
                 }
             }
         }
@@ -574,6 +650,7 @@ impl Sequent {
             open: 0,
             limit: limits.occurrences,
             scope: Vec::new(),
+            renames: None,
         };
         let (mut left, mut right) = (Vec::new(), Vec::new());
         let mut turnstile = false;
@@ -640,6 +717,7 @@ pub(super) fn formula_in(
         open: 0,
         limit: limits.occurrences,
         scope: Vec::new(),
+        renames: None,
     };
     let at = parser.at;
     let (formula, end) = match parser.formula() {
@@ -718,6 +796,11 @@ pub struct Problem {
 /// applied to terms (lower-case). The file's statuses are read as
 /// [`lltp::read`](crate::linear::lltp::read) reads them.
 ///
+/// A name TPTP allows and this crate's syntax keeps for itself is renamed
+/// so that the sequent reads back: a keyword (`par`, `true`) gets `_`
+/// after it, and a function symbol named like a predicate `_f`, each with
+/// more `_` until it is no word of the file.
+///
 /// Every formula is read within `limits.occurrences`, as
 /// [`Sequent::parse_within`] reads them.
 ///
@@ -735,6 +818,39 @@ pub struct Problem {
 /// [`Refusal::Occurrences`] past the bound.
 pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Tptp { message })?;
+    // A name TPTP allows and this syntax refuses is renamed, and the file
+    // read again: a keyword, or a name both a predicate and a function
+    // symbol. Each try renames one name more, so the tries end; a file
+    // that needs none is read once, as before.
+    let mut renames = Renames::default();
+    loop {
+        match read_clauses(&clauses, text, limits, &renames) {
+            Err(Error::AtomName { name })
+                if crate::name::is_identifier(&name) && !renames.keywords.contains_key(&name) =>
+            {
+                let new = renames.fresh(clauses.code(), format!("{name}_"));
+                renames.keywords.insert(name, new);
+            }
+            Err(Error::Symbol {
+                name,
+                fault: crate::first_order::SymbolFault::Role,
+            }) if !renames.functions.contains_key(&name) => {
+                let new = renames.fresh(clauses.code(), format!("{name}_f"));
+                renames.functions.insert(name, new);
+            }
+            read => return read,
+        }
+    }
+}
+
+/// Reads the clauses of a TPTP file, `text`, with the names `renames`
+/// gives, as [`read_tptp`] describes.
+fn read_clauses(
+    clauses: &Clauses,
+    text: &str,
+    limits: &Limits,
+    renames: &Renames,
+) -> Result<Problem, Error> {
     let mut formulas = Formulas::default();
     let mut roots = 0;
     let mut read = |formula: &str| {
@@ -749,6 +865,7 @@ pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
             open: 0,
             limit: limits.occurrences,
             scope: Vec::new(),
+            renames: Some(renames),
         };
         // A parse error's place in the file, which the formula is a part of.
         let (start, len) = (
@@ -961,14 +1078,36 @@ mod tests {
         // the classical one.
         let open = "% Status : Theorem\n% Status (intuit.) : Open\nfof(c, conjecture, p).";
         assert_eq!(read_tptp(open, &Limits::default()).unwrap().status, None);
+        // A name this syntax keeps for itself, and a function symbol that
+        // shares a predicate's name, are renamed, fresh against every word
+        // of the file, so the sequent reads back in this syntax.
+        for (text, read) in [
+            ("fof(c, conjecture, par | ~ par).", "⊢ par_ ∨ ¬par_"),
+            (
+                "fof(a, axiom, par_).\nfof(c, conjecture, p(par)).",
+                "par_ ⊢ p(par__)",
+            ),
+            ("fof(a, axiom, q(f)).\nfof(c, conjecture, f).", "q(f_f) ⊢ f"),
+            (
+                "fof(a, axiom, f).\nfof(c, conjecture, q(g(f))).",
+                "f ⊢ q(g(f_f))",
+            ),
+            ("fof(c, conjecture, ! [X] : true(X)).", "⊢ ∀X. true_(X)"),
+        ] {
+            let problem = read_tptp(text, &Limits::default()).unwrap();
+            let printed = problem.sequent.to_string();
+            assert_eq!(printed, read, "{text}");
+            printed.replace('∀', "forall ").parse::<Sequent>().unwrap();
+        }
         // TPTP's constants are `$true` and `$false`; a plain `true` would
-        // name an atom that this syntax reads as the constant, and is
-        // refused. The message says what is wrong.
+        // name an atom that this syntax reads as the constant, so it is
+        // renamed too.
         assert_eq!(
             read_tptp("fof(c, conjecture, true | p).", &Limits::default())
-                .unwrap_err()
+                .unwrap()
+                .sequent
                 .to_string(),
-            "the atom name \"true\" is a keyword of the syntax"
+            "⊢ true_ ∨ p"
         );
     }
 

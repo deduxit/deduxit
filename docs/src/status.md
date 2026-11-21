@@ -201,8 +201,8 @@ in use.
   solver's countermodel.
 - [First-order sequents](ordinary-logic.md#first-order-sequents) are
   read from text, JSON and TPTP (of ILTP's 2 670 first-order problems,
-  all but those with equality and 132 more: a symbol named `par`, a name
-  used as a predicate and as a function, or a free variable), proved
+  all but those with equality and four whose conjecture uses a variable
+  outside its quantifier), proved
   step by step in LK, LJ and LM with the quantifier rules
   (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
   Typst and SVG. Every deciding method refuses them by name until the

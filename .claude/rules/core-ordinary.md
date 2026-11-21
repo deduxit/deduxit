@@ -332,7 +332,16 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     operator tokens' comparisons became `memcmp` calls. Natively a
     binder (`forall x y.`, `∀x.`) is a `Pending::Binder` that `reduce`
     does not take while a connective follows, so it reaches right; in
-    TPTP (`! [X] :`) it takes its unit at once. A name in term position
+    TPTP (`! [X] :`) it takes its unit at once. **TPTP names are renamed
+    by retrying** (`read_tptp`, `Renames`): a reading refused for a
+    keyword name (`Error::AtomName` of an identifier) or for a name in two
+    roles (`SymbolFault::Role`) is read again with that name renamed
+    (`par_`, `name_f`, `_` added until no word of the file is it), one
+    name more per try; a keyword is renamed in the atom's error path
+    (`renamed_atom`) and the cold paths (`symbol_name`), a function symbol
+    in term position alone, so a file that needs none reads as before on
+    the hot path. The LLTP reader renames nothing: its syntax is the
+    linear one, whose `top` and `bot` are the units LLTP writes. A name in term position
     is the innermost bound variable of that name, else a constant or
     function symbol; in TPTP an unbound upper-case word is refused. `=`
     and `!=` get the `EQUALITY` hint. `lltp::clauses` counts `[`/`]`
