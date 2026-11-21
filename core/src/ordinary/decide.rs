@@ -131,12 +131,12 @@ impl From<super::sat::Outcome> for Outcome {
 }
 
 impl From<super::connection::Outcome> for Outcome {
-    /// The outcome of the connection prover as an outcome of deciding a
-    /// classical sequent.
+    /// The outcome of the connection prover as an outcome of deciding an
+    /// ordinary sequent.
     fn from(outcome: super::connection::Outcome) -> Self {
         Self {
             verdict: outcome.verdict,
-            logic: Logic::Classical,
+            logic: outcome.logic,
             search: Search::Connection(outcome.statistics),
             countermodel: None,
         }

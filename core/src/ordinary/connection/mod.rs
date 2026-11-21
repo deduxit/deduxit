@@ -37,6 +37,7 @@
 //! Restricted backtracking ([`search::Options::restricted_backtracking`])
 //! never answers "not valid".
 
+mod intuitionistic;
 mod matrix;
 mod prove;
 mod read_back;
@@ -78,8 +79,11 @@ pub struct Statistics {
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
-    /// The verdict, with a checked derivation of LK for a valid sequent.
+    /// The verdict, with a checked derivation of LK or LJ for a valid
+    /// sequent.
     pub verdict: Verdict,
+    /// The logic decided.
+    pub logic: Logic,
     /// What the search counted.
     pub statistics: Statistics,
 }
@@ -125,16 +129,23 @@ fn run(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    if logic != Logic::Classical {
-        return Err(Error::Logic {
-            logic,
-            method: Method::Connection,
-        });
+    match logic {
+        Logic::Classical => {}
+        Logic::Intuitionistic => {
+            return intuitionistic::decide(sequent, logic, options, limits, stop);
+        }
+        Logic::Minimal => {
+            return Err(Error::Logic {
+                logic,
+                method: Method::Connection,
+            });
+        }
     }
     // The stop or the memory bound ending the matrix's build is an unknown
     // verdict, as one ending the search.
     let unknown = |reason| Outcome {
         verdict: Verdict::Unknown(reason),
+        logic,
         statistics: Statistics::default(),
     };
     let matrix = match matrix::Matrix::of(sequent, limits, &mut *stop) {
@@ -164,6 +175,7 @@ fn run(
     };
     Ok(Outcome {
         verdict,
+        logic,
         statistics: Statistics {
             steps: counts.steps,
             extensions: counts.extensions,

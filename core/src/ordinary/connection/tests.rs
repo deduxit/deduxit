@@ -148,16 +148,21 @@ fn restricted_backtracking_never_refutes_and_other_logics_are_refused() {
         outcome.verdict,
         Verdict::Unknown(Reason::Incomplete)
     ));
-    for logic in [Logic::Intuitionistic, Logic::Minimal] {
-        let refused = decide(&sequent, logic, &options, &Limits::default(), |_| false);
-        assert!(matches!(
-            refused,
-            Err(crate::Error::Logic {
-                method: Method::Connection,
-                ..
-            })
-        ));
-    }
+    // Intuitionistic logic has its prover; minimal logic none yet.
+    let refused = decide(
+        &sequent,
+        Logic::Minimal,
+        &options,
+        &Limits::default(),
+        |_| false,
+    );
+    assert!(matches!(
+        refused,
+        Err(crate::Error::Logic {
+            method: Method::Connection,
+            ..
+        })
+    ));
 }
 
 /// Returns a formula over `p/1`, `q/2`, `r/0` and the terms `a`, `b`,

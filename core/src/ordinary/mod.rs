@@ -379,12 +379,13 @@ pub enum Method {
     /// feature `interactive`.
     #[cfg(feature = "interactive")]
     Tableau,
-    /// A non-clausal connection calculus, nanoCoP's ([`connection::decide`]),
-    /// classical logic only, first-order sequents included. A valid
-    /// sequent gets a checked derivation of LK. Where the search has no
-    /// fresh variable to make it is exhaustive and answers "not valid";
-    /// elsewhere it deepens its bound on the active path and answers
-    /// "unknown" where none is found.
+    /// A non-clausal connection calculus ([`connection::decide`]),
+    /// nanoCoP's for classical logic and nanoCoP-i's, with prefixes, for
+    /// intuitionistic logic, first-order sequents included. A valid sequent
+    /// gets a checked derivation of LK or LJ. Classically, where the search
+    /// has no fresh variable to make it is exhaustive and answers "not
+    /// valid"; elsewhere, and always intuitionistically, it deepens its
+    /// bound on the active path and answers "unknown" where none is found.
     Connection,
 }
 
@@ -453,7 +454,7 @@ impl Method {
             Self::Table => "classical logic",
             #[cfg(feature = "interactive")]
             Self::Tableau => "classical logic",
-            Self::Connection => "classical logic",
+            Self::Connection => "classical and intuitionistic logic",
         }
     }
 
@@ -490,7 +491,7 @@ impl Method {
             Self::Table => matches!(logic, Logic::Classical),
             #[cfg(feature = "interactive")]
             Self::Tableau => matches!(logic, Logic::Classical),
-            Self::Connection => matches!(logic, Logic::Classical),
+            Self::Connection => matches!(logic, Logic::Classical | Logic::Intuitionistic),
         }
     }
 }
