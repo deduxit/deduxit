@@ -425,3 +425,67 @@ The client's commit `stkwzklo` needs deduxit's package with `deduxit_web_render.
 in the client, then its `nix flake check`. The client's pin is behind deduxit's `main` today
 (`c40a994f`, 0.6.0's package); its checks passed here against 0.7.0 and this chain, so nothing
 else in the bump is known to break.
+
+## Session fixup-12: three latent faults
+
+Three entries of `later.md` that a reviewer had found by reading. Each now has a test: two were
+faults and are fixed, the third no longer held and a check now holds it. Opus 5.5 at high, cores
+7-9, on `main@origin` `yunvyupu`.
+
+### What each test showed
+
+- **A first-order table with binders and no atoms: a fault, fixed in `upmnxlsv`.** A JSON sequent
+  `⊢ ∀x. (a ⅋ ~b)` written with plain atom names and a `binders` key has `fo.atoms` empty and
+  `fo.binders` not, so `FirstOrder::is_empty` is false. `join_first_order` then took its own atom
+  count from `self.fo.atoms.len()`, which is 0. With `⊢ p(c), q` added, it printed
+  `⊢ ∀x. (p(c) ⅋ ~q), p(c), q`: the sequent's atoms read the other side's table. `add_cut` is
+  the same. The test `a_table_of_binders_alone_joins_by_its_atoms` (`core/tests/first_order.rs`)
+  failed so before the fix. It covers `add` both ways round and `add_cut`. Neither side's tables
+  can tell the count, so `add` and `add_cut` now pass their atom count from before the extension.
+  The other side's count is then the rest. A sequent joined to such a table the other way round
+  kept its names before too (an atom without a table entry gets its own name), and the test pins
+  that.
+- **LJ's one-premise ¬L in the Rocq writer: a fault, fixed in `pytzrzwn`.** The derivation
+  `a ⊢ ¬¬a` (axiom, LK's one-premise `¬L` to `a, ¬a ⊢`, `¬R`) read from a level-8 document passes
+  `Derivation::check` in LJ and in LK. In LJ the writer wrote `let k : ~ a := h in (premise)`,
+  LK's continuation, of type `a` where `False` was due. `nix run .#check-certificate` refused it:
+  "The term "h'1" has type "a" while it is expected to have type "False"." The LK certificate
+  passed ("proved, with the excluded middle (classic) as its one axiom"). The LJ arm is now
+  `h (premise)`. Rocq accepts it ("proved, with no axiom"), and the LK certificate is byte for
+  byte the same. The test `ordinary_certificate_of_the_unary_negation_rules`
+  (`core/tests/export.rs`) pins both as `core/tests/snapshots/ordinary_negation_{lj,lk}.v`, which
+  the flake's `rocq` check compiles. Minimal logic refuses the form (its right side would be
+  empty). The lambda read-back (`lambda/simple.rs`) already applied `¬A` to the premise's term.
+- **`cargo test -p deduxit` without `parallel`: no warning left, a check added in `sxklpwvs`.**
+  `cargo clippy -p deduxit --all-targets -- --deny warnings`, `cargo test -p deduxit --no-run` and
+  the same Clippy with `--no-default-features` printed no warning at `yunvyupu`. The warnings in
+  `search/focus/tests.rs` and `search/reference_fo.rs` were fixed since step 49a. Most likely the
+  `wasm` check kept them out: it runs Clippy with `--all-targets` and every feature but
+  `parallel`, warnings denied, for wasm32. Nothing held the host's default build. So a flake check
+  `clippy-core-default` (Clippy on the core crate and its tests with the default features, from
+  `core` and `core-tests`) and the same line in the gate now hold it, so the full check still holds
+  every part of the gate. It built in 13 s on the shared dependencies, and the gate line took
+  about 15 s on warm dependencies. CI runs it in the group `rest`.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) on the three commits, from reading (the gate held the target
+directory): no finding that breaks correctness or the brief. It traced the old `join_first_order`
+to the changelog's wrong text. It also argued that a one-premise `¬L` in LJ always has an empty
+right side (its premise holds `A` right of `⊢`), so `h (premise)` is a term of `False` wherever
+the checker accepts it. It noted that the report section was still to come, and that the "about
+15 s" was unverified. That figure is the measured Clippy run above.
+
+### The checks
+
+- The gate (with its new line) at `sxklpwvs`: passed. Before that it passed at `upmnxlsv`. A run
+  at `pytzrzwn` failed on the new snapshot test, whose standalone certificate ends with a newline
+  that the snapshot helper trims from the file only. That is fixed in `pytzrzwn` (`trim_end`).
+- `nix build .#checks.x86_64-linux.clippy-core-default`: passed.
+- `nix run .#check-certificate` on both certificates, before and after the fix, as above.
+- `nix flake check` at `sxklpwvs`, under the machine lock: all 47 checks passed, among them
+  `rocq`, which compiled the two new snapshots, and the new `clippy-core-default`.
+
+### Left open
+
+Nothing of the three entries. The signing hook signed every commit.
