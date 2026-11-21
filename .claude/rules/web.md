@@ -542,7 +542,7 @@ for `THIRD-PARTY-NOTICES.txt`.
   writes, so the client's flake update follows the push).
 - **The budget** (`modules/budget.nix`): each module at `gzip -9` under a
   ceiling of its own (the bindings' 2 500 000 bytes, 2 438 116 on
-  2026-11-21 once the renderers left; the renderers' 1 650 000, 1 609 148;
+  2026-11-21 once the renderers left; the renderers' 1 700 000, 1 639 598;
   before, the one module had 3 913 893 that day under 3 950 000;
   3 622 968 on 2026-11-16 with the modal
   suite, 3 541 980 before it once the generic bodies took the stop as a

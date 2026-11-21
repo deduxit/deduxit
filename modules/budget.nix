@@ -38,9 +38,10 @@
       # 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
       mostModuleBytes = 2500000;
       # The renderers' module, loaded on a visitor's first PNG or PDF
-      # export: 1 609 148 on 2026-11-21 (resvg and krilla with their
-      # fonts', images' and filters' code, and the tab's settings).
-      mostRenderBytes = 1650000;
+      # export: 1 639 598 on 2026-11-21 (resvg and krilla with their
+      # fonts', images' and filters' code, and the reader of every key of
+      # the tab's settings).
+      mostRenderBytes = 1700000;
     in
     {
       checks.budget =
