@@ -794,3 +794,300 @@ argument member's findings.
 - **Open in shared code**: chains of shared bindings are exponential in
   `connection/terms.rs` (both logics); constants ignore term variables,
   which loses proofs, never soundness.
+
+## Session 75d: the fragments, the comparison and the defaults
+
+Opus 5.5 at high, cores 7-9, the panel on 14 and 15 (13 was busy);
+on 75b's chain, rebased onto `main@origin` (`vuyutrwt`) after the pause
+of 2026-11-21, and onto 75c (`koqkturo`) on 2026-11-22: the conflicts
+were the method's tables (75c's intuitionistic line for the connection
+prover beside grounding's), the help, the changelog, the manual, the
+rules, the budget and this report.
+
+### Outcome
+
+- **Grounding** (`ordinary::grounding`, `Method::Grounding`, `--method
+  grounding`, feature `sat`): the Bernays–Schönfinkel class and the
+  monadic class (through miniscoping with Behmann's distribution,
+  bounded), grounded over the constants and decided by the SAT solver,
+  in every logic. "Valid" only classically, with the checked clausal
+  proof, and by default the connection prover's derivation of LK where
+  it finds one within `EVIDENCE_WORK`; "not valid" in every logic with
+  a `FiniteCountermodel` (the sequent and a `Structure`) checked by an
+  evaluator over the original sequent. `check` evaluates an outcome's
+  structure again (`Error::Structure`, `invalid_structure`, for a wrong
+  one), and so does the protocol's `decides`.
+- **The defaults**: grounding for a first-order sequent of its classes
+  in every logic (within `grounding::DEFAULT_NODES`, 2²¹ nodes); then
+  the connection prover in classical logic, the embedding in the
+  others. The command gives grounding or the connection prover 90% of
+  its time limit and the embedding the rest (`FIRST_ORDER_SHARE`).
+- **The comparison**: leanCoP 2.1, nanoCoP 2.0, nanoCoP-i 2.0 and
+  iLeanCoP 1.2, fetched by hash at their leancop.de archives (GPL, no
+  version stated, recorded in `cop.nix`'s sources and `bench/TOOLS.md`),
+  run on SWI-Prolog by `deduxit-bench run --tools …`.
+- **The docs**: the manual (the decidable classes with console
+  examples, the default order and the share, the outcome's `structure`),
+  `status.md`, `benchmarks.md`, the guide, the changelog, the schema
+  (grounding's search and structure, and documents of grounding's and the
+  connection prover's outcomes in the `wire-schema` check, which had none
+  of the latter), the rules files.
+
+The chain, in order: `lokltvyz` the decider, the command, the check and
+the protocol; `znytlnqn` its lock; `nuqswqnw` the set-up's polls and
+memory, the structure kept or dropped, the fallback to the connection
+prover; `lzzlwoux` the command's time share; `qoqtqzrp` the harness;
+`yutxzwtu` the comparison's provers; `lrwyqtsm` miniscoping's
+distribution; `unxzultl` the docs; `plrxolky` the default's bound;
+`yxuppzvw` the panel's fixes (a Skolem constant per `∀` node, the
+bounds); `ywxpknqr` the memoised walk and δ⁺⁺ sharing; `wwutuxqn` the
+reviewer's two; `kzrnkuqx` the comparison's and the defaults' rows;
+`kzwmvzmz` the lock's rebless; `ywyrqxpp` the web module's size; then
+this report.
+
+### Departures
+
+- **The comparison runs on ILTP's 940 first-order problems without
+  equality alone** (departs from the design, §8, and the brief: "and a
+  TPTP subset"). The flake fetches no TPTP library, ILTP's problems are
+  TPTP problems, and the 1 730 with equality would measure nothing of
+  deduxit, which refuses them. 107 of the 940 hold Latin-1 in their
+  comments, which the command refuses as not UTF-8; every tool got those
+  converted.
+- **The provers run under a driver of ours** (departs from the design,
+  §8, which reads their output lines and exit statuses):
+  `modules/_provers/cop.pl` runs each release script's strategies in
+  their order with their shares of the time limit, in one SWI-Prolog
+  process, and prints `verdict(…)`. The scripts poll `ps` once a second
+  and so answer nothing before a second has passed, which at 2 s would
+  measure the scripts, not the provers.
+- **iLeanCoP 1.2 runs on SWI-Prolog with TPTP read by leanCoP 2.1's
+  reader** (departs from the design: its release needs ECLiPSe, which
+  nixpkgs lacks, and TPTP2X): `lib(iso)` left out, ECLiPSe's global
+  occurs check as SWI-Prolog's, a `retract_all/1` shim; the changes are
+  recorded in its source record (`changed`).
+- **The finite countermodel's type is this step's** (departs from the
+  design in order, §5: "step 76 owns the countermodel's type"): kept to
+  the sequent and a structure of constants and predicates, so that step
+  76 extends it.
+- **A structure too large to check is dropped and the verdict kept**
+  (departs from the design, §5, which makes the checked structure the
+  evidence of "not valid"), as a Kripke countermodel too large to check
+  is: the solver's model of the ground sequent is checked, and "not
+  valid" holds for anything grounding admits, in the class or not (the
+  argument panel's step 3).
+- **Grounding is the default for its classes in every logic, before
+  the connection prover** (departs from the design, §7, which names the
+  connection prover alone): by the measurement below.
+- **The monadic class is decided as far as bounded miniscoping brings
+  it into the Bernays–Schönfinkel form** (departs from the design, §5:
+  "miniscoping turns it into the EPR form"): distribution is bounded
+  (`DISTRIBUTE_DEPTH` 8, `DISTRIBUTE_NODES` 2²⁰, the copies' size checked
+  before they are made); a sequent past them is outside the class, which
+  is sound.
+- **75c's prover is not in the intuitionistic default** (departs from
+  the planning session's instruction at the rebase, "75c's prover in the
+  intuitionistic dispatch", and from this report's own plan before it,
+  on the rule that defaults follow a measurement): after the rebase onto
+  75c, `deduxit-bench run --tptp … --logics intuitionistic --engines
+  connection,embedding --copies none --timeout 2`, three shards on cores
+  7-9 (`bench/defaults/intuitionistic-iltp-first-order-{1,2,3}.csv`): the
+  embedding without a copy bound, as the command runs it, proves 374 of
+  ILTP's first-order problems intuitionistically, the prover 155, both
+  together 376 (the embedding misses two of the prover's). Simulated
+  from those times at 2 s, the prover first with 90%, 50% or 5% of the
+  time and the embedding after proves 338, 362 or 373, and the
+  embedding first then the prover at most 372: every order with the
+  prover in it loses theorems. So the intuitionistic default stays
+  grounding, then the embedding; the prover is `--method connection`.
+  75c's own figures (155 and 226, 260 together) set the embedding's copy
+  bound at 3, the library's, where the embedding gives way early.
+
+### Measurements
+
+The defaults (`bench/defaults/grounding-iltp-first-order-{1,2,3}.csv`,
+2026-11-21, the final build, `--engines grounding,auto` at 2 s on
+ILTP's 2 670 first-order problems, three shards on cores 7-9; `auto` is
+the library's default, which has no clock and so no share):
+
+| logic | default proved | default refuted | grounding refuted | grounding proved |
+|---|--:|--:|--:|--:|
+| classical | 674 | 77 | 77 | 360 |
+| intuitionistic | 224 | 109 | 77 | – |
+| minimal | 189 | 111 | 77 | – |
+
+- 1 730 problems with equality are refused and four do not read, in
+  every row. No verdict contradicts a file's intuitionistic status or
+  (checked here for the first time) its classical `Status`, and no
+  problem gets two verdicts.
+- Against 75b's default (594 proved, 1 refuted), the classical default
+  decides 158 more and loses SYJ208+1.010 (75b proved it in 1.98 s
+  against the 2 s limit). Of the classical default's verdicts, 524 are
+  the connection prover's, 157 grounding's, 55 the embedding's.
+- **SYN316+1 was answered "valid" before the panel's fix** (`∃x ∀y (F(x)
+  ↔ F(y))`, classically CounterSatisfiable; the harness compares with
+  the intuitionistic status only, so my own checks missed it until the
+  classical status was read): the shared Skolem constant of a split `∀`.
+  It is refuted now.
+- **The command's share**: simulated from 75b's per-problem times
+  (`r3` and the first run's embedding rows), the prover alone proves 599
+  at 2 s; 90% for it and 10% for the embedding 604, 50% 602; the prover
+  proves all but three of its theorems within 0.6 s, and five of the
+  seven theorems the embedding alone proves take it under 6 ms. The
+  comparison's deduxit column (the command with the share) proves 689
+  and refutes 77 of the 940 classically.
+- **`DEFAULT_NODES`**: the largest grounding decided within 2 s has
+  65 540 atoms (SYJ036+1, 1.5 s); SYJ020+1's grew until the limit and
+  kept the connection prover, which proves it in 0.94 s, from running.
+
+### The comparison
+
+`bench/COMPARISON.md`, last section, and
+`bench/comparison/2026-11-21-iltp-first-order/` (`runs-{1,2,3}.csv`,
+`ranking.md`): each problem once per tool under runexec at 2 s and
+4 GiB, three streams on cores 7-9.
+
+| logic | tool | decided | proved | not valid |
+|---|---|--:|--:|--:|
+| classical | deduxit | **766** | 689 | 77 |
+| classical | nanoCoP 2.0 | 713 | 629 | 84 |
+| classical | leanCoP 2.1 | 666 | 640 | 26 |
+| intuitionistic | nanoCoP-i 2.0 | **568** | 482 | 86 |
+| intuitionistic | iLeanCoP 1.2 | 559 | 485 | 74 |
+| intuitionistic | deduxit | 486 | 377 | 109 |
+
+No contradictions between tools or against a status. On the problems
+all three decide (626 classical, 376 intuitionistic) the medians are
+5.3 ms, 35 ms and 39 ms classically, 6.0 ms, 41 ms and 35 ms
+intuitionistically. Alone: deduxit 124, nanoCoP 51, leanCoP 4
+(classical); deduxit 98, nanoCoP-i 21, iLeanCoP 18 (intuitionistic,
+the provers' mostly GEJ theorems the embedding leaves open at 2 s).
+
+### The panel
+
+Argument (Fable 5.2), counterexamples (Opus 5.5), integers (Sonnet
+5.5), all at high, on cores 14 and 15; a first run was cut by the
+graceful stop before it reported and started afresh after.
+
+- **Argument: a wrong "valid"** (`q(a), ~q(b) ⊢ ∃z ∀x ((p(x) ∨ q(z)) ∧
+  (¬p(x) ∨ ¬q(z)))`): miniscoping splits a `∀` over `∧` into nodes of one
+  variable, and the Skolem constants were keyed by variable. Answered in
+  `yxuppzvw`: one constant per `∀` node and value of its free `∀`
+  variables (a first pass visits each pair once); the counterexamples
+  member found five more witnesses on the old build, all refuted with
+  checked structures on the new one, and ILTP's SYN316+1 was one too.
+- **Argument and integers: the set-up was unbounded**: `in_class`
+  walked the shared DAG as a tree (256⁴ paths, killed at 8 GiB);
+  distribution had no size check and `prepare` copied a chain's operands
+  at every level (quadratic: 100 000 conjuncts took 8 GB); the normal
+  form was not charged. Answered in `yxuppzvw`: one pass for the class
+  test, n-ary junctions as a chain is entered, distribution's size
+  checked before it copies, the normal form and the ground tables
+  charged (the estimates doubled after the integers member measured them
+  1.4 to 2.2 times short), a memory refusal unknown at that bound in the
+  set-up and the solver alike (it was exit 2 in one, 3 in the other).
+- **Argument: an unused constant of the arena** made a right refutation
+  "invalid": only the terms the sequent's formulas use are checked now.
+- **Integers: a structure read from JSON grew 8 to 13 times its text**,
+  uncharged: its tables are charged before its sets are built; serde's
+  own reading of the document is still bounded by the document's size
+  alone.
+- **Counterexamples: a stall the Skolem fix brought** (a BS sequent with
+  equivalences, 24 ms before, the time limit after): distribution shares
+  subformulas and the ground walk took them as a tree, ninety million
+  steps for 1 940 nodes. Answered in `ywxpknqr`: the walk memoised by
+  node and the values of its free variables, and equal `∀` nodes sharing
+  their constant (δ⁺⁺). Its slow monadic sequents went from past 20 s to
+  1.7 s or a memory refusal at 3 s.
+- What held: the counterexamples member's own reference (exhaustive
+  model search, exact on the monadic class) agreed on 11 000 sequents of
+  the new build in all three logics, 22 000 mutated structures and 1 616
+  `check` documents; the argument member checked the normal form, the
+  equivalence of every miniscoping step, the evaluator and the dispatch.
+- Left: the overrun after a stop (freeing the ground arena's per-atom
+  names: 0.45 s at 2 s, 1.1 s at 4 s, worse with a raised memory limit);
+  `grounds` (the default's class test, several times per command) has no
+  stop, bounded by `GROUNDS_NODES` and linear.
+
+### The reviewer's round
+
+`fresh-reviewer` (Fable 5.2), once, after the panel's fixes. No
+soundness break (about 16 000 sequents against its brute-force model
+search, every forged structure refused, the comparison's figures
+recounted). Answered: the manual's three structure examples still showed
+the elements of the walk before the memo (`wwutuxqn`, and the lock's
+rebless `kzwmvzmz`); `check` named a grounding outcome without its
+structure LJT's (`wwutuxqn`); the TPTP subset is stated as a departure
+above. Left to the author: `modules/_provers/ileancop_main.pl` (ours,
+EUPL header, ten lines of glue) follows leanCoP 2.1's `leancop_main/3`
+(GPL) closely, since it calls the same reader, `leancop_equal` and
+`prove2` in the same order; whether that counts as vendoring is the
+author's call, and it can be rewritten or dropped (iLeanCoP's column
+with it).
+
+### What was checked, and by what
+
+- **The gate** at `kzwmvzmz` passed (clippy, the tests, the lock and
+  README's and the guide's examples, both `cargo hack` runs, the
+  ratchet: `ordinary-pigeons` 32 394 319 instructions, +1.88 % against
+  the raised ceiling and within its tolerance, the propositional path as
+  before).
+- **`nix flake check`** at `ywyrqxpp` under the machine lock: every
+  check passed, after the web module's budget was raised in a commit of
+  its own (2 590 216 bytes at gzip with grounding, over the 2 560 000 it
+  had). After the rebase onto 75c, which raised the ceiling to 2 650 000
+  for its own prover, the module is 2 631 105 bytes with both provers and
+  grounding, so the ceiling stays and `ywyrqxpp` only records the
+  figure. Among them `wire-schema` with the new
+  documents of grounding's and the connection prover's outcomes and
+  `check-structure`'s, and `manual` and `manual-links`.
+- **The tests**: `grounding`'s hand cases (both classes, the panel's
+  and the counterexamples member's witnesses of the split `∀`, the
+  distribution's monadic sequents, the three logics) and 400 generated
+  function-free sequents against the connection prover; the lock's nine
+  grounding calls (refutation, JSON, clausal proof, intuitionistic, both
+  unknowns, `check` right, wrong and in JSON).
+- **ILTP**: the defaults' and the comparison's runs above, every verdict
+  against both statuses of every file, none contradicted.
+- **The panel and the reviewer**: above.
+
+### What step 76 must know
+
+- **The type**: `ordinary::FiniteCountermodel { sequent, structure }`
+  and `Structure { size, constants, predicates }` (both
+  `#[non_exhaustive]`), JSON `"structure": {"sequent", "structure":
+  {"size", "constants", "predicates"}}` beside `not_valid` (level 25),
+  `deny_unknown_fields` on `Structure`. A predicate left out holds of
+  nothing; a nullary one holds where it lists the empty tuple.
+- **The check is the one trust**: `FiniteCountermodel::check(logic,
+  limits, stop)` evaluates the original sequent (`Structure::refutes`,
+  iterative, short cuts, `limits.work` or `Structure::WORK`, the stop
+  every 4 096, the tables charged); `Error::Structure` for a structure
+  that cannot interpret the sequent or does not refute it. It refuses
+  function symbols with arguments today: a structure that interprets
+  functions extends `Structure`.
+- **What the fragments leave**: every sequent with function symbols,
+  Ackermann's and Gödel's classes (a finite-model search, not a
+  grounding), monadic sequents past bounded miniscoping, equality, and
+  in intuitionistic and minimal logic every classically valid sequent
+  (grounding answers `Unknown(Incomplete)`, and the default goes on).
+  A first-order "not valid" in those logics now comes only from a
+  classical structure; a Kripke model with domains is step 76's.
+- **The rule a change of miniscoping must keep**: one Skolem constant
+  per `∀` occurrence of the formula grounded (per node and value of its
+  free `∀` variables), equal nodes sharing (δ⁺⁺). A constant per variable
+  was unsound.
+
+### For the planning session
+
+- `ileancop_main.pl`'s closeness to GPL code (above), the author's call.
+- The command refuses TPTP files that are not UTF-8 (107 of ILTP's 940
+  first-order problems without equality): a follow-up (read TPTP
+  comments as Latin-1, or bytes).
+- 75c landed; its prover stays out of the intuitionistic default by the
+  measurement under "Departures". A race of the two (the prover on a
+  second thread) would add at most the two theorems the embedding
+  misses; minimal logic stays on the embedding, as 75c left it.
+- The web page has no `grounding` call (`web/src/calls.rs` and the
+  client are the web front end's; the protocol's `ordinary.decide` lists
+  the method).

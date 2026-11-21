@@ -662,7 +662,13 @@ the search, `read_back.rs` the derivation of LK.
   the stop, `Incomplete` included) the embedding decides. `decide`'s door
   (`takes_first_order`) lets `Embedding`, `Connection` and `Grounding`
   through at first order. The command asks `method_for` in `by_native`,
-  `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`).
+  `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`). An
+  intuitionistic first-order sequent outside grounding's classes goes to
+  the embedding, not the intuitionistic connection prover: at 2 s on
+  ILTP the embedding without a copy bound proves 374, the prover 155,
+  and every share or order with the prover in it proved fewer than the
+  embedding alone (`bench/defaults/intuitionistic-iltp-first-order-*.csv`,
+  the report of 75d).
 - **The bound** is `search::Options::path_length` (library default
   `DEFAULT_PATH_LENGTH`, 8; `Settings::default()` none, the command
   deepening under its clock) and `restricted_backtracking`; the reason
