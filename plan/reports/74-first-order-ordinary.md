@@ -872,3 +872,326 @@ Its finding and questions, each answered in the change after
 - **Follow-ups**: the 130 problems the reader refuses by their names
   (above, for the author); the command's text tree size under `--tree
   never` (74c's).
+
+## Session 74e: the open witness
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58a-610ed3`,
+cores 7 to 9 (the panel on 13 to 15), on `main@origin` (`xmpyquxt`, rebased at the end onto `ppwlxtmm`, 74d,
+then onto `vuvzpwxw`, fixup-13).
+Nothing was pushed.
+
+### Outcome
+
+The three items of the brief landed.
+
+| change | subject |
+|---|---|
+| `uqsmzkru` | Share the goal tree's walks between the linear and ordinary sessions |
+| `vprlwqpt` | Record the target set after sharing the goal tree |
+| `ukloyqvl` | Leave a quantifier's witness open in the ordinary session |
+| `qktxlzlz` | Leave a witness open in interact --logic |
+| `komxmpty` | Pin the open witness in the web bindings' ordinary session |
+| `xrwyuotv` | Answer the panel's argument member on the open witness |
+| `uswrllmz` | Hold a session's bindings to the measure its reader takes |
+| `llouuqnp` | Answer the panel's counterexamples member on the open witness |
+| `oqxqwwzw` | Answer the review of the open witness |
+
+This report is the change after them.
+
+- **Item 1, the open witness** (`ukloyqvl`), as the design's section 6
+  has it, with the choices below.
+  - `∀L` and `∃R` without a witness put `Meta(k)` (`$1` for the first)
+    in the instance. Its level is one more than the largest eigenvariable
+    in the goal's scope.
+  - The axiom, where no formula on the other side is equal to the
+    step's, takes the first that unifies: `Formulas::term_pairs` gives the
+    term pairs of the two formulas (the left one first), and the shared
+    `crate::unify::Unifier` binds them under the step's number. A binding
+    that would take an eigenvariable at or above a witness's level, or
+    one outside the goal's scope, is `StepError::Binding` (new), which
+    names the eigenvariable.
+  - **A bind substitutes** (the design's "a bind substitutes"): every
+    inference shows the bindings in force (`bind`, a `Resolution` that
+    replaces each bound witness, through chains of bindings), so
+    `check_inference`, the views, the exports and the command read them
+    unchanged. Every inference that changes is checked first; one that a
+    binding would break refuses the step and changes nothing.
+  - **What `undo` and the reader need** (the 74c report's open
+    question): the session keeps, beside each inference a binding
+    changed, what it was made as (`Witnesses::raw`), and `undo` shows the
+    rest again from it (`reshow`). This is the "raw sequents beside the
+    shown ones" of the two ways 74c named; the other, the replaced
+    sequents per step, holds a copy per binding where this holds one per
+    inference.
+  - **The finished proof** (the brief's question): a witness no axiom
+    bound becomes, once no goal is open, an eigenvariable numbered past
+    every one the arena holds, which no `∀R` or `∃L` introduces, so the
+    checker reads it as a constant (`finishing`). This is the linear
+    session's rule (`proof` there replaces an open witness `k` by the
+    eigenvariable `eigens + k`), and the checker's local eigenvariable
+    condition takes it. `∀x. p(x) ⊢ ∃x. p(x)` with no constant proves in
+    LK, LJ and LM (`an_axiom_fills_the_open_witnesses`). While a goal is
+    open the derivation shows `$1`; LaTeX writes `\$1`, Typst a string.
+  - **The document**: the inferences as made and `"bindings": [[k,
+    term, step]]` (written only where there is one), at level 25, which
+    no release has read yet, so no new level. The reader replays the
+    steps in order (`Replay`, run only for a document with an open
+    witness): each step's witness made at the level the tree gives, an
+    axiom step whose `A ⊢ A` was made unequal binding by the same
+    `unify_axiom` on those two made formulas (the very formulas the live
+    step unified), every inference of the step checked under the
+    bindings then, everything again under the final bindings, and the
+    bindings found compared with the document's. A propositional or
+    witness-free document reads as before.
+  - `rules` offers the axiom where a formula unifies; the invertible run
+    closes equal formulas only, and `invertible_steps` leaves out an
+    axiom that bound a witness (a binding is a choice).
+  - `Interactive::bindings()` (new) gives each bound witness's name and
+    term as text.
+  - The shared unifier now refuses a binding to a bound variable
+    (`Clash::Terms`, where it had `unreachable!`): the ordinary session
+    unifies whole formulas, whose atoms under a binder hold its
+    variable. The linear session's terms are closed, so nothing changes
+    for it.
+- **Item 2, the goal tree's free functions** (`uqsmzkru`,
+  kernel-boundary item 5): `crate::goal_tree` holds `subtree`,
+  `postorder`, the reader's history walk `added` and the graft's
+  `grafted`, over each inference's premises; both sessions call them,
+  each reader keeping its own messages. The open witness's reader is the
+  third caller of `added` (it needs each step's range of inferences).
+  The linear session's behaviour is unchanged: its tests, and the target
+  set (below).
+- **Item 3, the command and the bindings** (`qktxlzlz`, `komxmpty`):
+  `interact --logic` takes `apply G F forallL` with no term, lists `∀L
+  (with a witness or none)`, prints `filled $2 with $1` after the axiom,
+  and refuses a binding with the eigenvariable named
+  (`ordinary_open_witness` in `cli/tests/cli.rs`). In the web bindings
+a step without `"witness"` (74d gave the step that key) leaves the
+witness open, and the session document carries the bindings between
+calls (`an_open_witness_is_filled_by_the_axiom`). The manual's
+first-order section (74d's) says that a witness may be left open, with
+an example, and its JSON paragraph the `{"M": k}` and `bindings`; the
+guide has one bullet, the wire schema the `bindings` key of the
+ordinary session, the changelog one entry: the witness's lines only.
+
+### Departures
+
+- **The level is one more than the largest eigenvariable in the goal's
+  scope**, where the linear session counts the eigenvariables made
+  before the witness, anywhere (departs from the design, which says
+  "levels, as in 42e"). The reader then computes it from the tree alone
+  (`Tree::level`), so the document holds no levels. The two refuse the
+  same bindings once the scope is asked too: an eigenvariable made later
+  anywhere has a number at least the level (eigenvariables are numbered
+  past every live one), and one of a sibling branch made earlier is
+  refused by the scope.
+- **The document holds the inferences as made, not as shown** (the
+  design named no form): the reader replays the bindings from them, so
+  an undo after a read takes them back as in a live session.
+
+### The measurements (D17)
+
+The ratchet's instruction counts (callgrind, the gate's build) at
+`komxmpty`, against 74c's last (`vwklqmwk`):
+
+| journey | 74c | 74e |
+|---|--:|--:|
+| `read-text` | 12 433 368 | 12 433 368 |
+| `read-json` | 12 226 553 | 12 226 553 |
+| `read-tptp` | 33 661 297 | 33 661 297 |
+| `read-lltp` | 28 308 772 | 28 308 772 |
+| `ordinary-pigeons` | 31 750 475 | 31 750 492 |
+| `render-latex` | 5 780 834 | 5 780 834 |
+| `render-svg` | 79 508 723 | 79 508 723 |
+
+- At `llouuqnp` (after the panel's fixes) the gate counted `read-tptp`
+  at 33 736 850, 0.22 % above its count at `komxmpty`, within the
+  tolerance (1.12 % over its ceiling, where 74b left 0.89 %). The
+  journey reaches none of the code those commits changed. Counted in
+  one build environment for both (`ratchet --only read-tptp --keep`,
+  `callgrind_annotate` by function): 33 684 493 at `komxmpty`, 33 736 850
+  at `llouuqnp`, the whole difference one inlining decision of the
+  fat-LTO build, the interner's `HashMap<String, Symbol>` lookup now a
+  call of its own (+431 040) where it was inlined into `Parser::formula`
+  (−355 487), every other function within a few hundred instructions.
+  By `bench.md` that is a question for pinned time, not a regression;
+  no pinned run was made (a timed run the brief does not name).
+- No journey drives a session; the propositional paths the change
+  touches (the session's reader and writer, `Substitution`, the
+  serializer's `Extension`) are on none of them, and every count but
+  `ordinary-pigeons` (+17 instructions) is 74c's to the instruction.
+- The focused engine's target set after the goal tree's move
+  (`bench/targets/74e.csv`, the script as it stands, its two streams on
+  cores 2 and 3 as the script pins them): `summary --against
+  bench/targets/47.csv bench/targets/74e.csv --counters` names no verdict
+  that differs, no problem one decides and the other not, and of the 145
+  problems both decide alike on one thread none whose `nodes`, `splits`,
+  `memo_hits`, `memo_entries`, `links` or `tests` differ.
+
+### The panel
+
+On `ukloyqvl` to `komxmpty`, from one brief (the claims: the soundness
+of every state a session reaches or reads, undo, the reader, the levels
+and scope, the bounds, the goal tree):
+`deduxit-panel-argument-74e` (`panel-argument`, Fable 5.2 at `high`),
+`deduxit-panel-counterexamples-74e` (`panel-counterexamples`, Opus 5.5
+at `high`), `deduxit-panel-integers-74e` (`panel-integers`, Sonnet 5.5
+at `high`), on cores 13 to 15. None found a finished derivation that
+fails the checker: `bind`'s check of every inference a binding changes,
+the reader's checks and the final `Derivation::check` held. Their
+findings, each answered in `xrwyuotv`, `uswrllmz` or `llouuqnp` with a
+test:
+
+1. **The reader panicked or accepted what no session writes**
+   (argument, integers): a `∀L`/`∃R` with a `Meta` term in an inference
+   no step closed was never made a witness (a 433-byte document panicked
+   in `Unifier::resolve`); a session's history forged to `[]` read with
+   no witness and then panicked or failed `finished`; a cut formula
+   holding `$4000000001` read and `rules` then panicked. The reader now
+   refuses a closed inference no step closed, takes the replay for any
+   document whose formulas hold a `Meta`, and refuses a step whose
+   inferences or premises hold a witness not made yet
+   (`a_witness_no_step_left_open_is_refused`).
+2. **A binding built an equivalence without its implications**
+   (argument): `rules` then panicked on `p(a) ↔ q` after `∀x. ((p(x) ↔
+   q) ∧ s(x)) ⊢ s(a) ∧ u`'s four steps, a finished proof failed its
+   check, and a sound binding was refused as an eigenvariable fault.
+   `bind`, `finishing` and the reader add the implications of what they
+   build (`implications_from`;
+   `a_binding_builds_an_equivalence_s_implications`).
+3. **The reader refused two documents sessions wrote** (argument): an
+   axiom after a weakening the user took was read as the weakening's
+   step, and an axiom whose goal an earlier binding had changed was
+   unified on the sides as first made. The chain now stops at a goal
+   another step closed, and the reader unifies the made formulas
+   resolved under the bindings before the step, which are the shown
+   formulas the live step unified (`a_session_s_own_bindings_read_back`).
+   The rules file's claim that the made formulas are those the live step
+   unified was wrong for the second case.
+4. **Bounds** (argument, integers): a chain of bindings of shared terms
+   (20 links: 3.9 s, 44 MB of atom keys) and the reader's rebuild of
+   every inference per step (4 000 steps: 32 s). The reader builds a
+   step's inferences per step and all of them once at the end (0.34 s
+   where it was 103 s, integers' N = 400). A binding is held to
+   `limits.terms` by the reader's own measure, predicted before anything
+   is built (`uswrllmz`): a per-binding bound alone (`xrwyuotv`) let a
+   session of 96 steps write a 129 KB document its reader refused, with
+   a peak of 1.5 to 4.8 GB; now that session's 91st step is refused
+   (83 886 254 symbols against 50 000 000), and at 22 links its document
+   reads back as itself (`a_binding_is_held_to_the_bound_on_terms`).
+5. **Undo did not give back the document byte for byte** (argument): a
+   step that built nodes leaves them in the arena, which the document
+   writes whole. The state is otherwise the one before, and a typed
+   witness's instance (74c) behaves alike. Not changed: the arena only
+   grows, as everywhere in the goal state; the claim in the brief was
+   too strong, and the rules file says so.
+6. **Not fixed, a follow-up** (integers): a unifying axiom shows the
+   bindings through every inference, so a session's time grows with
+   the square of its length: 25 ms per axiom at 1 200 steps of width
+   100, 334 ms at width 400; an undo of a binding likewise. The linear
+   session shows its whole table after every change too. Restricting the
+   walk to the inferences that hold a newly bound witness needs a map
+   from witnesses to inferences.
+
+7. **A finished derivation's document held the session's open
+   witnesses** (counterexamples): the derivation's arena kept `{"M": k}`
+   terms its inferences no longer used, and the derivation reader refuses
+   any, so the manual's own example wrote a `proof --json` that `deduxit
+   check` refused (2 999 of 3 558 finished derivations of one run).
+   `finishing` now turns every `Meta` term of the copy, in place, into a
+   fresh eigenvariable and writes the atoms' keys again
+   (`an_axiom_fills_the_open_witnesses` reads the derivation back and
+   checks it).
+8. **A document read until a witness was opened** (counterexamples): an
+   inference no step closed (a history forged to `[]` under a closed
+   root) is taken by the plain reader, but the replay refused it once a
+   step left a witness open. The replay checks such inferences before
+   its first step, holding no witness
+   (`a_witness_no_step_left_open_is_refused`).
+9. **An eigenvariable near `u32::MAX`** in a forged document makes
+   `finished` refuse the complete session with the index refusal
+   (counterexamples, integers): a refusal, not a fault; not changed.
+
+The counterexamples member ran 10 767 random sessions on `xrwyuotv`
+(112 742 steps taken, 12 794 refused, 25 578 witnesses left open, 1 570
+axioms that bound, 3 558 finished derivations, 56 354 documents read
+back, 59 356 steps of a twin read from JSON in lockstep), 69 170
+mutated documents (21 282 accepted, each driven 8 steps and undone), and
+11 308 sessions and 66 300 mutants on `komxmpty`, each closed inference
+checked against its own semantic reference (random structures of 1 to 3
+elements) and every finished derivation's root against countermodels.
+None found an unsound state; findings 1 to 3 and 7 to 8 are the classes
+it found, fixed before its last runs or after. The integers member drove
+the witness and eigenvariable numbers, the steps' numbers, the bindings'
+indices and every walk to their limits: refusals or bounded, but for
+findings 4 and 6.
+
+### The reviewer's round
+
+`deduxit-review-74e` (`fresh-reviewer`, Fable 5.2) read the chain up to
+`llouuqnp` against the brief, the design and the rules, and ran 75
+seeds of random sessions in its own copy (3 775 steps that bound, 1 052
+finished proofs: every property held but the first finding). Its four
+findings, answered in `oqxqwwzw` with a test each:
+
+1. **A panic after an undone open-witness step**: the undone step's
+   atom stays in the arena with a witness numbered past the live ones,
+   and the measure of the arena resolved it (`interact --logic` on
+   `∀x. ∀y. r(x, y) ⊢ ∀y. r(a, y)`, two `∀L` without a witness, `undo`,
+   `rules 1 L0`: exit 101). `unfolded` takes such a witness as a leaf
+   (`an_undone_witness_left_in_the_arena_is_passed_by`).
+2. **The reader refused a session's own document under a bound on
+   terms**: it added an axiom step's growth to the last step's arena.
+   The reader binds with the per-binding bound alone, its arena being
+   bounded by `Tables::read` already
+   (`a_session_under_a_bound_on_terms_reads_back_under_it`). The
+   reviewer also noted, outside this change, that a typed witness's
+   instance (74c) is held to no bound on terms, so a session under a
+   small bound can write a document its reader refuses; left as it is.
+3. **The command printed the wrong filling** when an axiom filled an
+   earlier-numbered witness than the last one filled (`bindings` comes by
+   witness number): it compares by name now (`ordinary_open_witness`).
+4. **The rustdoc's JSON section** of `ordinary::Interactive` did not
+   describe `{"M": k}`, `bindings` and the inferences as made; it does.
+
+It confirmed the target set against the oracle (284 rows, the same
+verdicts, every counter of the decided rows equal) and the manual's,
+guide's and changelog's lines.
+
+### What was checked, and by what
+
+- The gate (clippy, the tests, both `cargo hack` runs, the ratchet),
+  capped on cores 7 to 9: at `komxmpty`, at `llouuqnp`, after the
+  rebase onto 74d at `oqxqwwzw`, and after the rebase onto fixup-13 at
+  `ktsrqsps`: passed each time.
+- Clippy and the tests at every other commit; both `cargo hack` runs
+  after the feature gating (`Replace::Metas`, `goal_tree::added`,
+  `holds_open_witness`).
+- The target set after the goal tree's move: equal to the oracle
+  (above).
+- `nix flake check` under the machine lock: every check passed at the
+  report's commit on 74d's base; at the last commit, on fixup-13's base,
+  in the session's last message.
+- The rebase onto `main@origin` (`ppwlxtmm`, 74d's chain) met 74d's
+  lines in the changelog, `web.md` and the web test (both tests kept;
+  74d's `StepForm` takes a `"witness"` now, so a step without one is
+  what leaves it open) and in the manual's new first-order section,
+  whose "the witness is always typed" and `(with a witness)` lines
+  changed to the open witness's; the paragraph and example of
+  `qktxlzlz` moved into that section. The rebase onto fixup-13 met its
+  doc comment of `ordinary_session` beside the new test (both kept).
+
+### What step 75 must know
+
+- A search's derivation grafted onto a session goal (`close`) holds no
+  open witness; a goal that holds one is decided by `decide`, which
+  refuses first-order sequents until step 75. When 75 lets `close` and
+  `hint` decide a first-order goal, a goal with open witnesses needs the
+  linear session's treatment (`handover.rs`: the witnesses as `∃` and the
+  later eigenvariables as `∀` in a prefix), and the graft must bind them;
+  the graft today keeps no `raw` for the inferences it adds.
+- `Witnesses::raw` is `Some` only where a binding changed an inference;
+  any new code that replaces an inference's sides (a graft, a cut) must
+  keep it, or an undo shows the wrong sequent.
+- `unify_axiom` and `Formulas::term_pairs` unify whole formulas; a
+  search that unifies literals (75) can call the same `Unifier`.
