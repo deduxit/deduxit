@@ -512,6 +512,9 @@ pub struct Interactive {
     limit: Option<u64>,
     /// The open witnesses, `None` while no step leaves one open.
     witnesses: Option<Box<Witnesses>>,
+    /// The bound on the symbols of a term an open witness stands for, the
+    /// `terms` the state was started or read under.
+    terms: u64,
 }
 
 /// An inference's sides and term as the step that made it left them.
@@ -562,36 +565,62 @@ struct Witnesses {
     raw: Vec<Option<Made>>,
 }
 
+/// Why an axiom's formulas do not unify as a session may bind them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Unbound {
+    /// The formulas differ in a connective, a predicate or a symbol, or a
+    /// witness would occur in its own term.
+    Differ,
+    /// A witness would take this eigenvariable, made after it or on
+    /// another branch.
+    Eigen(Eigen),
+    /// A witness would stand for a term of this many symbols written out,
+    /// past the bound on terms.
+    Large(u64),
+}
+
 /// Unifies the formulas `left` and `right` of an axiom in `formulas`,
 /// binding open witnesses under `step`. A binding takes no eigenvariable at
-/// or above its witness's level, and none that `in_scope` refuses. On a
-/// refusal nothing is left bound: the eigenvariable that was refused, or
-/// `None` where the formulas differ.
+/// or above its witness's level, none that `in_scope` refuses, and no term
+/// that unfolds to more than `most` symbols. On a refusal nothing is left
+/// bound.
 fn unify_axiom(
     formulas: &Formulas,
     unifier: &mut Unifier,
     (left, right): (NodeId, NodeId),
     step: u32,
     in_scope: &impl Fn(FoTermId) -> bool,
-) -> Result<(), Option<Eigen>> {
-    let pairs = formulas.term_pairs(left, right).ok_or(None)?;
+    most: u64,
+) -> Result<(), Unbound> {
+    let pairs = formulas.term_pairs(left, right).ok_or(Unbound::Differ)?;
     let terms = formulas.first_order();
     let was: Vec<bool> = unifier.metas().iter().map(|m| m.bound.is_some()).collect();
     let mark = unifier.trail_len();
     match unifier.unify(terms, pairs, step, &|_| false) {
         Ok(()) => {}
-        Err(Clash::Eigen(e)) => return Err(Some(e)),
-        Err(Clash::Terms) => return Err(None),
+        Err(Clash::Eigen(e)) => return Err(Unbound::Eigen(e)),
+        Err(Clash::Terms) => return Err(Unbound::Differ),
     }
-    // Every eigenvariable a new binding names, its bindings followed.
-    let mut seen = crate::hash::HashSet::default();
-    let mut stack: Vec<FoTermId> = unifier
+    // Each new binding's term written out, its bindings followed: shared
+    // terms could stand for one exponentially long.
+    let mut sizes: crate::hash::HashMap<FoTermId, u64> = crate::hash::HashMap::default();
+    let new: Vec<FoTermId> = unifier
         .metas()
         .iter()
         .zip(&was)
         .filter(|&(_, &was)| !was)
         .filter_map(|(m, _)| m.bound)
         .collect();
+    for &t in &new {
+        let size = unfolded(terms, unifier, t, &mut sizes);
+        if size > most {
+            unifier.undo_to(mark);
+            return Err(Unbound::Large(size));
+        }
+    }
+    // Every eigenvariable a new binding names, its bindings followed.
+    let mut seen = crate::hash::HashSet::default();
+    let mut stack = new;
     while let Some(u) = stack.pop() {
         let u = unifier.resolve(terms, u);
         if !seen.insert(u) {
@@ -601,10 +630,59 @@ fn unify_axiom(
             FoTerm::App(_, args) => stack.extend_from_slice(terms.list(args)),
             FoTerm::Eigen(e) if !in_scope(u) => {
                 unifier.undo_to(mark);
-                return Err(Some(e));
+                return Err(Unbound::Eigen(e));
             }
             FoTerm::Eigen(_) | FoTerm::Meta(_) | FoTerm::Bound(_) => {}
         }
+    }
+    Ok(())
+}
+
+/// Returns how many symbols the term `t` has written out, its bound
+/// witnesses replaced by their terms, saturating; `sizes` keeps what was
+/// counted. It walks on a stack of its own, each shared term once.
+fn unfolded(
+    terms: &crate::first_order::FirstOrder<NodeId>,
+    unifier: &Unifier,
+    t: FoTermId,
+    sizes: &mut crate::hash::HashMap<FoTermId, u64>,
+) -> u64 {
+    let mut stack = vec![(t, false)];
+    while let Some((u, done)) = stack.pop() {
+        if sizes.contains_key(&u) {
+            continue;
+        }
+        let r = unifier.resolve(terms, u);
+        let parts: &[FoTermId] = match terms.terms[r.index()] {
+            FoTerm::App(_, args) => terms.list(args),
+            FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => &[],
+        };
+        if done {
+            let size = parts.iter().fold(1u64, |sum, p| {
+                sum.saturating_add(sizes.get(p).copied().unwrap_or(0))
+            });
+            sizes.insert(u, size);
+        } else {
+            stack.push((u, true));
+            stack.extend(parts.iter().map(|&p| (p, false)));
+        }
+    }
+    sizes.get(&t).copied().unwrap_or(1)
+}
+
+/// Adds both implications of every equivalence of the arena from node
+/// `from` on, which `shape` and the checker look up: a binding or an
+/// instance can build an equivalence the arena lacked. An implication
+/// added is no equivalence, so one pass suffices.
+fn implications_from(formulas: &mut Formulas, from: usize) -> Result<(), Error> {
+    let mut n = from;
+    while n < formulas.len() {
+        // As many nodes as the arena's ids number.
+        if let Node::Iff(a, b) = formulas.node(NodeId(n as u32)) {
+            formulas.add(Node::Implies(a, b))?;
+            formulas.add(Node::Implies(b, a))?;
+        }
+        n += 1;
     }
     Ok(())
 }
@@ -662,6 +740,7 @@ impl Interactive {
             history: Vec::new(),
             limit: limits.derivation_bytes,
             witnesses: None,
+            terms: limits.terms.unwrap_or(u64::MAX),
         })
     }
 
@@ -860,9 +939,15 @@ impl Interactive {
             };
             let mut unifier = w.unifier.clone();
             let number = self.history.len() as u32;
-            unify_axiom(&self.formulas, &mut unifier, pair, number, &|e| {
-                scope.contains(&e)
-            })
+            let in_scope = |e| scope.contains(&e);
+            unify_axiom(
+                &self.formulas,
+                &mut unifier,
+                pair,
+                number,
+                &in_scope,
+                self.terms,
+            )
             .is_ok()
         })
     }
@@ -1076,26 +1161,34 @@ impl Interactive {
             return Ok(None);
         };
         let mark = w.unifier.trail_len();
-        let mut refused = None;
+        let mut refused = Unbound::Differ;
         let mut partner = None;
         for (at, &y) in goal.side(side.flip()).iter().enumerate() {
             let pair = match side {
                 Side::Left => (x, y),
                 Side::Right => (y, x),
             };
-            match unify_axiom(&self.formulas, &mut w.unifier, pair, number, &|e| {
-                scope.contains(&e)
-            }) {
+            let in_scope = |e| scope.contains(&e);
+            match unify_axiom(
+                &self.formulas,
+                &mut w.unifier,
+                pair,
+                number,
+                &in_scope,
+                self.terms,
+            ) {
                 Ok(()) => {
                     partner = Some(at);
                     break;
                 }
-                Err(eigen) => refused = refused.or(eigen),
+                Err(Unbound::Differ) => {}
+                Err(why) if refused == Unbound::Differ => refused = why,
+                Err(_) => {}
             }
         }
         let Some(partner) = partner else {
             return Err(match refused {
-                Some(e) => {
+                Unbound::Eigen(e) => {
                     let name = self.eigen_name(e);
                     StepError::Binding {
                         reason: format!(
@@ -1104,7 +1197,14 @@ impl Interactive {
                         ),
                     }
                 }
-                None => StepError::NoPartner { side, position },
+                Unbound::Large(size) => StepError::Binding {
+                    reason: format!(
+                        "an open witness would stand for a term of {size} symbols written out, \
+                         more than the bound of {} on terms",
+                        self.terms
+                    ),
+                },
+                Unbound::Differ => StepError::NoPartner { side, position },
             });
         };
         let made = axiom(&goal, side, position, partner);
@@ -1140,6 +1240,7 @@ impl Interactive {
         let full = |error: Error| StepError::Binding {
             reason: error.to_string(),
         };
+        let built = self.formulas.len();
         let mut changed = crate::hash::HashMap::default();
         for (i, inference) in self.inferences.iter().enumerate() {
             let shown = shown(&mut resolution, &mut self.formulas, inference).map_err(full)?;
@@ -1152,6 +1253,7 @@ impl Interactive {
             .map(|i| shown(&mut resolution, &mut self.formulas, i))
             .collect::<Result<Vec<_>, _>>()
             .map_err(full)?;
+        implications_from(&mut self.formulas, built).map_err(full)?;
         let at = |i: InfId| {
             changed
                 .get(&i.index())
@@ -1161,8 +1263,9 @@ impl Interactive {
             let premises: Vec<&Inference> = inference.premises.iter().map(|&p| at(p)).collect();
             if check_inference(&self.formulas, self.logic, inference, &premises).is_err() {
                 return Err(StepError::Binding {
-                    reason: "a binding would bring an eigenvariable into the conclusion of the \
-                             ∀R or ∃L that introduced it"
+                    reason: "an inference that holds the witnesses would break its rule once \
+                             they are filled: an eigenvariable would stand in the conclusion of \
+                             the ∀R or ∃L that introduced it"
                         .to_owned(),
                 });
             }
@@ -2139,11 +2242,13 @@ impl Interactive {
                 }
             });
         }
+        let built = formulas.len();
         let mut resolution = Resolution::new(bindings);
         let inferences = inferences
             .iter()
             .map(|i| shown(&mut resolution, &mut formulas, i))
             .collect::<Result<_, _>>()?;
+        implications_from(&mut formulas, built)?;
         Ok((formulas, inferences))
     }
 
@@ -2525,15 +2630,22 @@ impl Interactive {
         bound(&formulas, &root.left, &root.right, limits)?;
         // Open witnesses make a session whose inferences are read as their
         // steps made them, each checked under the bindings in force then.
-        let open = !bindings.is_empty()
-            || inferences
-                .iter()
-                .any(|i| i.term.is_some_and(|t| formulas.holds_meta(t)));
         if formulas.is_first_order()
             && formulas.holds_open_witness(root.left.iter().chain(&root.right).copied())
         {
             return Err(inconsistent("the sequent holds an open witness"));
         }
+        let open = !bindings.is_empty()
+            || inferences
+                .iter()
+                .any(|i| i.term.is_some_and(|t| formulas.holds_meta(t)))
+            || formulas.is_first_order()
+                && formulas.holds_open_witness(
+                    inferences
+                        .iter()
+                        .flat_map(|i| i.left.iter().chain(&i.right))
+                        .copied(),
+                );
         let falsity = Extra::add(&mut formulas)?.falsity;
         let len = inferences.len();
         let mut parents = vec![0u8; len];
@@ -2618,6 +2730,7 @@ impl Interactive {
                 inferences: &inferences,
                 history: &history,
                 added: &added,
+                most: limits.terms.unwrap_or(u64::MAX),
             };
             let (w, shown) = read.run(&mut formulas, &bindings)?;
             inferences = shown;
@@ -2633,6 +2746,7 @@ impl Interactive {
             history,
             limit: limits.derivation_bytes,
             witnesses,
+            terms: limits.terms.unwrap_or(u64::MAX),
         })
     }
 }
@@ -2649,6 +2763,8 @@ struct Replay<'a> {
     history: &'a [InfId],
     /// The inferences each step added, a range per step.
     added: &'a [(usize, usize)],
+    /// The bound on the symbols of a term an open witness stands for.
+    most: u64,
 }
 
 #[cfg(feature = "serialize")]
@@ -2657,11 +2773,11 @@ impl Replay<'_> {
     /// open witness made at the level its scope gives, each axiom that
     /// unifies its formulas binding them as the session binds them, and
     /// every inference a step closed checked by the checker's rules under
-    /// the bindings in force after that step. Then every inference is
-    /// checked again under the bindings in force at the end, which can
-    /// only bring eigenvariables in, and the bindings found must be the
-    /// document's. Returns the witnesses and the inferences as they show
-    /// the bindings.
+    /// the bindings in force after that step, holding no witness made
+    /// later. Then every inference is checked again under the bindings in
+    /// force at the end, which can only bring eigenvariables in, and the
+    /// bindings found must be the document's. Returns the witnesses and
+    /// the inferences as they show the bindings.
     fn run(
         &self,
         formulas: &mut Formulas,
@@ -2670,31 +2786,28 @@ impl Replay<'_> {
         let bad = |reason| Error::InconsistentSession { reason };
         let inferences = self.inferences;
         let len = inferences.len();
-        // The step that closed each inference, `None` for an open goal or
-        // one no step made.
+        // The step that closed each inference: its goal, or one it added
+        // that no later step closed.
         let mut closer: Vec<Option<usize>> = vec![None; len];
         for (s, (g, &(start, end))) in self.history.iter().zip(self.added).enumerate() {
             closer[start..end].fill(Some(s));
             closer[g.index()] = Some(s);
         }
-        let mut by_step: Vec<Vec<usize>> = vec![Vec::new(); self.history.len() + 1];
+        let mut by_step: Vec<Vec<usize>> = vec![Vec::new(); self.history.len()];
         for (i, inference) in inferences.iter().enumerate() {
-            if inference.rule != Rule::Open {
-                by_step[closer[i].map_or(0, |s| s + 1)].push(i);
+            if inference.rule == Rule::Open {
+                continue;
             }
+            // Every closed inference of a session is a step's.
+            let s = closer[i].ok_or(bad("an inference is closed by no step"))?;
+            by_step[s].push(i);
         }
         let tree = Tree::of(formulas, inferences);
         let mut w = Witnesses {
             raw: vec![None; len],
             ..Witnesses::default()
         };
-        // The inferences no step made, then each step's, as the session
-        // made them.
-        for (at, closed) in by_step.iter().enumerate() {
-            let Some(s) = at.checked_sub(1) else {
-                self.check(formulas, &w.unifier, closed)?;
-                continue;
-            };
+        for (s, closed) in by_step.iter().enumerate() {
             // Fewer steps than inferences, which a `u32` counts.
             let number = s as u32;
             for &i in closed {
@@ -2715,14 +2828,53 @@ impl Replay<'_> {
                 w.unifier.push_meta(t, level);
                 w.made.push(number);
             }
-            if let Some(pair) = self.axiom(s) {
-                let g = self.history[s].index();
-                unify_axiom(formulas, &mut w.unifier, pair, number, &|e| {
-                    tree.in_scope(e, g)
-                })
-                .map_err(|_| bad("an axiom's formulas do not unify as the session's would"))?;
+            // No inference of the step, nor a premise's sequent, holds a
+            // witness made later. A premise's term is its own step's.
+            let made = w.unifier.next_meta();
+            let sequents = closed.iter().flat_map(|&i| {
+                let inference = &inferences[i];
+                let premises = inference.premises.iter().map(|p| &inferences[p.index()]);
+                std::iter::once(inference).chain(premises)
+            });
+            let roots = sequents.flat_map(|i| i.left.iter().chain(&i.right).copied());
+            let terms = closed.iter().filter_map(|&i| inferences[i].term);
+            if formulas
+                .largest_meta(roots, terms)
+                .is_some_and(|k| k >= made)
+            {
+                return Err(bad(
+                    "an inference holds an open witness no step left open before",
+                ));
             }
-            self.check(formulas, &w.unifier, closed)?;
+            if let Some((left, right)) = self.axiom(s, &closer) {
+                // The formulas as the session showed them when it took the
+                // step: those it unified.
+                let built = formulas.len();
+                let now = w.unifier.metas().iter().map(|m| m.bound).collect();
+                let mut resolution = Resolution::new(now);
+                let pair = (
+                    resolution.node(formulas, left)?,
+                    resolution.node(formulas, right)?,
+                );
+                implications_from(formulas, built)?;
+                let g = self.history[s].index();
+                let in_scope = |e| tree.in_scope(e, g);
+                match unify_axiom(formulas, &mut w.unifier, pair, number, &in_scope, self.most) {
+                    Ok(()) => {}
+                    Err(Unbound::Large(size)) => {
+                        return Err(Error::Refused(Refusal::Terms {
+                            terms: size,
+                            limit: self.most,
+                        }));
+                    }
+                    Err(Unbound::Differ | Unbound::Eigen(_)) => {
+                        return Err(bad(
+                            "an axiom's formulas do not unify as the session's would",
+                        ));
+                    }
+                }
+            }
+            self.check(formulas, &w.unifier, closed, false)?;
         }
         if !w.unifier.bindings().eq(bindings.iter().copied()) {
             return Err(bad("the bindings are not those the axioms make"));
@@ -2730,7 +2882,7 @@ impl Replay<'_> {
         let all: Vec<usize> = (0..len)
             .filter(|&i| inferences[i].rule != Rule::Open)
             .collect();
-        let shown = self.check(formulas, &w.unifier, &all)?;
+        let shown = self.check(formulas, &w.unifier, &all, true)?;
         let mut shown = shown.unwrap_or_else(|| inferences.to_vec());
         for ((inference, raw), made) in shown.iter_mut().zip(&mut w.raw).zip(inferences) {
             if inference.left != made.left
@@ -2744,14 +2896,15 @@ impl Replay<'_> {
     }
 
     /// Returns the formulas left and right of `⊢` of the axiom of step `s`,
-    /// where the step is an axiom's (its goal's run of weakenings, each the
-    /// step's, ends in the axiom) and the two differ as made.
-    fn axiom(&self, s: usize) -> Option<(NodeId, NodeId)> {
-        let (start, end) = self.added[s];
+    /// as made, where the step is an axiom's (its goal's run of
+    /// weakenings, each closed by the step, ends in the axiom) and the two
+    /// differ; `closer` is the step that closed each inference.
+    fn axiom(&self, s: usize, closer: &[Option<usize>]) -> Option<(NodeId, NodeId)> {
         let mut at = &self.inferences[self.history[s].index()];
         while matches!(at.rule, Rule::WeakenLeft | Rule::WeakenRight)
             && let [p] = at.premises[..]
-            && (start..end).contains(&p.index())
+            && closer[p.index()] == Some(s)
+            && self.inferences[p.index()].rule != Rule::Open
         {
             at = &self.inferences[p.index()];
         }
@@ -2762,17 +2915,19 @@ impl Replay<'_> {
     }
 
     /// Checks the inferences `closed` by the checker's rules as they show
-    /// the bindings `unifier` holds, with their premises likewise, and
-    /// returns every inference as it shows them, `None` where nothing is
-    /// bound.
+    /// the bindings `unifier` holds, with their premises likewise. With
+    /// `all`, returns every inference as it shows them, `None` where
+    /// nothing is bound or `all` is not asked.
     fn check(
         &self,
         formulas: &mut Formulas,
         unifier: &Unifier,
         closed: &[usize],
+        all: bool,
     ) -> Result<Option<Vec<Inference>>, Error> {
         let bindings: Vec<Option<FoTermId>> = unifier.metas().iter().map(|m| m.bound).collect();
         let bound = bindings.iter().any(Option::is_some);
+        let built = formulas.len();
         let mut resolution = Resolution::new(bindings);
         let mut cache: crate::hash::HashMap<usize, Inference> = crate::hash::HashMap::default();
         let mut get = |i: usize, formulas: &mut Formulas| -> Result<Inference, Error> {
@@ -2786,6 +2941,7 @@ impl Replay<'_> {
             cache.insert(i, made.clone());
             Ok(made)
         };
+        let mut checked = Vec::with_capacity(closed.len());
         for &i in closed {
             let inference = get(i, formulas)?;
             let premises = inference
@@ -2793,20 +2949,27 @@ impl Replay<'_> {
                 .iter()
                 .map(|p| get(p.index(), formulas))
                 .collect::<Result<Vec<_>, _>>()?;
+            checked.push((inference, premises));
+        }
+        let every = if all && bound {
+            Some(
+                (0..self.inferences.len())
+                    .map(|i| get(i, formulas))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+        } else {
+            None
+        };
+        implications_from(formulas, built)?;
+        for (inference, premises) in &checked {
             let premises: Vec<&Inference> = premises.iter().collect();
-            if check_inference(formulas, self.logic, &inference, &premises).is_err() {
+            if check_inference(formulas, self.logic, inference, &premises).is_err() {
                 return Err(Error::InconsistentSession {
                     reason: "an inference breaks the rule it names under the bindings in force",
                 });
             }
         }
-        if !bound {
-            return Ok(None);
-        }
-        (0..self.inferences.len())
-            .map(|i| get(i, formulas))
-            .collect::<Result<Vec<_>, _>>()
-            .map(Some)
+        Ok(every)
     }
 }
 
@@ -3960,5 +4123,149 @@ mod tests {
             let left = v["inferences"][ax]["left"].clone();
             v["inferences"][ax]["right"] = left;
         }));
+    }
+
+    /// Applies `rule` at `position` of `side` with no witness or split and
+    /// returns the goals opened.
+    fn at_position(
+        state: &mut Interactive,
+        goal: GoalId,
+        (side, position): (Side, usize),
+        rule: Rule,
+    ) -> Result<Vec<GoalId>, StepError> {
+        state.apply(goal, &Step::new(side, position, rule))
+    }
+
+    /// Returns whether the state's JSON reads back as itself.
+    #[cfg(feature = "serialize")]
+    fn reads_back(state: &Interactive) -> bool {
+        let json = serde_json::to_string(state).unwrap();
+        let read: Interactive =
+            serde_json::from_str(&json).unwrap_or_else(|e| panic!("{e}: {json}"));
+        serde_json::to_string(&read).unwrap() == json
+    }
+
+    /// A binding that builds an equivalence the arena lacked builds its
+    /// implications too, which the rules on it and the checker look up:
+    /// the rules list it, the finished derivation checks, and a sound
+    /// binding through it is taken.
+    #[test]
+    fn a_binding_builds_an_equivalence_s_implications() {
+        let one = |state: &mut Interactive, goal, at, rule| {
+            let opened = at_position(state, goal, at, rule).unwrap();
+            assert_eq!(opened.len(), 1, "{rule}");
+            opened[0]
+        };
+        let (mut s, g) = start(
+            "forall x. ((p(x) <-> q) /\\ s(x)) |- s(a) /\\ u",
+            Logic::Classical,
+        );
+        let g = one(&mut s, g, (Left, 0), Rule::ForallLeft);
+        let g = one(&mut s, g, (Left, 0), Rule::AndLeft);
+        let [first, second] = at_position(&mut s, g, (Right, 0), Rule::AndRight).unwrap()[..]
+        else {
+            panic!()
+        };
+        closes(&mut s, first, (Left, "s($1)")).unwrap();
+        assert!(
+            s.rules(second, Left, 0)
+                .unwrap()
+                .iter()
+                .any(|r| r.rule == Rule::IffLeft1)
+        );
+        one(&mut s, second, (Left, 0), Rule::IffLeft1);
+        let (mut s, g) = start("forall x. (q <-> r(x)), q |- q", Logic::Classical);
+        let g = one(&mut s, g, (Left, 0), Rule::ForallLeft);
+        let g = one(&mut s, g, (Left, 0), Rule::IffLeft1);
+        closes(&mut s, g, (Left, "q")).unwrap();
+        s.finished(&Limits::default(), |_| false).unwrap();
+        let (mut s, g) = start("forall x. (p(x) <-> q), p(a) |- q", Logic::Classical);
+        let g = one(&mut s, g, (Left, 0), Rule::ForallLeft);
+        let g = one(&mut s, g, (Left, 0), Rule::IffLeft1);
+        let [first, second] = at_position(&mut s, g, (Left, 0), Rule::ImpliesLeft).unwrap()[..]
+        else {
+            panic!()
+        };
+        closes(&mut s, first, (Right, "p($1)")).unwrap();
+        closes(&mut s, second, (Left, "q")).unwrap();
+        s.finished(&Limits::default(), |_| false).unwrap();
+        #[cfg(feature = "serialize")]
+        assert!(reads_back(&s));
+    }
+
+    /// A session's own document reads back as itself where the axiom
+    /// follows a weakening the user took, and where the goal the axiom
+    /// closes was changed by an earlier binding.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_session_s_own_bindings_read_back() {
+        let (mut s, g) = start("p(a), q |- exists x. p(x)", Logic::Intuitionistic);
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let [g] = at_position(&mut s, g, (Left, 1), Rule::WeakenLeft).unwrap()[..] else {
+            panic!()
+        };
+        closes(&mut s, g, (Left, "p(a)")).unwrap();
+        assert!(reads_back(&s));
+        let (mut s, g) = start(
+            "r(c) |- exists x. (r(x) /\\ exists u. (q(u) -> q(g(x))))",
+            Logic::Intuitionistic,
+        );
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let split = Step::new(Right, 0, Rule::AndRight).split(&[0], &[]);
+        let [first, second] = s.apply(g, &split).unwrap()[..] else {
+            panic!()
+        };
+        let [g] = at_position(&mut s, second, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ImpliesRight).unwrap()[..] else {
+            panic!()
+        };
+        closes(&mut s, first, (Left, "r(c)")).unwrap();
+        closes(&mut s, g, (Left, "q($2)")).unwrap();
+        s.finished(&Limits::default(), |_| false).unwrap();
+        assert!(reads_back(&s));
+    }
+
+    /// The reader refuses an open witness that no step left open, or one
+    /// held by an inference no step closed, and does not panic on it.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_witness_no_step_left_open_is_refused() {
+        let forged = r#"{"version":25,"logic":"intuitionistic","sequent":{"formulas":[{"V":0},{"V":1},{"∃":1},"⊥",{"V":2}],"atoms":[{"P":[1,[0]]},{"P":[1,[1]]},{"P":[1,[2]]}],"symbols":[["a",0],["p",1]],"fo":[{"F":[0,[]]},{"B":0},{"M":0}],"binders":["x"],"left":[0],"right":[2]},"inferences":[{"left":[0],"right":[2],"rule":"∃R","principal":["right",0],"premises":[1],"term":2},{"left":[0],"right":[4],"rule":"ax"}],"history":[1],"bindings":[[0,0,0]]}"#;
+        assert!(serde_json::from_str::<Interactive>(forged).is_err());
+        let (mut s, g) = start("p(a) |- exists x. p(x)", Logic::Intuitionistic);
+        at_position(&mut s, g, (Right, 0), Rule::ExistsRight).unwrap();
+        let mut value = serde_json::to_value(&s).unwrap();
+        value["history"] = serde_json::json!([]);
+        assert!(serde_json::from_value::<Interactive>(value).is_err());
+    }
+
+    /// A binding whose term would unfold past the bound on terms is
+    /// refused, the state as it was.
+    #[test]
+    fn a_binding_is_held_to_the_bound_on_terms() {
+        let sequent: Sequent = "forall x y. (p(x) /\\ (p(f(y, y)) -> q)) |- q"
+            .parse()
+            .unwrap();
+        let limits = Limits {
+            terms: Some(2),
+            ..Limits::default()
+        };
+        let mut s = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
+        let mut g = GoalId::new(0);
+        for rule in [Rule::ForallLeft, Rule::ForallLeft, Rule::AndLeft] {
+            g = at_position(&mut s, g, (Left, 0), rule).unwrap()[0];
+        }
+        let [first, _] = at_position(&mut s, g, (Left, 1), Rule::ImpliesLeft).unwrap()[..] else {
+            panic!()
+        };
+        let error = closes(&mut s, first, (Left, "p($1)")).unwrap_err();
+        assert!(error.to_string().contains("bound of 2 on terms"), "{error}");
+        assert_eq!(s.bindings(), []);
     }
 }

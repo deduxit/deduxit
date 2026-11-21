@@ -1084,8 +1084,11 @@ factored out of the two until the kernel crate is.
   (`unify_axiom`: `Formulas::term_pairs` of the two formulas, left of
   `⊢` first, then the shared `crate::unify::Unifier`, trailed under the
   step's number), refusing an eigenvariable at or above a witness's
-  level and one outside the goal's scope (`StepError::Binding`, which
-  names it). Why levels and scope: the eigenvariables a binding may name
+  level, one outside the goal's scope (`StepError::Binding`, which
+  names it), and a binding whose term written out passes
+  `limits.terms` (`unfolded`, the state's `terms`; shared terms bound in
+  a chain stand for exponentially long ones, whose atom keys and text
+  the arena would build: 20 links took 3.9 s and 44 MB before). Why levels and scope: the eigenvariables a binding may name
   are those of the `∀R`/`∃L` below the step that left the witness open,
   so none lands in its own rule's conclusion.
   - **Every inference shows the bindings in force** (`bind`: a
@@ -1093,7 +1096,11 @@ factored out of the two until the kernel crate is.
     in every inference's sides and term), so `check_inference`, the
     views, the exports and the commands read them as any inference;
     every inference that changes is checked first and a failure refuses
-    the binding, changing nothing. What an inference was made as is kept
+    the binding, changing nothing. A binding builds nodes, among them
+    equivalences the arena lacked, so `bind`, `finishing` and the reader
+    add their implications (`implications_from`, from the arena's length
+    before): `shape` and the checker look them up, and without them a
+    later `rules` panicked and a finished proof failed its check. What an inference was made as is kept
     beside it (`Witnesses::raw`, `Some` only where a binding changed it;
     the goal of a later step keeps its sides as made and takes the
     step's term), and `undo` takes back the step's trail and witnesses
@@ -1118,18 +1125,30 @@ factored out of the two until the kernel crate is.
   - **The reader replays them** (`Replay::run`, only for a document with
     a bound or opened witness, so a propositional one reads as before):
     every closed inference belongs to the step that made it (the goal
-    tree's `added` ranges); per step in order, the witness of its one
-    `∀L`/`∃R` whose term is the next `Meta` (any other term holding one is
-    refused) is made at the level the tree gives (`Tree::level`, one pass
-    down the tree), an axiom step whose `A ⊢ A` was made unequal binds by
-    `unify_axiom` on those two made formulas, with the scope by the
-    walk's intervals (`Tree::in_scope`), and every inference of the step
-    is checked as it shows the bindings then; at the end every
-    inference again under the final bindings (a later binding can bring
-    an eigenvariable in, never take one out), and the bindings found
-    must equal the document's. The sequent may hold no `Meta`. The
-    unifier gets exactly the made formulas the live step unified, so
-    the replay binds what the session bound.
+    tree's `added` ranges), and one no step closed is refused; a
+    document whose formulas hold a `Meta` anywhere takes this path too.
+    Per step in order: the witness of its one `∀L`/`∃R` whose term is the
+    next `Meta` (any other term holding one is refused) is made at the
+    level the tree gives (`Tree::level`, one pass down the tree); no
+    inference of the step, nor its premises' sequents, holds a witness
+    not made yet (`largest_meta`; a premise's term is its own step's);
+    an axiom step (its goal's weakenings, each closed by this step, end
+    in an `A ⊢ A` made unequal) binds by `unify_axiom` on those two
+    formulas resolved under the bindings before the step, which are the
+    formulas the live step unified (the goal of an axiom may keep sides
+    made before an earlier binding, so its formulas as made are not);
+    the scope is read by the walk's intervals (`Tree::in_scope`); and
+    every inference of the step is checked as it shows the bindings
+    then. At the end every inference again under the final bindings (a
+    later binding can bring an eigenvariable in, never take one out),
+    rebuilt once (per step the reader builds the step's inferences only;
+    rebuilding all per step was quadratic, 32 s for 4 000 steps), and the
+    bindings found must equal the document's. The sequent may hold no
+    `Meta`. A weakening the user took before an axiom is that earlier
+    step's, so the chain stops at a goal another step closed.
+  - `undo` keeps the nodes a step built, as for an instance (the arena
+    only grows), so the document after an `apply` and an `undo` may hold
+    more formulas than before it; the state is the same otherwise.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.
