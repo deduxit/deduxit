@@ -375,6 +375,52 @@ impl Formulas {
         largest
     }
 
+    /// Returns the numbers of the open witnesses that occur in one of the
+    /// formulas `roots` or in one of the terms `term`, ascending, each once.
+    /// It walks on stacks of its own, each shared node and term once.
+    pub(crate) fn metas_in(
+        &self,
+        roots: impl Iterator<Item = NodeId>,
+        term: impl Iterator<Item = FoTermId>,
+    ) -> Vec<u32> {
+        let tables = self.tables();
+        let mut nodes_seen = HashSet::default();
+        let mut terms_seen = HashSet::default();
+        let mut nodes: Vec<NodeId> = roots.collect();
+        let mut terms: Vec<FoTermId> = term.collect();
+        while let Some(k) = nodes.pop() {
+            if !nodes_seen.insert(k) {
+                continue;
+            }
+            match self.nodes[k.index()] {
+                Node::Atom(a) => {
+                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                        terms.extend_from_slice(tables.list(args));
+                    }
+                }
+                Node::True | Node::False => {}
+                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    nodes.push(a);
+                    nodes.push(b);
+                }
+            }
+        }
+        let mut metas = Vec::new();
+        while let Some(u) = terms.pop() {
+            if !terms_seen.insert(u) {
+                continue;
+            }
+            match tables.terms[u.index()] {
+                FoTerm::Meta(k) => metas.push(k),
+                FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
+                FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
+            }
+        }
+        metas.sort_unstable();
+        metas
+    }
+
     /// Returns whether one of the formulas `roots` holds an open witness.
     /// It walks on stacks of its own, each shared node and term once.
     #[cfg(feature = "serialize")]

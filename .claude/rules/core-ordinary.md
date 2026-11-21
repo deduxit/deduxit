@@ -1118,6 +1118,21 @@ factored out of the two until the kernel crate is.
     step's term), and `undo` takes back the step's trail and witnesses
     and shows the rest again from it (`reshow`); the witnesses go once
     none is left.
+  - **A binding is shown, and taken back, through the inferences that
+    hold its witness** (`Witnesses::holders`, per witness, and
+    `registered`, per inference, the two kept in step): an inference is
+    registered under every witness it shows when it is recorded and when
+    a binding changes it, and forgotten when an undo truncates it, so a
+    witness's set holds every inference that shows it and every one a
+    binding of it changed. `bind` walks the sets of the witnesses the step
+    bound, `undo` those of the witnesses it unbound; the reader registers
+    each inference under the witnesses its shown form holds and those its
+    form as made reaches through the bindings (`reached`). Walking every
+    inference made a session's time grow with the square of its length
+    (an axiom at 1 200 steps of width 100: 25 ms, now 0.35 ms);
+    `walked_differs` and `a_binding_shown_through_its_holders_is_the_walk_s`
+    compare each state of random sessions with the walk over every
+    inference.
   - **A finished derivation holds no open witness**
     (`finishing`, in `derivation_within` when no goal is open): every
     `Meta` term of the arena's copy becomes, in place, an eigenvariable

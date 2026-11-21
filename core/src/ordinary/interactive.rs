@@ -572,6 +572,75 @@ struct Witnesses {
     /// Per inference, its sides and term as made, where a binding changed
     /// them since; as long as the inferences.
     raw: Vec<Option<Made>>,
+    /// Per open witness, the inferences registered as showing it: every
+    /// inference that showed it since it was made and still stands, so
+    /// every one that shows it now, and every one a binding of it changed.
+    /// A binding is shown, and taken back, through these alone.
+    holders: Vec<crate::hash::HashSet<u32>>,
+    /// Per inference, the open witnesses it is registered under; as long
+    /// as the inferences.
+    registered: Vec<Vec<u32>>,
+}
+
+impl Witnesses {
+    /// Returns no witnesses for a state of `len` inferences.
+    fn new(len: usize) -> Self {
+        Self {
+            raw: vec![None; len],
+            registered: vec![Vec::new(); len],
+            ..Self::default()
+        }
+    }
+
+    /// Makes an unbound open witness of term `term` at `level`, made by the
+    /// step numbered `step`.
+    fn push(&mut self, term: FoTermId, level: u32, step: u32) {
+        self.unifier.push_meta(term, level);
+        self.made.push(step);
+        self.holders.push(crate::hash::HashSet::default());
+    }
+
+    /// Registers the inference `i` under each of the open witnesses
+    /// `metas` that it is not registered under yet.
+    fn register(&mut self, i: usize, metas: &[u32]) {
+        // Fewer inferences than a `u32` counts.
+        let id = i as u32;
+        for &k in metas {
+            if let Some(holders) = self.holders.get_mut(k as usize)
+                && holders.insert(id)
+            {
+                self.registered[i].push(k);
+            }
+        }
+    }
+
+    /// Forgets the registrations of the inferences from `len` on, which an
+    /// undo took away.
+    fn forget_from(&mut self, len: usize) {
+        for (i, metas) in self.registered.iter().enumerate().skip(len) {
+            for &k in metas {
+                if let Some(holders) = self.holders.get_mut(k as usize) {
+                    // Fewer inferences than a `u32` counts.
+                    holders.remove(&(i as u32));
+                }
+            }
+        }
+        self.registered.truncate(len);
+        self.raw.truncate(len);
+    }
+
+    /// Returns the inferences registered under any of the open witnesses
+    /// `metas`, ascending.
+    fn holding(&self, metas: impl Iterator<Item = u32>) -> Vec<usize> {
+        let mut found: Vec<usize> = metas
+            .filter_map(|k| self.holders.get(k as usize))
+            .flatten()
+            .map(|&i| i as usize)
+            .collect();
+        found.sort_unstable();
+        found.dedup();
+        found
+    }
 }
 
 /// Why an axiom's formulas do not unify as a session may bind them.
@@ -1236,6 +1305,12 @@ impl Interactive {
             return Ok(None);
         };
         let mark = w.unifier.trail_len();
+        let was: Vec<bool> = w
+            .unifier
+            .metas()
+            .iter()
+            .map(|m| m.bound.is_some())
+            .collect();
         let mut refused = Unbound::Differ;
         let mut partner = None;
         for (at, &y) in goal.side(side.flip()).iter().enumerate() {
@@ -1284,7 +1359,12 @@ impl Interactive {
             });
         };
         let made = axiom(&goal, side, position, partner);
-        match self.bind(&made) {
+        let fresh: Vec<u32> = self.witnesses.as_deref().map_or_else(Vec::new, |w| {
+            (0..w.unifier.next_meta())
+                .filter(|&k| w.unifier.metas()[k as usize].bound.is_some() && !was[k as usize])
+                .collect()
+        });
+        match self.bind(&made, &fresh) {
             Ok((shown, raw)) => {
                 let opened = self.record_made(id, shown, raw);
                 Ok(Some(opened))
@@ -1299,14 +1379,17 @@ impl Interactive {
     }
 
     /// Shows the bindings the unifier holds now in every inference that
-    /// holds a bound witness, and returns the inferences `made` as they
-    /// show them, with what each was made as where that differs. Every
-    /// inference that changes is checked by the checker's rules first; one
-    /// that a binding would break (an eigenvariable brought into its
-    /// rule's conclusion) refuses the binding and changes nothing.
+    /// shows one of the open witnesses `fresh`, which the step bound, and
+    /// returns the inferences `made` as they show them, with what each was
+    /// made as where that differs. Only the inferences registered under
+    /// `fresh` can change. Every inference that changes is checked by the
+    /// checker's rules first; one that a binding would break (an
+    /// eigenvariable brought into its rule's conclusion) refuses the
+    /// binding and changes nothing.
     fn bind(
         &mut self,
         made: &[Inference],
+        fresh: &[u32],
     ) -> Result<(Vec<Inference>, Vec<Option<Made>>), StepError> {
         let Some(w) = self.witnesses.as_deref_mut() else {
             return Ok((made.to_vec(), vec![None; made.len()]));
@@ -1318,7 +1401,8 @@ impl Interactive {
         };
         let built = self.formulas.len();
         let mut changed = crate::hash::HashMap::default();
-        for (i, inference) in self.inferences.iter().enumerate() {
+        for i in w.holding(fresh.iter().copied()) {
+            let inference = &self.inferences[i];
             let shown = shown(&mut resolution, &mut self.formulas, inference).map_err(full)?;
             if shown != *inference {
                 changed.insert(i, shown);
@@ -1358,6 +1442,11 @@ impl Interactive {
             .expect("the witnesses are there");
         for (i, inference) in changed {
             w.raw[i].get_or_insert_with(|| Made::of(&self.inferences[i]));
+            let metas = self.formulas.metas_in(
+                inference.left.iter().chain(&inference.right).copied(),
+                inference.term.into_iter(),
+            );
+            w.register(i, &metas);
             let at = &mut self.inferences[i];
             at.left = inference.left;
             at.right = inference.right;
@@ -1418,14 +1507,10 @@ impl Interactive {
         })?;
         if let Some(level) = open {
             let (len, number) = (self.inferences.len(), self.history.len() as u32);
-            let w = self.witnesses.get_or_insert_with(|| {
-                Box::new(Witnesses {
-                    raw: vec![None; len],
-                    ..Witnesses::default()
-                })
-            });
-            w.unifier.push_meta(term, level);
-            w.made.push(number);
+            let w = self
+                .witnesses
+                .get_or_insert_with(|| Box::new(Witnesses::new(len)));
+            w.push(term, level, number);
         }
         let goal = self.open(id)?;
         let same = if keep {
@@ -1881,6 +1966,17 @@ impl Interactive {
         }
         self.inferences.extend(made);
         self.history.push(InfId::new(goal.get()));
+        if let Some(w) = self.witnesses.as_deref_mut() {
+            w.registered.resize(self.inferences.len(), Vec::new());
+            for i in std::iter::once(goal.index()).chain(base..self.inferences.len()) {
+                let inference = &self.inferences[i];
+                let metas = self.formulas.metas_in(
+                    inference.left.iter().chain(&inference.right).copied(),
+                    inference.term.into_iter(),
+                );
+                w.register(i, &metas);
+            }
+        }
         opened
     }
 
@@ -1899,20 +1995,32 @@ impl Interactive {
         inference.premises.clear();
         inference.term = None;
         if let Some(w) = self.witnesses.as_deref_mut() {
-            w.raw.truncate(self.inferences.len());
+            w.forget_from(self.inferences.len());
             if let Some(kept) = &mut w.raw[goal.index()] {
                 kept.term = None;
             }
             // The step's number, under which its bindings were trailed.
             let number = self.history.len() as u32;
-            let bound = w.unifier.trail_len();
+            let was: Vec<bool> = w
+                .unifier
+                .metas()
+                .iter()
+                .map(|m| m.bound.is_some())
+                .collect();
             w.unifier.undo(number);
             while w.made.last().is_some_and(|&s| s >= number) {
                 w.made.pop();
             }
             w.unifier.truncate_metas(w.made.len());
-            if w.unifier.trail_len() != bound {
-                self.reshow();
+            w.holders.truncate(w.made.len());
+            // The witnesses the step had bound, and the inferences that
+            // showed them before.
+            let unbound: Vec<u32> = (0..w.unifier.next_meta())
+                .filter(|&k| was[k as usize] && w.unifier.metas()[k as usize].bound.is_none())
+                .collect();
+            let changed = w.holding(unbound.into_iter());
+            if !changed.is_empty() {
+                self.reshow(&changed);
             }
             if self.witnesses.as_ref().is_some_and(|w| w.made.is_empty()) {
                 self.witnesses = None;
@@ -1921,15 +2029,19 @@ impl Interactive {
         Some(GoalId::new(goal.get()))
     }
 
-    /// Shows the bindings in force in every inference a binding changed,
-    /// from what it was made as.
-    fn reshow(&mut self) {
+    /// Shows the bindings in force, from what it was made as, in every
+    /// inference of `changed` that a binding changed.
+    fn reshow(&mut self, changed: &[usize]) {
         let Some(w) = self.witnesses.as_deref_mut() else {
             return;
         };
         let bindings = w.unifier.metas().iter().map(|m| m.bound).collect();
         let mut resolution = Resolution::new(bindings);
-        for (inference, raw) in self.inferences.iter_mut().zip(&mut w.raw) {
+        for &i in changed {
+            let (Some(inference), Some(raw)) = (self.inferences.get_mut(i), w.raw.get_mut(i))
+            else {
+                continue;
+            };
             let Some(made) = raw else { continue };
             let mut again = |list: &[NodeId]| {
                 list.iter()
@@ -2869,10 +2981,7 @@ impl Replay<'_> {
             }
         }
         let tree = Tree::of(formulas, inferences);
-        let mut w = Witnesses {
-            raw: vec![None; len],
-            ..Witnesses::default()
-        };
+        let mut w = Witnesses::new(len);
         for (at, closed) in by_step.iter().enumerate() {
             let Some(s) = at.checked_sub(1) else {
                 if formulas
@@ -2907,8 +3016,7 @@ impl Replay<'_> {
                     ));
                 }
                 let level = tree.level[i].ok_or(bad("an eigenvariable of the last number"))?;
-                w.unifier.push_meta(t, level);
-                w.made.push(number);
+                w.push(t, level, number);
             }
             // No inference of the step, nor a premise's sequent, holds a
             // witness made later. A premise's term is its own step's.
@@ -2981,6 +3089,27 @@ impl Replay<'_> {
             {
                 *raw = Some(Made::of(made));
             }
+        }
+        // Each inference under the witnesses it shows and those its form as
+        // made reaches through the bindings: an undo of any binding in force
+        // changes no other.
+        let reach = reached(formulas, &w.unifier);
+        for (i, (inference, made)) in shown.iter().zip(inferences).enumerate() {
+            let mut metas = formulas.metas_in(
+                made.left.iter().chain(&made.right).copied(),
+                made.term.into_iter(),
+            );
+            metas = metas
+                .iter()
+                .flat_map(|&k| reach.get(k as usize).into_iter().flatten().copied())
+                .chain(formulas.metas_in(
+                    inference.left.iter().chain(&inference.right).copied(),
+                    inference.term.into_iter(),
+                ))
+                .collect();
+            metas.sort_unstable();
+            metas.dedup();
+            w.register(i, &metas);
         }
         Ok((w, shown))
     }
@@ -3061,6 +3190,52 @@ impl Replay<'_> {
         }
         Ok(every)
     }
+}
+
+/// Returns, per open witness, the witnesses it reaches through the
+/// bindings `unifier` holds, itself included, ascending: the open witnesses
+/// of its term, of theirs, and so on. The bindings hold no cycle. It walks
+/// on a stack of its own, each witness once.
+#[cfg(feature = "serialize")]
+fn reached(formulas: &Formulas, unifier: &Unifier) -> Vec<Vec<u32>> {
+    let metas = unifier.metas();
+    let mut reach: Vec<Option<Vec<u32>>> = vec![None; metas.len()];
+    for start in 0..metas.len() {
+        let mut stack = vec![(start, false)];
+        while let Some((k, done)) = stack.pop() {
+            if reach[k].is_some() {
+                continue;
+            }
+            let next: Vec<u32> = match metas[k].bound {
+                Some(t) => formulas.metas_in(std::iter::empty(), std::iter::once(t)),
+                None => Vec::new(),
+            };
+            if done {
+                let mut all = vec![k as u32];
+                for &j in &next {
+                    all.extend(
+                        reach
+                            .get(j as usize)
+                            .and_then(Option::as_ref)
+                            .into_iter()
+                            .flatten(),
+                    );
+                }
+                all.sort_unstable();
+                all.dedup();
+                reach[k] = Some(all);
+            } else {
+                stack.push((k, true));
+                stack.extend(
+                    next.iter()
+                        .map(|&j| j as usize)
+                        .filter(|&j| j < metas.len())
+                        .map(|j| (j, false)),
+                );
+            }
+        }
+    }
+    reach.into_iter().map(Option::unwrap_or_default).collect()
 }
 
 /// What the reader of a session asks of its tree of inferences: each
@@ -4432,5 +4607,118 @@ mod tests {
         let mut reader = serde_json::Deserializer::from_str(&json);
         let read: Interactive = crate::wire::upgrade(&mut reader, &limits).unwrap();
         assert_eq!(serde_json::to_string(&read).unwrap(), json);
+    }
+
+    /// Returns where the state is not what a walk over every inference
+    /// would make it: an inference that does not show the bindings in force
+    /// over what it was made as, a form as made kept where nothing changed
+    /// it, or a closed inference the checker's rules refuse.
+    fn walked_differs(state: &Interactive) -> Option<String> {
+        let mut formulas = state.formulas.clone();
+        let w = state.witnesses.as_deref();
+        let bindings = w.map_or_else(Vec::new, |w| {
+            w.unifier.metas().iter().map(|m| m.bound).collect()
+        });
+        let mut resolution = Resolution::new(bindings);
+        for (i, inference) in state.inferences.iter().enumerate() {
+            let raw = w.and_then(|w| w.raw[i].as_ref());
+            let mut made = inference.clone();
+            if let Some(raw) = raw {
+                made.left.clone_from(&raw.left);
+                made.right.clone_from(&raw.right);
+                made.term = raw.term;
+            }
+            let expected = shown(&mut resolution, &mut formulas, &made).unwrap();
+            if expected != *inference {
+                return Some(format!("inference {i} does not show the bindings"));
+            }
+            if raw.is_some_and(|raw| raw.shows(inference)) {
+                return Some(format!("inference {i} keeps a form as made that shows"));
+            }
+            if inference.rule != Rule::Open {
+                let premises: Vec<&Inference> = inference
+                    .premises
+                    .iter()
+                    .map(|p| &state.inferences[p.index()])
+                    .collect();
+                if let Err(why) =
+                    check_inference(&state.formulas, state.logic, inference, &premises)
+                {
+                    return Some(format!("inference {i}: {why}"));
+                }
+            }
+        }
+        None
+    }
+
+    /// Random first-order sessions with open witnesses, fillings, undos and
+    /// documents read back show, after every step, what a walk over every
+    /// inference would show, and every closed inference checks.
+    #[test]
+    fn a_binding_shown_through_its_holders_is_the_walk_s() {
+        const SEQUENTS: [&str; 8] = [
+            "forall x. p(x) |- exists x. p(x)",
+            "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)",
+            "forall x. (p(x) -> q(x)), forall x. p(x) |- forall x. q(x)",
+            "exists x. (p(x) /\\ q(x)) |- (exists x. p(x)) /\\ (exists x. q(x))",
+            "forall x. forall y. r(x, y) |- forall y. forall x. r(x, y)",
+            "forall x. p(f(x)) |- (exists x. p(x)) /\\ (exists x. p(x))",
+            "forall x. (p(x) <-> q), p(a) |- q",
+            "r(c) |- exists x. (r(x) /\\ exists u. (q(u) -> q(g(x))))",
+        ];
+        let mut seed = 0x2545_f491_4f6c_dd1du64;
+        let mut next = |n: usize| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed % n as u64) as usize
+        };
+        let mut bound = 0;
+        for round in 0..90 {
+            let logic = [Logic::Classical, Logic::Intuitionistic, Logic::Minimal][round % 3];
+            let (mut s, _) = start(SEQUENTS[round % SEQUENTS.len()], logic);
+            for _ in 0..40 {
+                let goals: Vec<GoalId> = s.goals().collect();
+                match next(10) {
+                    0 | 1 => {
+                        s.undo();
+                    }
+                    #[cfg(feature = "serialize")]
+                    2 => {
+                        let json = serde_json::to_string(&s).unwrap();
+                        s = serde_json::from_str(&json).unwrap_or_else(|e| panic!("{e}: {json}"));
+                    }
+                    _ if !goals.is_empty() => {
+                        let g = goals[next(goals.len())];
+                        let (left, right) = s.goal(g).unwrap();
+                        let (side, len) = if next(2) == 0 {
+                            (Left, left.len())
+                        } else {
+                            (Right, right.len())
+                        };
+                        if len == 0 {
+                            continue;
+                        }
+                        let position = next(len);
+                        let rules = s.rules(g, side, position).unwrap();
+                        if rules.is_empty() {
+                            continue;
+                        }
+                        let rule = rules[next(rules.len())].rule;
+                        let before = s.bindings().len();
+                        if s.apply(g, &Step::new(side, position, rule)).is_ok()
+                            && s.bindings().len() > before
+                        {
+                            bound += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                if let Some(why) = walked_differs(&s) {
+                    panic!("round {round}: {why}");
+                }
+            }
+        }
+        assert!(bound > 20, "only {bound} fillings");
     }
 }
