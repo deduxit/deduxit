@@ -111,6 +111,56 @@ pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Res
     Ok(())
 }
 
+/// The part of the time limit, in percent, that the default's first-order
+/// method (grounding or the connection prover) gets before the embedding
+/// takes over with the rest. On ILTP's first-order problems at 2 s the
+/// connection prover proves all but three of its theorems within 0.6 s,
+/// and five of the seven the embedding alone proves take it under 6 ms.
+pub(crate) const FIRST_ORDER_SHARE: u32 = 90;
+
+/// Returns the deadline of the default's first-order method:
+/// [`FIRST_ORDER_SHARE`] of the time limit where no method is given and the
+/// sequent's method is grounding or the connection prover, else one that
+/// never passes.
+///
+/// # Errors
+///
+/// A thread for the deadline that cannot be started.
+pub(crate) fn first_order_share(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    deadline: &Deadline,
+) -> Result<Deadline> {
+    let first_order = matches!(
+        options.method_for(sequent),
+        Method::Connection | Method::Grounding
+    );
+    if options.method.is_none() && first_order {
+        deadline.share(FIRST_ORDER_SHARE)
+    } else {
+        Deadline::start(None, Instant::now())
+    }
+}
+
+/// Returns whether the default's first-order method stopped at its share of
+/// the time limit, not at the limit or Ctrl-C: the embedding then decides
+/// with the time left.
+pub(crate) fn stopped_at_share(
+    decided: &Result<ordinary::Outcome, Error>,
+    share: &Deadline,
+    deadline: &Deadline,
+) -> bool {
+    let stopped = match decided {
+        Ok(outcome) => matches!(
+            outcome.verdict,
+            ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Stopped)
+        ),
+        Err(Error::Refused(Refusal::Stopped { .. })) => true,
+        Err(_) => false,
+    };
+    stopped && share.passed() && !deadline.passed() && !interrupted()
+}
+
 /// Returns how the verdict line names a method that decides without the
 /// embedding: `LJT` or `the SAT solver`.
 pub(crate) const fn by(method: Method) -> &'static str {
@@ -139,12 +189,18 @@ pub(crate) fn decide_natively(
     match options.method_for(sequent) {
         // The default keeps the connection prover's derivation of LK of a
         // valid classical sequent where it gives one within the bound of
-        // the evidence, as the library's default does.
+        // the evidence, and where grounding gives way at a bound the
+        // connection prover decides, as the library's default does.
         Method::Grounding => {
             let named = options.with_method(Some(Method::Grounding));
-            let grounded = ordinary::decide_within(sequent, &named, search, limits, &mut stop)?;
-            if options.method.is_none()
-                && logic == Logic::Classical
+            let grounded = ordinary::decide_within(sequent, &named, search, limits, &mut stop);
+            let classical = options.method.is_none() && logic == Logic::Classical;
+            if classical && ordinary::gives_way(&grounded) {
+                return ordinary::connection::decide(sequent, logic, search, limits, stop)
+                    .map(ordinary::Outcome::from);
+            }
+            let grounded = grounded?;
+            if classical
                 && matches!(grounded.verdict, ordinary::Verdict::Valid(_))
                 && let Ok(connected) = ordinary::connection::decide(
                     sequent,
@@ -320,9 +376,16 @@ pub(crate) fn by_native(
     on_large_stack(limits.stack_bytes(), || {
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
-        let halt = || interrupted() || deadline.passed();
+        let share = first_order_share(options, sequent, deadline)?;
+        let halt = || interrupted() || deadline.passed() || share.passed();
         let decided = decide_natively(options, sequent, &settings.search, &limits, |_| halt());
         drop(notice);
+        if gives_way && stopped_at_share(&decided, &share, deadline) {
+            return Ok(Native::GivesWay(Some(format!(
+                "{} gave no verdict within {FIRST_ORDER_SHARE}% of the time limit",
+                by(method)
+            ))));
+        }
         if gives_way && ordinary::gives_way(&decided) {
             return Ok(Native::GivesWay(gave_way(method, &decided)));
         }
@@ -630,6 +693,13 @@ fn not_valid(outcome: &ordinary::Outcome, method: Method, context: &str) -> Stri
     }
     if outcome.countermodel.is_some() {
         return format!("not valid ({context}): a checked countermodel refutes it");
+    }
+    if let ordinary::Search::Grounding(s) = &outcome.search {
+        return format!(
+            "not valid ({context}): a finite structure of {} elements refutes it, too large to \
+             check",
+            s.domain
+        );
     }
     if method == Method::Sat {
         let worlds = match &outcome.search {

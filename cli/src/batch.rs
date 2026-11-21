@@ -917,10 +917,13 @@ impl Shared {
         }
         let gives_way = options.method.is_none();
         let start = Instant::now();
-        let halt = || interrupted() || deadline.passed() || self.batch.passed();
+        let share = ordinary::first_order_share(options, sequent, deadline)?;
+        let halt = || interrupted() || deadline.passed() || self.batch.passed() || share.passed();
         let decided =
             ordinary::decide_natively(options, sequent, &plan.search, &plan.limits, |_| halt());
-        if gives_way && ordinary_logic::gives_way(&decided) {
+        let at_share =
+            ordinary::stopped_at_share(&decided, &share, deadline) && !self.batch.passed();
+        if gives_way && (at_share || ordinary_logic::gives_way(&decided)) {
             return Ok(Native::GivesWay(None));
         }
         let outcome = match decided {
