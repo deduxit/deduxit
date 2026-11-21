@@ -619,10 +619,11 @@ fn a_key_that_closed_once_closes_again_and_the_proof_is_made_anew() {
     }
 }
 
-/// The panel's sequent of KD4, not valid, took 20.5 million units before
-/// the cache: its worlds repeat a few dozen keys.
+/// A sequent of KD4 that is not valid, whose worlds repeat a few dozen
+/// keys over thousands of branches, is decided within 2²⁰ units (20.5
+/// million without the cache).
 #[test]
-fn kd4_decides_the_panels_sequent_by_the_cache() {
+fn kd4_decides_a_sequent_of_repeated_worlds_by_the_cache() {
     let text = "|- <>((q -> (<>T <-> F)) -> [][](p -> q)), \
                 (<>~<>(s <-> q) -> T) -> <>(((p <-> [][]s) /\\ <>(<>s <-> <>q)) <-> s)";
     let sequent: Sequent = text.parse().unwrap();

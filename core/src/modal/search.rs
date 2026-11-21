@@ -424,8 +424,13 @@ impl<'a> Search<'a> {
 
     /// Returns the bytes a branch holds, saturating.
     fn bytes(&self, branch: &Branch) -> usize {
-        // Two bit sets, two more for a signature and two for a key.
-        let world = self.words.saturating_mul(48).saturating_add(104);
+        // Two bit sets and two more for a signature, and in a system that
+        // blocks two for a key: the other systems' estimate is as it was.
+        let world = if self.blocking {
+            self.words.saturating_mul(48).saturating_add(104)
+        } else {
+            self.words.saturating_mul(32).saturating_add(80)
+        };
         let edges: usize = branch.worlds.iter().map(|w| w.sees.len()).sum();
         branch
             .worlds
@@ -1519,9 +1524,7 @@ impl<'a> Search<'a> {
                 };
                 pieces[m as usize].arrows.push(i as u32);
             }
-            if pieces[i].graft.is_none()
-                && (self.reflexive || (self.serial && w.sees.is_empty()))
-            {
+            if pieces[i].graft.is_none() && (self.reflexive || (self.serial && w.sees.is_empty())) {
                 pieces[i].arrows.push(i as u32);
             }
         }
