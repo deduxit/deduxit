@@ -451,7 +451,11 @@ fn run(
     };
     let rest =
         limits.with_memory_bytes(limits.memory_bytes.map(|m| m.saturating_sub(ground.bytes)));
-    let decided = sat::decide(&ground.sequent, Logic::Classical, &rest, &mut *stop)?;
+    let decided = match sat::decide(&ground.sequent, Logic::Classical, &rest, &mut *stop) {
+        Ok(decided) => decided,
+        Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => return memory(limit_bytes),
+        Err(error) => return Err(error),
+    };
     statistics.sat = decided.statistics;
     let (verdict, structure) = match decided.verdict {
         Verdict::Valid(evidence) => {
@@ -507,6 +511,39 @@ fn run(
     }))
 }
 
+/// Returns each node's canonical number: equal for nodes of equal
+/// content (connective, variable, literal and the operands' numbers), in
+/// one pass, since every node's operands come before it.
+fn canonical(nnf: &Nnf) -> Vec<u32> {
+    let mut numbers: HashMap<Vec<u32>, u32> = HashMap::default();
+    let mut canon = Vec::with_capacity(nnf.nodes.len());
+    for node in &nnf.nodes {
+        let key: Vec<u32> = match node {
+            G::Lit(positive, predicate, args) => {
+                let mut key = vec![0, u32::from(*positive), *predicate];
+                key.extend(args.iter().map(|t| match *t {
+                    Term::Var(x) => x.saturating_mul(2),
+                    Term::Const(c) => c.saturating_mul(2).saturating_add(1),
+                }));
+                key
+            }
+            G::True => vec![1],
+            G::False => vec![2],
+            G::And(kids) | G::Or(kids) => {
+                let tag = if matches!(node, G::And(_)) { 3 } else { 4 };
+                std::iter::once(tag)
+                    .chain(kids.iter().map(|&k| canon[k as usize]))
+                    .collect()
+            }
+            G::Forall(x, b) => vec![5, *x, canon[*b as usize]],
+            G::Exists(x, b) => vec![6, *x, canon[*b as usize]],
+        };
+        let next = numbers.len() as u32;
+        canon.push(*numbers.entry(key).or_insert(next));
+    }
+    canon
+}
+
 /// Counts a step of the set-up and asks the stop every [`POLL`] steps.
 fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
     *steps += 1;
@@ -540,6 +577,10 @@ const DISTRIBUTE_DEPTH: u32 = 8;
 /// distributes within: each distribution copies the operands it spreads,
 /// and its size is checked before it is made.
 const DISTRIBUTE_NODES: usize = 1 << 20;
+
+/// The bytes an entry of the ground walk's memo holds beside 4 bytes a
+/// value: its key's vector and its slot in the table.
+const MEMO_BYTES: u64 = 64;
 
 /// How many steps of the set-up pass between two asks of the stop.
 const POLL: u64 = 4_096;
@@ -899,6 +940,12 @@ fn ground(
     let mut elements: Vec<u32> = Vec::new();
     let mut element_of: HashMap<u32, u32> = HashMap::default();
     let mut skolem_of: HashMap<(u32, Vec<u32>), u32> = HashMap::default();
+    // Equal subformulas share their Skolem constants (Beckert, Hähnle and
+    // Schmitt's δ⁺⁺ rule): a `∀` node is keyed by its content, not its
+    // index, so the copies miniscoping's distribution makes of one `∀`
+    // under one value get one constant, and nodes of different bodies, as
+    // a split `∀` has, get their own.
+    let canon = canonical(nnf);
     let mut skolems: Vec<(u32, Vec<u32>)> = Vec::new();
     // Which variables `∀` nodes bind.
     let mut universal = vec![false; nnf.vars as usize];
@@ -961,7 +1008,7 @@ fn ground(
                 }
             }
             G::Forall(x, b) => {
-                let key = (n, values);
+                let key = (canon[n as usize], values);
                 let skolem = match skolem_of.get(&key) {
                     Some(&k) => k,
                     None => {
@@ -1025,11 +1072,23 @@ fn ground(
         unreachable!("every variable is bound in a closed formula")
     };
     enum Task {
-        /// Ground the node under the bindings.
+        /// Ground the node under the bindings, from the memo where it was
+        /// made before.
         Enter(u32, u32),
+        /// Ground the node under the bindings.
+        Expand(u32, u32),
         /// Join the last `count` results by `∧` (`and`) or `∨`.
         Join(bool, usize),
+        /// Remember the last result as the node's under these values of
+        /// its free variables.
+        Store(u32, Vec<u32>),
     }
+    // Each node's ground formula under each value of its free variables,
+    // made once: miniscoping's distribution shares subformulas, and a walk
+    // of the shared nodes as a tree made one sequent of 37 nodes take
+    // ninety million steps.
+    let mut memo: HashMap<(u32, Vec<u32>), NodeId> = HashMap::default();
+    let mut memo_bytes: u64 = 0;
     let mut results: Vec<NodeId> = Vec::new();
     let mut tasks = vec![Task::Enter(root, NONE)];
     let mut steps: u64 = 0;
@@ -1042,7 +1101,8 @@ fn ground(
         let held = (formulas.len() as u64)
             .saturating_mul(NODE_BYTES)
             .saturating_add(atom_bytes)
-            .saturating_add((tasks.capacity() as u64).saturating_mul(16))
+            .saturating_add((tasks.capacity() as u64).saturating_mul(40))
+            .saturating_add(memo_bytes)
             .saturating_add((bindings.capacity() as u64).saturating_mul(12))
             .saturating_add((results.capacity() as u64).saturating_mul(4))
             .saturating_add((atoms.capacity() as u64).saturating_mul(12))
@@ -1063,7 +1123,29 @@ fn ground(
             }));
         }
         match task {
-            Task::Enter(n, at) => match &nnf.nodes[n as usize] {
+            Task::Store(n, values) => {
+                let made = *results.last().expect("the node's ground formula");
+                memo_bytes = memo_bytes
+                    .saturating_add(MEMO_BYTES)
+                    .saturating_add(4 * values.len() as u64);
+                memo.insert((n, values), made);
+            }
+            Task::Enter(n, at)
+                if !matches!(nnf.nodes[n as usize], G::Lit(..) | G::True | G::False) =>
+            {
+                let values: Vec<u32> = nnf.free[n as usize]
+                    .iter()
+                    .map(|&v| lookup(&bindings, at, v))
+                    .collect();
+                match memo.get(&(n, values.clone())) {
+                    Some(&made) => results.push(made),
+                    None => {
+                        tasks.push(Task::Store(n, values));
+                        tasks.push(Task::Expand(n, at));
+                    }
+                }
+            }
+            Task::Enter(n, at) | Task::Expand(n, at) => match &nnf.nodes[n as usize] {
                 G::Lit(positive, predicate, args) => {
                     tuple.clear();
                     tuple.extend(args.iter().map(|t| match *t {
@@ -1120,7 +1202,7 @@ fn ground(
                         // keys hold their indices among the Skolem constants.
                         .map(|&v| lookup(&bindings, at, v) - first_skolem)
                         .collect();
-                    let Some(&skolem) = skolem_of.get(&(n, values)) else {
+                    let Some(&skolem) = skolem_of.get(&(canon[n as usize], values)) else {
                         unreachable!("the domain's pass met every ∀ under its values")
                     };
                     bindings.push((*x, skolem, at));
@@ -1267,6 +1349,8 @@ mod tests {
             "q(a), ~q(b) |- exists z. forall x. ((p(x) \\/ q(z)) /\\ (~p(x) \\/ ~q(z)))",
             "exists u. q(u), exists v. ~q(v) |- exists z. forall x. ((p(x) \\/ q(z)) /\\ (~p(x) \\/ ~q(z)))",
             "q(a), ~q(b), forall z. exists x. ((p(x) /\\ q(z)) \\/ (~p(x) /\\ ~q(z))) |-",
+            "exists z. forall x. ((s(x) \\/ ~p(b)) /\\ (~p(x) \\/ s(a) \\/ ~q(z))) |- \
+             exists z. forall x. ((~q(x) \\/ q(z)) /\\ (~s(x) \\/ s(z)))",
         ];
         for text in refuted {
             for &logic in Logic::ALL {
