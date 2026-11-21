@@ -8,8 +8,8 @@ search-chain-64-intuitionistic,121737110
 search-additive-14,582045966
 read-text,12269416
 read-json,12400183
-read-lltp,28279238
-read-tptp,33363861
+read-lltp,28412648
+read-tptp,33812683
 read-spec,18341178
 check-qbf-20-2,136738432
 check-wide-m1-2048,8575388
