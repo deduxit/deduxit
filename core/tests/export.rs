@@ -277,6 +277,47 @@ fn ordinary_derivation() {
     );
 }
 
+/// A first-order derivation of LJ, made step by step, is drawn in every
+/// drawn target with its binders, its witnesses and its eigenvariables by
+/// the names the proof prints them with, and the quantifier rules'
+/// labels.
+#[test]
+fn first_order_ordinary_derivation() {
+    use deduxit::ordinary::{self, Interactive, Logic, Rule as Lj, Side, Step};
+    let sequent: ordinary::Sequent = "exists x. forall y. r(x, y) |- forall y. exists x. r(x, y)"
+        .parse()
+        .unwrap();
+    let mut state = Interactive::new(&sequent, Logic::Intuitionistic).unwrap();
+    let mut goal = state.goals().next().unwrap();
+    for (side, rule, witness) in [
+        (Side::Right, Lj::ForallRight, None),
+        (Side::Left, Lj::ExistsLeft, None),
+        (Side::Left, Lj::ForallLeft, Some("a")),
+        (Side::Right, Lj::ExistsRight, Some("b")),
+    ] {
+        let mut step = Step::new(side, 0, rule);
+        if let Some(text) = witness {
+            step = step.with_witness(state.witness(goal, text).unwrap());
+        }
+        goal = state.apply(goal, &step).unwrap()[0];
+    }
+    state
+        .apply(goal, &Step::new(Side::Right, 0, Lj::Axiom))
+        .unwrap();
+    let derivation = state.finished(&Limits::default(), |_| false).unwrap();
+    let (mut tex, mut typ, mut drawing) = (String::new(), String::new(), String::new());
+    let mut latex = latex::Options::default();
+    latex.form = Form::Standalone;
+    latex::write(&derivation, &latex, &mut tex, |_| false).unwrap();
+    snapshot("ordinary-first-order.tex", &tex);
+    let mut typst = typst::Options::default();
+    typst.form = Form::Standalone;
+    typst::write(&derivation, &typst, &mut typ, |_| false).unwrap();
+    snapshot("ordinary-first-order.typ", &typ);
+    svg::write(&derivation, &Style::default(), &mut drawing, |_| false).unwrap();
+    snapshot("ordinary-first-order.svg", &drawing);
+}
+
 /// A signed tableau in the tableau's rule file is drawn with its signs,
 /// `T` and `F`, which no notation has, set upright, and an open branch
 /// as an open goal.

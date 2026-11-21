@@ -1,0 +1,14 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{r(b, a) &\vdash r(b, a)}
+\infer1[$\mathrm{WL}$]{r(b, a), \forall y.\,r(b, y) &\vdash r(b, a)}
+\infer1[$\exists\mathrm{R}$]{r(b, a), \forall y.\,r(b, y) &\vdash \exists x.\,r(x, a)}
+\infer1[$\forall\mathrm{L}$]{\forall y.\,r(b, y) &\vdash \exists x.\,r(x, a)}
+\infer1[$\exists\mathrm{L}$]{\exists x.\,\forall y.\,r(x, y) &\vdash \exists x.\,r(x, a)}
+\infer1[$\forall\mathrm{R}$]{\exists x.\,\forall y.\,r(x, y) &\vdash \forall y.\,\exists x.\,r(x, y)}
+\end{prooftree}
+\end{document}
