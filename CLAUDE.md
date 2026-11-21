@@ -68,11 +68,15 @@ Workspace crates:
   is now `deduxit` and runs `deduxit_cli::main`.
 - `web/` is package **`deduxit-web`** (not published): the WebAssembly
   bindings of a web page, the library for `wasm32-unknown-unknown`
-  without `parallel` behind calls of JSON in and JSON, SVG or bytes out,
-  with a browser tab's defaults; `modules/web.nix` builds the package
-  `deduxit-web` (wasm-bindgen's CLI at the lock's version, `wasm-opt`,
-  cargo-about's notices) that the client's repository takes, and runs
-  the tests under Node. `plan/web/README.md` is the web front end's plan.
+  without `parallel` behind calls of JSON in and JSON or SVG out,
+  with a browser tab's defaults; `web-render/` is **`deduxit-web-render`**,
+  the PNG and PDF renderers as a module of their own that the page loads
+  on its first such export, and `web-tab/` **`deduxit-web-tab`**, the
+  tab's settings and the error form both read; `modules/web.nix` builds
+  the package `deduxit-web` (both modules, wasm-bindgen's CLI at the
+  lock's version, `wasm-opt`, cargo-about's notices) that the client's
+  repository takes, and runs the tests under Node. `plan/web/README.md`
+  is the web front end's plan.
 - The Rocq library **`rocq-deduxit`** (logical root `Deduxit`, its
   linear logic under `Deduxit.Linear`) lives in its own repository,
   `github.com/deduxit/rocq-deduxit` (`../rocq-deduxit` beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
@@ -113,7 +117,7 @@ per bullet, what a later session must know and cannot see in the code.
 | `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the nineteen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, modal logic, lambda-terms, calculi given as data, the suites' protocol, the workspace), each loaded for its own module |
 | `cli.md` | `cli/**` | the command's layout, exit statuses, defaults, time limit, outputs, README's and the manual's examples as a test, extension points |
 | `bench.md` | `bench/**` | the harness, the CSV columns as its interface, the baselines, the target set, extension points |
-| `web.md` | `web/**`, `modules/web.nix` | the bindings' layout, why nothing is kept between calls, the tab's settings, the errors, the stack measured, the build and its checks, extension points |
+| `web.md` | `web/**`, `web-render/**`, `web-tab/**`, `modules/web.nix` | the bindings' layout, why nothing is kept between calls, the tab's settings, the errors, the stack measured, the build and its checks, extension points |
 | `flake.md` | `flake.nix`, `flake.lock`, `modules/**` | what each flake module holds and checks |
 | `evidence.md` | `mutants/**`, `fuzz/**`, `.cargo/mutants.toml` | the mutation run's scope and passes, the fuzz targets, their seeds and runs |
 | `ci.md` | `.github/**` | how the workflows are written and pinned |
@@ -189,7 +193,7 @@ and again on CI, whose results this machine does not fetch.
 | touches `search/parallel.rs`, `focus/parallel.rs` or `net::parallel` | `cargo test --workspace` covers them (the CLI depends on `parallel`, and cargo unifies features across a workspace run); `cargo test -p deduxit` alone needs `--features parallel` |
 | changes the `--kernel deduxit` certificates, or moves the input `rocq-deduxit` | `nix build .#checks.x86_64-linux.rocq-deduxit .#checks.x86_64-linux.rocq-deduxit-library` (the exporter's certificates against the pinned library, and the library's own check with its theorems' assumptions), under the machine lock while a timed run may hold it; a change of the library itself is checked in its own repository (`nix flake check` there) |
 | adds or changes a dependency | add `cargo deny check`. New deps must use a license `deny.toml` allows: EUPL-1.2, MIT, Apache-2.0 (± LLVM-exception), Unicode-3.0, Zlib, BSD-2-Clause or BSD-3-Clause |
-| touches `web/` | add the bindings' tests under Node (`nix build .#checks.x86_64-linux.web-wasm-tests`, or the command above in the devshell) |
+| touches `web/`, `web-render/` or `web-tab/` | add the bindings' tests under Node (`nix build .#checks.x86_64-linux.web-wasm-tests`, or the command above in the devshell) |
 | touches the checker's, the size estimate's or the memo's integers | add `nix build .#checks.x86_64-linux.web-core-wasm32` (their tests on a 32-bit target); for the checker's, `nix build .#kani-harnesses` too (its harnesses, `core-proofs.md`; about 32 minutes, one at a time, up to 8 GB each; `nix flake check` leaves it out) |
 | `flake.nix`, `modules/`, `.github/`, the toolchain, a lock bump, or before a push | the full check, once per head: `plan/push-ci.sh NAME REV` (the planning session's; every flake check in groups on GitHub's runners, nothing on this machine), or `nix flake check` here under the lock; each runs all of the above |
 

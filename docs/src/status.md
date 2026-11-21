@@ -441,8 +441,10 @@ in use.
   a lambda-term read and checked with its typing derivation drawn, and a
   type's terms found, listed and counted; modal logic's decision, countermodels and a model
   checked against a sequent; the review of a tableau written by hand;
-  the protocol's description of each suite; and the workspace. Its defaults fit a browser tab. The flake builds it as
-  a package and tests it under Node. The library's checker and memo are
+  the protocol's description of each suite; and the workspace. Its defaults fit a browser tab. PNG and PDF are
+  rendered by a second module, `deduxit-web-render` in `web-render/`,
+  which a page loads only for its first such export. The flake builds both as
+  a package and tests them under Node. The library's checker and memo are
   tested on a 32-bit target there too.
 - [deduxit.github.io](https://deduxit.github.io/) is a web page for
   proving step by step in the browser on those bindings, in linear logic

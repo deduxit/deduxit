@@ -1935,7 +1935,9 @@ The page at <https://deduxit.github.io/> is the prover in a browser, for
 people: a sequent proved step by step with the mouse. Its engine is the
 unpublished crate `deduxit-web` (`web/` in the repository).
 `nix build github:deduxit/deduxit#deduxit-web` builds the WebAssembly
-module and its JavaScript.
+module and its JavaScript, and beside them the renderers' module
+(`deduxit_web_render.js`, the crate `deduxit-web-render`), whose one
+call is `render`.
 
 - Every call takes JSON text and answers JSON, SVG or bytes. No call
   keeps anything for the next.
@@ -1950,8 +1952,8 @@ The calls of linear logic:
 - a session: `start`, `view`, `rules`, `split_passes`, `apply`, `cut`,
   `invert_all`, `undo`, `close`, `fill`, `close_all`, `hint`, `proof`,
   `term` (the lambda-term);
-- one call: `prove`, `draw`, `draw_net`, `export`, `render`,
-  `certificate`;
+- one call: `prove`, `draw`, `draw_net`, `export`, `certificate`, and
+  `render` in the renderers' module;
 - cut elimination step by step and to the end, on terms and on nets:
   `cuts`, `cut_step`, `eliminate`, `net_cuts`, `net_cut_step`,
   `net_eliminate`.

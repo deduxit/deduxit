@@ -12,7 +12,7 @@
 //! [`model_drawing`]. Each call runs the protocol's operation of that
 //! name (`modal.decide`, …) under the tab's settings.
 
-use crate::failure::Failure;
+use crate::Failure;
 use crate::tab;
 use deduxit::export::svg;
 use deduxit::kripke::Model;

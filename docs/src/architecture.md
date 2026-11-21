@@ -14,6 +14,8 @@ All the logic is in the library. Everything else is a front end to it.
 | `deduxit-cli` | `cli/` | the command `deduxit`, a thin front end |
 | `deduxit-bench` | `bench/` | the benchmark harness, which times the library's engines on problem sets |
 | `deduxit-web` | `web/` | the bindings that compile the library to WebAssembly for a web page |
+| `deduxit-web-render` | `web-render/` | the PNG and PDF renderers as a WebAssembly module of their own, which the page loads on its first such export |
+| `deduxit-web-tab` | `web-tab/` | a browser tab's settings and the error a call throws, which both modules read |
 | `linlog`, `linlog-cli` | `compat/` | the crates under their names up to 0.2.0, which point to `deduxit` |
 
 The library must run in a browser. So it reads no clock, and it uses

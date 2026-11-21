@@ -15,7 +15,7 @@
 //! derived. Every verdict is "valid in the calculus given": nothing says
 //! the calculus's rules are sound.
 
-use crate::failure::Failure;
+use crate::Failure;
 use crate::tab;
 use deduxit::export::Drawable;
 use deduxit::export::{latex, svg, typst};

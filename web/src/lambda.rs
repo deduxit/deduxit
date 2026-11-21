@@ -13,7 +13,7 @@
 //! its terms. Each call runs the protocol's operation of that name
 //! (`lambda.check`, …) under the tab's settings.
 
-use crate::failure::Failure;
+use crate::Failure;
 use crate::tab;
 use deduxit::lambda::Term;
 use deduxit::{Progress, Settings, protocol, wire};

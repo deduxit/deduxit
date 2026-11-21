@@ -1,0 +1,19 @@
+# deduxit © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+[package]
+name = "deduxit-web-tab"
+description = "The settings of a browser tab and the error a call throws, which deduxit's two WebAssembly modules share."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+deduxit = { workspace = true, features = ["serialize", "svg"] }
+serde_json = "1.0.149"
+
+[lints]
+workspace = true

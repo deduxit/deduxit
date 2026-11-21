@@ -3,7 +3,16 @@
 
 [workspace]
 resolver = "3"
-members = ["bench", "cli", "compat/linlog", "compat/linlog-cli", "core", "web"]
+members = [
+  "bench",
+  "cli",
+  "compat/linlog",
+  "compat/linlog-cli",
+  "core",
+  "web",
+  "web-render",
+  "web-tab",
+]
 
 [workspace.metadata.crane]
 name = "deduxit-workspace"

@@ -9,9 +9,9 @@
 //! them. Nothing is kept here between calls, so a worker stopped in the
 //! middle of a call loses nothing.
 
-use crate::failure::Failure;
+use crate::Failure;
 use crate::tab;
-use deduxit::export::{Drawable, latex, pdf, png, rocq, svg, typst};
+use deduxit::export::{Drawable, latex, rocq, svg, typst};
 use deduxit::linear::proofs::Compact;
 use deduxit::linear::proofs::interactive::{Applicable, Inverted, Needs, Split};
 use deduxit::linear::proofs::{Sides, cut};
@@ -1524,36 +1524,6 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     }
     .map_err(Failure::from)?;
     Ok(out)
-}
-
-/// Renders an SVG drawing these calls made as `png` or `pdf`, and returns
-/// its bytes.
-///
-/// `font` is the bytes of the file of the font the drawing names, the
-/// export's `styles.svg.font`, by default Euler Math. No other font sets
-/// the drawing's text. A PDF needs `styles.pdf.date`, which the page takes
-/// from its clock, since the module reads none.
-///
-/// # Errors
-///
-/// An unknown format, a render past `limits.memory_bytes` or the pixel
-/// bound, a PDF without a date, and a text that is no drawing of the
-/// bindings.
-pub fn render(svg: &str, format: &str, font: &[u8], settings: &str) -> Result<Vec<u8>, Failure> {
-    let settings = tab::read(settings)?;
-    let (limits, styles) = (&settings.limits, &settings.styles);
-    match format {
-        "png" => png::from_svg(svg, &[font], &styles.png, limits),
-        "pdf" => pdf::from_svg(svg, &[font], &styles.pdf, limits),
-        _ => {
-            return Err(Failure::refused(
-                "unknown_name",
-                "malformed",
-                "the renders are png and pdf",
-            ));
-        }
-    }
-    .map_err(Failure::from)
 }
 
 /// Returns the Rocq certificate that a refuted sequent or goal has no

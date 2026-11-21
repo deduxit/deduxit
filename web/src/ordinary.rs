@@ -11,8 +11,8 @@
 //! keeps it and sends it with every call. A formula of a goal is named by
 //! its side of `⊢` and its position there.
 
+use crate::Failure;
 use crate::calls::{Automatic, inverting};
-use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
 use deduxit::ordinary::interpolant::{self, Partition};
@@ -914,7 +914,8 @@ pub fn draw(session: &str, settings: &str) -> Result<String, Failure> {
 /// - `rocq`: the certificate of the finished derivation over `Prop`,
 ///   checked first, with every structural rule in it.
 ///
-/// For PNG and PDF, `render` renders the SVG drawing.
+/// For PNG and PDF, the renderers' module (`deduxit-web-render`) renders
+/// the SVG drawing.
 ///
 /// # Errors
 ///

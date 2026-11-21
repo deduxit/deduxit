@@ -1,6 +1,8 @@
 ---
 paths:
   - "web/**"
+  - "web-render/**"
+  - "web-tab/**"
   - "modules/web.nix"
 ---
 
@@ -17,8 +19,14 @@ as a pinned input and builds nothing of Rust.
 its documents and the settings and writing what the page shows;
 `lib.rs` the `#[wasm_bindgen]` exports, one line each over `calls`,
 named as in Rust but `export`, which JavaScript reserves (`export_as`);
-`tab.rs` the tab's defaults and the overlay of the page's settings on
-them; `failure.rs` the error's JSON a call throws; `build.rs` the stack.
+`tab.rs` the tab's settings (`deduxit-web-tab`'s) and the module's
+stack; `build.rs` the stack.
+`web-tab/` (`deduxit-web-tab`, a library alone) the tab's defaults and
+the overlay of the page's settings on them (`lib.rs`) and the error's
+JSON a call throws (`failure.rs`), which both modules read.
+`web-render/` (`deduxit-web-render`) the PNG and PDF renderers, a
+module of their own with the one call `render`; `tests/render.rs` its
+tests, drawing with the bindings (a dev-dependency).
 `web/tests/calls.rs` one test per behaviour the page relies on, each
 `#[wasm_bindgen_test(unsupported = test)]`, so the same test runs
 natively (`cargo test`, the gate) and under Node (`web-wasm-tests`).
@@ -120,6 +128,22 @@ for `THIRD-PARTY-NOTICES.txt`.
 - **`render` takes one font's file**: the page passes the file of the
   font its export's `styles.svg.font` names, and no other font sets the
   drawing's text (`an_export_is_set_in_the_font_the_settings_name`).
+- **The renderers are a module of their own** (`deduxit-web-render`),
+  which the page loads on its first PNG or PDF export: resvg, krilla and
+  their fonts', images' and filters' code were 1.48 MB of the 3.91 MB
+  every visitor's worker loaded (at gzip, 2026-11-21). The boundary is
+  narrow: an SVG text, a font's bytes and the page's settings in, bytes
+  out. The settings are read over the same tab's defaults
+  (`deduxit_web_tab::read`, so `limits.memory_bytes` is the tab's 96 MiB
+  there too) and a failure is the same JSON. The tab and the error are a
+  crate both depend on: a dependency on `deduxit-web` would link every
+  `#[wasm_bindgen]` export of its into the renderers' cdylib, and the
+  renderers in the bindings would put resvg and krilla back. The
+  library's features of each module are its own (`png` and `pdf` only in
+  the renderers'), so the package builds each by a cargo of its own: the
+  library's `Styles` and `Error` grow with the features, and a joint
+  build would compile both modules with all of them. Its stack is the
+  bindings' 8 MiB (`web-render/build.rs`), which it had inside them.
 - **The stack**: `build.rs` links the module with an 8 MiB stack
   (`-zstack-size`, read back as `tab::STACK_BYTES`), but the host's own
   stack, which no page can set (about 1 MiB in Node and in a browser),
@@ -466,13 +490,19 @@ for `THIRD-PARTY-NOTICES.txt`.
   not load. `web-bindgen` compares the CLI's `--version` with the lock.
   A bump of the crate needs the nixpkgs in `flake.lock` to have its CLI;
   otherwise the flake fails at evaluation, naming it.
-- The package is `cargo build --release` for wasm32, `wasm-bindgen
-  --target web`, then `wasm-opt -O3`, with `LICENSE` and
-  `THIRD-PARTY-NOTICES.txt` (cargo-about, `--frozen`, the target's
-  crates only, from `about.toml`'s accepted licences, which are
-  `deny.toml`'s). A crate whose licence is not listed fails the package.
+- The package is `cargo build --release` for wasm32 of each module's
+  crate (`modules`, `deduxit-web` and `deduxit-web-render`), `wasm-bindgen
+  --target web`, then `wasm-opt -O3`, giving `deduxit_web.js`,
+  `deduxit_web_bg.wasm`, `deduxit_web_render.js` and
+  `deduxit_web_render_bg.wasm`, with `LICENSE` and one
+  `THIRD-PARTY-NOTICES.txt`, a section per module (cargo-about,
+  `--frozen`, on each crate's manifest with `web/about.toml` and
+  `about.hbs`, the target's crates only, from `about.toml`'s accepted
+  licences, which are `deny.toml`'s; the unpublished workspace crates
+  are left out). A crate whose licence is not listed fails the package.
 - `web-wasm-tests` runs `cargo test --target wasm32-unknown-unknown`
-  with `wasm-bindgen-test-runner` in Node, which only finds
+  of the three crates (`selections.web`) with `wasm-bindgen-test-runner`
+  in Node, which only finds
   `#[wasm_bindgen_test]` functions; `web-core-wasm32` runs the library's
   whole unit suite on `wasm32-wasip1` under wasmtime, since plain
   `#[test]` functions have no runner on the web target, but the ten
@@ -491,7 +521,7 @@ for `THIRD-PARTY-NOTICES.txt`.
   Rust enables for wasm32 by default since 1.87 (LLVM's `generic` CPU:
   mutable globals, sign extension, non-trapping float-to-int, multi-value,
   reference types, bulk memory), which every browser of the last years
-  runs; `web-features` validates the package's module against exactly
+  runs; `web-features` validates both of the package's modules against exactly
   those with `wasm-tools`. A toolchain bump that adds one to the default,
   or a crate that enables one (SIMD by `#[target_feature]`, threads),
   fails it: taking the feature is a decision, recorded here with the
@@ -503,15 +533,18 @@ for `THIRD-PARTY-NOTICES.txt`.
   `wasm-bindgen-cli_X_Y_Z` (above), the test crate with it; never ahead
   of nixpkgs, and never alone (the client loads the module this CLI
   writes, so the client's flake update follows the push).
-- **The budget** (`modules/budget.nix`): the module at `gzip -9` under a
-  ceiling (3 750 000 bytes; 3 622 968 on 2026-11-16 with the modal
+- **The budget** (`modules/budget.nix`): each module at `gzip -9` under a
+  ceiling of its own (the bindings' 2 500 000 bytes, 2 438 116 on
+  2026-11-21 once the renderers left; the renderers' 1 650 000, 1 609 148;
+  before, the one module had 3 913 893 that day under 3 950 000;
+  3 622 968 on 2026-11-16 with the modal
   suite, 3 541 980 before it once the generic bodies took the stop as a
   trait object, `core.md`; 3 670 553 before, with the workspace's calls,
   which link every suite's operations through the protocol's run and
   check; 3 111 006 on 2026-11-15 with the calls of a
   calculus given as data, 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0,
   the PNG and PDF renderers' crates two fifths of it) and Cargo.lock's
-  packages under another (180; 173). A change that passes one raises it
+  packages under another (180; 175). A change that passes one raises it
   in a commit that says what earned the room. The page loads the module
   after first paint, in its worker, so the module is not part of the
   page's first-load budget (about 170 KB of the client's own).
@@ -524,6 +557,10 @@ for `THIRD-PARTY-NOTICES.txt`.
 
 ## Extension points
 
+- A new call that needs resvg or krilla belongs in `web-render`, so
+  that the bindings' module stays without them; one that needs the
+  bindings' calls does not belong there, since the renderers' module
+  would then carry them.
 - A new call: a function of `calls` over `&str` returning
   `Result<String, Failure>`, one export in `lib.rs`, a row in
   `plan/web/README.md`'s table, and a test in `web/tests/calls.rs` if

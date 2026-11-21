@@ -1,0 +1,30 @@
+# deduxit © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+[package]
+name = "deduxit-web-render"
+description = "deduxit's PNG and PDF renderers compiled to WebAssembly for a web page: an SVG drawing and a font's file in, the image's or the document's bytes out."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+deduxit = { workspace = true, features = ["pdf", "png"] }
+deduxit-web-tab = { path = "../web-tab" }
+wasm-bindgen = { version = "=0.2.130", default-features = false, features = [
+  "std",
+] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+deduxit-web = { path = "../web" }
+serde_json = "1.0.149"
+wasm-bindgen-test = "=0.3.80"

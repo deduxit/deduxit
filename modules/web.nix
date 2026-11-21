@@ -1,10 +1,12 @@
 # deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The web bindings (`web/', the crate deduxit-web) as a browser runs them:
-# the package a page loads, built for wasm32 with the wasm-bindgen CLI and
-# wasm-opt, which the client's flake takes through its pinned input; and
-# the checks that run them there. The CLI must be the version of the
+# The web bindings (`web/', the crate deduxit-web) and the PNG and PDF
+# renderers (`web-render/', deduxit-web-render, a module of their own that
+# the page loads on its first such export) as a browser runs them: the
+# package a page loads, both built for wasm32 with the wasm-bindgen CLI
+# and wasm-opt, which the client's flake takes through its pinned input;
+# and the checks that run them there. The CLI must be the version of the
 # wasm-bindgen crate that Cargo.lock pins, or the module it writes does
 # not load: it is picked by that version from nixpkgs' versioned packages,
 # and `web-bindgen' compares the two. A bump of the crate the nixpkgs in
@@ -28,6 +30,17 @@
           or (throw "Cargo.lock pins wasm-bindgen ${bindgenVersion}, and nixpkgs has no ${cliName}");
 
       target = "wasm32-unknown-unknown";
+
+      # The two modules' crates. Each is built by a cargo of its own, so
+      # that the library's features are its own: built together, the
+      # bindings' module would be compiled with the renderers' `png' and
+      # `pdf'.
+      modules = [
+        "deduxit-web"
+        "deduxit-web-render"
+      ];
+      eachModule = f: lib.concatMapStrings (crate: f crate + "\n") modules;
+      webPackages = workspace.selections.web;
 
       # The library's unit tests on a 32-bit target: libtest runs on WASI
       # under wasmtime, which the web target has no runner for, and the two
@@ -64,8 +77,8 @@
           pname = "deduxit-web-wasm";
           CARGO_BUILD_TARGET = target;
           buildPhaseCargoCommand = ''
-            cargoWithProfile build --locked --package deduxit-web
-            cargo test --locked --package deduxit-web --no-run
+            ${eachModule (crate: "cargoWithProfile build --locked --package ${crate}")}
+            cargo test --locked ${webPackages} --no-run
           '';
           checkPhaseCargoCommand = "";
           doCheck = false;
@@ -85,7 +98,7 @@
           ];
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = "wasm-bindgen-test-runner";
           WASM_BINDGEN_TEST_TIMEOUT = "300";
-          buildPhaseCargoCommand = "cargo test --locked --target ${target} --package deduxit-web";
+          buildPhaseCargoCommand = "cargo test --locked --target ${target} ${webPackages}";
           doInstallCargoArtifacts = false;
         }
       );
@@ -123,15 +136,35 @@
             pkgs.binaryen
             pkgs.cargo-about
           ];
+          # One file of notices for both modules, a section each.
           buildPhaseCargoCommand = ''
-            cargo build --locked --release --target ${target} --package deduxit-web
-            cargo about generate --frozen --manifest-path web/Cargo.toml \
-              --config web/about.toml web/about.hbs --output-file THIRD-PARTY-NOTICES.txt
+            ${eachModule (crate: "cargo build --locked --release --target ${target} --package ${crate}")}
+            notices() {
+              cargo about generate --frozen --manifest-path "$1/Cargo.toml" \
+                --config web/about.toml web/about.hbs
+            }
+            {
+              echo "deduxit_web_bg.wasm, deduxit's module, contains code of the following crates,"
+              echo "under the licences below."
+              notices web
+              echo
+              echo "================================================================================"
+              echo "deduxit_web_render_bg.wasm, the module of deduxit's PNG and PDF renderers,"
+              echo "contains code of the following crates, under the licences below."
+              notices web-render
+            } > THIRD-PARTY-NOTICES.txt
           '';
           installPhaseCommand = ''
-            wasm-bindgen --target web --out-dir $out \
-              target/${target}/release/deduxit_web.wasm
-            wasm-opt -O3 $out/deduxit_web_bg.wasm -o $out/deduxit_web_bg.wasm
+            ${eachModule (
+              crate:
+              let
+                name = lib.replaceStrings [ "-" ] [ "_" ] crate;
+              in
+              ''
+                wasm-bindgen --target web --out-dir $out target/${target}/release/${name}.wasm
+                wasm-opt -O3 $out/${name}_bg.wasm -o $out/${name}_bg.wasm
+              ''
+            )}
             install -Dm644 LICENSE $out/LICENSE
             install -Dm644 THIRD-PARTY-NOTICES.txt $out/THIRD-PARTY-NOTICES.txt
           '';
@@ -149,9 +182,11 @@
         # turns on another one (SIMD, threads, tail calls) fails here, and
         # moving the baseline is a decision of its own (web.md).
         web-features = pkgs.runCommand "check-web-features" { nativeBuildInputs = [ pkgs.wasm-tools ]; } ''
-          wasm-tools validate \
-            --features mvp,mutable-global,sign-extension,saturating-float-to-int,multi-value,reference-types,bulk-memory \
-            ${config.packages.deduxit-web}/deduxit_web_bg.wasm
+          for module in ${config.packages.deduxit-web}/*_bg.wasm; do
+            wasm-tools validate \
+              --features mvp,mutable-global,sign-extension,saturating-float-to-int,multi-value,reference-types,bulk-memory \
+              "$module"
+          done
           touch $out
         '';
         # Clippy on the bindings and their tests for the browser's target,
@@ -162,7 +197,7 @@
             pnameSuffix = "-web-clippy-wasm32";
             cargoArtifacts = wasmArtifacts;
             buildPhaseCargoCommand = ''
-              cargo clippy --locked --target ${target} --package deduxit-web --all-targets \
+              cargo clippy --locked --target ${target} ${webPackages} --all-targets \
                 -- --deny warnings
             '';
             doInstallCargoArtifacts = false;

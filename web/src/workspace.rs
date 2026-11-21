@@ -23,7 +23,7 @@
 //! proof is the session's own undo. A node the workspace no longer holds
 //! (an undo took it away) is left out of `work`.
 
-use crate::failure::Failure;
+use crate::Failure;
 use crate::tab;
 use deduxit::workspace::{Cause, End, NodeId, State, What, Workspace};
 use deduxit::{Limits, Settings, protocol, wire};

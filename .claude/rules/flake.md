@@ -39,10 +39,11 @@ and `systems.nix` are what their names say.
   `tests/` with what they read: the core crate's export tests the font
   in `cli/fonts`, the command's README's examples), and `argsOf PARTS`
   gives the crane arguments of a source of those parts. Every source
-  keeps the four manifests and the lock, since cargo loads every member,
+  keeps every member's manifest and the lock, since cargo loads every member,
   and `stubMembers` (the `postPatch`) gives a member left out an empty
   file for each target its manifest names (`cli/src/lib.rs`,
-  `cli/src/main.rs`, `bench/src/main.rs`, `web/src/lib.rs`): a new explicit target path in
+  `cli/src/main.rs`, `bench/src/main.rs`, `web/src/lib.rs`, `web-render/src/lib.rs`,
+  `web-tab/src/lib.rs`): a new explicit target path in
   a manifest goes into that list. A file no part names is in no Rust
   check: `plan/`, the benchmark data, the scripts, `fuzz/`.
 - `checks.nix`'s `clippy-CRATE`, `test-CRATE` and
@@ -321,7 +322,8 @@ and Python with matplotlib; no check builds it.
   it by hand: a bump of nixpkgs' Rocq or of either kernel changes its
   first line there.
 - `web.nix` is the bindings for a browser (`web.md` has the details):
-  the package `deduxit-web` (the module built for wasm32 by the
+  the package `deduxit-web` (the bindings' module and the renderers',
+  each built for wasm32 by a cargo of its own and by the
   `wasm-bindgen` CLI that nixpkgs has for the crate's version in
   `Cargo.lock`, `wasm-opt`, and cargo-about's notices), with its own
   dependencies' build for wasm32 (`wasmArtifacts`); the checks
@@ -393,8 +395,9 @@ and Python with matplotlib; no check builds it.
   source is `dataset/` alone, so editing it rebuilds no Rust; a change of
   the command's verdicts or of `grade` fails it until the dataset is
   built again and its version raised.
-- **`budget.nix`: the check `budget`.** Cargo.lock's packages and the web
-  module's bytes at `gzip -9`, each under a ceiling written in the file
+- **`budget.nix`: the check `budget`.** Cargo.lock's packages and each web
+  module's bytes at `gzip -9` (the bindings' and the renderers'), each
+  under a ceiling written in the file
   with the figure it was set at; a change that passes one raises it
   there, in a commit that says what earned the room.
 - **`ci.nix`: the checks as CI runs them.** The output

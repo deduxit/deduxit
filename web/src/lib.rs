@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 //! deduxit for a web page: the library compiled to WebAssembly. Each call
-//! takes JSON text and returns JSON or SVG text, or a render's bytes.
+//! takes JSON text and returns JSON or SVG text.
 //!
 //! Every call takes the documents it works on, such as a session, and the
 //! page's settings, and returns a document. Nothing is kept between calls.
@@ -29,9 +29,12 @@
 //! down which call of each suite is which of the protocol's, `describe`
 //! answering it as JSON. Those of [`workspace`], the linked tabs a page
 //! keeps, are exported with the prefix `workspace_`.
+//!
+//! PNG and PDF are rendered from a drawing's SVG by a module of their
+//! own, `deduxit-web-render`, which the page loads on its first such
+//! export.
 
 pub mod calls;
-mod failure;
 pub mod lambda;
 pub mod modal;
 pub mod ordinary;
@@ -40,11 +43,11 @@ pub mod rules;
 pub mod tab;
 pub mod workspace;
 
-pub use failure::Failure;
+pub use deduxit_web_tab::Failure;
 
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
-    use crate::failure::Failure;
+    use crate::Failure;
     use crate::{calls, lambda, modal, ordinary, protocol, rules, workspace};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
@@ -268,17 +271,6 @@ mod exports {
     #[wasm_bindgen(js_name = "export_as")]
     pub fn export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         calls::export(session, format, settings).map_err(thrown)
-    }
-
-    /// See [`calls::render`].
-    #[wasm_bindgen]
-    pub fn render(
-        svg: &str,
-        format: &str,
-        font: &[u8],
-        settings: &str,
-    ) -> Result<Vec<u8>, JsValue> {
-        calls::render(svg, format, font, settings).map_err(thrown)
     }
 
     /// See [`calls::certificate`].

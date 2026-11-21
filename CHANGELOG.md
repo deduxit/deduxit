@@ -38,6 +38,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   A sequent of KD4 that took 20.5 million units of work now takes about
   58 000. Every "valid" still comes with a checked derivation, every
   countermodel is checked as before.
+- The web package's PNG and PDF renderers are a module of their own,
+  `deduxit_web_render_bg.wasm` (the crate `deduxit-web-render`), with
+  the one call `render`, which left the bindings' module. The page
+  loads it on a visitor's first PNG or PDF export, so the module every
+  visitor loads is 2.4 MB at gzip, down from 3.9 MB.
 
 ### Wire forms
 

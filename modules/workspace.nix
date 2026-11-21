@@ -66,18 +66,26 @@
           ../docs/src
           (fileset.fileFilter (file: file.hasExt "sh") ../bench)
         ];
+        # The bindings, the renderers' module beside them and the tab's
+        # settings both read.
         web = fileset.unions [
           ../web/Cargo.toml
           ../web/build.rs
           ../web/about.toml
           ../web/about.hbs
           (craneLib.fileset.commonCargoSources ../web/src)
+          ../web-render/Cargo.toml
+          ../web-render/build.rs
+          (craneLib.fileset.commonCargoSources ../web-render/src)
+          ../web-tab/Cargo.toml
+          (craneLib.fileset.commonCargoSources ../web-tab/src)
           ../LICENSE
         ];
         # The bindings' tests render with the font the command embeds, and
         # hold the protocol's kinds to the schema the manual publishes.
         web-tests = fileset.unions [
           ../web/tests
+          ../web-render/tests
           ../cli/fonts
           ../docs/src/wire.schema.json
         ];
@@ -104,6 +112,8 @@
             ../cli/Cargo.toml
             ../bench/Cargo.toml
             ../web/Cargo.toml
+            ../web-render/Cargo.toml
+            ../web-tab/Cargo.toml
             ../compat/linlog/Cargo.toml
             ../compat/linlog-cli/Cargo.toml
           ]
@@ -119,6 +129,7 @@
 
       stubMembers = ''
         for target in cli/src/lib.rs cli/src/main.rs bench/src/main.rs web/src/lib.rs \
+          web-render/src/lib.rs web-tab/src/lib.rs \
           compat/linlog/src/lib.rs compat/linlog-cli/src/main.rs; do
           if [ ! -e "$target" ]; then
             mkdir -p "$(dirname "$target")"
@@ -154,7 +165,7 @@
         core = "--package deduxit --all-features";
         cli = "--package deduxit-cli";
         bench = "--package deduxit-bench";
-        web = "--package deduxit-web";
+        web = "--package deduxit-web --package deduxit-web-render --package deduxit-web-tab";
         compat = "--package linlog --package linlog-cli";
       };
 
