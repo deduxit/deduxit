@@ -567,3 +567,26 @@ fn a_first_order_step_takes_a_witness() {
         ordinary::apply(&session(&answer), goal, &step("right", 0, "ax", None), "").unwrap();
     assert!(open_goals(&answer).is_empty(), "{answer}");
 }
+
+/// A quantifier step from the page, which sends no witness, leaves it
+/// open; the axiom fills it, the session keeps the binding between
+/// calls, an undo takes it back, and the finished derivation exports with
+/// the witness still open as a fresh constant.
+#[wasm_bindgen_test(unsupported = test)]
+fn an_open_witness_is_filled_by_the_axiom() {
+    let started = ordinary::start("forall x. p(x) |- exists x. p(x)", "minimal", "").unwrap();
+    let answer = ordinary::apply(&session(&started), 0, &step("right", 0, "∃R", None), "").unwrap();
+    let answer = ordinary::apply(&session(&answer), 1, &step("left", 0, "∀L", None), "").unwrap();
+    assert_eq!(value(&answer)["view"]["goals"][0]["left"][0], "p($2)");
+    let closed = ordinary::apply(&session(&answer), 2, &step("left", 0, "ax", None), "").unwrap();
+    let state = session(&closed);
+    assert!(state.contains(r#""bindings":[[1,"#), "{state}");
+    assert_eq!(
+        value(&ordinary::view(&state, "").unwrap())["complete"],
+        true
+    );
+    let text = ordinary::export(&state, "text", "").unwrap();
+    assert!(text.contains("p(a), ∀x. p(x) ⊢ p(a)"), "{text}");
+    let undone = ordinary::undo(&state, "").unwrap();
+    assert_eq!(value(&undone)["view"]["goals"][0]["left"][0], "p($2)");
+}

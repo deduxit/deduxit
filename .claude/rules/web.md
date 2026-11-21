@@ -328,6 +328,9 @@ for `THIRD-PARTY-NOTICES.txt`.
   session reads (`Interactive::witness`); `rules` writes `"witness":
   true` only where a rule takes one, so propositional answers are as
   before; a first-order session is written at level 25.
+  A step without `witness` leaves it open (`$1`), which an axiom fills;
+  the session document keeps the bindings (`"bindings"`) between calls
+  and the reader replays them (`an_open_witness_is_filled_by_the_axiom`).
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,
   `rules_view`, `rules_rules`, `rules_apply`, `rules_derive`,
