@@ -179,8 +179,59 @@ pub fn load_ordinary(id: &str) -> Result<ordinary::Problem> {
     let path = id
         .strip_prefix("tptp:")
         .ok_or_else(|| anyhow!("not a TPTP problem: `{id}`"))?;
-    let text = std::fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
+    let text = text_of(Path::new(path))?;
+    let text = included(Path::new(path), &text)?;
     Ok(ordinary::read_tptp(&text, &Limits::default())?)
+}
+
+/// Returns the text of a TPTP file. A byte that is no UTF-8 becomes
+/// U+FFFD: ILTP writes a few authors' names in Latin-1, always in a
+/// comment, which the reader skips.
+fn text_of(path: &Path) -> Result<String> {
+    let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Returns the text of the TPTP file at `path` with each line
+/// `include('NAME').` replaced by the file it names. TPTP names an
+/// included file from the library's root, so it is looked for under each
+/// directory above `path`, the nearest first: ILTP's first-order problems
+/// include `Axioms/…` from `Problems/DOMAIN/…`. A selection of the
+/// included file's formulas (`include('NAME', [names]).`) is refused, as
+/// no file of the library has one.
+fn included(path: &Path, text: &str) -> Result<String> {
+    if !text
+        .lines()
+        .any(|line| line.trim_start().starts_with("include("))
+    {
+        return Ok(text.to_owned());
+    }
+    let mut out = String::with_capacity(text.len());
+    for line in text.lines() {
+        let trimmed = line.trim();
+        let Some(inner) = trimmed
+            .strip_prefix("include(")
+            .and_then(|rest| rest.strip_suffix(")."))
+        else {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        };
+        let name = inner
+            .strip_prefix('\'')
+            .and_then(|rest| rest.strip_suffix('\''))
+            .ok_or_else(|| anyhow!("an include of a selection is not read: {trimmed}"))?;
+        let file = path
+            .ancestors()
+            .skip(1)
+            .map(|dir| dir.join(name))
+            .find(|candidate| candidate.is_file())
+            .ok_or_else(|| anyhow!("no file {name} above {}", path.display()))?;
+        let axioms = text_of(&file)?;
+        out.push_str(&axioms);
+        out.push('\n');
+    }
+    Ok(out)
 }
 
 /// Lists the files of a source under the paths, in path order. Each path
@@ -397,6 +448,25 @@ mod tests {
             }
         }
         assert!(parse_mode("classicl").is_err());
+    }
+
+    /// An include names a file from the library's root, found above the
+    /// problem, and a Latin-1 byte in a comment is read.
+    #[test]
+    fn a_tptp_problem_s_includes_are_read() {
+        let root = std::env::temp_dir().join(format!("deduxit-include-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("Axioms")).unwrap();
+        std::fs::create_dir_all(root.join("Problems/D")).unwrap();
+        std::fs::write(root.join("Axioms/a.ax"), "fof(a, axiom, p).\n").unwrap();
+        let problem = root.join("Problems/D/x.p");
+        std::fs::write(
+            &problem,
+            b"% Sch\xf6n\ninclude('Axioms/a.ax').\nfof(c, conjecture, p).\n",
+        )
+        .unwrap();
+        let read = load_ordinary(&format!("tptp:{}", problem.display())).unwrap();
+        assert_eq!(read.sequent.to_string(), "p ⊢ p");
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     /// The name of a TPTP problem of one size of a generated family gives

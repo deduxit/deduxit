@@ -145,6 +145,7 @@ cargo run -p deduxit-cli -- <args>
 cargo run --release -p deduxit-bench -- run --family partition-no=3,4 --engines focus,net
 nix build .#lltp -o bench/lltp   # the LLTP library (1.1 GB, GPL-3.0, fetched at a pinned commit)
 nix build .#iltp -o bench/iltp   # the ILTP library's 274 propositional problems (no licence stated, fetched at v1.1.2)
+nix build .#iltp-first-order -o bench/iltp-first-order   # its 2 670 first-order problems and their axioms (the same); deduxit-bench run --tptp bench/iltp-first-order/Problems
 nix build .#qcover -o bench/qcover   # the qcover coverability suite's 176 .spec problems (Apache-2.0, the licence of its repository, fetched at a pinned commit); deduxit-bench run --spec
 nix build .#checks.x86_64-linux.rocq-deduxit   # the exporter's certificates for --kernel deduxit against the pinned Rocq library (the input rocq-deduxit)
 nix build .#checks.x86_64-linux.rocq-deduxit-library   # that library's own check: its tests, its theorems' assumptions closed

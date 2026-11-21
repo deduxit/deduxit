@@ -35,6 +35,10 @@ use std::sync::atomic::Ordering;
 pub fn tail(args: &OneArgs, logic: Logic) -> String {
     let problem = match problems::load_ordinary(&args.problem) {
         Ok(problem) => problem,
+        // Equality is not read yet: the reader refuses `=` and `!=` by name.
+        Err(error) if equality(&error) => {
+            return row(&[("verdict", "refused"), ("reason", "equality")]);
+        }
         Err(error) => {
             return row(&[
                 ("verdict", "error"),
@@ -67,6 +71,15 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     }
 }
 
+/// Returns whether a problem's error is the reader's refusal of equality,
+/// which it reads only from a later version on.
+fn equality(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<Error>(),
+        Some(Error::Parse(parse)) if parse.hint.is_some_and(|hint| hint.contains("no equality"))
+    )
+}
+
 /// Returns the `expected` column of a problem in `logic`. ILTP's statuses
 /// are intuitionistic. An intuitionistic theorem is a classical one too,
 /// and a non-theorem is not a theorem of minimal logic either. Other
@@ -87,6 +100,13 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
     let translation = Translation::default_for(logic);
     let image = match ordinary::translate(sequent, logic, translation, &Limits::default()) {
         Ok(image) => image,
+        Err(Error::FirstOrder { .. }) => {
+            return row(&[
+                ("expected", expected),
+                ("verdict", "refused"),
+                ("reason", "first_order"),
+            ]);
+        }
         Err(error) => {
             return row(&[
                 ("expected", expected),
@@ -216,6 +236,10 @@ fn native(
             message = refused(refusal);
             fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
         }
+        // A method of propositional logic does not apply at first order.
+        Err(Error::FirstOrder { .. }) => {
+            fields.extend([("verdict", "refused"), ("reason", "first_order")]);
+        }
         Err(error) => {
             message = clean(&error.to_string());
             fields.extend([("verdict", "error"), ("reason", message.as_str())]);
@@ -307,6 +331,10 @@ fn classical(
         Err(Error::Refused(refusal)) => {
             message = refused(refusal);
             fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
+        }
+        // A method of propositional logic does not apply at first order.
+        Err(Error::FirstOrder { .. }) => {
+            fields.extend([("verdict", "refused"), ("reason", "first_order")]);
         }
         Err(error) => {
             message = clean(&error.to_string());
@@ -442,6 +470,10 @@ fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expecte
         Err(Error::Refused(refusal)) => {
             message = refused(refusal);
             fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
+        }
+        // A method of propositional logic does not apply at first order.
+        Err(Error::FirstOrder { .. }) => {
+            fields.extend([("verdict", "refused"), ("reason", "first_order")]);
         }
         Err(error) => {
             message = clean(&error.to_string());

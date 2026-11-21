@@ -22,6 +22,8 @@ result*
 /bench/lltp
 # The ILTP library's propositional problems, `nix build .#iltp -o bench/iltp`
 /bench/iltp
+# Its first-order problems, `nix build .#iltp-first-order -o bench/iltp-first-order`
+/bench/iltp-first-order
 # The qcover coverability suite, `nix build .#qcover -o bench/qcover`
 /bench/qcover
 .direnv/

@@ -12,7 +12,8 @@
 # fetched on demand rather than kept in this repository, and at 1.1 GB it
 # is no input of any check. `iltp' is the propositional part of the ILTP
 # library (274 problems of intuitionistic logic in TPTP syntax), fetched at
-# a pinned version for the same reason: it states no licence. `qcover' is
+# a pinned version for the same reason: it states no licence;
+# `iltp-first-order' is its first-order part. `qcover' is
 # the coverability suite of the qcover tool at a pinned commit, for
 # `deduxit-bench run --spec': 176 problems in Mist's `.spec' format, under
 # that repository's Apache-2.0.
@@ -49,6 +50,13 @@
         iltp = pkgs.fetchzip {
           url = "https://www.iltp.de/download/ILTP-v1.1.2-propositional.tar.gz";
           hash = "sha256-kN3ek+bFUljgw42GclZ+pyHB/U/P+GuZGZmnnYVtPAc=";
+        };
+
+        # The first-order part: 2 670 problems in TPTP syntax with their
+        # `Axioms/', which 1 279 of them include. Same version, same reason.
+        iltp-first-order = pkgs.fetchzip {
+          url = "https://www.iltp.de/download/ILTP-v1.1.2-firstorder.tar.gz";
+          hash = "sha256-iZHeFm8uLW+kYFi1BJjqJEnttfFoHE+OPQUOYR4xwaU=";
         };
 
         qcover = pkgs.fetchFromGitHub {
