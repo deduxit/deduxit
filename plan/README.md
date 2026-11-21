@@ -7958,3 +7958,23 @@ move (D26).
   its worker: **fixup-15**, the shared term code's tree walks (R2's input exponential in both
   logics). Step 76's prompt drafted (`plan/76-first-order-countermodels.md`), finished at 75d's
   review.
+- 2026-11-22, about 00:45: **75d reviewed; it rebases onto 75c when that lands.** 75d (Opus,
+  high; the full panel and the reviewer on Fable): grounding (`--method grounding`, feature `sat`)
+  decides the Bernays–Schönfinkel class and the monadic class (bounded miniscoping with Behmann's
+  distribution) by the SAT solver: "valid" classically with the checked clausal proof (an LK
+  derivation from the connection prover where it finds one), "not valid" in every logic with a
+  `FiniteCountermodel` checked by an evaluator over the original sequent (`check` re-evaluates
+  it). Defaults: grounding for its classes, then the connection prover (classical) or the
+  embedding; the command gives the first 90 % of its time limit. ILTP at 2 s: classical default 674
+  proved and 77 refuted (158 more than 75b's); intuitionistic 224/109, minimal 189/111; no verdict
+  against either status. Beside Otten's provers on the 940 problems without equality: classical
+  deduxit 766 decided, nanoCoP 713, leanCoP 666; intuitionistic nanoCoP-i 568, iLeanCoP 559,
+  deduxit 486 (before 75c's prover joins the default). The panel's wrong "valid" (a split `∀`
+  sharing a Skolem constant; ILTP's SYN316+1 one) fixed with one constant per `∀` node, and its
+  unbounded set-ups bounded. **Accepted departures:** the comparison on ILTP alone, our drivers,
+  iLeanCoP on SWI-Prolog, the countermodel type introduced here, a structure too large to check
+  dropped with the verdict kept, grounding first, bounded miniscoping. **Decided unattended** (its
+  two author questions): `modules/_provers/ileancop_main.pl` takes a GPL-3.0 header (benchmark glue
+  following leanCoP's `leancop_main/3`, never in the crates; `bench/TOOLS.md` says why), and TPTP
+  files that are not UTF-8 are read; both, with the intuitionistic default measured with 75c's
+  prover, go to fixup-16.
