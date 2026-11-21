@@ -32,6 +32,10 @@ pub(super) enum Core {
     Plus,
     /// `⊸`, whose antecedent stands on the other side.
     Lollipop,
+    /// `∀`, its one operand the body.
+    Forall,
+    /// `∃`, its one operand the body.
+    Exists,
     /// No connective: the image is that of the operand, whose function is
     /// given (the classical negation).
     Pass,
@@ -123,8 +127,9 @@ pub(super) fn pattern(
         | Node::Not(_)
         | Node::And(..)
         | Node::Or(..)
-        | Node::Implies(..) => (id, id),
-        Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+        | Node::Implies(..)
+        | Node::Forall(_)
+        | Node::Exists(_) => (id, id),
     };
     let minimal_false = logic == Logic::Minimal && node == Node::False;
     match translation {
@@ -170,7 +175,20 @@ pub(super) fn pattern(
                     Some((forward, f, 0)),
                     Some((backward, f, 0)),
                 ),
-                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+                // A quantifier takes the row of the connective of its
+                // polarity, `∀` that of `∧` and `∃` that of `∨`.
+                Node::Forall(a) => make(
+                    0,
+                    if right { Forall } else { Exists },
+                    Some((a, f, 0)),
+                    None,
+                ),
+                Node::Exists(a) => make(
+                    0,
+                    if right { Exists } else { Forall },
+                    Some((a, f, 0)),
+                    None,
+                ),
             }
         }
         // Minimal logic's false is an atom, with an atom's `!`s.
@@ -189,7 +207,9 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, 0, 1)), Some((b, 0, 1))),
             Node::Implies(a, b) => make(0, Lollipop, Some((a, 0, 1)), Some((b, 0, 0))),
             Node::Iff(..) => make(0, With, Some((forward, 0, 0)), Some((backward, 0, 0))),
-            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            // Girard's `(∃x. A)* = ∃x. !A*`.
+            Node::Forall(a) => make(0, Forall, Some((a, 0, 0)), None),
+            Node::Exists(a) => make(0, Exists, Some((a, 0, 1)), None),
         },
         Translation::CallByValue => match node {
             Node::Atom(_) => make(1, Atom, None, None),
@@ -200,7 +220,9 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, 0, 0)), Some((b, 0, 0))),
             Node::Implies(a, b) => make(1, Lollipop, Some((a, 0, 0)), Some((b, 0, 0))),
             Node::Iff(..) => make(0, Tensor, Some((forward, 0, 0)), Some((backward, 0, 0))),
-            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            // A negative formula's image is under `!`, as an implication's.
+            Node::Forall(a) => make(1, Forall, Some((a, 0, 0)), None),
+            Node::Exists(a) => make(0, Exists, Some((a, 0, 0)), None),
         },
         Translation::ZeroOne if function == T0 => match node {
             Node::Atom(_) => make(0, Atom, None, None),
@@ -211,7 +233,8 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, T0, 1)), Some((b, T0, 1))),
             Node::Implies(a, b) => make(0, Lollipop, Some((a, T1, 1)), Some((b, T0, 1))),
             Node::Iff(..) => make(0, With, Some((forward, T0, 1)), Some((backward, T0, 1))),
-            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            Node::Forall(a) => make(0, Forall, Some((a, T0, 1)), None),
+            Node::Exists(a) => make(0, Exists, Some((a, T0, 1)), None),
         },
         Translation::ZeroOne => match node {
             Node::Atom(_) => make(0, Atom, None, None),
@@ -222,7 +245,8 @@ pub(super) fn pattern(
             Node::Or(a, b) => make(0, Plus, Some((a, T1, 1)), Some((b, T1, 1))),
             Node::Implies(a, b) => make(1, Lollipop, Some((a, T0, 1)), Some((b, T1, 0))),
             Node::Iff(..) => make(1, With, Some((forward, T1, 0)), Some((backward, T1, 0))),
-            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            Node::Forall(a) => make(1, Forall, Some((a, T1, 0)), None),
+            Node::Exists(a) => make(0, Exists, Some((a, T1, 1)), None),
         },
     }
 }
@@ -314,8 +338,12 @@ fn antecedents(hypotheses: usize) -> Result<u32, Error> {
 }
 
 /// Returns the image of an ordinary sequent under a translation, for
-/// deciding it in `logic`. The sequent is valid exactly when the image is
-/// provable in the image's [`mode`](Image::mode).
+/// deciding it in `logic`. A propositional sequent is valid exactly when
+/// the image is provable in the image's [`mode`](Image::mode). A
+/// first-order sequent is valid where its image is provable, but its
+/// image may be unprovable though it is valid: a quantifier takes the row
+/// of `∧` or `∨`, and the classical image has no contraction to use a
+/// hypothesis twice.
 ///
 /// # Errors
 ///
@@ -337,9 +365,6 @@ pub fn translate(
     translation: Translation,
     limits: &crate::Limits,
 ) -> Result<Image, Error> {
-    sequent
-        .formulas()
-        .propositional(super::Method::Embedding.title())?;
     if !translation.decides(logic) {
         return Err(Error::Translation { translation, logic });
     }
@@ -366,6 +391,25 @@ pub fn translate(
     // them, so they are made earlier: an equivalence's implications just
     // before it, since their operands precede both.
     let mut builder = Builder::default();
+    // A first-order image has the ordinary tables: the symbols, terms and
+    // lists at the same indices, every atom's predicate by its ordinary
+    // atom (minimal logic's false a nullary predicate of its own), and
+    // every binder's name.
+    let tables = formulas.first_order();
+    let first_order = formulas.is_first_order();
+    let mut fo = crate::linear::sequents::fo::FirstOrder::new();
+    if first_order {
+        fo.symbols.clone_from(&tables.symbols);
+        fo.terms.clone_from(&tables.terms);
+        fo.args.clone_from(&tables.args);
+        fo.lists.clone_from(&tables.lists);
+    }
+    // An eigenvariable or open witness of the arena, which a sequent made
+    // over a derivation's or a session's arena holds, is a free parameter:
+    // the image reads it as a constant of its own.
+    let parameters = first_order && constants(&mut fo, tables);
+    let mut predicates = Vec::new();
+    let mut binders = Vec::new();
     let mut images: Vec<Option<(TermId, TermId)>> = vec![None; formulas.len() * functions as usize];
     let slot = |id: NodeId, function: u8| id.index() * functions as usize + function as usize;
     // False first, which a negation refers to wherever it stands.
@@ -412,10 +456,25 @@ pub fn translate(
                         | Node::Implies(..)
                         | Node::Iff(..) => FALSE,
                         Node::Forall(_) | Node::Exists(_) => {
-                            unreachable!("{}", crate::ordinary::REFUSED)
+                            unreachable!("a binder's image is a binder")
                         }
                     };
                     let atom = builder.atom(name);
+                    if first_order && atom.index() == predicates.len() {
+                        let entry = match formulas.node(id) {
+                            Node::Atom(a) => tables.atoms[a as usize],
+                            Node::True
+                            | Node::False
+                            | Node::Not(_)
+                            | Node::And(..)
+                            | Node::Or(..)
+                            | Node::Implies(..)
+                            | Node::Iff(..)
+                            | Node::Forall(_)
+                            | Node::Exists(_) => falsity_predicate(&mut fo),
+                        };
+                        predicates.push(entry);
+                    }
                     let (var, dual) = (
                         builder.add(Term::Atom(atom))?,
                         builder.add(Term::DualAtom(atom))?,
@@ -430,6 +489,18 @@ pub fn translate(
                 }
                 Core::Unit(unit) => (builder.add(unit)?, builder.add(unit.dual())?),
                 Core::Pass => a.expect("a negation has an operand"),
+                core @ (Core::Forall | Core::Exists) => {
+                    let (body, dual) = a.expect("a binder has an operand");
+                    let (positive, negative) = if core == Core::Forall {
+                        (Term::Forall(body), Term::Exists(dual))
+                    } else {
+                        (Term::Exists(body), Term::Forall(dual))
+                    };
+                    let image = (builder.add(positive)?, builder.add(negative)?);
+                    let name = tables.binder_name(id).unwrap_or("x");
+                    binders.extend([(image.0, name.to_owned()), (image.1, name.to_owned())]);
+                    image
+                }
                 core @ Core::Tensor
                 | core @ Core::Par
                 | core @ Core::With
@@ -441,9 +512,12 @@ pub fn translate(
                         Core::Par => (Term::Par(pa, pb), Term::Tensor(na, nb)),
                         Core::With => (Term::With(pa, pb), Term::Plus(na, nb)),
                         Core::Plus => (Term::Plus(pa, pb), Term::With(na, nb)),
-                        Core::Atom | Core::Unit(_) | Core::Lollipop | Core::Pass => {
-                            (Term::Par(na, pb), Term::Tensor(pa, nb))
-                        }
+                        Core::Atom
+                        | Core::Unit(_)
+                        | Core::Lollipop
+                        | Core::Pass
+                        | Core::Forall
+                        | Core::Exists => (Term::Par(na, pb), Term::Tensor(pa, nb)),
                     };
                     (builder.add(positive)?, builder.add(negative)?)
                 }
@@ -498,13 +572,25 @@ pub fn translate(
     } else {
         antecedents(ordinary.left.len())?
     };
+    // The atoms' names are their keys over the image's symbols, which name
+    // the parameters anew.
+    let mut atoms = builder.atoms;
+    if parameters {
+        for (name, &(symbol, args)) in atoms.iter_mut().zip(&predicates) {
+            *name = fo.atom_key(symbol, args);
+        }
+    }
+    fo.atoms = predicates;
+    binders.sort_by_key(|&(t, _)| t);
+    binders.dedup_by_key(|&mut (t, _)| t);
+    fo.binders = binders;
     let mut linear = crate::linear::Sequent {
         terms: builder.terms,
         roots: terms,
-        atoms: builder.atoms,
+        atoms,
         antecedents: Some(antecedents),
         cuts: vec![],
-        fo: crate::linear::sequents::fo::FirstOrder::new(),
+        fo,
     };
     linear.optimize();
     let mode = if classical {
@@ -530,6 +616,62 @@ pub fn translate(
         extra,
         roots,
     })
+}
+
+/// Makes every eigenvariable and open witness among the image's terms a
+/// constant of a symbol of its own, named as eigenvariables are and apart
+/// from the ordinary symbols, and returns whether there was one. The
+/// term keeps its index, so the read-back takes it back as the
+/// ordinary term at that index.
+#[cold]
+fn constants(
+    fo: &mut crate::linear::sequents::fo::FirstOrder,
+    tables: &crate::first_order::FirstOrder<NodeId>,
+) -> bool {
+    use crate::first_order::{Args, FoTerm, Symbol};
+    let open: Vec<usize> = (0..fo.terms.len())
+        .filter(|&n| matches!(fo.terms[n], FoTerm::Eigen(_) | FoTerm::Meta(_)))
+        .collect();
+    if open.is_empty() {
+        return false;
+    }
+    let empty = match fo.lists.iter().position(|&(_, len)| len == 0) {
+        Some(at) => Args::new(at as u32),
+        None => {
+            fo.lists.push((fo.args.len() as u32, 0));
+            Args::new(fo.lists.len() as u32 - 1)
+        }
+    };
+    let names = super::instance::eigen_names(tables, open.len());
+    for (n, name) in open.into_iter().zip(names) {
+        fo.symbols.push((name, 0));
+        fo.terms[n] = FoTerm::App(Symbol::new(fo.symbols.len() as u32 - 1), empty);
+    }
+    true
+}
+
+/// Returns the predicate of minimal logic's false in the image's tables,
+/// the nullary symbol [`FALSE`], adding it where the tables lack it. No
+/// ordinary symbol has the name, a keyword of the ordinary syntax.
+fn falsity_predicate(
+    fo: &mut crate::linear::sequents::fo::FirstOrder,
+) -> (crate::first_order::Symbol, crate::first_order::Args) {
+    use crate::first_order::{Args, Symbol};
+    let symbol = match fo.symbols.iter().position(|(name, _)| name == FALSE) {
+        Some(at) => Symbol::new(at as u32),
+        None => {
+            fo.symbols.push((FALSE.to_owned(), 0));
+            Symbol::new(fo.symbols.len() as u32 - 1)
+        }
+    };
+    let args = match fo.lists.iter().position(|&(_, len)| len == 0) {
+        Some(at) => Args::new(at as u32),
+        None => {
+            fo.lists.push((fo.args.len() as u32, 0));
+            Args::new(fo.lists.len() as u32 - 1)
+        }
+    };
+    (symbol, args)
 }
 
 /// A linear arena under construction, every term made once.

@@ -21,7 +21,9 @@ use crate::{Error, Refusal};
 /// `{"version": 12, "deduxit": "0.7.0", "verdict": "valid", "logic":
 /// "classical", "search": {"method": "embedding", "translation": "affine",
 /// "image": {…}}, "derivation": {…}}` ([`wire`](crate::wire)). It is
-/// written at level 12, or 14 when a truth table or a tableau decided it.
+/// written at level 12, or 14 when a truth table or a tableau decided it,
+/// or 25 when its derivation is first-order or it is unknown for the
+/// reason `incomplete` (a first-order sequent whose image is unprovable).
 ///
 /// - `verdict` is `valid`, `not_valid` or `unknown`; an unknown one has
 ///   its `reason`, as a linear outcome writes it.
@@ -350,7 +352,10 @@ impl super::Image {
     /// read back and checked within `limits` and until `stop` fires; where
     /// a bound or the stop refuses that derivation, the image's proof
     /// stands as [`Evidence::Image`]. For a refutation the verdict is not
-    /// valid, and otherwise unknown.
+    /// valid, and otherwise unknown. At first order an unprovable image,
+    /// and a proof that takes an open witness of the sequent as a
+    /// quantifier's term, leave the sequent unknown
+    /// ([`Reason::Incomplete`]).
     ///
     /// # Errors
     ///
@@ -363,17 +368,13 @@ impl super::Image {
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Outcome, Error> {
         let verdict = match &linear.verdict {
-            search::Verdict::Proved(proof) => {
-                let checked = self
-                    .read_back(proof, limits, &mut stop)
-                    .and_then(|d| d.check(limits, &mut stop).map(|()| d));
-                match checked {
-                    Ok(derivation) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
-                    Err(error) if error.is_refusal() => Verdict::Valid(Evidence::Image),
-                    Err(error) => return Err(error),
-                }
-            }
-            search::Verdict::Unprovable(_) => Verdict::NotValid,
+            search::Verdict::Proved(proof) => match self.checked(proof, limits, &mut stop) {
+                Ok(Some(derivation)) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                Ok(None) => Verdict::Unknown(Reason::Incomplete),
+                Err(error) if error.is_refusal() => Verdict::Valid(Evidence::Image),
+                Err(error) => return Err(error),
+            },
+            search::Verdict::Unprovable(_) => self.unprovable(),
             search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
         };
         let countermodel = self.countermodel(&linear, limits, &mut stop)?;
@@ -388,11 +389,43 @@ impl super::Image {
         })
     }
 
+    /// Returns the derivation `proof` reads back to, checked; `None` where
+    /// it would take an open witness of the sequent as a quantifier's term,
+    /// which no derivation names.
+    fn checked(
+        &self,
+        proof: &crate::linear::Proof,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<Option<Derivation>, Error> {
+        // The stop goes on as `&mut stop`, as `decide` passed it before, so
+        // the read-back and the check are the instances they were.
+        let derivation = match self.read_back(proof, limits, &mut stop) {
+            Err(Error::ReadBack { reason, .. }) if reason == super::derivation::OPEN_WITNESS => {
+                return Ok(None);
+            }
+            read => read?,
+        };
+        derivation.check(limits, &mut stop)?;
+        Ok(Some(derivation))
+    }
+
+    /// Returns the verdict on the ordinary sequent where its image is
+    /// unprovable: not valid, but unknown at first order
+    /// ([`Reason::Incomplete`]), where the embedding is not shown complete.
+    fn unprovable(&self) -> Verdict {
+        if self.ordinary().formulas().is_first_order() {
+            Verdict::Unknown(Reason::Incomplete)
+        } else {
+            Verdict::NotValid
+        }
+    }
+
     /// Returns the countermodel the image's refutation gives in classical
     /// logic: its assignment as a model of one world, which must refute
-    /// the ordinary sequent; `None` in the other logics, for every other
-    /// refutation and every other verdict, and where the model is too
-    /// large to check or the stop ended its check.
+    /// the ordinary sequent; `None` in the other logics, at first order,
+    /// for every other refutation and every other verdict, and where the
+    /// model is too large to check or the stop ended its check.
     ///
     /// # Errors
     ///
@@ -410,7 +443,7 @@ impl super::Image {
         let crate::linear::Refutation::Classical(classical) = disproof.refutation() else {
             return Ok(None);
         };
-        if self.logic() != Logic::Classical {
+        if self.logic() != Logic::Classical || self.ordinary().formulas().is_first_order() {
             return Ok(None);
         }
         let names = disproof.sequent().atom_names();
@@ -445,6 +478,13 @@ impl super::Image {
 /// mode, and for a proof reads the derivation of LK or LJ back and checks
 /// it. By LJT it is [`ljt::decide`], and by the SAT solver `sat::decide`;
 /// neither reads `search`.
+///
+/// The method is [`Options::method_for`] the sequent: at first order the
+/// embedding, unless another is given, which then refuses the sequent
+/// ([`Error::FirstOrder`]). There a valid sequent gets a checked
+/// derivation with the quantifier rules, and one whose image is
+/// unprovable is unknown ([`Reason::Incomplete`]), never not valid, since
+/// the translation may lose first-order proofs.
 ///
 /// With no method and no translation given, the method is the logic's
 /// default, [`Method::default_for`]: the SAT solver with the feature
@@ -505,9 +545,14 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    sequent.formulas().propositional(options.method().title())?;
+    // At first order the embedding is the default and the one method:
+    // every other refuses at its door.
+    let method = options.method_for(sequent);
+    if method != Method::Embedding {
+        sequent.formulas().propositional(method.title())?;
+    }
     let (logic, translation) = (options.logic, options.translation());
-    let decided = match options.method() {
+    let decided = match method {
         Method::Embedding => None,
         Method::Ljt => Some(ljt::decide(sequent, logic, limits, &mut stop).map(Outcome::from)),
         // The default of classical logic keeps the embedding's evidence
@@ -549,12 +594,19 @@ fn within(
     let image = translate(sequent, logic, translation, limits)?;
     let linear = search::prove_within(image.sequent(), image.mode(), search, limits, &mut stop)?;
     let verdict = match &linear.verdict {
-        search::Verdict::Proved(proof) => {
-            let derivation = image.read_back(proof, limits, &mut stop)?;
-            derivation.check(limits, &mut stop)?;
-            Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
-        }
-        search::Verdict::Unprovable(_) => Verdict::NotValid,
+        search::Verdict::Proved(proof) => match image.read_back(proof, limits, &mut stop) {
+            // A proof that takes an open witness as a quantifier's term,
+            // which no derivation names.
+            Err(Error::ReadBack { reason, .. }) if reason == super::derivation::OPEN_WITNESS => {
+                Verdict::Unknown(Reason::Incomplete)
+            }
+            read => {
+                let derivation = read?;
+                derivation.check(limits, &mut stop)?;
+                Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
+            }
+        },
+        search::Verdict::Unprovable(_) => image.unprovable(),
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
     };
     let countermodel = image.countermodel(&linear, limits, &mut stop)?;
@@ -771,5 +823,113 @@ mod tests {
         ));
         assert_eq!(outcome.method(), Method::Sat);
         assert_eq!(asked, polls);
+    }
+
+    /// A first-order sequent is decided through the embedding by default:
+    /// valid with a checked derivation, else unknown, never not valid,
+    /// since an unprovable image says nothing at first order.
+    #[test]
+    fn a_first_order_sequent_is_valid_or_unknown() {
+        use crate::linear::search::Reason;
+        use crate::ordinary::Evidence;
+        let (search, limits) = (search::Options::default(), Limits::default());
+        let decide = |text: &str, logic: Logic| {
+            let sequent: Sequent = text.parse().unwrap();
+            let options = Options::default().with_logic(logic);
+            decide_within(&sequent, &options, &search, &limits, |_| false).unwrap()
+        };
+        for &logic in Logic::ALL {
+            let outcome = decide("forall x. p(x) |- exists y. p(y)", logic);
+            let Verdict::Valid(Evidence::Derivation(derivation)) = &outcome.verdict else {
+                panic!("{logic:?}: {:?}", outcome.verdict);
+            };
+            derivation.check(&limits, |_| false).unwrap();
+            assert_eq!(outcome.method(), Method::Embedding);
+            let refuted = decide("p(a) |- p(b)", logic);
+            assert!(matches!(
+                refuted.verdict,
+                Verdict::Unknown(Reason::Incomplete)
+            ));
+            assert!(refuted.countermodel.is_none());
+            #[cfg(feature = "serialize")]
+            {
+                let json = serde_json::to_string(&refuted).unwrap();
+                assert!(json.contains(r#""version":25"#), "{json}");
+                assert!(json.contains(r#""reason":{"kind":"incomplete"}"#), "{json}");
+                let mut document = serde_json::Deserializer::from_str(&json);
+                let read: super::Outcome = crate::wire::upgrade(&mut document, &limits).unwrap();
+                assert!(matches!(read.verdict, Verdict::Unknown(Reason::Incomplete)));
+            }
+        }
+        // A sequent over a derivation's arena holds its eigenvariable, a
+        // free parameter: read as a constant, apart from the proof's own.
+        let valid = decide("forall x. p(x) |- forall y. p(y)", Logic::Intuitionistic);
+        let Verdict::Valid(Evidence::Derivation(derivation)) = &valid.verdict else {
+            panic!("valid");
+        };
+        for inference in derivation.inferences() {
+            let sequent = Sequent::new(
+                derivation.formulas().clone(),
+                inference.left().to_vec(),
+                inference.right().to_vec(),
+            )
+            .unwrap();
+            for &logic in Logic::ALL {
+                let options = Options::default().with_logic(logic);
+                let outcome =
+                    decide_within(&sequent, &options, &search, &limits, |_| false).unwrap();
+                assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{sequent}");
+            }
+        }
+        let parameter = Sequent::new(
+            derivation.formulas().clone(),
+            derivation.inferences()[0].left().to_vec(),
+            derivation.inferences().last().unwrap().right().to_vec(),
+        )
+        .unwrap();
+        let outcome =
+            decide_within(&parameter, &Options::default(), &search, &limits, |_| false).unwrap();
+        assert!(
+            matches!(outcome.verdict, Verdict::Unknown(_)),
+            "{parameter}"
+        );
+        // An open witness of a session's arena is a parameter too, but no
+        // derivation names it as a quantifier's term: a proof that takes
+        // it there leaves the sequent unknown.
+        #[cfg(feature = "interactive")]
+        {
+            use crate::ordinary::{Interactive, Rule, Side, Step};
+            let text = "forall x. (p(x) /\\ ~q(x)), forall y. (p(y) -> q(y)) |- false";
+            for &logic in Logic::ALL {
+                let mut state = Interactive::new(&text.parse().unwrap(), logic).unwrap();
+                let goal = state.goals().next().unwrap();
+                let step = Step::new(Side::Left, 0, Rule::ForallLeft);
+                let [opened] = state.apply(goal, &step).unwrap()[..] else {
+                    panic!("one goal");
+                };
+                let (left, right) = state.goal(opened).unwrap();
+                let sequent =
+                    Sequent::new(state.formulas().clone(), left.to_vec(), right.to_vec()).unwrap();
+                let options = Options::default().with_logic(logic);
+                let outcome =
+                    decide_within(&sequent, &options, &search, &limits, |_| false).unwrap();
+                assert!(
+                    matches!(
+                        outcome.verdict,
+                        Verdict::Valid(_) | Verdict::Unknown(Reason::Incomplete)
+                    ),
+                    "{sequent}: {:?}",
+                    outcome.verdict
+                );
+            }
+        }
+        // The drinker's sequent needs its witness twice, which the
+        // classical image cannot copy.
+        let drinker = decide("|- exists x. (p(x) -> forall y. p(y))", Logic::Classical);
+        assert!(
+            matches!(drinker.verdict, Verdict::Unknown(_)),
+            "{:?}",
+            drinker.verdict
+        );
     }
 }

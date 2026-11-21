@@ -1125,7 +1125,13 @@ impl Suite for Ordinary {
             }
             "same_verdict" if call.operation.name == "ordinary.embed" => {
                 let sequent = verdict_of(&ask("ordinary.decide", &[call.input(0)], "")?)?;
-                let image = verdict_of(&ask("linear.prove", &[output], "")?)?;
+                let mut image = verdict_of(&ask("linear.prove", &[output], "")?)?;
+                // At first order an unprovable image leaves the sequent
+                // open: the translation may lose proofs there.
+                let (input, _) = statement(call.input(0), limits)?;
+                if input.formulas().is_first_order() && image == Verdict::NotValid {
+                    image = Verdict::Unknown;
+                }
                 Ok(same_verdict(
                     promise,
                     ["sequent", "image"],

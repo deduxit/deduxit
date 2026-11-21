@@ -629,6 +629,7 @@ pub(crate) fn verdict_line(
     outcome: &Outcome,
     logic: Logic,
     translation: Translation,
+    incomplete: bool,
     ended: &Ended,
 ) -> String {
     let context = format!(
@@ -638,12 +639,33 @@ pub(crate) fn verdict_line(
     );
     match &outcome.verdict {
         Verdict::Proved(_) => format!("valid ({context})"),
+        Verdict::Unprovable(_) if incomplete => format!(
+            "unknown ({context}): the translated sequent is unprovable, which leaves a \
+             first-order sequent open, since the translation may lose its proofs"
+        ),
         Verdict::Unprovable(refutation) => {
             format!("not valid ({context}): the translated sequent is unprovable: {refutation}")
         }
         Verdict::Unknown(reason) => {
             format!("unknown ({context}): {}", unknown(*reason, outcome, ended))
         }
+    }
+}
+
+/// Returns whether the image's search found its sequent unprovable where
+/// that leaves the ordinary sequent unknown: at first order, where the
+/// translation may lose proofs.
+pub(crate) fn incomplete(outcome: &Outcome, image: &Image) -> bool {
+    matches!(outcome.verdict, Verdict::Unprovable(_))
+        && image.ordinary().formulas().is_first_order()
+}
+
+/// Returns the exit status of an image's outcome: unknown where
+/// [`incomplete`] says so, else the image's verdict's.
+pub(crate) fn status(outcome: &Outcome, image: Option<&Image>) -> crate::Status {
+    match image {
+        Some(image) if incomplete(outcome, image) => crate::Status::Unknown,
+        _ => crate::Status::from(&outcome.verdict),
     }
 }
 

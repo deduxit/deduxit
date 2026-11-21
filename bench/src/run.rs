@@ -840,6 +840,7 @@ fn tail(args: &OneArgs) -> String {
         expected,
         copies: problem.copies,
         witness_depth: problem.witness_depth,
+        incomplete: false,
     };
     searched.run(args, |proof, limits| {
         match proof.check_within(mode, limits, |_| false) {
@@ -863,6 +864,10 @@ pub(crate) struct Searched<'a> {
     pub(crate) copies: Option<u32>,
     /// The witness depth the problem names.
     pub(crate) witness_depth: Option<u32>,
+    /// Whether an unprovable verdict leaves the problem unknown, for the
+    /// reason `incomplete`: the image of a first-order ordinary sequent,
+    /// whose translation may lose proofs.
+    pub(crate) incomplete: bool,
 }
 
 impl Searched<'_> {
@@ -881,6 +886,7 @@ impl Searched<'_> {
             expected,
             copies,
             witness_depth,
+            incomplete,
         } = *self;
         let copies = match args.copies {
             Some(Bound(bound)) => bound,
@@ -937,6 +943,7 @@ impl Searched<'_> {
         };
         let (verdict, reason) = match &outcome.verdict {
             Verdict::Proved(_) => ("proved", ""),
+            Verdict::Unprovable(_) if incomplete => ("unknown", Reason::Incomplete.name()),
             Verdict::Unprovable(_) => ("unprovable", ""),
             Verdict::Unknown(reason) => {
                 // The harness's stop is its time limit.

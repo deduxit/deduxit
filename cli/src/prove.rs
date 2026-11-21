@@ -262,7 +262,7 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 return unread_into(args, &unread(limit));
             };
             let sequent = sequent?;
-            if options.method() != Method::Embedding {
+            if options.method_for(&sequent) != Method::Embedding {
                 output_can_be_made(args, format)?;
                 match crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)? {
                     Native::Answered(status) => return Ok(status),
@@ -368,7 +368,13 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         }
         let stop = stopped(&deadline);
         let elapsed = start.elapsed();
-        let status = Status::from(&outcome.verdict);
+        // Under --logic, an unprovable image of a first-order sequent is
+        // unknown; --linear answers for the image.
+        let status = if args.linear {
+            Status::from(&outcome.verdict)
+        } else {
+            crate::ordinary::status(&outcome, image.as_ref())
+        };
         // The proof's lambda-term: of its LJ derivation under --logic, of
         // the linear proof otherwise.
         let term_of =
@@ -423,9 +429,13 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         // The verdict first, then the derivation as it is made.
         let ended = Ended { stop, elapsed };
         let line = show.verdict.then(|| match &image {
-            Some(image) => {
-                crate::ordinary::verdict_line(&outcome, image.logic(), image.translation(), &ended)
-            }
+            Some(image) => crate::ordinary::verdict_line(
+                &outcome,
+                image.logic(),
+                image.translation(),
+                crate::ordinary::incomplete(&outcome, image),
+                &ended,
+            ),
             None => verdict_line(&outcome, options.fragment.is_some(), &ended),
         });
         let prefix = show.open(&mut out, line.as_deref())?;

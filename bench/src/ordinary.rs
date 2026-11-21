@@ -121,6 +121,9 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
         expected,
         copies: None,
         witness_depth: None,
+        // At first order an unprovable image leaves the sequent unknown:
+        // the translation may lose proofs there.
+        incomplete: sequent.formulas().is_first_order(),
     };
     searched.run(args, |proof, limits| {
         match image

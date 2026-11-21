@@ -733,7 +733,7 @@ impl Shared {
         let mut solved = None;
         let (forest, image, writing) = match (read?, logic) {
             (Loaded::Ordinary(sequent), Some(options)) => {
-                if options.method() != Method::Embedding {
+                if options.method_for(&sequent) != Method::Embedding {
                     match self.by_native(&entry.name, &options, &sequent, plan, &deadline)? {
                         Native::Answered(done) => return Ok(done),
                         Native::GivesWay(_) => {}
@@ -824,12 +824,20 @@ impl Shared {
         let start = solved.as_ref().map_or(start, |(_, begun)| *begun);
         let elapsed = start.elapsed();
         let stop = self.stopped(&deadline);
-        let status = Status::from(&outcome.verdict);
+        let status = if args.linear {
+            Status::from(&outcome.verdict)
+        } else {
+            ordinary::status(&outcome, image.as_ref())
+        };
         let ended = Ended { stop, elapsed };
         let line = match &image {
-            Some(image) => {
-                ordinary::verdict_line(&outcome, image.logic(), image.translation(), &ended)
-            }
+            Some(image) => ordinary::verdict_line(
+                &outcome,
+                image.logic(),
+                image.translation(),
+                ordinary::incomplete(&outcome, image),
+                &ended,
+            ),
             None => verdict_line(&outcome, search.fragment.is_some(), &ended),
         };
         // Under --logic the JSON is the ordinary outcome, the image's

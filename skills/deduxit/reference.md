@@ -443,7 +443,9 @@ The line says which limit ended the search, after how long, at which
 copy bound, and which flag raises the limit. The JSON `reason` is tagged
 by `kind`: `stopped`, `copy_bound`, `memory_limit`, `work_limit`,
 `recursion_limit`, `index_limit`, `unchecked`, and for a first-order
-search `witness_depth` and `instances`.
+search `witness_depth`, `instances` and `incomplete` (an ordinary
+first-order sequent whose image has no proof: the embedding may miss
+proofs there).
 
 ```console
 $ deduxit prove -q --copies 1 "!(A & B) |- A * B"
@@ -1483,9 +1485,12 @@ An ordinary formula may apply predicates to terms and bind variables
 :` and `? [X] :`); there is no `=` yet. A TPTP file's
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed
-(`par` as `par_`, a function symbol named like a predicate as `name_f`). Every method of `prove` refuses a
-first-order sequent, naming itself (exit 2); a session proves one with
-the quantifier rules:
+(`par` as `par_`, a function symbol named like a predicate as `name_f`). `prove` decides a first-order
+sequent through the embedding, its default method there: valid with a
+checked derivation, or unknown (exit 3, reason `incomplete`) where the
+image is unprovable, since the translation may lose first-order proofs;
+never "not valid". The other methods refuse it, naming themselves
+(exit 2). A session proves one with the quantifier rules:
 - `forallR` and `existsL` (`∀R`, `∃L`) name a fresh eigenvariable, `a`,
   `b`, … past the sequent's own names.
 - `forallL` and `existsR` (`∀L`, `∃R`) take a witness term after the
@@ -1493,7 +1498,7 @@ the quantifier rules:
   introduced below the goal: `apply 1 R0 existsR a`. The witness is
   typed; one left open for an axiom to fill comes later, so a sequent
   with no constant, such as `∀x. p(x) ⊢ ∃x. p(x)`, has no proof yet.
-- `close` refuses a first-order goal; `check` checks the derivation
+- `close` refuses a first-order goal (no graft yet); `check` checks the derivation
   `proof FILE` writes, whose quantifier inferences hold `"term": k` (an
   index of the sequent's `fo`, an eigenvariable there `{"E": n}`, wire
   level 25).

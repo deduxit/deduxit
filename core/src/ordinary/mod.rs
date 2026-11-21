@@ -564,6 +564,17 @@ impl Options {
             (None, None) => Method::default_for(self.logic),
         }
     }
+
+    /// Returns the method that decides `sequent` under these options:
+    /// [`method`](Self::method), but the embedding for a first-order
+    /// sequent when no method is given, since the embedding is the one
+    /// method that takes quantifiers. [`decide()`] decides by it.
+    pub fn method_for(&self, sequent: &Sequent) -> Method {
+        match self.method {
+            None if sequent.formulas().is_first_order() => Method::Embedding,
+            _ => self.method(),
+        }
+    }
 }
 
 /// The index of a formula in a [`Formulas`] arena.
@@ -880,7 +891,7 @@ impl Formulas {
     /// Returns whether the arena is first-order: it holds a binder or a
     /// predicate with arguments. The methods that decide propositional
     /// logic refuse such an arena ([`Error::FirstOrder`]).
-    pub(crate) fn is_first_order(&self) -> bool {
+    pub fn is_first_order(&self) -> bool {
         !self.tables().is_empty()
     }
 
@@ -1008,13 +1019,6 @@ impl Formulas {
 
     /// Returns the atom of `symbol` applied to `args`, both of the tables,
     /// adding it unless the arena has it. The arena must be first-order.
-    #[cfg_attr(
-        not(any(test, feature = "parse", feature = "interactive")),
-        expect(
-            dead_code,
-            reason = "the text readers and the goal state's instances call it"
-        )
-    )]
     fn predicate_atom(
         &mut self,
         symbol: crate::first_order::Symbol,
@@ -1961,7 +1965,16 @@ mod first_order_tests {
         let limits = Limits::default();
         let search = crate::linear::Options::default();
         for &logic in Logic::ALL {
+            // The embedding decides it, and is the default there.
+            for method in [None, Some(Method::Embedding)] {
+                let options = Options::default().with_logic(logic).with_method(method);
+                let outcome = decide(&sequent, &options).unwrap();
+                assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{logic:?}");
+            }
             for &method in Method::ALL {
+                if method == Method::Embedding {
+                    continue;
+                }
                 let options = Options::default()
                     .with_logic(logic)
                     .with_method(Some(method));
@@ -1974,9 +1987,6 @@ mod first_order_tests {
                 refused(sat::decide_preferring_ljt(&sequent, logic, &limits, |_| {
                     false
                 }));
-            }
-            for &translation in Translation::ALL {
-                refused(translate(&sequent, logic, translation, &limits));
             }
             let options = Options::default().with_logic(logic);
             let partition = interpolant::Partition::hypotheses(&sequent);

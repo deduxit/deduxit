@@ -427,7 +427,7 @@ pub enum Error {
     },
     /// A method that decides or transforms propositional sequents was given
     /// a first-order one: a formula with a quantifier or a predicate with
-    /// arguments. A derivation of such a sequent is checked, not decided.
+    /// arguments. The embedding decides such a sequent.
     #[error("{method} takes propositional sequents only, and this one is first-order")]
     #[non_exhaustive]
     FirstOrder {

@@ -51,10 +51,14 @@ serde_json, which the CLI and the core's tests already have.
   from the nearest directory above the problem that has the file (TPTP
   names it from the library's root; 1 279 problems include `Axioms/…`)
   and reads bytes as lossy UTF-8 (a few SYJ headers are Latin-1, in
-  comments). A method's first-order refusal is a `refused` row with the
-  reason `first_order`, the reader's refusal of `=` one with `equality`
-  (`summary` drops both, as a configuration that does not apply); every
-  other error is the reader's and a finding. The engine axis takes the methods too
+  comments). A method's first-order refusal (LJT, the SAT solver) is a
+  `refused` row with the reason `first_order`, the reader's refusal of
+  `=` one with `equality` (`summary` drops both, as a configuration that
+  does not apply); every other error is the reader's and a finding. The
+  embedding takes a first-order problem, and an unprovable image of one is
+  an `unknown` row with the reason `incomplete` (`Searched::incomplete`),
+  as `ordinary::decide` answers: mapped to `unprovable` it read a
+  classical theorem the affine image cannot prove as a mismatch. The engine axis takes the methods too
   (`EngineChoice::{Auto, Linear, Ordinary}`): `embedding` (and a linear
   engine's name, which forces the image's engine) searches the image of
   the default translation as a linear row is searched, checking the

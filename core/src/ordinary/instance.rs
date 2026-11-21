@@ -30,22 +30,45 @@ impl Formulas {
         not(any(test, feature = "interactive")),
         expect(
             dead_code,
-            reason = "the goal state's quantifier rules are its first caller"
+            reason = "the goal state's quantifier rules call it; the read-back puts in whole frames"
         )
     )]
     pub(crate) fn instantiate(&mut self, body: NodeId, term: FoTermId) -> Result<NodeId, Error> {
+        self.instantiate_frame(body, &[term])
+    }
+
+    /// Returns `body` with the variables of the binders around it replaced
+    /// by the closed `terms`, the innermost binder's first, in one pass:
+    /// what [`instantiate`](Self::instantiate) builds term by term, but
+    /// each node and atom made once, where term by term a frame of `n`
+    /// terms over an atom of `n` arguments made `n` atoms of `n`
+    /// arguments each.
+    ///
+    /// # Errors
+    ///
+    /// As [`instantiate`](Self::instantiate), for each term.
+    pub(crate) fn instantiate_frame(
+        &mut self,
+        body: NodeId,
+        terms: &[FoTermId],
+    ) -> Result<NodeId, Error> {
         self.holds(body)?;
-        if term.index() >= self.tables().terms.len() {
-            return Err(Error::IndexOutOfBounds {
-                space: crate::limits::Space::Term,
-                index: term.index(),
-                len: self.tables().terms.len(),
-            });
+        for &term in terms {
+            if term.index() >= self.tables().terms.len() {
+                return Err(Error::IndexOutOfBounds {
+                    space: crate::limits::Space::Term,
+                    index: term.index(),
+                    len: self.tables().terms.len(),
+                });
+            }
+            if !self.is_closed(term) {
+                return Err(Error::LooseVariable { term: term.index() });
+            }
         }
-        if !self.is_closed(term) {
-            return Err(Error::LooseVariable { term: term.index() });
+        if terms.is_empty() {
+            return Ok(body);
         }
-        let made = Substitution::new(term).run(&mut Build(self), body)?;
+        let made = Substitution::of_frame(terms).run(&mut Build(self), body)?;
         Ok(made.expect("an arena that adds what it lacks finds every node"))
     }
 
@@ -427,13 +450,6 @@ trait Maker {
 }
 
 /// An arena that adds what it lacks.
-#[cfg_attr(
-    not(any(test, feature = "interactive")),
-    expect(
-        dead_code,
-        reason = "the goal state's quantifier rules are its first caller"
-    )
-)]
 struct Build<'a>(&'a mut Formulas);
 
 impl Maker for Build<'_> {
@@ -510,8 +526,9 @@ enum Task<T> {
 
 /// What a substitution replaces.
 enum Replace {
-    /// The variable of the binder removed, by this closed term.
-    Variable(FoTermId),
+    /// The variables of the binders removed, by these closed terms, the
+    /// innermost binder's first.
+    Variables(Box<[FoTermId]>),
     /// Each open witness by the term it is bound to, by number, `None` for
     /// one left as it is. A bound term may hold open witnesses bound in
     /// turn, which are replaced too.
@@ -538,8 +555,14 @@ impl Substitution {
     /// Returns the substitution of `term` for the removed binder's
     /// variable.
     fn new(term: FoTermId) -> Self {
+        Self::of_frame(&[term])
+    }
+
+    /// Returns the substitution of `terms` for the variables of the
+    /// binders removed, the innermost binder's first.
+    fn of_frame(terms: &[FoTermId]) -> Self {
         Self {
-            replace: Replace::Variable(term),
+            replace: Replace::Variables(terms.into()),
             nodes: HashMap::default(),
             terms: HashMap::default(),
         }
@@ -562,7 +585,7 @@ impl Substitution {
     /// which are closed terms.
     const fn inner(&self, depth: u32) -> u32 {
         match self.replace {
-            Replace::Variable(_) => depth + 1,
+            Replace::Variables(_) => depth + 1,
             Replace::Metas(_) => depth,
         }
     }
@@ -570,7 +593,7 @@ impl Substitution {
     /// Returns the binding of the open witness `k`, if it has one.
     fn binding(&self, k: u32) -> Option<FoTermId> {
         match &self.replace {
-            Replace::Variable(_) => None,
+            Replace::Variables(_) => None,
             Replace::Metas(bindings) => bindings.get(k as usize).copied().flatten(),
         }
     }
@@ -686,15 +709,17 @@ impl Substitution {
                     if self.terms.contains_key(&(u, d)) {
                         continue;
                     }
-                    let variable = match self.replace {
-                        Replace::Variable(term) => Some(term),
-                        Replace::Metas(_) => None,
-                    };
                     let made = match maker.formulas().tables().terms[u.index()] {
-                        FoTerm::Bound(i) => match variable {
-                            Some(term) if i == d => term,
-                            Some(_) if i > d => maker.term(FoTerm::Bound(i - 1))?,
-                            _ => u,
+                        // A variable of a removed binder is its term; one
+                        // of a binder further out moves in past them.
+                        FoTerm::Bound(i) => match &self.replace {
+                            Replace::Variables(terms) if i >= d => {
+                                match terms.get((i - d) as usize) {
+                                    Some(&term) => term,
+                                    None => maker.term(FoTerm::Bound(i - terms.len() as u32))?,
+                                }
+                            }
+                            Replace::Variables(_) | Replace::Metas(_) => u,
                         },
                         FoTerm::Meta(k) => match self.binding(k) {
                             Some(b) => self.terms[&(b, d)],

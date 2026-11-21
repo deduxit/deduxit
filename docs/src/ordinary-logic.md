@@ -525,11 +525,32 @@ binds it, else a constant or a function symbol, as in `p(f(a), x)`. TPTP's
 `! [X] :` and `? [X] :` read the same way. There is no equality yet: `=`
 is refused, with a hint to write a predicate.
 
-Nothing decides first-order logic yet, so every method of `prove`
-refuses such a sequent, naming itself:
+`prove` decides a first-order sequent through the embedding, which is
+the default method there. A valid one gets a checked derivation with the
+quantifier rules:
 
 ```console
-$ deduxit prove --logic classical 'forall x. p(x) |- p(a)'; echo "exit $?"
+$ deduxit prove --logic intuitionistic 'forall x. p(x) |- exists y. p(y)'
+valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+    ─────────── ax
+    p(a) ⊢ p(a)
+  ─────────────── ∀L
+  ∀x. p(x) ⊢ p(a)
+─────────────────── ∃R
+∀x. p(x) ⊢ ∃y. p(y)
+```
+
+The translation may lose a first-order proof: the classical image cannot
+use a hypothesis twice, and the drinker's sequent below needs its
+witness twice. So where the image is unprovable, the answer is unknown
+(exit 3), never "not valid". The other methods refuse a first-order
+sequent, naming themselves (exit 2):
+
+```console
+$ deduxit prove --logic classical '|- exists x. (p(x) -> forall y. p(y))'; echo "exit $?"
+unknown (classical logic by the affine translation into affine MALL, focus engine): the translated sequent is unprovable, which leaves a first-order sequent open, since the translation may lose its proofs
+exit 3
+$ deduxit prove --logic classical --method sat 'forall x. p(x) |- p(a)'; echo "exit $?"
 error: the SAT solver takes propositional sequents only, and this one is first-order
 exit 2
 ```
@@ -548,7 +569,8 @@ and LM:
   introduced after it was left open is refused. One still open when the
   proof is finished becomes a fresh constant, so `∀x. p(x) ⊢ ∃x. p(x)`
   proves with no constant in the sequent (below).
-- `close` refuses a first-order goal, as `prove` does.
+- `close` refuses a first-order goal: the session cannot graft a
+  first-order derivation yet.
 
 `check` checks a finished derivation that `proof FILE` wrote:
 

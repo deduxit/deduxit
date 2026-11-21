@@ -1341,7 +1341,7 @@ impl Image {
     /// roots, whose read-back would conclude another sequent; as
     /// [`Proof::derivation_within`] for the unfolding; [`Error::ReadBack`]
     /// for a proof that is not of this image, or a rule with no reading (a
-    /// cut, a quantifier); [`Refusal::Stopped`] when `stop` fired.
+    /// cut); [`Refusal::Stopped`] when `stop` fired.
     pub fn read_back(
         &self,
         proof: &Proof,
@@ -1371,6 +1371,9 @@ impl Image {
         if forest.sequent() != &self.sequent {
             return Err(fail("the proof is not of the image".to_owned()));
         }
+        // The derivation's arena, which gains the instances of quantified
+        // formulas the proof holds.
+        let mut arena = self.ordinary.formulas.clone();
         let formulas = &self.ordinary.formulas;
         // Every occurrence's tag, parents before children.
         let mut tags: Vec<Option<Tag>> = vec![None; forest.len()];
@@ -1415,7 +1418,9 @@ impl Image {
                     | Core::Par
                     | Core::With
                     | Core::Plus
-                    | Core::Pass => false,
+                    | Core::Pass
+                    | Core::Forall
+                    | Core::Exists => false,
                 };
                 // The classical implication's antecedent is on the other
                 // side through its function.
@@ -1435,6 +1440,8 @@ impl Image {
             }
         }
         let tag = |o: OccId| tags[o.index()].expect("every occurrence is tagged");
+        let mut instances = Instances::new(proof, &mut arena).map_err(&fail)?;
+        let propositional = linear.framing().is_none();
 
         let mut out = Vec::new();
         // Per linear inference, the ordinary inference that stands for it.
@@ -1445,11 +1452,31 @@ impl Image {
                     phase: Phase::ReadBack,
                 }));
             }
-            let members: Vec<(NodeId, Side)> = inference
-                .sequent
-                .iter()
-                .map(|&o| (tag(o.occ()).node, tag(o.occ()).side))
-                .collect();
+            // A member of the forest is its occurrence's formula; only an
+            // instance is built. A proof without instances, every proof of
+            // a propositional image, takes the plain loop.
+            let members: Vec<(NodeId, Side)> = if propositional {
+                inference
+                    .sequent
+                    .iter()
+                    .map(|&m| {
+                        let t = tag(m.occ());
+                        (t.node, t.side)
+                    })
+                    .collect()
+            } else {
+                let mut members = Vec::with_capacity(inference.sequent.len());
+                for &m in &inference.sequent {
+                    let t = tag(linear.occurrence(m));
+                    let node = if instances.is_instance(m) {
+                        instances.node(&mut arena, m, t.node, calculus)?
+                    } else {
+                        t.node
+                    };
+                    members.push((node, t.side));
+                }
+                members
+            };
             let premises: Vec<InfId> = inference
                 .premises
                 .iter()
@@ -1471,12 +1498,6 @@ impl Image {
                     };
                     push(&mut out, &members, at, rule, premises)
                 }
-                // An image of ordinary propositional logic has no binder.
-                Linear::Forall | Linear::Exists => {
-                    return Err(fail(
-                        "a quantifier, which the read-back has no rule for".to_owned(),
-                    ));
-                }
                 // Every proof the search finds is cut-free, so the
                 // read-back needs no rule for a cut.
                 Linear::Cut => {
@@ -1489,7 +1510,7 @@ impl Image {
                     let chains: Vec<_> = (0..2)
                         .map(|at| {
                             let (node, side) = members[at];
-                            let Unwound { chain, core } = self.unwind(node, 0, side);
+                            let Unwound { chain, core } = self.unwind_in(&arena, node, 0, side);
                             members[at] = (core.0, core.2);
                             (at, chain)
                         })
@@ -1509,31 +1530,56 @@ impl Image {
                 | rule @ Linear::PlusRight
                 | rule @ Linear::Top
                 | rule @ Linear::Mix
-                | rule @ Linear::Open => {
+                | rule @ Linear::Open
+                | rule @ Linear::Forall
+                | rule @ Linear::Exists => {
                     let at = inference
                         .principal
                         .ok_or_else(|| fail("no principal formula".to_owned()))?;
                     let mut members = members;
                     let (node, side) = members[at];
-                    let Unwound { chain, core } = self.unwind(node, 0, side);
+                    let Unwound { chain, core } = self.unwind_in(&arena, node, 0, side);
                     members[at] = (core.0, core.2);
-                    let ordinary = self
-                        .rule_of(formulas.node(core.0), core.2, rule)
-                        .ok_or_else(|| {
-                            fail(format!(
-                                "the linear rule {rule} on {} has no reading",
-                                formulas.formula(core.0)
-                            ))
-                        })?;
+                    let ordinary =
+                        self.rule_of(arena.node(core.0), core.2, rule)
+                            .ok_or_else(|| {
+                                fail(format!(
+                                    "the linear rule {rule} on {} has no reading",
+                                    arena.formula(core.0)
+                                ))
+                            })?;
+                    // A quantifier rule's term is the one its premise's new
+                    // instance was opened with.
+                    let term = if matches!(rule, Linear::Forall | Linear::Exists) {
+                        let premise = linear.inference(inference.premises[0]);
+                        let body =
+                            opened(&premise.sequent, &inference.sequent, at).ok_or_else(|| {
+                                fail("a quantifier rule without its instance".to_owned())
+                            })?;
+                        let term = instances.witness(body).map_err(&fail)?;
+                        // The checker names no open witness as a term.
+                        if arena.holds_meta(term) {
+                            return Err(fail(OPEN_WITNESS.to_owned()));
+                        }
+                        Some(term)
+                    } else {
+                        None
+                    };
                     let id = push(&mut out, &members, at, ordinary, premises);
+                    out[id.index()].term = term;
                     negations(&mut out, &mut members, at, chain, id)
                 }
             };
             mapped.push(next);
         }
+        // An instance of an equivalence needs its implications, which the
+        // checker looks up.
+        if arena.len() > formulas.len() {
+            super::translate::Extra::add(&mut arena)?;
+        }
         Ok(Derivation {
             logic: self.logic,
-            formulas: self.ordinary.formulas.clone(),
+            formulas: arena,
             left: self.ordinary.left.clone(),
             right: self.ordinary.right.clone(),
             inferences: out,
@@ -1544,10 +1590,22 @@ impl Image {
     /// Returns the classical negations above a formula, which have no
     /// image of their own, and the formula under them, whose connective
     /// its image has. Other translations pass no negation.
-    fn unwind(&self, mut node: NodeId, mut function: u8, mut side: Side) -> Unwound {
+    fn unwind(&self, node: NodeId, function: u8, side: Side) -> Unwound {
+        self.unwind_in(&self.ordinary.formulas, node, function, side)
+    }
+
+    /// [`unwind`](Self::unwind) in `formulas`, an arena that extends the
+    /// image's with instances.
+    fn unwind_in(
+        &self,
+        formulas: &Formulas,
+        mut node: NodeId,
+        mut function: u8,
+        mut side: Side,
+    ) -> Unwound {
         let mut chain = Vec::new();
         if self.translation == Translation::Affine {
-            while let Node::Not(a) = self.ordinary.formulas.node(node) {
+            while let Node::Not(a) = formulas.node(node) {
                 chain.push((node, side));
                 node = a;
                 side = side.flip();
@@ -1587,6 +1645,10 @@ impl Image {
             (Node::True, Left, L::Bot) => Rule::TrueLeft,
             (Node::False, Left, L::Top) => Rule::FalseLeft,
             (Node::False, Right, L::Bot) => Rule::FalseRight,
+            (Node::Forall(_), Right, L::Forall) => Rule::ForallRight,
+            (Node::Forall(_), Left, L::Exists) => Rule::ForallLeft,
+            (Node::Exists(_), Right, L::Exists) => Rule::ExistsRight,
+            (Node::Exists(_), Left, L::Forall) => Rule::ExistsLeft,
             _ => return None,
         })
     }
@@ -1655,6 +1717,206 @@ fn negations(
         id = push(out, members, at, rule, vec![id]);
     }
     id
+}
+
+/// The read-back's reason where a quantifier's term would be an open
+/// witness of the sequent (a parameter the image reads as a constant):
+/// no derivation names one as a term, so [`decide()`](super::decide()) leaves
+/// such a sequent unknown.
+pub(super) const OPEN_WITNESS: &str =
+    "a quantifier's term would be an open witness of the sequent, which no derivation names";
+
+/// The formulas of a first-order proof's members past its forest, each
+/// the formula of its occurrence with the frame's terms in place of the
+/// bound variables, built in the derivation's arena once per member.
+struct Instances<'a> {
+    /// The proof's table of instances; `None` for a propositional proof.
+    table: Option<&'a crate::linear::Instances>,
+    /// The forest's length: the first member the table numbers.
+    occurrences: usize,
+    /// The number of the sequent's own terms, which keep their ids in the
+    /// arena, since the image copies the ordinary tables.
+    base: usize,
+    /// Per term of the table, its id in the arena.
+    terms: Vec<FoTermId>,
+    /// The formula of every member past the forest built so far.
+    built: crate::hash::HashMap<crate::linear::occurrences::Member, NodeId>,
+}
+
+impl<'a> Instances<'a> {
+    /// Returns the instances of `proof`, its table's terms interned into
+    /// `arena` in the table's order, each after the terms it names; or why
+    /// a term cannot be read.
+    fn new(proof: &'a Proof, arena: &mut Formulas) -> Result<Self, String> {
+        use crate::first_order::{Eigen, FoTerm};
+        let table = proof.instances();
+        let fo = &proof.forest().sequent().fo;
+        let base = fo.terms.len();
+        let mut terms = Vec::new();
+        if let Some(table) = table {
+            // The proof's eigenvariables are numbered past the arena's own
+            // (a sequent over a derivation's arena holds some), which the
+            // image reads as constants of symbols past the arena's.
+            let tables = arena.first_order();
+            let offset = tables
+                .terms
+                .iter()
+                .filter_map(|t| match *t {
+                    FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
+                    FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
+                })
+                .max()
+                .unwrap_or(0);
+            let symbols = tables.symbols.len();
+            let both = crate::linear::occurrences::instances::Terms { fo, table };
+            terms.reserve(table.terms.len());
+            for &term in &table.terms {
+                let made = match term {
+                    FoTerm::Eigen(a) => FoTerm::Eigen(Eigen::new(
+                        a.get()
+                            .checked_add(offset)
+                            .ok_or("an eigenvariable past the numbers")?,
+                    )),
+                    // A parameter of the arena, as the image's constant.
+                    FoTerm::App(f, _) if f.index() >= symbols => {
+                        let at = fo
+                            .terms
+                            .iter()
+                            .position(|&t| matches!(t, FoTerm::App(g, _) if g == f))
+                            .ok_or("a term of a symbol the sequent lacks")?;
+                        terms.push(FoTermId::new(at as u32));
+                        continue;
+                    }
+                    FoTerm::App(f, args) => {
+                        let items = both
+                            .list(args)
+                            .iter()
+                            .map(|&t| match t.index().checked_sub(base) {
+                                None => Some(t),
+                                Some(at) => terms.get(at).copied(),
+                            })
+                            .collect::<Option<Vec<FoTermId>>>()
+                            .ok_or("a term of the proof names a later one")?;
+                        FoTerm::App(f, arena.interner().list(&items))
+                    }
+                    FoTerm::Bound(_) | FoTerm::Meta(_) => {
+                        return Err("an open term among the proof's terms".to_owned());
+                    }
+                };
+                terms.push(arena.interner().term(made));
+            }
+        }
+        Ok(Self {
+            table,
+            occurrences: proof.forest().len(),
+            base,
+            terms,
+            built: crate::hash::HashMap::default(),
+        })
+    }
+
+    /// Returns the id in the arena of the proof's term `term`.
+    fn term(&self, term: FoTermId) -> Result<FoTermId, String> {
+        match term.index().checked_sub(self.base) {
+            None => Ok(term),
+            Some(at) => self
+                .terms
+                .get(at)
+                .copied()
+                .ok_or_else(|| "a term past the proof's table".to_owned()),
+        }
+    }
+
+    /// Returns whether `member` stands past the forest, for an instance.
+    #[inline]
+    fn is_instance(&self, member: crate::linear::occurrences::Member) -> bool {
+        member.get() as usize >= self.occurrences
+    }
+
+    /// Returns the formula of `member`, whose occurrence's formula is
+    /// `formula`: that formula for an occurrence of the forest, else its
+    /// instance by the member's frame, built in `arena`.
+    #[cold]
+    #[inline(never)]
+    fn node(
+        &mut self,
+        arena: &mut Formulas,
+        member: crate::linear::occurrences::Member,
+        formula: NodeId,
+        calculus: &'static str,
+    ) -> Result<NodeId, Error> {
+        if (member.get() as usize) < self.occurrences {
+            return Ok(formula);
+        }
+        if let Some(&node) = self.built.get(&member) {
+            return Ok(node);
+        }
+        let fail = |reason: String| Error::ReadBack { calculus, reason };
+        let table = self
+            .table
+            .ok_or_else(|| fail("a member past the forest without a table".to_owned()))?;
+        let (_, frame) = table
+            .instance(member)
+            .ok_or_else(|| fail("a member the table does not hold".to_owned()))?;
+        // The frame's terms, the innermost binder's first, all put in at
+        // once: term by term, a frame of `n` terms over an atom of `n`
+        // arguments built `n` atoms of `n` arguments for each member.
+        let terms = table
+            .frame_terms(frame)
+            .into_iter()
+            .map(|term| self.term(term))
+            .collect::<Result<Vec<FoTermId>, String>>()
+            .map_err(fail)?;
+        let node = arena.instantiate_frame(formula, &terms)?;
+        self.built.insert(member, node);
+        Ok(node)
+    }
+
+    /// Returns the id in the arena of the term the instance `body` was
+    /// opened with: the innermost term of its frame.
+    fn witness(&self, body: crate::linear::occurrences::Member) -> Result<FoTermId, String> {
+        let (_, frame) = self
+            .table
+            .and_then(|table| table.instance(body))
+            .ok_or_else(|| "a quantifier rule's instance outside the table".to_owned())?;
+        let table = self.table.ok_or_else(String::new)?;
+        self.term(table.frame_parts(frame).1)
+    }
+}
+
+/// Returns the member a one-premise rule's premise holds beyond its
+/// conclusion without the principal formula at `at`, both sequents in
+/// ascending order: the instance a quantifier rule opened. `None` unless
+/// there is exactly one such member and the premise holds the rest.
+fn opened(
+    premise: &[crate::linear::occurrences::Member],
+    conclusion: &[crate::linear::occurrences::Member],
+    at: usize,
+) -> Option<crate::linear::occurrences::Member> {
+    let mut rest = conclusion
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| i != at)
+        .map(|(_, &m)| m)
+        .peekable();
+    let mut new = None;
+    for &m in premise {
+        match rest.peek() {
+            Some(&r) if r == m => {
+                rest.next();
+            }
+            Some(&r) if r < m => return None,
+            _ => {
+                if new.replace(m).is_some() {
+                    return None;
+                }
+            }
+        }
+    }
+    if rest.next().is_some() {
+        return None;
+    }
+    new
 }
 
 #[cfg(all(test, feature = "parse"))]
@@ -2299,6 +2561,56 @@ mod tests {
             read.check(&limits, |_| false).unwrap();
             assert_eq!(serde_json::to_string(&read).unwrap(), json);
         }
+    }
+
+    /// First-order sequents read back to derivations the checker takes,
+    /// under every translation of every logic it decides: each quantifier
+    /// rule with its term, the instances built in the derivation's arena.
+    #[test]
+    fn first_order_proofs_read_back() {
+        let limits = crate::Limits::default();
+        let valid = [
+            "forall x. p(x) |- p(a)",
+            "p(a) |- exists x. p(x)",
+            "forall x. (p(x) /\\ q(x)) |- forall x. p(x)",
+            "exists x. p(x) |- exists y. (p(y) \\/ q(y))",
+            "forall x. (p(x) -> q(x)), p(a) |- q(a)",
+            "exists x. forall y. r(x, y) |- forall y. exists x. r(x, y)",
+            "~(exists x. p(x)) |- forall x. ~p(x)",
+            "forall x. p(f(x)) |- p(f(f(a)))",
+            "forall x. (p(x) <-> q(x)), q(a) |- p(a)",
+            "forall x. p(x) |- p(a) /\\ p(b)",
+        ];
+        let mut read = 0;
+        for logic in Logic::ALL.iter().copied() {
+            for translation in Translation::ALL.iter().copied() {
+                if !translation.decides(logic) {
+                    continue;
+                }
+                for text in valid {
+                    let sequent: Sequent = text.parse().unwrap();
+                    let image = translate(&sequent, logic, translation, &limits).unwrap();
+                    let options = Options::default().with_copies(None);
+                    let outcome = prove(image.sequent(), image.mode(), &options).unwrap();
+                    let Verdict::Proved(proof) = &outcome.verdict else {
+                        // The affine image has no contraction: only the
+                        // sequents that use a hypothesis once are proved.
+                        assert_eq!(translation, Translation::Affine, "{text}");
+                        continue;
+                    };
+                    let derivation = image.read_back(proof, &limits, |_| false).unwrap();
+                    derivation
+                        .check(&limits, |_| false)
+                        .unwrap_or_else(|e| panic!("{text} {logic:?} {translation:?}: {e}"));
+                    assert!(
+                        derivation.inferences().iter().any(|i| i.term().is_some()),
+                        "{text}"
+                    );
+                    read += 1;
+                }
+            }
+        }
+        assert!(read >= 40, "{read}");
     }
 
     /// The admissible view keeps a weakening that brings `∀R`'s

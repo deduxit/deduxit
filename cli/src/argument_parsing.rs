@@ -665,7 +665,8 @@ pub(crate) struct ProveArgs {
     /// and minimal logic with LJT's derivation where LJT gives one, and
     /// classical logic with the embedding's output (its derivation of LK,
     /// refutation and certificate) where the embedding decides within a
-    /// short bound of work.
+    /// short bound of work. A first-order sequent is decided through the
+    /// embedding, the only method that takes one.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear

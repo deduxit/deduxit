@@ -59,9 +59,17 @@ second number (0.1.x to 0.2.0), anything else the third.
   terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
   the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
   equal up to the names of their bound variables are one formula.
+- **First-order sequents decided through the embedding**:
+  `ordinary::decide` and `prove --logic` take the embedding, the default
+  method at first order (`Options::method_for`). A valid sequent gets a
+  checked derivation of LK, LJ or LM, its quantifier rules read back
+  from the linear proof's instances; one whose image is unprovable is
+  unknown with the new reason `Reason::Incomplete` (exit 3), since the
+  translation may lose first-order proofs. `Formulas::is_first_order` is
+  public.
 - **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
   method that decides or transforms propositional sequents (the SAT
-  solver, LJT, the embedding, the truth table, the tableau, the normal
+  solver, LJT, the truth table, the tableau, the normal
   forms, resolution, the interpolants, the negative translations, the
   Kripke model's check, the goal state's `close` and `hint`, the
   certificate over `Prop`, the lambda-term) refuses a first-order sequent
@@ -99,7 +107,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   linear sequent's keys `symbols`, `fo`, the atoms as `{"P": [symbol,
   [terms]]}` and `binders`. A propositional one stays at level 8. A
   derivation's quantifier rule names its term by `"term": k`, an
-  eigenvariable among the terms being `{"E": n}`.
+  eigenvariable among the terms being `{"E": n}`. An ordinary outcome
+  with a first-order derivation, or unknown for the new reason
+  `{"kind": "incomplete"}`, is written at level 25 too.
 
 ## [0.7.0] - 2026-11-20
 

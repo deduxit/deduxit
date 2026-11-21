@@ -260,9 +260,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     (`Formulas::propositional(method)`, `Error::FirstOrder`): `decide`'s
     `within`, `ljt::run`, `sat::run`, `truth_table`, `Tableau::of`,
     `normal`'s `rewrite_dyn`, `Clauses::of_sequent`, `interpolate` and
-    `interpolant`, `negative::translate`, `translate` (the embedding),
-    `Model::forcing_with`, the goal state's `close` and `hint` (through
-    `decide`; the goal state itself takes first-order sequents),
+    `interpolant`, `negative::translate`,
+    `Model::forcing_with`, the goal state's `close` and `hint` (a door of
+    their own in `Interactive::decide`, since `decide` takes first-order
+    sequents now and the graft's `ids_of` has no arm for a binder; the
+    goal state itself takes first-order sequents),
     `WrittenTableau::review_dyn` (its own and the expected sequent),
     the Rocq certificate (`rocq::write`), `Derivation::term`,
     `lambda::enumerate` (whose search reads the types itself; `has_type`
@@ -279,8 +281,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     inner binder is not `p(x)`), the closed `t` needing no shift; a
     binder it builds keeps the copied one's name. `instance` is the
     find-only form for the checker, which builds nothing (the interner's
-    `find_term`, `find_list`); `instantiate`'s first caller outside the
-    tests is the goal state.
+    `find_term`, `find_list`); `instantiate`'s callers are the goal state
+    and the embedding's read-back.
   - **The checker's quantifier rules** (G3c, G3i, G3m of Troelstra and
     Schwichtenberg, §3.1; `Rule::{ForallLeft, ForallRight, ExistsLeft,
     ExistsRight}`, last in `Rule::ALL` after `Cut` and `Open`, so `NAMES`
@@ -347,6 +349,71 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     and `!=` get the `EQUALITY` hint. `lltp::clauses` counts `[`/`]`
     with the parentheses, or a quantifier's `[X, Y]` read as an
     annotation.
+  - **The embedding at first order** (`translate`, `read_back`,
+    `decide`; `plan/notes/first-order-search-design.md` §2 and §7):
+    - The rows: `∀` takes `∧`'s row and `∃` `∨`'s with one operand
+      (`Core::Forall`, `Core::Exists`; cbn's `∃x. !A*` is Girard's, cbv's
+      `∀` is under `!` as a negative formula is, 0/1 by analogy, since
+      LLTP's translation is propositional).
+    - **The image's tables are the ordinary ones verbatim**: symbols,
+      terms and lists at the same indices, so the read-back takes a term
+      of the sequent's arena as the same id in the ordinary one, and only
+      the proof's own terms (witnesses, eigenvariables) are interned
+      (`derivation::Instances::new`, in the table's order, each after the
+      terms it names, no recursion). Each linear atom gets its ordinary
+      atom's predicate; minimal logic's `false` a nullary `false` of its
+      own (`falsity_predicate`), which no ordinary symbol can be named.
+      A propositional image keeps empty tables, so the propositional path
+      pays nothing.
+    - **An arena's eigenvariables and open witnesses are parameters**: a
+      sequent made over a derivation's or a session's arena holds them,
+      and the focused engine panics on such a term in a sequent's arena
+      (the panel's finding: `decide` of `∀x. p(x) ⊢ p(a)` over a
+      read-back's arena). The image makes each a constant of a fresh
+      symbol at the same term index (`constants`, named as eigenvariables
+      are, apart from the symbols) and names its atoms by key again; the
+      read-back maps such a constant back by the index, and numbers the
+      proof's own eigenvariables past the arena's largest, so `∀R`'s
+      condition does not meet a parameter. An open witness stays an open
+      witness in the derivation, which the checker refuses as a
+      quantifier's term: the read-back answers `OPEN_WITNESS` there, and
+      `decide`'s `within` and `Image::outcome` (`Image::checked`) turn it
+      into an unknown (`Reason::Incomplete`) (the review's finding: it
+      surfaced as a defect, `Error::ReadBack`). `within` keeps the base's
+      calls (`read_back` and `check` with `&mut stop` in place): through a
+      helper the check was instantiated anew, inlined, and cost
+      `ordinary-pigeons` 0.45 % more, past the ratchet's tolerance.
+    - **The propositional read-back keeps its old loop** (`propositional`,
+      no framing): a test and a possible call per member, and a `Result`
+      collected without a size hint, cost the `ordinary-pigeons` journey
+      1.3 % of its instructions, past the ratchet; split, it is 0.07 %.
+    - **The read-back instantiates per member**: a member past the forest
+      is its occurrence's tag node with the frame's terms put in at once
+      (`Instances::node`, `Formulas::instantiate_frame`, memoised per
+      member; term by term, the integers panel's `∀x₀…xₙ. p(x₀,…,xₙ) ⊢
+      p(c₀,…,cₙ)` built n atoms of n arguments per member, cubic, 8 GiB at
+      n = 700 under every default bound, now 84 MiB), built in
+      a copy of the image's arena that becomes the derivation's; a
+      quantifier rule's term is the innermost frame term of the one
+      member its premise holds beyond the conclusion less the principal
+      (`opened`, a multiset difference of the sorted members: the same
+      occurrence may stand under two frames in a premise, so matching by
+      occurrence was ambiguous). The checker's `instance` finds the
+      premise's member because instantiating innermost first and
+      outermost first commute on closed terms and the arena hash-conses.
+      `Extra::add` runs after, where instances were built: an instance of
+      an equivalence needs its implications, which `↔L`/`↔R` look up.
+    - **An unprovable image is unknown at first order**
+      (`Image::unprovable`, `Reason::Incomplete`): the classical image has
+      no contraction (the drinker's sequent needs its witness twice), and
+      the intuitionistic rows are not shown faithful here; no
+      countermodel is read off. `Options::method_for` makes the embedding
+      the default at first order, so the command (`prove`, the batch)
+      asks it, not `method()`, before `by_native`; its verdict line and
+      exit status follow (`cli/src/ordinary.rs`, `incomplete`, `status`).
+      An outcome with a first-order derivation or this unknown is written
+      at level 25, and the reader takes an unknown `incomplete` over an
+      unprovable image.
   - **JSON at level 25** (`wire::ORDINARY_TERMS`): the sequent proxy has
     the linear sequent's `symbols`, `fo`, mixed `atoms` and `binders`
     (one name per binder in node order), written through

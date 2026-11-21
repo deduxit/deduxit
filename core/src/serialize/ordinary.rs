@@ -680,6 +680,20 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         #[cfg(feature = "sat")]
         Search::Sat(_) => wire::SEARCH,
     };
+    // A first-order derivation, and the unknown a first-order sequent's
+    // unprovable image is, are first read at level 25.
+    let first_order = match &outcome.verdict {
+        Verdict::Valid(Evidence::Derivation(d)) => d.formulas().is_first_order(),
+        Verdict::Unknown(reason) => *reason == crate::linear::search::Reason::Incomplete,
+        #[cfg(feature = "sat")]
+        Verdict::Valid(Evidence::Clausal(_)) => false,
+        Verdict::Valid(Evidence::Image | Evidence::Table) | Verdict::NotValid => false,
+    };
+    let version = if first_order {
+        version.max(wire::ORDINARY_TERMS)
+    } else {
+        version
+    };
     let countermodel = outcome.countermodel.as_ref().map(CountermodelForm::of);
     // A reader of level 12 may ignore the countermodel without
     // misreading the verdict, so it raises no level.
@@ -818,11 +832,14 @@ impl OutcomeRead {
             Search::Tableau(_) => None,
         };
         use crate::linear::search::Verdict as Linear;
+        // An unprovable image of a first-order sequent leaves it unknown.
+        let incomplete = matches!(self.reason, Some(Why::Incomplete));
         let borne = match (&self.verdict, image) {
             (_, None)
             | (VerdictWord::Valid, Some(Linear::Proved(_)))
             | (VerdictWord::NotValid, Some(Linear::Unprovable(_)))
             | (VerdictWord::Unknown, Some(Linear::Unknown(_))) => true,
+            (VerdictWord::Unknown, Some(Linear::Unprovable(_))) => incomplete,
             (_, Some(_)) => false,
         };
         if !borne {

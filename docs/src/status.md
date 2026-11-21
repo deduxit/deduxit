@@ -205,8 +205,10 @@ in use.
   outside its quantifier), proved
   step by step in LK, LJ and LM with the quantifier rules
   (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
-  Typst and SVG. Every deciding method refuses them by name until the
-  searches come.
+  Typst and SVG. `prove` decides them through the embedding: valid with
+  a checked derivation, or unknown where the image is unprovable, since
+  the translation may lose first-order proofs. The other methods refuse
+  them by name.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's.

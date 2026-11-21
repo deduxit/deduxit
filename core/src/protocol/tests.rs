@@ -606,9 +606,9 @@ fn a_term_is_checked_and_a_type_s_terms_found_and_counted() {
     ));
 }
 
-/// A first-order statement starts a session and its derivation is
-/// exported, drawn and summarized; the operations that decide or certify
-/// propositional sequents refuse it by name.
+/// A first-order statement is decided through the embedding, starts a
+/// session and its derivation is exported, drawn and summarized; LJT and
+/// the certificate, which take propositional sequents, refuse it by name.
 #[test]
 fn a_first_order_statement_is_proved_step_by_step_and_rendered() {
     use crate::ordinary::{Interactive, Logic, Rule, Side, Step};
@@ -619,7 +619,19 @@ fn a_first_order_statement_is_proved_step_by_step_and_rendered() {
             .unwrap_err()
             .code()
     };
-    assert_eq!(refused("ordinary.decide", &[&statement]), "first_order");
+    let decided = ran("ordinary.decide", &[&statement], "");
+    assert!(
+        decided.contains(r#""version":25"#) && decided.contains(r#""verdict":"valid""#),
+        "{decided}"
+    );
+    let ljt = run(
+        "ordinary.decide",
+        &[&statement],
+        r#"{"method": "ljt"}"#,
+        &settings(),
+        |_| false,
+    );
+    assert_eq!(ljt.unwrap_err().code(), "first_order");
     let session = ran("ordinary.start", &[&statement], "");
     assert!(session.contains(r#""version":25"#), "{session}");
     let mut state = Interactive::new(&text.parse().unwrap(), Logic::Classical).unwrap();

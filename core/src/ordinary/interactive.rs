@@ -2241,6 +2241,8 @@ impl Interactive {
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<Outcome, Error> {
+        // A first-order derivation is not grafted yet.
+        self.formulas.propositional("a session's close and hint")?;
         let goal = self.open(goal)?;
         let sequent = Sequent {
             formulas: self.formulas.clone(),

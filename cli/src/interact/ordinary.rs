@@ -477,7 +477,12 @@ impl Session {
         else {
             unreachable!("a session closes a goal through the embedding")
         };
-        let line = crate::ordinary::verdict_line(linear, outcome.logic, *translation, &ended);
+        let incomplete = matches!(
+            outcome.verdict,
+            ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete)
+        );
+        let line =
+            crate::ordinary::verdict_line(linear, outcome.logic, *translation, incomplete, &ended);
         match closed.grafted {
             Ok(()) => Ok(line),
             Err(Refusal::Output {

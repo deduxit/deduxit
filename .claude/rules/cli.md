@@ -130,7 +130,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--logic` a `.p` file stays LLTP and `tptp` is refused), translates it
   and admits the image under `--occurrence-limit`. The verdict line is
   `valid`/`not valid`/`unknown` with the logic, the translation and its
-  target (`ordinary::verdict_line`); the exit statuses are the image's.
+  target (`ordinary::verdict_line`); the exit statuses are the image's,
+  but an unprovable image of a first-order sequent is unknown, exit 3
+  (`ordinary::incomplete`, `ordinary::status`, under `--linear` the
+  image's as before).
   The derivation shown is the read-back (`ordinary::derivation`: the
   linear derivation under the view's bounds, `read_back`, `check`, then
   the format's `ordinary` writer, Rocq's being the certificate over
@@ -214,7 +217,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   default is the SAT solver keeping the embedding's evidence,
   `keeps_evidence`, below): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
-  `Options::method()` is not the embedding `by_native` decides it by
+  `Options::method_for(&sequent)` is not the embedding (a first-order
+  sequent with no method given goes to the embedding) `by_native`
+  decides it by
   `decide_natively` (LJT, the SAT solver, or with no method given the
   library's `sat::decide_preferring_ljt`, as `ordinary::decide`'s
   default) on the large stack
