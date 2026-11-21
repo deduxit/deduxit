@@ -7892,3 +7892,15 @@ move (D26).
   sessions with typed and open witnesses, exports, docs and ILTP's first-order problems; search
   is 75's (75a running). In 74e's worker: **fixup-14**, a binding shown only where its witness is
   (the panel's quadratic finding) and a typed witness held to the bound on terms.
+- 2026-11-21, about 10:20: **fixup-14 reviewed; 75b started.** fixup-14 (Opus, high; the reviewer
+  on Fable): a binding shows itself only through the inferences that hold its witness (`holders`,
+  kept through bind, undo and the reader; a differential test of 90 random sessions against the
+  walk over every inference): at N = 400, W = 400 the axioms 127.8 s → 1.85 s, undo 134 s → 0.06 s,
+  reading back a third slower; a typed witness and every instance held to the bound on terms before
+  anything is built (`StepError::Terms`). **Accepted departure:** the web module's ceiling raised
+  to 2 560 000 (2 502 108 after the first-order session; a line of `modules/`). Its check on
+  `ci/fixup-14`, then `main`. In its slot after a clear: **75b**, the classical connection prover
+  (nanoCoP's non-clausal calculus, checked read-back to G3c; the full panel), started on 75a's
+  chain (`rzyvstzu`) while 75a is in its review. Next, the ratchet's `read-tptp` and `read-lltp`
+  ceilings raised to their counts in a commit of their own, for the costs accepted at 74b, 74d,
+  fixup-13 and one LTO inlining decision.
