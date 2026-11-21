@@ -121,7 +121,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   into `prove` and `seq print`; `--translation`, and `prove`'s `--linear`,
   require it, and `ordinary_mode` refuses `-i`, `-a` and `--mix` beside it, exit 2 (clap's `conflicts_with` cannot name flags `seq print` lacks): the image's
   mode is the translation's). `SequentInput::image` reads the input as
-  ordinary text, or as a TPTP problem for `--input-format tptp` or a `.p`
+  ordinary text, or as a TPTP problem (its `include('NAME').` lines
+  inlined by `io::included`, from `$TPTP`, else the problem's directory
+  and those above it, the working directory's for an argument; a stack,
+  `INCLUDE_DEPTH` 32 and a name repeated in it refused, so a cycle ends;
+  the batch inlines per entry with the entry's path) for `--input-format tptp` or a `.p`
   file under `--logic` (`InputFormat::of(path, ordinary)`; without
   `--logic` a `.p` file stays LLTP and `tptp` is refused), translates it
   and admits the image under `--occurrence-limit`. The verdict line is

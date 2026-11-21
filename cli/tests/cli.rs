@@ -787,6 +787,49 @@ fn intuitionistic_mode() {
 /// the session saved and resumed, the finished derivation checked, which
 /// decides the exit status, and an axiom with a context drawn as G3's or
 /// with its weakenings under `--structural explicit`.
+/// A TPTP problem's includes are read from its directory or one above
+/// it; a missing file and an include of itself are refused by name.
+#[test]
+fn tptp_includes_are_read() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-tptp-includes");
+    let problems = dir.join("Problems/D");
+    std::fs::create_dir_all(&problems).unwrap();
+    std::fs::create_dir_all(dir.join("Axioms")).unwrap();
+    std::fs::write(dir.join("Axioms/a.ax"), "fof(a, axiom, p).\n").unwrap();
+    std::fs::write(dir.join("Axioms/b.ax"), "include('Axioms/b.ax').\n").unwrap();
+    let mut answers = Vec::new();
+    for (name, text) in [
+        ("x.p", "include('Axioms/a.ax').\nfof(c, conjecture, p).\n"),
+        (
+            "y.p",
+            "include('Axioms/none.ax').\nfof(c, conjecture, p).\n",
+        ),
+        ("z.p", "include('Axioms/b.ax').\nfof(c, conjecture, p).\n"),
+    ] {
+        let file = problems.join(name);
+        std::fs::write(&file, text).unwrap();
+        let line = [
+            "prove",
+            "--logic",
+            "classical",
+            "--quiet",
+            "--file",
+            file.to_str().unwrap(),
+        ];
+        let (status, out, err) = deduxit(&line, "");
+        answers.push((status, out, err));
+    }
+    assert_eq!(answers[0].0, 0, "{:?}", answers[0]);
+    assert_eq!(answers[1].0, 2);
+    assert!(
+        answers[1].2.contains("Axioms/none.ax is not under"),
+        "{}",
+        answers[1].2
+    );
+    assert_eq!(answers[2].0, 2);
+    assert!(answers[2].2.contains("includes itself"), "{}", answers[2].2);
+}
+
 /// A first-order session of LJ takes a witness after `∃R`'s name, names
 /// a fresh eigenvariable for `∃L`, and refuses a witness that names
 /// neither a symbol nor an eigenvariable made.

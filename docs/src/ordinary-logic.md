@@ -500,7 +500,12 @@ problems). The batch ([Decide many sequents at once](batch.md)) takes a
 directory of them. A name that TPTP allows and this syntax keeps for
 itself is renamed so that the sequent reads back: a keyword such as
 `par` or `true` becomes `par_` or `true_`, and a function symbol named
-like a predicate gets `_f` after its name.
+like a predicate gets `_f` after its name. A line `include('NAME').`
+reads the file it names, found under the directory `$TPTP` names, where
+set, else under the problem's directory or one above it, as TPTP's
+library lays its axioms out (`nix build .#iltp-first-order` fetches
+ILTP's 2 670 first-order problems with their `Axioms/`). A missing file
+and an include of itself are refused by name.
 
 ```console
 $ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p

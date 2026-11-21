@@ -1475,7 +1475,10 @@ a ∧ b ⊢ b       a ∧ b ⊢ a
 
 An ordinary formula may apply predicates to terms and bind variables
 (`forall x. p(x) -> q(x)`, `exists x. p(x)`, `∀x.`, `∃x.`; TPTP's `! [X]
-:` and `? [X] :`); there is no `=` yet. Every method of `prove` refuses a
+:` and `? [X] :`); there is no `=` yet. A TPTP file's
+`include('NAME').` is read from `$TPTP`, else the problem's directory or
+one above it, and a TPTP name this syntax keeps for itself is renamed
+(`par` as `par_`, a function symbol named like a predicate as `name_f`). Every method of `prove` refuses a
 first-order sequent, naming itself (exit 2); a session proves one with
 the quantifier rules:
 - `forallR` and `existsL` (`∀R`, `∃L`) name a fresh eigenvariable, `a`,

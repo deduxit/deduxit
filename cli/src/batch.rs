@@ -696,12 +696,21 @@ impl Shared {
         // How a sequent was written is kept for a derivation drawn so.
         let keep = self.show.view.classical == deduxit::linear::ClassicalSides::Two;
         let loaded = deadline.within(move || -> Result<Loaded> {
-            let (text, format) = match source {
+            let (text, format, source_path) = match source {
                 Source::Bad(why) => return Err(anyhow!(why)),
-                Source::Text(text, format) => (text, format),
-                Source::File(path, format) => (io::read(Some(&path), "sequent", memory)?, format),
+                Source::Text(text, format) => (text, format, None),
+                Source::File(path, format) => (
+                    io::read(Some(&path), "sequent", memory)?,
+                    format,
+                    Some(path),
+                ),
             };
             if logic.is_some() {
+                let text = if format == InputFormat::Tptp {
+                    io::included(text, source_path.as_deref(), memory)?
+                } else {
+                    text
+                };
                 Ok(Loaded::Ordinary(ordinary::sequent_in(&text, format, most)?))
             } else if format == InputFormat::Tptp {
                 bail!("--input-format tptp holds ordinary logic, which --logic reads");

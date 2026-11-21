@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 use crate::argument_parsing::{InputFormat, SequentInput};
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use deduxit::ordinary::Image;
 use deduxit::wire::Within;
 use deduxit::{
@@ -50,6 +50,97 @@ pub(crate) fn remove_partial_files() {
 
 /// The most bytes a settings or style file may have.
 const CONFIGURATION_BYTES: u64 = 16 << 20;
+
+/// The deepest a TPTP problem's includes nest: an include of an include
+/// of …, past which a cycle or a runaway chain is refused.
+const INCLUDE_DEPTH: usize = 32;
+
+/// Returns a TPTP problem's text with each line `include('NAME').`
+/// replaced by the file it names, whose own includes are inlined in turn.
+/// TPTP names an included file from the library's root: it is looked for
+/// under the directory `$TPTP` names, where set, then under the problem's
+/// directory and each one above it (the working directory and those above
+/// it for a problem given as the argument or on standard input), the
+/// nearest first. A text without an include is returned as it is.
+///
+/// # Errors
+///
+/// A missing included file, named; an include that names itself through
+/// others, or nests deeper than [`INCLUDE_DEPTH`]; an include of a
+/// selection of formulas (`include('NAME', [names]).`), which no reader
+/// here takes; a file that cannot be read within the memory limit.
+pub(crate) fn included(
+    text: String,
+    problem: Option<&Path>,
+    memory: Option<u64>,
+) -> Result<String> {
+    if !text
+        .lines()
+        .any(|line| line.trim_start().starts_with("include("))
+    {
+        return Ok(text);
+    }
+    let start = match problem {
+        Some(path) if path != Path::new("-") => path.parent().map(Path::to_path_buf),
+        _ => std::env::current_dir().ok(),
+    };
+    let roots: Vec<PathBuf> = std::env::var_os("TPTP")
+        .map(PathBuf::from)
+        .into_iter()
+        .chain(
+            start
+                .iter()
+                .flat_map(|dir| dir.ancestors().map(Path::to_path_buf)),
+        )
+        .collect();
+    let mut out = String::with_capacity(text.len());
+    // The files being inlined, the outermost first, each with the lines
+    // left to read; a stack, so that nothing recurses.
+    let mut stack: Vec<(String, std::vec::IntoIter<String>)> = vec![(
+        String::new(),
+        text.lines()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+            .into_iter(),
+    )];
+    while let Some((_, lines)) = stack.last_mut() {
+        let Some(line) = lines.next() else {
+            stack.pop();
+            continue;
+        };
+        let trimmed = line.trim();
+        let Some(inner) = trimmed
+            .strip_prefix("include(")
+            .and_then(|rest| rest.strip_suffix(")."))
+        else {
+            out.push_str(&line);
+            out.push('\n');
+            continue;
+        };
+        let name = inner
+            .strip_prefix('\'')
+            .and_then(|rest| rest.strip_suffix('\''))
+            .ok_or_else(|| anyhow!("an include of a selection of formulas is not read: {trimmed}"))?
+            .to_owned();
+        if stack.iter().any(|(open, _)| *open == name) {
+            bail!("the include of {name} includes itself");
+        }
+        if stack.len() > INCLUDE_DEPTH {
+            bail!("the includes nest deeper than {INCLUDE_DEPTH} files, at {name}");
+        }
+        let file = roots
+            .iter()
+            .map(|root| root.join(&name))
+            .find(|candidate| candidate.is_file())
+            .ok_or_else(|| {
+                anyhow!("the included file {name} is not under $TPTP or the problem's directory or one above it")
+            })?;
+        let included = read(Some(&file), "included file", memory)?;
+        let lines: Vec<String> = included.lines().map(str::to_owned).collect();
+        stack.push((name, lines.into_iter()));
+    }
+    Ok(out)
+}
 
 /// Reads all of a file, or of standard input for `None` or `-`, refusing
 /// one longer than `memory` bytes (the memory limit, which nothing read
@@ -459,6 +550,11 @@ impl SequentInput {
         let text = match &self.sequent {
             Some(text) => text.clone(),
             None => read(file, "sequent", memory)?,
+        };
+        let text = if ordinary && format == InputFormat::Tptp {
+            included(text, file, memory)?
+        } else {
+            text
         };
         Ok((text, format))
     }

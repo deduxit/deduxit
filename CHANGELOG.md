@@ -39,6 +39,9 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`check --tree never` writes no tree of an ordinary derivation**, as
   `prove` already did; a deep derivation's check no longer spends its
   time writing a tree nobody sees.
+- **`include` in the command's TPTP problems**: `include('NAME').` is
+  read from `$TPTP`, else the problem's directory or one above it; a
+  missing file and an include of itself are refused by name.
 - **TPTP names renamed on reading**: a name this syntax keeps for itself
   (`par`, `true`) gets `_` after it, and a function symbol named like a
   predicate `_f`, so that the sequent reads back.
