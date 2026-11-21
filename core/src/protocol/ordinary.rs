@@ -82,7 +82,7 @@ static KINDS: [Kind; 6] = [
 static DECIDE_PARAMETERS: [Parameter; 2] = [
     Parameter {
         name: "method",
-        values: &["embedding", "ljt", "sat", "table", "tableau"],
+        values: &["embedding", "ljt", "sat", "table", "tableau", "connection"],
         default: None,
         description: "How to decide; left out, the logic's default",
     },

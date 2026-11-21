@@ -62,6 +62,7 @@
 // existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+pub mod connection;
 /// Deciding an ordinary sequent in one call.
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
@@ -378,6 +379,13 @@ pub enum Method {
     /// feature `interactive`.
     #[cfg(feature = "interactive")]
     Tableau,
+    /// A non-clausal connection calculus, nanoCoP's ([`connection::decide`]),
+    /// classical logic only, first-order sequents included. A valid
+    /// sequent gets a checked derivation of LK. Where the search has no
+    /// fresh variable to make it is exhaustive and answers "not valid";
+    /// elsewhere it deepens its bound on the active path and answers
+    /// "unknown" where none is found.
+    Connection,
 }
 
 impl Method {
@@ -390,6 +398,7 @@ impl Method {
         Self::Table,
         #[cfg(feature = "interactive")]
         Self::Tableau,
+        Self::Connection,
     ];
 
     /// The methods' names, which [`name`](Self::name) writes and `FromStr`
@@ -402,10 +411,11 @@ impl Method {
         "table",
         #[cfg(feature = "interactive")]
         "tableau",
+        "connection",
     ];
 
-    /// Returns the method's name: `embedding`, `ljt`, `sat`, `table` or
-    /// `tableau`, as the command and the JSON spell it.
+    /// Returns the method's name: `embedding`, `ljt`, `sat`, `table`,
+    /// `tableau` or `connection`, as the command and the JSON spell it.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Embedding => "embedding",
@@ -415,6 +425,7 @@ impl Method {
             Self::Table => "table",
             #[cfg(feature = "interactive")]
             Self::Tableau => "tableau",
+            Self::Connection => "connection",
         }
     }
 
@@ -428,6 +439,7 @@ impl Method {
             Self::Table => "a truth table",
             #[cfg(feature = "interactive")]
             Self::Tableau => "a tableau",
+            Self::Connection => "the connection prover",
         }
     }
 
@@ -441,6 +453,7 @@ impl Method {
             Self::Table => "classical logic",
             #[cfg(feature = "interactive")]
             Self::Tableau => "classical logic",
+            Self::Connection => "classical logic",
         }
     }
 
@@ -467,7 +480,7 @@ impl Method {
 
     /// Returns whether the method decides the logic: the embedding and the
     /// SAT solver every logic, LJT intuitionistic and minimal logic, the
-    /// truth table and the tableau classical logic.
+    /// truth table, the tableau and the connection prover classical logic.
     pub const fn decides(self, logic: Logic) -> bool {
         match self {
             Self::Embedding => true,
@@ -477,6 +490,7 @@ impl Method {
             Self::Table => matches!(logic, Logic::Classical),
             #[cfg(feature = "interactive")]
             Self::Tableau => matches!(logic, Logic::Classical),
+            Self::Connection => matches!(logic, Logic::Classical),
         }
     }
 }
@@ -566,12 +580,19 @@ impl Options {
     }
 
     /// Returns the method that decides `sequent` under these options:
-    /// [`method`](Self::method), but the embedding for a first-order
-    /// sequent when no method is given, since the embedding is the one
-    /// method that takes quantifiers. [`decide()`] decides by it.
+    /// [`method`](Self::method), but for a first-order sequent when no
+    /// method and no translation is given the connection prover in
+    /// classical logic and the embedding in the others, the methods that
+    /// take quantifiers. [`decide()`] decides by it; where the connection
+    /// prover stops at a bound, the embedding decides in its place.
     pub fn method_for(&self, sequent: &Sequent) -> Method {
-        match self.method {
-            None if sequent.formulas().is_first_order() => Method::Embedding,
+        match (self.method, self.translation) {
+            (None, None)
+                if sequent.formulas().is_first_order() && self.logic == Logic::Classical =>
+            {
+                Method::Connection
+            }
+            (None, _) if sequent.formulas().is_first_order() => Method::Embedding,
             _ => self.method(),
         }
     }
@@ -1972,7 +1993,9 @@ mod first_order_tests {
                 assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{logic:?}");
             }
             for &method in Method::ALL {
-                if method == Method::Embedding {
+                // The connection prover decides classical first-order
+                // sequents and refuses the other logics by name.
+                if matches!(method, Method::Embedding | Method::Connection) {
                     continue;
                 }
                 let options = Options::default()

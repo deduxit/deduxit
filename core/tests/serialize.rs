@@ -817,7 +817,8 @@ fn options_json_format() {
         "{\"engine\":\"auto\",\"fragment\":\"auto\",\"bias\":\"auto\",\"copies\":3,\
          \"forward_copies\":30,\"memo_limit\":1048576,\"test_period\":\"auto\",\"jobs\":1,\
          \"schedule\":\"auto\",\"check\":true,\"classical_work\":67108864,\
-         \"witness_depth\":64,\"instances\":65536}"
+         \"witness_depth\":64,\"instances\":65536,\"path_length\":8,\
+         \"restricted_backtracking\":false}"
     );
     let read: Options = serde_json::from_str("{}").unwrap();
     assert_eq!(read, Options::default());

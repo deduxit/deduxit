@@ -613,6 +613,11 @@ enum SearchForm<'a> {
         /// The tableau.
         tableau: TableauForm,
     },
+    /// By the connection prover, and what its search cost.
+    Connection {
+        /// The prover's statistics.
+        statistics: &'a crate::ordinary::connection::Statistics,
+    },
 }
 
 impl Serialize for Outcome {
@@ -669,13 +674,16 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         Search::Tableau(tableau) => SearchForm::Tableau {
             tableau: TableauForm::from(&**tableau),
         },
+        Search::Connection(statistics) => SearchForm::Connection { statistics },
     };
     // A reader of level 12 does not know the methods `table` and
-    // `tableau`, so an outcome of either is at level 14.
+    // `tableau`, so an outcome of either is at level 14; the method
+    // `connection` is first read at level 25.
     let version = match &outcome.search {
         Search::Table(_) => wire::TABLES,
         #[cfg(feature = "interactive")]
         Search::Tableau(_) => wire::TABLES,
+        Search::Connection(_) => wire::ORDINARY_TERMS,
         Search::Embedding { .. } | Search::Ljt(_) => wire::SEARCH,
         #[cfg(feature = "sat")]
         Search::Sat(_) => wire::SEARCH,
@@ -684,7 +692,11 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
     // unprovable image is, are first read at level 25.
     let first_order = match &outcome.verdict {
         Verdict::Valid(Evidence::Derivation(d)) => d.formulas().is_first_order(),
-        Verdict::Unknown(reason) => *reason == crate::linear::search::Reason::Incomplete,
+        Verdict::Unknown(reason) => matches!(
+            reason,
+            crate::linear::search::Reason::Incomplete
+                | crate::linear::search::Reason::PathLength { .. }
+        ),
         #[cfg(feature = "sat")]
         Verdict::Valid(Evidence::Clausal(_)) => false,
         Verdict::Valid(Evidence::Image | Evidence::Table) | Verdict::NotValid => false,
@@ -761,6 +773,11 @@ enum SearchRead {
         /// The tableau.
         tableau: TableauForm,
     },
+    /// By the connection prover.
+    Connection {
+        /// The prover's statistics.
+        statistics: crate::ordinary::connection::Statistics,
+    },
 }
 
 /// The keys an ordinary outcome is read from. `deduxit`, the writer's
@@ -822,12 +839,13 @@ impl OutcomeRead {
             SearchRead::Table { table } => Search::Table(Box::new(table.within(limits)?)),
             #[cfg(feature = "interactive")]
             SearchRead::Tableau { tableau } => Search::Tableau(Box::new(tableau.within(limits)?)),
+            SearchRead::Connection { statistics } => Search::Connection(statistics),
         };
         let image = match &search {
             Search::Embedding { linear, .. } => Some(&linear.verdict),
             #[cfg(feature = "sat")]
             Search::Sat(_) => None,
-            Search::Ljt(_) | Search::Table(_) => None,
+            Search::Ljt(_) | Search::Table(_) | Search::Connection(_) => None,
             #[cfg(feature = "interactive")]
             Search::Tableau(_) => None,
         };

@@ -96,6 +96,8 @@ pub enum Search {
     /// `interactive`.
     #[cfg(feature = "interactive")]
     Tableau(Box<super::Tableau>),
+    /// By the connection prover, and what its search cost.
+    Connection(super::connection::Statistics),
 }
 
 impl Outcome {
@@ -109,6 +111,7 @@ impl Outcome {
             Search::Table(_) => Method::Table,
             #[cfg(feature = "interactive")]
             Search::Tableau(_) => Method::Tableau,
+            Search::Connection(_) => Method::Connection,
         }
     }
 }
@@ -123,6 +126,19 @@ impl From<super::sat::Outcome> for Outcome {
             logic: outcome.logic,
             search: Search::Sat(outcome.statistics),
             countermodel: outcome.model,
+        }
+    }
+}
+
+impl From<super::connection::Outcome> for Outcome {
+    /// The outcome of the connection prover as an outcome of deciding a
+    /// classical sequent.
+    fn from(outcome: super::connection::Outcome) -> Self {
+        Self {
+            verdict: outcome.verdict,
+            logic: Logic::Classical,
+            search: Search::Connection(outcome.statistics),
+            countermodel: None,
         }
     }
 }
@@ -545,10 +561,10 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    // At first order the embedding is the default and the one method:
-    // every other refuses at its door.
+    // At first order the embedding and the connection prover decide:
+    // every other method refuses at its door.
     let method = options.method_for(sequent);
-    if method != Method::Embedding {
+    if !matches!(method, Method::Embedding | Method::Connection) {
         sequent.formulas().propositional(method.title())?;
     }
     let (logic, translation) = (options.logic, options.translation());
@@ -585,6 +601,9 @@ fn within(
         Method::Table => Some(super::table::decide(sequent, logic, limits, &mut stop)),
         #[cfg(feature = "interactive")]
         Method::Tableau => Some(super::tableau::decide(sequent, logic, limits, &mut stop)),
+        Method::Connection => Some(
+            super::connection::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
+        ),
     };
     if let Some(decided) = decided
         && (options.method.is_some() || !gives_way(&decided))
@@ -825,9 +844,11 @@ mod tests {
         assert_eq!(asked, polls);
     }
 
-    /// A first-order sequent is decided through the embedding by default:
-    /// valid with a checked derivation, else unknown, never not valid,
-    /// since an unprovable image says nothing at first order.
+    /// A first-order sequent is decided by the connection prover in
+    /// classical logic and through the embedding in the others by
+    /// default: valid with a checked derivation. Through the embedding it
+    /// is else unknown, never not valid, since an unprovable image says
+    /// nothing at first order.
     #[test]
     fn a_first_order_sequent_is_valid_or_unknown() {
         use crate::linear::search::Reason;
@@ -844,8 +865,18 @@ mod tests {
                 panic!("{logic:?}: {:?}", outcome.verdict);
             };
             derivation.check(&limits, |_| false).unwrap();
-            assert_eq!(outcome.method(), Method::Embedding);
-            let refuted = decide("p(a) |- p(b)", logic);
+            // The connection prover is classical logic's default there.
+            let default = if logic == Logic::Classical {
+                Method::Connection
+            } else {
+                Method::Embedding
+            };
+            assert_eq!(outcome.method(), default);
+            let sequent: Sequent = "p(a) |- p(b)".parse().unwrap();
+            let options = Options::default()
+                .with_logic(logic)
+                .with_method(Some(Method::Embedding));
+            let refuted = decide_within(&sequent, &options, &search, &limits, |_| false).unwrap();
             assert!(matches!(
                 refuted.verdict,
                 Verdict::Unknown(Reason::Incomplete)
@@ -924,12 +955,20 @@ mod tests {
             }
         }
         // The drinker's sequent needs its witness twice, which the
-        // classical image cannot copy.
-        let drinker = decide("|- exists x. (p(x) -> forall y. p(y))", Logic::Classical);
+        // classical image cannot copy and the connection prover can.
+        let text = "|- exists x. (p(x) -> forall y. p(y))";
+        let drinker: Sequent = text.parse().unwrap();
+        let options = Options::default()
+            .with_logic(Logic::Classical)
+            .with_method(Some(Method::Embedding));
+        let embedded = decide_within(&drinker, &options, &search, &limits, |_| false).unwrap();
         assert!(
-            matches!(drinker.verdict, Verdict::Unknown(_)),
+            matches!(embedded.verdict, Verdict::Unknown(_)),
             "{:?}",
-            drinker.verdict
+            embedded.verdict
         );
+        let connected = decide(text, Logic::Classical);
+        assert!(matches!(connected.verdict, Verdict::Valid(_)));
+        assert_eq!(connected.method(), Method::Connection);
     }
 }

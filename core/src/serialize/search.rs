@@ -97,6 +97,11 @@ pub(super) enum Why {
     },
     /// A search that may miss proofs found none.
     Incomplete,
+    /// The connection prover reached its bound on the active path.
+    PathLength {
+        /// The bound.
+        length: u32,
+    },
 }
 
 impl From<Reason> for Why {
@@ -113,6 +118,7 @@ impl From<Reason> for Why {
             Reason::WitnessDepth { depth } => Why::WitnessDepth { depth },
             Reason::Instances { instances } => Why::Instances { instances },
             Reason::Incomplete => Why::Incomplete,
+            Reason::PathLength { length } => Why::PathLength { length },
         }
     }
 }
@@ -131,6 +137,7 @@ impl From<Why> for Reason {
             Why::WitnessDepth { depth } => Reason::WitnessDepth { depth },
             Why::Instances { instances } => Reason::Instances { instances },
             Why::Incomplete => Reason::Incomplete,
+            Why::PathLength { length } => Reason::PathLength { length },
         }
     }
 }
@@ -1057,6 +1064,7 @@ mod tests {
             Reason::WitnessDepth { depth: 64 },
             Reason::Instances { instances: 1 << 16 },
             Reason::Incomplete,
+            Reason::PathLength { length: 8 },
         ] {
             let json = serde_json::to_string(&reason).unwrap();
             assert_eq!(

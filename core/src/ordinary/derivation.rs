@@ -1231,9 +1231,16 @@ pub(super) fn same(a: &[NodeId], b: &[NodeId]) -> bool {
 /// with, every binary subformula in brackets, saturating: the size
 /// estimate's measure of a formula.
 pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
-    // One pass: every subformula precedes the formulas built from it.
     let mut weight: Vec<u64> = Vec::with_capacity(formulas.len());
-    for node in &formulas.nodes {
+    extend_widths(formulas, &mut weight);
+    weight
+}
+
+/// Extends `weight`, the [`widths`] of the arena's first nodes, to every
+/// node of the arena: for a caller that adds nodes as it goes.
+pub(super) fn extend_widths(formulas: &Formulas, weight: &mut Vec<u64>) {
+    // One pass: every subformula precedes the formulas built from it.
+    for node in &formulas.nodes[weight.len()..] {
         let of = |k: NodeId| weight[k.index()];
         let w = match *node {
             Node::Atom(a) => formulas.atom_name(a).chars().count() as u64,
@@ -1256,7 +1263,6 @@ pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
         };
         weight.push(w);
     }
-    weight
 }
 
 /// Returns the bytes an inference concluding `left ⊢ right` is estimated

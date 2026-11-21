@@ -3001,6 +3001,21 @@ pub struct Options {
     /// hypotheses multiply. Only the focused engine reads it, on
     /// first-order sequents.
     pub instances: u32,
+    /// The longest active path the connection prover of classical logic
+    /// searches with (`ordinary::Method::Connection`), or `None` for no
+    /// bound.
+    ///
+    /// The prover deepens the bound from 1. A step that copies a clause
+    /// with a fresh variable may only lengthen a shorter path. A search
+    /// that reached the bound without a proof is not "not valid" but
+    /// unknown with [`Reason::PathLength`]. Only that prover reads it.
+    pub path_length: Option<u32>,
+    /// Whether the connection prover backtracks into a literal it has
+    /// solved (`false`, the default) or keeps the first solution
+    /// (restricted backtracking, Otten 2010). Restricted backtracking
+    /// often proves sooner but may miss a proof, so a search under it
+    /// never answers "not valid". Only that prover reads it.
+    pub restricted_backtracking: bool,
     /// The thread pools a parallel search borrows instead of starting
     /// threads of its own. `None`, the default, is a pool built for the
     /// search and dropped with it.
@@ -3031,7 +3046,10 @@ impl Default for Options {
     ///   [`DEFAULT_CLASSICAL_WORK`](Self::DEFAULT_CLASSICAL_WORK);
     /// - the first-order bounds
     ///   [`DEFAULT_WITNESS_DEPTH`](Self::DEFAULT_WITNESS_DEPTH) and
-    ///   [`DEFAULT_INSTANCES`](Self::DEFAULT_INSTANCES).
+    ///   [`DEFAULT_INSTANCES`](Self::DEFAULT_INSTANCES);
+    /// - the connection prover's bound
+    ///   [`DEFAULT_PATH_LENGTH`](Self::DEFAULT_PATH_LENGTH), and full
+    ///   backtracking.
     fn default() -> Self {
         Self {
             engine: None,
@@ -3047,6 +3065,8 @@ impl Default for Options {
             classical_work: Self::DEFAULT_CLASSICAL_WORK,
             witness_depth: Self::DEFAULT_WITNESS_DEPTH,
             instances: Self::DEFAULT_INSTANCES,
+            path_length: Some(Self::DEFAULT_PATH_LENGTH),
+            restricted_backtracking: false,
             #[cfg(feature = "parallel")]
             pool: None,
         }
@@ -3096,6 +3116,11 @@ impl Options {
     /// formulas held at once, some megabytes of the search's tables.
     pub const DEFAULT_INSTANCES: u32 = 1 << 16;
 
+    /// The connection prover's bound on the active path in the default
+    /// options: a library call without a stop must end, and a front end
+    /// with a clock lifts it ([`path_length`](Self::path_length)).
+    pub const DEFAULT_PATH_LENGTH: u32 = 8;
+
     /// The most threads the options name: more are taken as this many.
     ///
     /// A pool beyond it has no known use, and a count without a bound
@@ -3128,6 +3153,27 @@ impl Options {
     #[must_use]
     pub fn with_instances(self, instances: u32) -> Self {
         Self { instances, ..self }
+    }
+
+    /// Returns the options with another bound on the connection prover's
+    /// [`path_length`](Self::path_length), `None` for none.
+    #[must_use]
+    pub fn with_path_length(self, path_length: Option<u32>) -> Self {
+        Self {
+            path_length,
+            ..self
+        }
+    }
+
+    /// Returns the options with restricted backtracking in the connection
+    /// prover switched on or off
+    /// ([`restricted_backtracking`](Self::restricted_backtracking)).
+    #[must_use]
+    pub fn with_restricted_backtracking(self, restricted_backtracking: bool) -> Self {
+        Self {
+            restricted_backtracking,
+            ..self
+        }
     }
 
     /// Returns the options with another [`engine`](Self::engine).
@@ -3377,7 +3423,8 @@ impl Verdict {
 /// "limit_bytes": 1073741824}`, `{"kind": "index_limit"}`, `{"kind":
 /// "work_limit", "limit": 1000000}`, `{"kind": "unchecked",
 /// "limit_bytes": 1073741824}`, `{"kind": "witness_depth", "depth": 64}`
-/// `{"kind": "instances", "instances": 65536}` or `{"kind": "incomplete"}`.
+/// `{"kind": "instances", "instances": 65536}`, `{"kind": "incomplete"}`
+/// or `{"kind": "path_length", "length": 8}`.
 /// A reader refuses a kind it does not know.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -3457,6 +3504,12 @@ pub enum Reason {
     /// is not shown complete at first order (the classical image has no
     /// contraction).
     Incomplete,
+    /// The connection prover reached its bound on the active path
+    /// ([`Options::path_length`]) without a proof.
+    PathLength {
+        /// The bound.
+        length: u32,
+    },
 }
 
 impl Reason {
@@ -3473,6 +3526,7 @@ impl Reason {
         "witness_depth",
         "instances",
         "incomplete",
+        "path_length",
     ];
 
     /// Returns the reason's word, its `kind` in the JSON form.
@@ -3488,6 +3542,7 @@ impl Reason {
             Self::WitnessDepth { .. } => "witness_depth",
             Self::Instances { .. } => "instances",
             Self::Incomplete => "incomplete",
+            Self::PathLength { .. } => "path_length",
         }
     }
 
@@ -3528,6 +3583,7 @@ impl Reason {
             Self::WorkLimit { .. } => Some("limits.work"),
             Self::WitnessDepth { .. } => Some("search.witness_depth"),
             Self::Instances { .. } => Some("search.instances"),
+            Self::PathLength { .. } => Some("search.path_length"),
         }
     }
 }
@@ -3565,6 +3621,9 @@ impl Display for Reason {
             }
             Reason::Incomplete => {
                 f.write_str("no proof was found, but the search may miss proofs here")
+            }
+            Reason::PathLength { length } => {
+                write!(f, "the bound of {length} on the active path was reached")
             }
         }
     }
@@ -3816,6 +3875,7 @@ mod tests {
             Reason::WitnessDepth { depth: 1 },
             Reason::Instances { instances: 1 },
             Reason::Incomplete,
+            Reason::PathLength { length: 1 },
         ];
         // No wildcard: a new reason fails to compile here until listed.
         let at = |reason: &Reason| match reason {
@@ -3829,6 +3889,7 @@ mod tests {
             Reason::WitnessDepth { .. } => 7,
             Reason::Instances { .. } => 8,
             Reason::Incomplete => 9,
+            Reason::PathLength { .. } => 10,
         };
         assert_eq!(reasons.len(), Reason::NAMES.len());
         for (i, reason) in reasons.iter().enumerate() {

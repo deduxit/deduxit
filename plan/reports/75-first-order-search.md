@@ -249,3 +249,94 @@ small limits and early stops, the harness on a TPTP file): no wrong
   simple sequents (`∀x. (p(x) ↔ q(x)), q(a) ⊢ p(a)` under 01): `decide`
   with the default search options answers unknown there, the command
   (no copy bound) proves it.
+
+## Session 75b: the classical connection prover
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58a-610ed3`,
+cores 7 to 9 (the panel on 13 to 15), on 75a's chain (`rzyvstzu`), on
+`main@origin` once 75a landed. Nothing was pushed.
+
+### Outcome
+
+| change | subject |
+|---|---|
+| `yzyosluw` | Decide classical sequents by a non-clausal connection prover, read back to LK |
+| `qqnvuyxs` | Decide classical sequents by the connection prover in prove and the harness: --method connection, --path-length, --restricted-backtracking |
+| `xupqprul` | Rebless the behaviour lock: the connection prover's calls, and its flags in the help |
+| `zwrynkrq` | Read connection proofs back where a witness's δ-formula lies on another branch, and weaken early |
+| `runsrlso` | Document the connection prover: the manual, the guide, the changelog, the wire schema and the rules |
+| `uqtosvxy` | Rebless the behaviour lock: the connection prover's derivations weaken what no longer helps |
+
+- **The engine** (`core/src/ordinary/connection/`, public
+  `ordinary::connection::decide`, `Method::Connection`, name
+  `connection`): Otten's non-clausal connection calculus (TABLEAUX 2011,
+  Fig. 6; nanoCoP, IJCAR 2016) written from the papers' text (75a's
+  downloads), with positive start clauses (Lemma 4), regularity
+  (Lemma 5), lemmata, the cut after a literal solved without binding an
+  older variable, iterative deepening on the active path, Skolem terms
+  for δ-formulas, and restricted backtracking as an option
+  (`search::Options::restricted_backtracking`, off by default). Its
+  bound is `search::Options::path_length` (library default 8, the
+  command none) and its unknown `Reason::PathLength { length }`
+  (`path_length`, setting `search.path_length`).
+- **"Not valid"** only where the matrix has no slot (no `∀` left of `⊢`,
+  no `∃` right), the search exhausted with restricted backtracking off;
+  there every copy is the clause and the search is the calculus's whole
+  search on positions (Theorem 4 with Lemmas 4 and 5). With slots a
+  failed search is `Reason::Incomplete` or `PathLength`.
+- **The read-back to G3c** (`read_back.rs`): the substitution and the
+  literals used (each in its copy) are the oracle; the derivation of
+  the sequent as written is built branch by branch by a fixed order
+  (close, weaken what cannot help, one-premise rules, `∀R`/`∃L` with
+  the Skolem term's eigenvariable, `∀L`/`∃R` keeping the principal with
+  each needed witness, two-premise rules preferring one that closes a
+  premise, and last a witness whose δ-formula lies on another branch
+  as a constant of this one), every inference then checked by
+  `Derivation::check`. A branch nothing closes is `Error::ReadBack`, a
+  defect, never a verdict.
+- **The dispatch**: `Options::method_for` makes the connection prover
+  the default of a first-order classical sequent (no method, no
+  translation); where it gives way at a bound (`gives_way`), the
+  embedding decides. Propositional sequents go as before (D17); the
+  prover takes them only when named.
+- **The command and the harness**: `--method connection`,
+  `--path-length N|none`, `--restricted-backtracking`; `--stats` prints
+  its five counters; `deduxit-bench run --engines connection`.
+
+### Departures
+
+- **Skolem terms take every γ-slot around their δ-formula**, not only
+  those free in its body (departs from the design, §3: "Skolem terms
+  over the free variables of their subformula"). Then each Skolem
+  ground term names one δ-instance of the expanded formula, which the
+  read-back gives one eigenvariable; with inner Skolemization two copies
+  of a δ-formula on two branches share a Skolem constant that a sequent
+  derivation cannot give one eigenvariable.
+- **Copies are regions of the matrix with multiplicity**, not nanoCoP's
+  replacement `M[C1\C2]` (departs from the design's "nanoCoP's
+  calculus" in the letter): a copy is a sibling of its clause in the
+  region of the latest copy on the path around it, taking that copy's
+  variables for its non-free slots, and an extension clause is one every
+  path through the active path enters in that region (Definition 8
+  read on paths, `region_for`). Without slots this is the calculus on
+  positions exactly; with slots it is sound, and complete only as far
+  as the one region it picks per clause allows (hence `Incomplete`).
+- **Lemmata are confined to the solved literal's clause** (departs from
+  nanoCoP's sharing with the rest of the clause and its descendants): a
+  first version shared them as nanoCoP does and "proved" the
+  propositional non-theorem `b ∨ c, ((⊥ ∧ ⊥) ∧ ⊤) ∨ ((c → c) → ¬c) ⊢ (b
+  ∧ (c ∧ a)) ∧ (a ∧ (c → c))`, which the read-back refused; a literal
+  solved inside a decomposed sub-clause closed one outside it. The rule
+  kept is the one a path argument justifies (`core-ordinary.md`).
+- **The read-back does not follow Kreitz and Schmitt's reduction
+  ordering** (departs from the design's "the order of the rules from
+  Kreitz and Schmitt's reduction ordering, the β-split pruning
+  theirs"): it expands every formula above a used literal in a fixed
+  order and lets the checker judge. Four ILTP theorems (SYN069, SYN374,
+  SYN375, SYN377) needed the last rule (a witness whose δ-formula lies
+  on another branch, a constant there), and 59 more read back within
+  the derivation bound once useless formulas were weakened early.
+- **The command's default runs the prover to the time limit** (no path
+  bound), so it gives way to the embedding only at another bound; the
+  library's default (path 8) gives way there. Six ILTP problems the
+  embedding proves at 2 s time out in the prover (below).

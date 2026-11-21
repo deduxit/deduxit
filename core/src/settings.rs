@@ -102,15 +102,16 @@ impl Default for Clock {
 /// printing a lambda-term.
 ///
 /// `Settings::default()` is the `deduxit` command's behaviour:
-/// - no copy bound: a front end with a clock deepens until its time
-///   limit;
+/// - no copy bound and no bound on the connection prover's active path:
+///   a front end with a clock deepens until its time limit;
 /// - every thread the machine runs;
 /// - a time limit of two seconds, with the pool added after a tenth of a
 ///   second;
 /// - the default limits.
 ///
 /// It differs from [`search::Options::default()`](Options), which keeps a
-/// copy bound of three, because a library call without a stop must end.
+/// copy bound of three and a bound of eight on the active path, because a
+/// library call without a stop must end.
 /// [`stop`](Self::stop) gives the command's stop.
 ///
 /// # JSON
@@ -157,7 +158,10 @@ impl Default for Settings {
         Self {
             clock: Clock::default(),
             limits: Limits::default(),
-            search: Options::default().with_copies(None).with_jobs(Jobs::Auto),
+            search: Options::default()
+                .with_copies(None)
+                .with_path_length(None)
+                .with_jobs(Jobs::Auto),
             view: ViewOptions::default(),
             styles: Styles::default(),
             batch: batch::Options::default(),

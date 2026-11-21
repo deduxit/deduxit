@@ -26,13 +26,6 @@ impl Formulas {
     /// [`Error::LooseVariable`] for a term with a bound variable, which
     /// the instance would capture, and
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
-    #[cfg_attr(
-        not(any(test, feature = "interactive")),
-        expect(
-            dead_code,
-            reason = "the goal state's quantifier rules call it; the read-back puts in whole frames"
-        )
-    )]
     pub(crate) fn instantiate(&mut self, body: NodeId, term: FoTermId) -> Result<NodeId, Error> {
         self.instantiate_frame(body, &[term])
     }
