@@ -8279,3 +8279,7 @@ move (D26).
   had passed on the same tree, pushed. Lesson kept: read `push-ci`'s last line before any push above
   its head. In fixup-24's worker: **step 80**, the release of 0.8.0 prepared (both repositories, up to
   the tags, which are the author's).
+- 2026-11-23, about 00:25: **fixup-26 started; no new session after step 80** (the author: "Please
+  don't start any new session after session 80 finishes"). fixup-26 (in 78c's worker): the connection
+  provers' setup within its bounds (78c's reviewer's note). Step 80, fixup-25 and fixup-26 finish and
+  are reviewed and pushed; after 80 nothing new starts until the author says go.
