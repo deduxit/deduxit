@@ -8043,3 +8043,12 @@ move (D26).
   drawings) fixed. Full check passed on `main`'s head; pushed (`tutwkxpq`). In the same worker:
   **fixup-20**, a bound for the default's LJT preference search (SYJ202+1.005 spent the 2 s limit
   where the solver needs 28 ms). 76a still held by the author's prompt from 01:59.
+- 2026-11-22, about 07:50: **fixup-20 reviewed and pushed; fixup-21 started.** fixup-20 (Opus,
+  high; the reviewer on Fable): where the SAT solver has decided, the intuitionistic default gives
+  LJT at most 2¹⁴ sequents to find the derivation it prefers (every kept LJT derivation on ILTP took
+  at most 3 440), else keeps the search's own. SYJ202+1.005: 2.12 s → 0.05 s; 548 intuitionistic and
+  minimal runs byte-identical, the summed time halved; ILTP's propositional rows 763 decided (761
+  before), nothing lost. The reviewer's two (a test generator nesting the wrong way, a false rule
+  line) fixed. Full check passed on `main`'s head; pushed (`tvzorzto`). In the same worker:
+  **fixup-21**, JSON's outcome for an unknown ended in the read-back or check (it wrote nothing),
+  and a test-only variant's `cfg`. 76a still held by the author's prompt from 01:59.
