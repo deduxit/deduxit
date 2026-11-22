@@ -97,9 +97,48 @@ struct Parser<'a> {
     limit: Option<u64>,
     /// The names of the variables of the binders waiting for their body,
     /// the innermost last, in NFC.
-    scope: Vec<String>,
+    scope: Scope,
     /// The names a TPTP problem's reading renames, none on its first try.
     renames: Option<&'a Renames>,
+}
+
+/// The names of the variables of the binders waiting for their body, the
+/// innermost last, with the places each name stands at, so that a term's
+/// name is found in one lookup however many binders are open (a `cnf`
+/// clause binds each of its variables).
+#[derive(Debug, Default)]
+struct Scope {
+    /// The names, the innermost last.
+    names: Vec<String>,
+    /// Per name, its places in `names`, the innermost last.
+    places: crate::hash::HashMap<String, Vec<usize>>,
+}
+
+impl Scope {
+    /// Opens a binder of the variable `name`.
+    fn push(&mut self, name: String) {
+        self.places
+            .entry(name.clone())
+            .or_default()
+            .push(self.names.len());
+        self.names.push(name);
+    }
+
+    /// Closes the innermost binder and returns its variable's name.
+    fn pop(&mut self) -> Option<String> {
+        let name = self.names.pop()?;
+        if let Some(places) = self.places.get_mut(&name) {
+            places.pop();
+        }
+        Some(name)
+    }
+
+    /// Returns the de Bruijn index of the innermost open binder of `name`:
+    /// how many binders lie between it and the term.
+    fn find(&self, name: &str) -> Option<u32> {
+        let at = *self.places.get(name)?.last()?;
+        Some((self.names.len() - 1 - at) as u32)
+    }
 }
 
 /// The names a TPTP problem's reading renames, so that the sequent reads
@@ -575,8 +614,8 @@ impl<'a> Parser<'a> {
     #[inline(never)]
     fn bare_term(&mut self, word: &str, here: usize) -> Result<FoTermId, Error> {
         let word = crate::name::normalized(word);
-        match self.scope.iter().rposition(|bound| *bound == *word) {
-            Some(at) => Ok(self.formulas.variable((self.scope.len() - 1 - at) as u32)),
+        match self.scope.find(&word) {
+            Some(index) => Ok(self.formulas.variable(index)),
             None if self.dialect == Dialect::Tptp && word.starts_with(char::is_uppercase) => {
                 Err(self.unexpected(here, &["a bound variable", "a constant"]))
             }
@@ -728,7 +767,7 @@ impl Sequent {
             pending: Vec::new(),
             open: 0,
             limit: limits.occurrences,
-            scope: Vec::new(),
+            scope: Scope::default(),
             renames: None,
         };
         let (mut left, mut right) = (Vec::new(), Vec::new());
@@ -795,7 +834,7 @@ pub(super) fn formula_in(
         pending: Vec::new(),
         open: 0,
         limit: limits.occurrences,
-        scope: Vec::new(),
+        scope: Scope::default(),
         renames: None,
     };
     let at = parser.at;
@@ -1049,7 +1088,7 @@ fn read_clauses(
             pending: Vec::new(),
             open: 0,
             limit: limits.occurrences,
-            scope: Vec::new(),
+            scope: Scope::default(),
             renames: Some(renames),
         };
         parser
