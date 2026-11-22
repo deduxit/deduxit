@@ -122,7 +122,7 @@ pub(crate) fn grafted(goal: InfId, base: usize, root: usize) -> impl Fn(InfId) -
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "serialize"))]
 mod tests {
     use super::*;
 
@@ -134,7 +134,6 @@ mod tests {
 
     /// The walks read the tree as its premises give it, and the history
     /// walk names each step's suffix or the fault.
-    #[cfg(feature = "serialize")]
     #[test]
     fn the_walks_follow_the_premises() {
         let t = tree();

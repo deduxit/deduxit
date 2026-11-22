@@ -260,7 +260,7 @@ enum Derive {
     /// Read off the search, and by LJT where a bound refuses that.
     ReadOff,
     /// By LJT alone, which the tests ask for.
-    #[cfg(test)]
+    #[cfg(all(test, feature = "parse"))]
     Ljt,
     /// By LJT, and read off the search where LJT gives none.
     PreferLjt,

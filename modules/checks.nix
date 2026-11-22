@@ -253,7 +253,10 @@
         # notice one that breaks alone. The full powerset doubles with every
         # feature, and a breakage needs more than two features rarely.
         # Warnings are denied, so an item or import that one feature set
-        # leaves unused fails the check.
+        # leaves unused fails the check. Each feature alone also builds the
+        # tests, where an item only some tests use must carry their cfg;
+        # every pair with the tests took eight minutes and found tests that
+        # assume features they do not name, so pairs build no tests.
         features = craneLib.mkCargoDerivation (
           workspace.argsOf [ "core" ]
           // {
@@ -263,6 +266,7 @@
             nativeBuildInputs = [ pkgs.cargo-hack ];
             buildPhaseCargoCommand = ''
               cargo hack check --each-feature --locked --package deduxit
+              cargo hack check --each-feature --tests --locked --package deduxit
               cargo hack check --feature-powerset --depth 2 --locked --package deduxit
             '';
             doInstallCargoArtifacts = false;

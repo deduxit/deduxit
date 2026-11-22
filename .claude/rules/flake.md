@@ -263,7 +263,11 @@ version, or code that needs a newer compiler, fails it; raising
 rises and how far is the `update-deps` skill's "When" (never to a Rust
 less than six months old; resolver 3 prefers dependency versions that
 build on it, and takes a newer one only where none fits).
-`checks.nix`'s `features` (cargo-hack, each feature and every pair) and
+`checks.nix`'s `features` (cargo-hack, each feature and every pair, and
+each feature alone with its tests: `Derive::Ljt` was `#[cfg(test)]`
+where its tests need `parse`, which only a test build without default
+features shows; pairs with tests are left out, eight minutes and tests
+that assume features they do not name, `plan/later.md`) and
 the gate's two `cargo hack` runs deny warnings (`RUSTFLAGS="-D
 warnings"`; the gate's in `target/hack`, since the flags are part of
 every artifact and would rebuild the tests'): an import that a move left

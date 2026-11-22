@@ -614,6 +614,7 @@ fn a_first_order_statement_is_proved_step_by_step_and_rendered() {
     use crate::ordinary::{Interactive, Logic, Rule, Side, Step};
     let text = "forall x. p(x) |- p(c)";
     let statement = ordinary(text, Logic::Classical);
+    #[cfg(feature = "rocq")]
     let refused = |operation: &str, inputs: &[&str]| {
         run(operation, inputs, "", &settings(), |_| false)
             .unwrap_err()
