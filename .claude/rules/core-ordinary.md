@@ -521,7 +521,11 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   augments before the dispatch, the command's `ordinary::sequent_in`
   after reading (so `prove`, the batch, `interact --logic` and `grade`
   see the axioms), the harness's `ordinary::tail` after loading, and the
-  public `connection::decide` and `grounding::decide` at their doors (the
+  public `connection::decide`, `grounding::decide` and `models::decide`
+  at their doors (the model search's structures satisfy the axioms and
+  are divided by `=` before the check, function tables included, as
+  grounding's are; without that its every refutation of a sequent with
+  `=` was a defect error, "it lists equality") (the
   review's finding: called directly without the axioms, grounding's
   structure of identity failed its check on `⊢ a = a`, a defect, and the
   connection prover's matrix had no slot, so it answered "not valid").

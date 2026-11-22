@@ -279,13 +279,15 @@ impl Build<'_> {
 
 /// Returns `structure` with its domain divided by the predicate `=` it
 /// lists: each class of elements its tuples make equal one element, in
-/// the order of each class's least element; constants and tuples mapped
-/// to their classes, and `=` dropped, since a structure reads `=` as
-/// identity. A structure without `=` comes back as it is.
+/// the order of each class's least element; constants, function tables
+/// and tuples mapped to their classes, and `=` dropped, since a structure
+/// reads `=` as identity. A structure without `=` comes back as it is.
 ///
 /// Where the structure satisfies the equality axioms of a sequent, its
-/// `=` is an equivalence that every predicate respects, and the quotient
-/// makes every formula of the sequent as true as the structure does.
+/// `=` is an equivalence that every function and predicate respects, and
+/// the quotient makes every formula of the sequent as true as the
+/// structure does. Grounding's structures and the model search's are so
+/// divided before they are checked.
 #[cfg(feature = "sat")]
 pub(super) fn identified(mut structure: super::Structure) -> super::Structure {
     let Some(at) = structure
@@ -317,18 +319,47 @@ pub(super) fn identified(mut structure: super::Structure) -> super::Structure {
             parent[high as usize] = low;
         }
     }
-    // Each class's number, in the order of its root.
+    // Each class's number, in the order of its root, its least element,
+    // which stands for it.
     let mut class = vec![u32::MAX; size];
-    let mut classes = 0u32;
+    let mut roots: Vec<u32> = Vec::new();
     for e in 0..structure.size {
         let root = find(&mut parent, e);
         if class[root as usize] == u32::MAX {
-            class[root as usize] = classes;
-            classes += 1;
+            class[root as usize] = roots.len() as u32;
+            roots.push(root);
         }
         class[e as usize] = class[root as usize];
     }
+    let classes = roots.len() as u32;
     let map = |e: u32| class.get(e as usize).copied().unwrap_or(e);
+    // A function's table over the classes: each tuple of classes looked up
+    // at the tuple of their roots, which a congruence makes the value of
+    // every tuple of members. The table has `size^arity` entries, so the
+    // arity is found by dividing its length; the new one has
+    // `classes^arity`, no more.
+    for (_, table) in &mut structure.functions {
+        let (mut arity, mut rest) = (0u32, table.len());
+        while rest > 1 && size > 1 && rest % size == 0 {
+            rest /= size;
+            arity += 1;
+        }
+        let entries = (classes as usize).pow(arity);
+        let mut quotient = Vec::with_capacity(entries);
+        for index in 0..entries {
+            // The tuple of classes `index` names, the last digit least,
+            // read at their roots in the old table's numbering.
+            let (mut at, mut digits, mut place) = (0usize, index, 1usize);
+            for _ in 0..arity {
+                let c = digits % classes as usize;
+                digits /= classes as usize;
+                at += roots[c] as usize * place;
+                place *= size;
+            }
+            quotient.push(map(table.get(at).copied().unwrap_or(0)));
+        }
+        *table = quotient;
+    }
     for (_, element) in &mut structure.constants {
         *element = map(*element);
     }
@@ -408,6 +439,22 @@ mod tests {
                 structure.check(logic, &limits, |_| false).unwrap();
             }
         }
+        // The model search's structure interprets `f`, divided by `=` too.
+        // (The default without a time limit tries the connection prover
+        // first, whose deepening with the axioms runs for minutes.)
+        let sequent: Sequent = "f(a) = b |- f(b) = a".parse().unwrap();
+        let found =
+            crate::ordinary::models::decide(&sequent, Logic::Classical, &search, &limits, |_| {
+                false
+            });
+        let structure = found.unwrap().structure.expect("a structure");
+        assert!(
+            matches!(structure.structure.functions[..], [(ref f, _)] if f == "f"),
+            "f is interpreted"
+        );
+        structure
+            .check(Logic::Classical, &limits, |_| false)
+            .unwrap();
         // The methods called directly add the axioms themselves.
         let sequent: Sequent = "|- a = a".parse().unwrap();
         let grounded =

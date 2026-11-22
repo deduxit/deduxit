@@ -152,13 +152,13 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(
-        sequent,
-        logic,
-        (options.model_size, options.model_worlds),
-        limits,
-        &mut stop,
-    )
+    // A sequent with `=` is searched with the equality axioms, which make
+    // a structure's `=` a congruence that it is divided by.
+    let bounds = (options.model_size, options.model_worlds);
+    match super::equality::with_axioms(sequent, limits)? {
+        Some(with) => run(&with, logic, bounds, limits, &mut stop),
+        None => run(sequent, logic, bounds, limits, &mut stop),
+    }
 }
 
 /// [`decide`] with the bounds alone and the stop as a trait object.
@@ -263,6 +263,14 @@ fn run(
             Err(error) => return unknown(unknown_for(error, limits)?, statistics),
         };
         drop(expansion);
+        // The structure satisfies the equality axioms, so its `=` is a
+        // congruence; divided by it, `=` is identity, as a structure
+        // reads it.
+        let structure = if sequent.formulas().has_equality() {
+            super::equality::identified(structure)
+        } else {
+            structure
+        };
         let countermodel = FiniteCountermodel::new(sequent.clone(), structure);
         return match countermodel.check(logic, limits, &mut *stop) {
             Ok(()) => Ok(Outcome {
