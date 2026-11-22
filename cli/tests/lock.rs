@@ -896,12 +896,54 @@ const CASES: &[Case] = &[
         &[
             "prove",
             "--logic",
-            "intuitionistic",
+            "classical",
             "--method",
             "models",
             "--model-size",
             "2",
             "forall x. p(x) |- p(f(a))",
+        ],
+    ),
+    // The model search's Kripke models with growing domains, and its
+    // unknown at both bounds.
+    call(
+        "ordinary-kripke",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--method",
+            "models",
+            "--stats",
+            "(forall x. p(x)) -> q |- exists x. (p(x) -> q)",
+        ],
+    ),
+    call(
+        "ordinary-kripke-minimal",
+        &[
+            "prove",
+            "--logic",
+            "minimal",
+            "--method",
+            "models",
+            "--format",
+            "json",
+            "false |- p(a)",
+        ],
+    ),
+    call(
+        "ordinary-kripke-bound",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--method",
+            "models",
+            "--model-size",
+            "2",
+            "--model-worlds",
+            "2",
+            "|- ~~forall x. (p(x) \\/ ~p(x))",
         ],
     ),
     // Modal logic.

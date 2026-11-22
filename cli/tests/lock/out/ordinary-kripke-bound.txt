@@ -1,0 +1,5 @@
+$ deduxit prove --logic intuitionistic --method models --model-size 2 --model-worlds 2 '|- ~~forall x. (p(x) \/ ~p(x))'
+--- status 3
+--- stdout
+unknown (intuitionistic logic by the model search): no Kripke model of up to 2 worlds, each of up to 2 elements, refutes it after …; raise the bounds with --model-worlds N and --model-size N, or lift them with none to try larger models while the time limit lasts
+--- stderr

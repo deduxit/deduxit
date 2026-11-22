@@ -433,6 +433,13 @@ Limits:
           
           [default: none]
 
+      --model-worlds <N>
+          The most worlds of a Kripke model the model search tries in intuitionistic and minimal logic, or `none` for no bound (search.model_worlds)
+          
+          Beside structures of 1, 2, … elements the model search (--method models) tries Kripke models of 1, 2, … worlds, each world's domain of up to as many elements as a structure. By default it goes on until it finds one or the time limit passes; with bounds, a sequent no model within them refutes is unknown (exit status 3).
+          
+          [default: none]
+
       --memory-limit <SIZE>
           The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
           

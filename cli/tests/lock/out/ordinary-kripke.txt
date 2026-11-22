@@ -1,0 +1,14 @@
+$ deduxit prove --logic intuitionistic --method models --stats '(forall x. p(x)) -> q |- exists x. (p(x) -> q)'
+--- status 1
+--- stdout
+not valid (intuitionistic logic by the model search): a checked Kripke model of 2 worlds with growing domains refutes it
+world 0 (the model's world): domain {0}; below 1
+world 1: domain {0, 1}; p: {0}
+largest structure tried, elements: 2
+worlds of the last Kripke model tried: 2
+atoms: 10
+formulas: 49
+solver calls: 1
+conflicts: 1
+time: …
+--- stderr

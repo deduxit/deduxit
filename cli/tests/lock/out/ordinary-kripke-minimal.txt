@@ -1,0 +1,5 @@
+$ deduxit prove --logic minimal --method models --format json 'false |- p(a)'
+--- status 1
+--- stdout
+{"version":27,"deduxit":"…","verdict":"not_valid","logic":"minimal","search":{"method":"models","statistics":{"size":1,"worlds":1,"atoms":4,"nodes":8,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":0,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"kripke_structure":{"sequent":{"formulas":["⊥",{"V":0}],"atoms":[{"P":[1,[0]]}],"symbols":[["a",0],["p",1]],"fo":[{"F":[0,[]]}],"left":[0],"right":[1]},"model":{"worlds":[{"size":1,"falsity":true}],"constants":[["a",0]],"world":0}}}
+--- stderr
