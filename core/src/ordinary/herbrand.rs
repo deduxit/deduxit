@@ -218,6 +218,8 @@ fn herbrand_dyn(
         universe,
         limits,
         statistics: Statistics::default(),
+        charged: ArenaSize::default(),
+        held: 0,
     };
     let mut depth = 0;
     let (instances, refutation, reason) = loop {
@@ -259,6 +261,7 @@ fn herbrand_dyn(
         depth += 1;
     };
     search.statistics.kept = instances.len() as u64;
+    let rest = search.rest();
     let Search {
         formulas,
         universe,
@@ -274,7 +277,7 @@ fn herbrand_dyn(
         (Some(reason), _) => Verdict::Unknown(reason),
         (None, Some(decided)) => {
             let constants = universe.levels.first().map_or(&[][..], Vec::as_slice);
-            match deskolemized(sequent, &clausal, &ground, constants, limits, &mut *stop) {
+            match deskolemized(sequent, &clausal, &ground, constants, &rest, &mut *stop) {
                 Ok(derivation) => {
                     statistics.inferences = derivation.inferences().len() as u64;
                     Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
@@ -467,6 +470,21 @@ struct Search<'l> {
     limits: &'l Limits,
     /// What the search cost so far.
     statistics: Statistics,
+    /// The arena's size when its growth was last charged, with the bytes
+    /// charged for it.
+    charged: ArenaSize,
+    /// The bytes the last level's instances hold beside the arena.
+    held: u64,
+}
+
+impl Search<'_> {
+    /// Returns the bounds a later phase works within: the memory bound
+    /// less what the instances and the arena hold, which stay alive while
+    /// the solver and the read-back run.
+    fn rest(&self) -> Limits {
+        let used = self.held.saturating_add(self.charged.bytes);
+        (*self.limits).with_memory_bytes(self.limits.memory_bytes.map(|m| m.saturating_sub(used)))
+    }
 }
 
 impl Search<'_> {
@@ -485,6 +503,9 @@ impl Search<'_> {
         self.statistics.terms = terms.len() as u64;
         let mut instances = Vec::new();
         let mut size = 0u64;
+        // What the instances hold, beside the arena they grow: an
+        // instance's entry and its terms.
+        let mut held = 0u64;
         for (k, clause) in self.clauses.iter().enumerate() {
             let mut at = vec![0usize; clause.variables];
             loop {
@@ -500,6 +521,19 @@ impl Search<'_> {
                     return Err(Error::Refused(Refusal::Occurrences {
                         occurrences: size,
                         limit,
+                    }));
+                }
+                held = held.saturating_add(
+                    (size_of::<Instance>() + 2 * chosen.len() * size_of::<FoTermId>()) as u64,
+                );
+                self.charged = ArenaSize::of(&self.formulas, &self.charged);
+                if let Some(limit) = self.limits.memory_bytes
+                    && held.saturating_add(self.charged.bytes) > limit
+                {
+                    return Err(Error::Refused(Refusal::Memory {
+                        phase: Phase::Search,
+                        limit_bytes: limit,
+                        needed_bytes: None,
                     }));
                 }
                 instances.push(Instance {
@@ -518,6 +552,7 @@ impl Search<'_> {
             }
         }
         self.statistics.instances = instances.len() as u64;
+        self.held = held;
         Ok(instances)
     }
 
@@ -530,7 +565,33 @@ impl Search<'_> {
     ) -> Result<sat::Outcome, Error> {
         let sequent = propositional(&self.formulas, instances)?;
         self.statistics.calls += 1;
-        sat::decide(&sequent, Logic::Classical, self.limits, &mut *stop)
+        // The solver's share is the rest less the copy it reads, which
+        // lives while it runs.
+        let copy = ArenaSize::of(sequent.formulas(), &ArenaSize::default()).bytes;
+        let rest = self.rest();
+        let share = rest.with_memory_bytes(rest.memory_bytes.map(|m| m.saturating_sub(copy)));
+        let given = self.limits.memory_bytes;
+        // A refusal names the bound the caller gave, not this share.
+        match sat::decide(&sequent, Logic::Classical, &share, &mut *stop) {
+            Ok(mut outcome) => {
+                if let (Verdict::Unknown(Reason::MemoryLimit { limit_bytes }), Some(given)) =
+                    (&mut outcome.verdict, given)
+                {
+                    *limit_bytes = given;
+                }
+                Ok(outcome)
+            }
+            Err(Error::Refused(Refusal::Memory {
+                phase,
+                needed_bytes,
+                limit_bytes,
+            })) => Err(Error::Refused(Refusal::Memory {
+                phase,
+                needed_bytes,
+                limit_bytes: given.unwrap_or(limit_bytes),
+            })),
+            Err(error) => Err(error),
+        }
     }
 
     /// Returns the instances the solver still refutes when every other is
@@ -662,6 +723,7 @@ pub(super) fn deskolemized(
         witnesses.insert(0, plain);
     }
     let mut build = Build {
+        charged: ArenaSize::default(),
         formulas,
         skolems,
         symbols,
@@ -674,6 +736,8 @@ pub(super) fn deskolemized(
         expanded: 0,
         limits,
     };
+    // The arena is a copy of the instances': it is charged whole first.
+    build.charge_arena()?;
     let mut root = Branch::default();
     for &node in sequent.left() {
         root.items.push(Item::new(node, true));
@@ -765,6 +829,66 @@ struct Skolemized {
     term: FoTermId,
 }
 
+/// The size of an arena as the read-back charges it: its nodes, terms,
+/// argument lists and atoms with their keys, each with the hash entry that
+/// finds it.
+#[derive(Clone, Copy, Debug, Default)]
+struct ArenaSize {
+    /// The formulas.
+    nodes: usize,
+    /// The terms.
+    terms: usize,
+    /// The arguments of every list.
+    args: usize,
+    /// The lists.
+    lists: usize,
+    /// The atoms.
+    atoms: usize,
+    /// The bytes all of them hold, estimated.
+    bytes: u64,
+}
+
+impl ArenaSize {
+    /// The bytes a formula is charged, with its hash entry and a binder's
+    /// name: the read-back of a sequent of 600 and of 1 500 nested `∀`
+    /// held about 160 bytes a formula of the arena it grew.
+    const NODE: u64 = 192;
+    /// The bytes a term is charged, with its hash entry.
+    const ENTRY: u64 = 64;
+    /// The bytes an atom is charged besides its key's text, which is held
+    /// twice (its name and the key that finds it).
+    const ATOM: u64 = 96;
+
+    /// Returns the size of `formulas`, counting the atoms' keys past
+    /// `before`'s atoms only, since the arena only grows.
+    fn of(formulas: &Formulas, before: &Self) -> Self {
+        let tables = formulas.first_order();
+        let (nodes, terms) = (formulas.len(), tables.terms.len());
+        let (args, lists) = (tables.args.len(), tables.lists.len());
+        let atoms = formulas.atom_names().len();
+        let keys: u64 = formulas.atom_names()[before.atoms.min(atoms)..]
+            .iter()
+            .map(|name| 2 * name.len() as u64 + Self::ATOM)
+            .sum();
+        let grown = |now: usize, then: usize, each: u64| (now.saturating_sub(then) as u64) * each;
+        let bytes = before
+            .bytes
+            .saturating_add(grown(nodes, before.nodes, Self::NODE))
+            .saturating_add(grown(terms, before.terms, Self::ENTRY))
+            .saturating_add(grown(args, before.args, 8))
+            .saturating_add(grown(lists, before.lists, 32))
+            .saturating_add(keys);
+        Self {
+            nodes,
+            terms,
+            args,
+            lists,
+            atoms,
+            bytes,
+        }
+    }
+}
+
 /// A formula on a branch of the derivation built.
 #[derive(Clone, Debug)]
 struct Item {
@@ -805,11 +929,20 @@ struct Branch {
     constants: Vec<FoTermId>,
 }
 
-/// Returns the hypotheses and the goals of a branch, in order.
+/// Returns the hypotheses and the goals of a branch, in order, each vector
+/// exactly as long as its side: every inference keeps both.
 fn sides(branch: &Branch) -> (Vec<NodeId>, Vec<NodeId>) {
-    let left = branch.items.iter().filter(|i| i.left).map(|i| i.node);
-    let right = branch.items.iter().filter(|i| !i.left).map(|i| i.node);
-    (left.collect(), right.collect())
+    let n = branch.items.iter().filter(|i| i.left).count();
+    let mut left = Vec::with_capacity(n);
+    let mut right = Vec::with_capacity(branch.items.len() - n);
+    for item in &branch.items {
+        if item.left {
+            left.push(item.node);
+        } else {
+            right.push(item.node);
+        }
+    }
+    (left, right)
 }
 
 /// Returns the position of item `at` among the items of its side.
@@ -860,6 +993,24 @@ enum Frame {
     },
 }
 
+impl Frame {
+    /// Returns the bytes the frame holds, estimated: a branch's formulas
+    /// with the witnesses each took, or an inference's two sides.
+    fn bytes(&self) -> u64 {
+        let id = size_of::<u32>() as u64;
+        match self {
+            Self::Expand(branch) => {
+                let items = branch.items.iter().fold(0u64, |sum, item| {
+                    sum.saturating_add(size_of::<Item>() as u64)
+                        .saturating_add(item.done.len() as u64 * id)
+                });
+                items.saturating_add((branch.introduced.len() + branch.constants.len()) as u64 * id)
+            }
+            Self::Emit { left, right, .. } => (left.len() + right.len()) as u64 * id,
+        }
+    }
+}
+
 /// The construction of the derivation, with Skolem terms where its
 /// eigenvariables will be.
 struct Build<'l> {
@@ -880,8 +1031,10 @@ struct Build<'l> {
     made: Vec<FoTermId>,
     /// The inferences so far, premises first.
     inferences: Vec<Inference>,
-    /// The bytes they hold, estimated.
+    /// The bytes they and the arena's growth hold, estimated.
     bytes: u64,
+    /// The arena's size when its growth was last charged.
+    charged: ArenaSize,
     /// The branches expanded so far.
     expanded: u64,
     /// The bounds.
@@ -897,9 +1050,26 @@ impl Build<'_> {
     ) -> Result<(), Error> {
         let mut frames = vec![Frame::Expand(root)];
         let mut results: Vec<InfId> = Vec::new();
+        // The frames waiting are charged while they wait: a long branch
+        // leaves an inference to make per step, each holding the branch's
+        // formulas.
+        let mut waiting = frames.iter().map(Frame::bytes).sum::<u64>();
+        self.charge(waiting)?;
         while let Some(frame) = frames.pop() {
+            let freed = frame.bytes();
+            waiting = waiting.saturating_sub(freed);
+            self.bytes = self.bytes.saturating_sub(freed);
             match frame {
-                Frame::Expand(branch) => self.expand(branch, &mut frames, &mut results, stop)?,
+                Frame::Expand(branch) => {
+                    let before = frames.len();
+                    self.expand(branch, &mut frames, &mut results, stop)?;
+                    let added = frames[before.min(frames.len())..]
+                        .iter()
+                        .map(Frame::bytes)
+                        .sum::<u64>();
+                    waiting = waiting.saturating_add(added);
+                    self.charge(added)?;
+                }
                 Frame::Emit {
                     left,
                     right,
@@ -916,6 +1086,30 @@ impl Build<'_> {
             }
         }
         Ok(())
+    }
+
+    /// Charges what the arena grew by since the last charge to the
+    /// memory bound: instances and replaced formulas are built in it, and
+    /// an atom of many arguments holds its key's text and its list.
+    fn charge_arena(&mut self) -> Result<(), Error> {
+        let now = ArenaSize::of(&self.formulas, &self.charged);
+        let grown = now.bytes.saturating_sub(self.charged.bytes);
+        self.charged = now;
+        self.charge(grown)
+    }
+
+    /// Adds `bytes` to what the construction holds, or refuses past the
+    /// memory bound.
+    fn charge(&mut self, bytes: u64) -> Result<(), Error> {
+        self.bytes = self.bytes.saturating_add(bytes);
+        match self.limits.memory_bytes {
+            Some(limit) if self.bytes > limit => Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: limit,
+                needed_bytes: None,
+            })),
+            _ => Ok(()),
+        }
     }
 
     /// Adds an inference and returns its id, within the memory bound.
@@ -939,18 +1133,20 @@ impl Build<'_> {
                 phase: Phase::ReadBack,
             }));
         }
-        let held =
-            size_of::<Inference>() + (left.len() + right.len() + premises.len()) * size_of::<u32>();
-        self.bytes = self.bytes.saturating_add(held as u64);
-        if let Some(limit) = self.limits.memory_bytes
-            && self.bytes > limit
-        {
-            return Err(Error::Refused(Refusal::Memory {
-                phase: Phase::ReadBack,
-                limit_bytes: limit,
-                needed_bytes: None,
-            }));
-        }
+        // The inference in its list, which doubles as it grows, and each of
+        // its three vectors with the allocator's header and rounding.
+        let block = |len: usize| {
+            if len == 0 {
+                0
+            } else {
+                (len * size_of::<u32>()).next_multiple_of(16) + 16
+            }
+        };
+        let held = 2 * size_of::<Inference>()
+            + block(left.len())
+            + block(right.len())
+            + block(premises.len());
+        self.charge(held as u64)?;
         let id = u32::try_from(n).map_err(|_| {
             Error::Refused(Refusal::Index {
                 what: Space::Inference,
@@ -1334,6 +1530,7 @@ impl Build<'_> {
         } else {
             let node = self.formulas.instantiate(body, t)?;
             self.instances.insert((body, t), node);
+            self.charge_arena()?;
             node
         };
         let premise = if keep {
@@ -1537,6 +1734,7 @@ impl Build<'_> {
             if let Some(t) = inference.term {
                 inference.term = Some(self.formulas.replaced_term(t, &image, &mut cache));
             }
+            self.charge_arena()?;
         }
         Ok(Derivation::from_parts(
             Logic::Classical,
@@ -1732,14 +1930,19 @@ mod tests {
         let sequent: Sequent = "forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(a)))"
             .parse()
             .unwrap();
-        let small = Limits::default().with_memory_bytes(Some(2048));
         let options = Options::default().with_depth(None);
-        let found = herbrand(&sequent, &options, &small, |_| false).unwrap();
-        assert!(
-            matches!(found.verdict, Verdict::Unknown(Reason::MemoryLimit { .. })),
-            "{:?}",
-            found.verdict
-        );
+        // Whichever phase meets it, the bound named is the one given, never
+        // the share a phase had.
+        let mut refused = 0;
+        for bound in (10..24).map(|k| 1u64 << k) {
+            let small = Limits::default().with_memory_bytes(Some(bound));
+            let found = herbrand(&sequent, &options, &small, |_| false).unwrap();
+            if let Verdict::Unknown(Reason::MemoryLimit { limit_bytes }) = found.verdict {
+                assert_eq!(limit_bytes, bound);
+                refused += 1;
+            }
+        }
+        assert!(refused > 0);
         let deep: Sequent = "forall x y z. (q(x, y, z) -> q(g(x, y), z, x)) |- q(a, a, a) /\\ r"
             .parse()
             .unwrap();
@@ -1752,6 +1955,41 @@ mod tests {
             "{:?}",
             found.verdict
         );
+    }
+
+    /// The read-back charges the arena it grows: the instances of many
+    /// nested quantifiers over an atom of as many arguments are refused at
+    /// the memory bound, and the verdict keeps the instances' clausal
+    /// proof, where without the charge the derivation was built past the
+    /// bound.
+    #[test]
+    fn the_read_back_keeps_to_the_memory_bound() {
+        let n = 300;
+        let variables: Vec<String> = (0..n).map(|i| format!("x{i}")).collect();
+        let text = format!(
+            "forall {}. p({}) |- p({})",
+            variables.join(" "),
+            variables.join(", "),
+            vec!["a"; n].join(", ")
+        );
+        let sequent: Sequent = text.parse().unwrap();
+        let options = Options::default();
+        let roomy = herbrand(&sequent, &options, &Limits::default(), |_| false).unwrap();
+        assert!(matches!(
+            &roomy.verdict,
+            Verdict::Valid(Evidence::Derivation(_))
+        ));
+        // Four MiB holds the clausal form and the instances, not the arena
+        // the derivation's instances grow (about 11 MiB charged here).
+        let tight = Limits::default().with_memory_bytes(Some(4 << 20));
+        let found = herbrand(&sequent, &options, &tight, |_| false).unwrap();
+        let kind = match &found.verdict {
+            Verdict::Valid(Evidence::Clausal(_)) => "clausal proof",
+            Verdict::Valid(_) => "derivation",
+            Verdict::Unknown(_) => "unknown",
+            Verdict::NotValid => "not valid",
+        };
+        assert_eq!(kind, "clausal proof");
     }
 
     /// Generated first-order sequents: a valid verdict always has its

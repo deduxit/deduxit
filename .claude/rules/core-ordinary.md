@@ -2340,6 +2340,32 @@ Public as `ordinary::herbrand` (feature `sat`); the command's
   nested `∀` over six constants make about 6⁶ instances on one branch
   before any closes, and the time limit was ignored. That uniform set is
   the read-back's known cost; a witness set per quantifier would cut it.
+- **The read-back charges the arena it grows** (`Build::charge_arena`,
+  `ArenaSize`): after each instance it builds and after each inference's
+  Skolem terms are replaced, the arena's new formulas (`NODE`, 192
+  bytes, measured about 160 with the maps and a binder's name), terms,
+  argument lists and atoms' keys go to `limits.memory_bytes` beside the
+  inferences (the replacement rewrites them in place; each is charged
+  twice its size for the list's doubling, and each side's vector with the
+  allocator's header and rounding: the sides, collected from a filter,
+  held up to twice their length and 119 MB of a 173 MB peak, so `sides`
+  allocates them exactly), the whole arena once at the start. Uncharged, 1 500 nested `∀` over an
+  atom of 1 500 arguments held 261 MB under `--memory-limit 128MiB`;
+  now the derivation is refused there and the verdict keeps the
+  instances' clausal proof (`the_read_back_keeps_to_the_memory_bound`).
+  The frames waiting on its stacks are charged while they wait (a long
+  branch leaves an inference to make per step, each holding its two
+  sides: six nested `∀` over six constants held 700 MB under 128 MiB
+  through them). **The instance search charges too** (`Search::instances`:
+  an instance's entry and terms, and the arena it grows, `ArenaSize`):
+  8⁸ instances of a clause of eight variables ran past 4 GB under the
+  default 1 GiB, counted only against `limits.occurrences`; now an
+  unknown at the memory limit. The solver and the read-back get the
+  bound less what the instances and the arena hold (`Search::rest`),
+  since those stay alive while they run; the solver also less the
+  propositional copy it reads (`Search::decide`). A memory refusal in
+  the solver names the bound the caller gave, not its share, as
+  `core-search.md` asks.
 - **Unknown for its reason**: an unknown from the solver (a bound, the
   stop) ends the search with that reason; only a set it finds
   satisfiable goes on to the next depth. The universe's terms and the
