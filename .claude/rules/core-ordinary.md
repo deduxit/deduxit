@@ -521,7 +521,10 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   augments before the dispatch, the command's `ordinary::sequent_in`
   after reading (so `prove`, the batch, `interact --logic` and `grade`
   see the axioms), the harness's `ordinary::tail` after loading, and the
-  public `connection::decide`, `grounding::decide` and `models::decide`
+  public `connection::decide`, `grounding::decide`, `models::decide` and
+  first-order resolution's `resolve` and `clauses_of` (whose saturated
+  set would otherwise read `=` as an atom and call the clauses
+  satisfiable)
   at their doors (the model search's structures satisfy the axioms and
   are divided by `=` before the check, function tables included, as
   grounding's are; without that its every refutation of a sequent with

@@ -964,7 +964,9 @@ const MOST_INSTANCES: usize = 1 << 12;
 /// by first-order resolution, within the bounds of `options` (its method
 /// is ignored: the search is saturation), `limits` and `stop`; checks a
 /// refutation found and reads it back as a derivation of LK where it
-/// reaches.
+/// reaches. A sequent with `=` is resolved with the equality axioms
+/// among its hypotheses, so a saturated set has a model where `=` is
+/// identity.
 ///
 /// # Errors
 ///
@@ -977,7 +979,28 @@ pub fn resolve(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<FirstOrder, Error> {
-    resolve_dyn(sequent, options, limits, &mut stop)
+    let sequent = with_equality(sequent, limits)?;
+    resolve_dyn(&sequent, options, limits, &mut stop)
+}
+
+/// Returns `sequent` with the equality axioms of its symbols where it uses
+/// `=` ([`with_axioms`](crate::ordinary::equality::with_axioms)): with
+/// them a saturated set has a model that reads `=` as identity once
+/// divided by it, and a refutation may use them.
+///
+/// # Errors
+///
+/// `with_axioms`' refusals.
+fn with_equality<'a>(
+    sequent: &'a Sequent,
+    limits: &Limits,
+) -> Result<std::borrow::Cow<'a, Sequent>, Error> {
+    Ok(
+        match crate::ordinary::equality::with_axioms(sequent, limits)? {
+            Some(with) => std::borrow::Cow::Owned(with),
+            None => std::borrow::Cow::Borrowed(sequent),
+        },
+    )
 }
 
 /// [`resolve`], with the stop as a trait object.
@@ -1046,6 +1069,7 @@ pub fn clauses_of(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<(NormalForm, Clauses), Error> {
+    let sequent = &*with_equality(sequent, limits)?;
     refuse_open_witnesses(sequent)?;
     let clausal = normal::rewrite(
         sequent,
