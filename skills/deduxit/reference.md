@@ -1129,7 +1129,10 @@ than the time limit stops it (the memory, the work), the default hands
 the sequent to the embedding, and the
 verdict line names the translation, then adds `; the SAT solver gave no
 verdict: REASON, and the embedding took over`. A method named reports
-that bound instead (exit status 2 for a derivation it could not check).
+that bound instead, as an unknown (exit status 3) whose JSON outcome has
+the `reason` and the search's `statistics`, also where the bound or the
+time limit ended the derivation's read-back or check after the search
+decided.
 
 `ljt` is Dyckhoff's calculus LJT:
 

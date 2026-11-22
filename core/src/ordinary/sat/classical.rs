@@ -292,14 +292,17 @@ pub(super) fn decide(
             let names = sequent.formulas().atom_names();
             let atoms = atoms.iter().map(|&a| names[a as usize].clone()).collect();
             let model = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
-            let model = super::super::Countermodel::found(
+            match super::super::Countermodel::found(
                 sequent.clone(),
                 model,
                 logic,
                 limits,
                 &mut stop,
-            )?;
-            (Verdict::NotValid, model)
+            ) {
+                Ok(model) => (Verdict::NotValid, model),
+                // The stop ended the model's check.
+                Err(error) => (Verdict::Unknown(super::super::decide::ended(error)?), None),
+            }
         }
         Ok(Found::Proof(clauses, proof)) => {
             statistics.proof_steps = proof.len() as u64;
@@ -324,7 +327,12 @@ pub(super) fn decide(
                 &mut stop,
             ) {
                 Ok(checked) => (Verdict::Valid(Evidence::Clausal(checked)), None),
-                Err(Rejection::Refused(refusal)) => return Err(Error::Refused(refusal)),
+                // A bound or the stop that ends the check leaves the
+                // sequent unknown, the search's statistics kept.
+                Err(Rejection::Refused(refusal)) => (
+                    Verdict::Unknown(super::super::decide::ended(Error::Refused(refusal))?),
+                    None,
+                ),
                 Err(Rejection::Flaw(flaw)) => {
                     return Err(Error::ReadBack {
                         calculus: logic.calculus(),
@@ -377,7 +385,6 @@ fn assignment(formulas: &Formulas, clauses: &Encoding, solver: &impl Solver) -> 
 mod tests {
     use super::super::{MOST_VARIABLES, drup};
     use super::*;
-    use crate::limits::Refusal;
     use crate::linear::search;
     use crate::linear::search::generate::Rng;
     use crate::ordinary::tests::{generated_sequent, valid_by_truth_table};
@@ -594,10 +601,11 @@ mod tests {
         ));
         // The solver's work is a unit per clause learnt and one for its
         // call, the clauses added but the empty one; the check's is a unit
-        // per step, deletions included.
+        // per step, deletions included. The check past the bound leaves
+        // the sequent unknown.
         assert!(matches!(
-            decide(&sequent, &at(adds), |_| false, MOST_VARIABLES),
-            Err(Error::Refused(Refusal::Work { limit })) if limit == adds
+            decide(&sequent, &at(adds), |_| false, MOST_VARIABLES).unwrap().verdict,
+            Verdict::Unknown(Reason::WorkLimit { limit }) if limit == adds
         ));
     }
 

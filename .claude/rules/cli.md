@@ -274,10 +274,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   default gave way and the time limit passes during the translation,
   the line is `untranslated`'s (the solver's reason, then that the
   embedding took over), not `unread`'s. Under
-  `--method ljt` a refused derivation is exit 2 naming the limits and
-  `--method embedding`, and a stop during its check is an unknown line
-  (on standard error where the output is JSON or a file: JSON has no
-  form for it, as for `unread`). The batch has the same in
+  `--method ljt` or `sat` a bound or the stop that ends the derivation
+  or its check is an unknown outcome (exit 3, its JSON written; the
+  library's `decide::ended`), and only another refusal (the tableau's
+  steps past `--derivation-limit`, a first-order read-back past
+  `--term-limit`) is exit 2 naming the limits and `--method embedding`.
+  The batch has the same in
   `Shared::by_native` and `write_native` (an entry is `Loaded::Ordinary` or
   `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
   the embedding (its steps take no cut), so its outcome is always
@@ -979,7 +981,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   The CLI knows why the search stopped (`Stop`), so the verdict line
   says "the time limit of 10s was reached" or "interrupted" instead of
   `Reason::Stopped`'s generic phrase. A session's `close` records its
-  `Stop` the same way. `cli/tests/cli.rs::timeout` pins
+  `Stop` the same way. Under `--logic` the native path's stop closure
+  also notes whether a poll outside `Phase::Search` came (the read-back
+  or a check began; LJT and the SAT solver only, whose read-back follows
+  the search, and where `by_ljt` runs LJT's search after it the stop
+  fires in `Phase::Search` all the same: `Ended::after_search`), and
+  `advice` then says "the search ended, but
+  the time limit … before its answer was checked": the library answers
+  that stop as `Unknown(Stopped)` with the statistics (fixup-21), so the
+  JSON writes its outcome; only the table and the tableau, stopped while
+  built, still return `Refusal::Stopped`, and the line goes alone. `cli/tests/cli.rs::timeout` pins
   the line and the status on one thread, on a pool and during the read.
 - **The defaults of a call without flags**, on `prove` and on a
   session's `close` alike: no copy bound, the time limit

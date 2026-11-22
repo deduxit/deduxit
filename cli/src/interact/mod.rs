@@ -803,6 +803,7 @@ impl Session {
         let ended = Ended {
             stop: stopped(&deadline),
             elapsed: start.elapsed(),
+            after_search: false,
         };
         match closed {
             Ok(outcome) => Ok((outcome, ended)),

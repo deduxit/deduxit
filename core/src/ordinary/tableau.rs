@@ -918,10 +918,15 @@ pub(super) fn decide(
     atoms.sort_unstable();
     atoms.dedup();
     let model = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
-    let countermodel =
-        super::Countermodel::found(sequent.clone(), model, logic, limits, &mut stop)?;
+    // The stop that ends the model's check leaves the sequent unknown, the
+    // tableau kept.
+    let (verdict, countermodel) =
+        match super::Countermodel::found(sequent.clone(), model, logic, limits, &mut stop) {
+            Ok(countermodel) => (super::Verdict::NotValid, countermodel),
+            Err(error) => (super::Verdict::Unknown(super::decide::ended(error)?), None),
+        };
     Ok(super::Outcome {
-        verdict: super::Verdict::NotValid,
+        verdict,
         logic,
         search: super::Search::Tableau(Box::new(tableau)),
         countermodel,

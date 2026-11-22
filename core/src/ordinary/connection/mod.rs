@@ -110,9 +110,11 @@ pub struct Outcome {
 /// intuitionistic sequent with more than one formula right of `⊢`;
 /// [`Refusal::Occurrences`] for a sequent that
 /// unfolds past `limits.occurrences` (an equivalence's operands unfold
-/// twice); a refusal of the derivation by a bound or the stop, as from
-/// [`Derivation::check`](super::Derivation::check), never a verdict; and [`Error::ReadBack`] where a
-/// proof does not read back or its derivation fails the check, a defect.
+/// twice); [`Refusal::Terms`] where an instance the read-back builds
+/// would pass `limits.terms`; and [`Error::ReadBack`] where a proof does
+/// not read back or its derivation fails the check, a defect. Another
+/// bound or the stop that ends the read-back or the check is no error:
+/// the outcome is unknown with that reason and the search's statistics.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -167,9 +169,17 @@ fn run(
     let end = prove::search(&matrix, config, limits, stop, &mut counts);
     let verdict = match end {
         prove::End::Proved { used, terms } => {
-            let derivation = read_back::read_back(sequent, &matrix, &used, &terms, limits, stop)?;
-            derivation.check(limits, &mut *stop)?;
-            Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
+            let checked = match read_back::read_back(sequent, &matrix, &used, &terms, limits, stop)
+            {
+                Ok(derivation) => derivation.check(limits, &mut *stop).map(|()| derivation),
+                Err(error) => Err(error),
+            };
+            match checked {
+                Ok(derivation) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                // A bound or the stop that ends the read-back or its check
+                // leaves the sequent unknown, the search's statistics kept.
+                Err(error) => Verdict::Unknown(super::decide::ended(error)?),
+            }
         }
         // Restricted backtracking may miss a proof.
         prove::End::Exhausted if config.restricted => Verdict::Unknown(Reason::Incomplete),

@@ -677,3 +677,29 @@ fn a_drawing_past_the_derivation_bound_is_refused() {
     let error = ran_small("ordinary.export", &derivation).unwrap_err();
     assert_eq!(error.kind(), crate::ErrorKind::Limit);
 }
+
+/// Every outcome a decision writes reads back, a bound in the read-back
+/// included: through the embedding a proved image beside an unknown
+/// verdict was refused by the outcome's reader.
+#[test]
+fn every_decided_outcome_reads_back() {
+    let chain = format!("{}a", "~".repeat(100));
+    let sequent = ordinary(
+        &format!("{chain} |- {chain}"),
+        crate::ordinary::Logic::Classical,
+    );
+    for work in [5, 20, 50, 90, 150] {
+        let mut bounded = settings();
+        bounded.limits = bounded.limits.with_work(Some(work));
+        let run = run(
+            "ordinary.decide",
+            &[&sequent],
+            r#"{"method": "embedding"}"#,
+            &bounded,
+            |_| false,
+        );
+        if let Ok(produced) = run {
+            read("ordinary.outcome", &produced.value, &bounded.limits).unwrap();
+        }
+    }
+}

@@ -152,7 +152,7 @@ bound stopped the SAT solver, so you know which one to raise:
 
 ```console
 $ deduxit prove --logic intuitionistic --work-limit 6 -q 'a -> b, b -> c |- a -> c'
-unknown (intuitionistic logic by the cbn translation into ILL, two-sided engine): the work limit of 6 was reached after … at a copy bound of 0; raise it with --work-limit N; the SAT solver gave no verdict: the call did the most work allowed, 6 units, and the embedding took over
+unknown (intuitionistic logic by the cbn translation into ILL, two-sided engine): the work limit of 6 was reached after … at a copy bound of 0; raise it with --work-limit N; the SAT solver gave no verdict: the work limit of 6 was reached, and the embedding took over
 ```
 
 `--derivation-limit` bounds only what is drawn: a valid sequent whose
@@ -824,7 +824,13 @@ With `--format json` every method writes the outcome of the ordinary
 sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with a
 `reason`), its `logic`, the `search` that decided it and, for a valid
 sequent, its evidence. `search` says the method in `method`; LJT and the
-SAT solver add their `statistics`:
+SAT solver add their `statistics`. A bound or the time limit that ends
+the read-back or a check after the search decided gives `unknown` with
+that `reason` and the search's statistics. A truth table or a tableau
+that a bound or the time limit ends before it is built (for the
+tableau, before its derivation is checked) has no outcome, since the
+outcome holds the table or the tableau; its line goes to standard error
+alone:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'

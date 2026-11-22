@@ -103,12 +103,11 @@ const SUBSUMING: usize = 1 << 10;
 ///
 /// [`Error::Logic`] for classical logic; [`Error::Succedents`] for more
 /// than one formula right of `⊢`; [`Refusal::Index`] where the arena has
-/// no room for `⊥` or the derivation would pass 2³² inferences. Where a
-/// bound or the stop refuses the derivation of a proof:
-/// [`Refusal::Memory`] or [`Refusal::Stopped`], and
-/// [`Refusal::Work`] where its check would pass `limits.work` inferences.
-/// None of these is a verdict. [`Error::ReadBack`], as from
-/// [`Derivation::check`], is a defect of the translation.
+/// no room for `⊥`. [`Error::ReadBack`], as from [`Derivation::check`],
+/// is a defect of the translation. A bound or the stop that ends the
+/// translation of a proof or its check (the memory, the work, 2³²
+/// inferences) is no error: the outcome is unknown with that reason and
+/// the search's statistics, as for a bound that ends the search.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -202,9 +201,17 @@ fn run(
         Ok(Known::Proved(root)) => {
             let mut lj = Lj::new(&search, limits, bounds.most_drawn, &mut stop);
             lj.plant = plant;
-            let derivation = lj.translate(root, sequent.left(), goal)?;
-            derivation.check(limits, &mut stop)?;
-            Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
+            let checked = match lj.translate(root, sequent.left(), goal) {
+                Ok(derivation) => derivation.check(limits, &mut stop).map(|()| derivation),
+                Err(error) => Err(error),
+            };
+            match checked {
+                Ok(derivation) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                // A bound or the stop that ends the translation or its
+                // check leaves the sequent unknown, the search's
+                // statistics kept.
+                Err(error) => Verdict::Unknown(super::decide::ended(error)?),
+            }
         }
     };
     Ok(Outcome {

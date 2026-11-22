@@ -198,11 +198,11 @@ struct Lemma {
 ///
 /// - [`Error::Succedents`] for more than one formula right of `⊢` in
 ///   intuitionistic or minimal logic.
-/// - [`Refusal::Memory`], [`Refusal::Work`], [`Refusal::Index`] or
-///   [`Refusal::Stopped`] where a bound or the stop refused the derivation
-///   of a proof (where LJT gave none either), the check of a model or, in
-///   classical logic, the check of the clausal proof. None of them is a verdict.
-/// - As [`Derivation::check`].
+/// - As [`Derivation::check`], but for its bounds: a bound or the stop
+///   that ends the derivation of a proof (where LJT gave none either), the
+///   check of a model or, in classical logic, the check of the clausal
+///   proof is no error, the outcome unknown with that reason and the
+///   search's statistics, as for a bound that ends the search.
 /// - [`Error::ReadBack`] where the derivation or the clausal proof fails
 ///   its check, or where LJT refutes a sequent the search proved, and
 ///   [`Error::Countermodel`] where the model fails its check: each a
@@ -350,14 +350,17 @@ fn run(
                     &mut stop,
                 ) {
                     Ok(model) => {
-                        let model = super::Countermodel::found(
+                        match super::Countermodel::found(
                             sequent.clone(),
                             model,
                             logic,
                             limits,
                             &mut stop,
-                        )?;
-                        (Verdict::NotValid, model)
+                        ) {
+                            Ok(model) => (Verdict::NotValid, model),
+                            // The stop ended the model's check.
+                            Err(error) => (Verdict::Unknown(super::decide::ended(error)?), None),
+                        }
                     }
                     // The worlds' order would pass the memory bound: the
                     // verdict stands without its model.
@@ -391,32 +394,44 @@ fn run(
             let derivation = match read {
                 Ok((derivation, facts)) => {
                     statistics.facts = facts;
-                    derivation
+                    Ok(derivation)
                 }
                 Err(Error::Refused(refusal)) if !matches!(refusal, Refusal::Stopped { .. }) => {
-                    let (derivation, ljt) = by_ljt(sequent, logic, limits, &mut stop, refusal)?;
-                    statistics.ljt = Some(ljt);
-                    derivation
+                    by_ljt(sequent, logic, limits, &mut stop, refusal).map(|(derivation, ljt)| {
+                        statistics.ljt = Some(ljt);
+                        derivation
+                    })
                 }
-                Err(error) => return Err(error),
+                Err(error) => Err(error),
             };
-            derivation.check(limits, &mut stop)?;
-            let derivation = if derive == Derive::PreferLjt && statistics.ljt.is_none() {
-                prefer_ljt(
-                    sequent,
-                    logic,
-                    limits,
-                    &mut stop,
-                    derivation,
-                    &mut statistics,
-                )?
-            } else {
-                derivation
+            let checked = match derivation {
+                Ok(derivation) => derivation.check(limits, &mut stop).map(|()| derivation),
+                Err(error) => Err(error),
             };
-            (
-                Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
-                None,
-            )
+            match checked {
+                Ok(derivation) => {
+                    let derivation = if derive == Derive::PreferLjt && statistics.ljt.is_none() {
+                        prefer_ljt(
+                            sequent,
+                            logic,
+                            limits,
+                            &mut stop,
+                            derivation,
+                            &mut statistics,
+                        )?
+                    } else {
+                        derivation
+                    };
+                    (
+                        Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                        None,
+                    )
+                }
+                // A bound or the stop that ends the read-back (and LJT
+                // after it) or the check leaves the sequent unknown, the
+                // search's statistics kept.
+                Err(error) => (Verdict::Unknown(super::decide::ended(error)?), None),
+            }
         }
     };
     Ok(Outcome {
@@ -1374,6 +1389,20 @@ mod tests {
         assert!(searched < 2_000, "{searched} polls of the searches");
     }
 
+    /// A stop that fires after the search decided, in the read-back or
+    /// the check, leaves the sequent unknown with the search's statistics,
+    /// as a stop during the search does.
+    #[test]
+    fn a_stop_after_the_search_is_an_unknown() {
+        let sequent: Sequent = "a -> b, b -> c |- a -> c".parse().unwrap();
+        let outcome = decide(&sequent, Logic::Intuitionistic, &Limits::default(), |p| {
+            p.phase != crate::limits::Phase::Search
+        })
+        .unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
+        assert!(outcome.statistics.calls > 0, "{:?}", outcome.statistics);
+    }
+
     /// The default prefers LJT's derivation only where its drawing fits
     /// `limits.derivation_bytes`, and keeps the one read off otherwise.
     #[test]
@@ -1405,8 +1434,9 @@ mod tests {
         let outcome = outcome.unwrap();
         assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{outcome:?}");
         assert!(outcome.statistics.ljt.is_some(), "{:?}", outcome.statistics);
-        // The stop during LJT is the stop, not the read-back's refusal:
-        // it fires at the first poll of the search after the solver's.
+        // The stop during LJT is the stop, an unknown, not the read-back's
+        // refusal: it fires at the first poll of the search after the
+        // solver's.
         let search = |p: &Progress| p.phase == crate::limits::Phase::Search;
         let mut solver = 0;
         let mut counted = |p: Progress| {
@@ -1436,7 +1466,10 @@ mod tests {
             Derive::Ljt,
         );
         assert!(
-            matches!(stopped, Err(Error::Refused(Refusal::Stopped { .. }))),
+            matches!(
+                stopped.as_ref().map(|outcome| outcome.verdict.clone()),
+                Ok(Verdict::Unknown(Reason::Stopped))
+            ),
             "{stopped:?}"
         );
     }

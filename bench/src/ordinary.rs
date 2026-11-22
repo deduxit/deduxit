@@ -252,10 +252,6 @@ fn native(
         ("pool_after", &pool),
         ("memo_limit", &memo),
     ];
-    let unknown = |reason: Reason| match reason {
-        Reason::Stopped => "timeout",
-        reason => reason.name(),
-    };
     let message;
     match &outcome {
         Ok((verdict, counters)) => {
@@ -367,7 +363,7 @@ fn classical(
                 // table is its own evidence.
                 Verdict::Valid(_) => [("verdict", "proved"), ("checked", "ok")],
                 Verdict::NotValid => [("verdict", "unprovable"), ("checked", "")],
-                Verdict::Unknown(reason) => [("verdict", "unknown"), ("reason", reason.name())],
+                Verdict::Unknown(reason) => [("verdict", "unknown"), ("reason", unknown(*reason))],
                 _ => [
                     ("verdict", "error"),
                     ("reason", "a verdict the harness does not know"),
@@ -388,6 +384,15 @@ fn classical(
         }
     }
     row(&fields)
+}
+
+/// Returns the `reason` of an unknown row: the time limit is `timeout`, as
+/// in every row of the harness.
+const fn unknown(reason: Reason) -> &'static str {
+    match reason {
+        Reason::Stopped => "timeout",
+        reason => reason.name(),
+    }
 }
 
 /// Returns the `reason` of a row whose proof's derivation a bound refused,
@@ -508,10 +513,6 @@ fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expecte
                 ("memo_entries", counters[4].as_str()),
                 ("work", counters[5].as_str()),
             ]);
-            let unknown = |reason: Reason| match reason {
-                Reason::Stopped => "timeout",
-                reason => reason.name(),
-            };
             fields.extend(match &outcome.verdict {
                 // Checked inside the time measured.
                 Verdict::Valid(_) => [("verdict", "proved"), ("checked", "ok")],

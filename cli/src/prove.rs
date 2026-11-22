@@ -281,6 +281,7 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         let ended = Ended {
             stop: stopped(&deadline),
             elapsed: start.elapsed(),
+            after_search: false,
         };
         crate::ordinary::write_native(args, &settings, outcome, &ended, &deadline)
     };
@@ -427,7 +428,11 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
             return Ok(status);
         }
         // The verdict first, then the derivation as it is made.
-        let ended = Ended { stop, elapsed };
+        let ended = Ended {
+            stop,
+            elapsed,
+            after_search: false,
+        };
         let line = show.verdict.then(|| match &image {
             Some(image) => {
                 let line = crate::ordinary::verdict_line(
@@ -565,6 +570,9 @@ pub(crate) struct Ended {
     pub(crate) stop: Option<Stop>,
     /// How long the search took.
     pub(crate) elapsed: Duration,
+    /// Whether the search had decided and the read-back or a check of what
+    /// it found had begun, where a stop ended the call.
+    pub(crate) after_search: bool,
 }
 
 /// Returns the first line of the text output: the verdict, where the
@@ -680,6 +688,10 @@ pub(crate) fn unknown(reason: Reason, outcome: &Outcome, ended: &Ended) -> Strin
 pub(crate) fn advice(reason: Reason, at: &str, ended: &Ended) -> String {
     let after = format!("after {:.2?}", ended.elapsed);
     match (reason, ended.stop) {
+        (Reason::Stopped, stop) if ended.after_search => format!(
+            "the search ended, but {} before its answer was checked",
+            Stop::why(stop)
+        ),
         (Reason::Stopped, Some(Stop::Timeout(t))) => {
             format!(
                 "the time limit of {t:?} was reached{at}; --timeout DURATION gives the search longer"

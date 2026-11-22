@@ -1904,15 +1904,6 @@ Left by step 54s (`plan/reports/54s-sat-engines.md`):
   each once (the DAG read-back above), which changes the checker, so
   the panel's; intuit and intuitR, which give no derivation, solve sizes
   4 to 9 within 10 s.
-- **`prove --format json` writes nothing for an unknown stopped in the
-  check** (found by fixup-20, older than it): where the time limit ends
-  LJT's or the SAT solver's read-back or check after the search
-  decided, `cli/src/ordinary.rs` prints "unknown (… by the SAT solver):
-  the search ended, but the time limit … before its answer was checked"
-  on standard error and nothing on standard output, so a JSON reader
-  gets no outcome (ILTP's SYJ202+1.007 and .008 at 2 s, exit 3). The
-  outcome `{"verdict": "unknown", "reason": {"kind": "stopped"}, …}`
-  belongs on standard output, as for every other unknown.
 - **The tests in pairs of the core crate's features** (found by
   fixup-21): `cargo hack check --feature-powerset --depth 2 --tests -p
   deduxit` fails, while each feature alone with its tests passes and is

@@ -156,6 +156,16 @@ second number (0.1.x to 0.2.0), anything else the third.
   `limits.derivation_bytes`, and `ordinary::Derivation::drawn_bytes`
   estimates a drawing by the measure that bound takes, for a caller that
   draws a decided derivation itself.
+- **A bound or the stop that ends the read-back or a check after the
+  search decided is an unknown, not an error**: `ordinary::decide` and
+  each method's `decide` (LJT, the SAT solver, the connection provers,
+  the model checks of the truth table and the tableau) answer
+  `Ok(Unknown(reason))` with the search's statistics, as a bound that
+  ends the search does, so `prove --format json` writes that outcome
+  (before, nothing on standard output) and a named method's bound there
+  is exit status 3, not 2. A defect stays an error; so do the
+  embedding's read-back in `ordinary::decide` and a truth table or
+  tableau that a bound ends while it is built.
 - The default of intuitionistic and minimal logic gives LJT at most
   16 384 sequents to find the derivation it prefers to the SAT solver's,
   so a sequent the solver decides at once is answered at once: ILTP's

@@ -757,7 +757,7 @@ impl Shared {
                 ) {
                     (Ok((forest, image)), _) => (forest, Some(image), None),
                     (Err(_), Some((outcome, start))) => {
-                        return self.native_done(&entry.name, outcome, *start, &deadline);
+                        return self.native_done(&entry.name, outcome, *start, &deadline, false);
                     }
                     (Err(error), None) => return Err(error),
                 }
@@ -808,7 +808,7 @@ impl Shared {
         let outcome = match (outcome, &solved) {
             (Ok(outcome), _) => outcome,
             (Err(_), Some((solved, start))) => {
-                return self.native_done(&entry.name, solved, *start, &deadline);
+                return self.native_done(&entry.name, solved, *start, &deadline, false);
             }
             (Err(error), None) => return Err(describe(error, sequent)),
         };
@@ -821,7 +821,7 @@ impl Shared {
                 Embedded::Derivation(derivation) => read = Some(*derivation),
                 Embedded::Refutation => {}
                 Embedded::Nothing => {
-                    return self.native_done(&entry.name, solved, *begun, &deadline);
+                    return self.native_done(&entry.name, solved, *begun, &deadline, false);
                 }
             }
         }
@@ -833,7 +833,11 @@ impl Shared {
         } else {
             ordinary::status(&outcome, image.as_ref())
         };
-        let ended = Ended { stop, elapsed };
+        let ended = Ended {
+            stop,
+            elapsed,
+            after_search: false,
+        };
         let line = match &image {
             Some(image) => ordinary::verdict_line(
                 &outcome,
@@ -923,8 +927,16 @@ impl Shared {
         let start = Instant::now();
         let share = ordinary::first_order_share(options, sequent, deadline)?;
         let halt = || interrupted() || deadline.passed() || self.batch.passed() || share.passed();
+        // Whether the read-back or a check began, which the entry's line of
+        // a stop says (LJT's and the SAT solver's follow their search).
+        let after_search = std::cell::Cell::new(false);
         let decided =
-            ordinary::decide_natively(options, sequent, &plan.search, &plan.limits, |_| halt());
+            ordinary::decide_natively(options, sequent, &plan.search, &plan.limits, |p| {
+                if p.phase != deduxit::Phase::Search {
+                    after_search.set(true);
+                }
+                halt()
+            });
         let at_share =
             ordinary::stopped_at_share(&decided, &share, deadline) && !self.batch.passed();
         if gives_way && (at_share || ordinary_logic::gives_way(&decided)) {
@@ -941,10 +953,11 @@ impl Shared {
                 return Ok(Native::Solved(Box::new(outcome), start));
             }
             Ok(outcome) => outcome,
+            // Only the table and the tableau answer the stop with no
+            // outcome, since theirs holds what the stop left unbuilt.
             Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
                 let line = format!(
-                    "unknown ({} logic by {}): the search ended, but {} before its answer \
-                     was checked",
+                    "unknown ({} logic by {}): {}",
                     options.logic,
                     ordinary::by(method),
                     Stop::why(self.stopped(deadline))
@@ -956,23 +969,27 @@ impl Shared {
             }
             Err(error) => return Err(error.into()),
         };
-        self.native_done(name, &outcome, start, deadline)
+        let after_search = after_search.get() && matches!(method, Method::Ljt | Method::Sat);
+        self.native_done(name, &outcome, start, deadline, after_search)
             .map(Native::Answered)
     }
 
     /// Returns what is written for an entry LJT or the SAT solver decided
     /// in a search begun at `start`, its derivation or outcome written into
-    /// its file in the directory.
+    /// its file in the directory; `after_search` where the search had
+    /// decided and its read-back or a check begun.
     fn native_done(
         &self,
         name: &str,
         outcome: &ordinary_logic::Outcome,
         start: Instant,
         deadline: &Deadline,
+        after_search: bool,
     ) -> Result<Done> {
         let ended = Ended {
             stop: self.stopped(deadline),
             elapsed: start.elapsed(),
+            after_search,
         };
         let status = match &outcome.verdict {
             ordinary_logic::Verdict::Valid(_) => Status::Yes,

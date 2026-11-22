@@ -2906,6 +2906,24 @@ fn ordinary_logic() {
             && out.contains("the SAT solver gave no verdict"),
         "{out}"
     );
+    // A bound that ends the read-back or the check after the search
+    // decided leaves an unknown, its outcome written as any other's.
+    let (status, out, _) = decide(&[
+        "--logic",
+        "intuitionistic",
+        "--method",
+        "sat",
+        "--work-limit",
+        "5",
+        "--format",
+        "json",
+        "a -> b, b -> c |- a -> c",
+    ]);
+    assert_eq!(status, 3, "{out}");
+    let outcome: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(outcome["verdict"], "unknown", "{out}");
+    assert_eq!(outcome["reason"]["kind"], "work_limit", "{out}");
+    assert_eq!(outcome["search"]["statistics"]["calls"], 3, "{out}");
     let (status, out, err) = decide(&[
         "--logic",
         "intuitionistic",

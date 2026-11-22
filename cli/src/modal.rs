@@ -119,6 +119,7 @@ pub(crate) fn prove(
     let ended = Ended {
         stop: stopped(deadline),
         elapsed: start.elapsed(),
+        after_search: false,
     };
     let outcome = match decided {
         Ok(outcome) => outcome,

@@ -18,7 +18,7 @@ use deduxit::linear::proofs::{Sides, Structural};
 use deduxit::linear::search::{Outcome, Reason, Verdict};
 use deduxit::ordinary::{self, Derivation, Image, Logic, Method, Translation, ljt, sat};
 use deduxit::{
-    Error, ErrorKind, Limits, Refusal, Settings,
+    Error, ErrorKind, Limits, Phase, Refusal, Settings,
     linear::{Forest, Proof, ViewOptions},
 };
 use std::fmt::Write;
@@ -358,9 +358,10 @@ fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveW
 ///
 /// # Errors
 ///
-/// `--net` beside any other method, which draws a linear proof; a bound
-/// that refused the derivation of a proof under `--method ljt` or `sat`;
-/// an output that cannot be written.
+/// `--net` beside any other method, which draws a linear proof; a refusal
+/// that is no reason of an unknown (the tableau's steps past the
+/// derivation's bound, a first-order read-back past the terms' bound); an
+/// output that cannot be written.
 pub(crate) fn by_native(
     args: &ProveArgs,
     settings: &Settings,
@@ -389,7 +390,15 @@ pub(crate) fn by_native(
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
         let share = first_order_share(options, sequent, deadline)?;
         let halt = || interrupted() || deadline.passed() || share.passed();
-        let decided = decide_natively(options, sequent, &settings.search, &limits, |_| halt());
+        // Whether the read-back or a check began, which the verdict line of
+        // a stop says (LJT's and the SAT solver's follow their search).
+        let after_search = std::cell::Cell::new(false);
+        let decided = decide_natively(options, sequent, &settings.search, &limits, |p| {
+            if p.phase != Phase::Search {
+                after_search.set(true);
+            }
+            halt()
+        });
         drop(notice);
         if gives_way && stopped_at_share(&decided, &share, deadline) {
             return Ok(Native::GivesWay(Some(format!(
@@ -412,28 +421,20 @@ pub(crate) fn by_native(
         let ended = Ended {
             stop: stopped(deadline),
             elapsed: start.elapsed(),
+            after_search: after_search.get() && matches!(method, Method::Ljt | Method::Sat),
         };
         let outcome = match decided {
             Ok(outcome) => outcome,
+            // Only the table and the tableau answer the stop with no
+            // outcome, since theirs holds the table or the tableau the stop
+            // left unbuilt; every other method answers it as an unknown.
             Err(Error::Refused(Refusal::Stopped { .. })) => {
-                // LJT and the SAT solver ask the stop only once their
-                // search has ended; the table and the tableau as they go.
-                let line = if matches!(method, Method::Table | Method::Tableau) {
-                    format!(
-                        "unknown ({} logic by {}): {}",
-                        options.logic,
-                        by(method),
-                        Stop::why(ended.stop)
-                    )
-                } else {
-                    format!(
-                        "unknown ({} logic by {}): the search ended, but {} before its answer \
-                         was checked",
-                        options.logic,
-                        by(method),
-                        Stop::why(ended.stop)
-                    )
-                };
+                let line = format!(
+                    "unknown ({} logic by {}): {}",
+                    options.logic,
+                    by(method),
+                    Stop::why(ended.stop)
+                );
                 match (args.output.format(), &args.output.output) {
                     (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
                     _ => eprintln!("{line}"),
@@ -998,6 +999,7 @@ mod tests {
         let ended = super::Ended {
             stop: None,
             elapsed: std::time::Duration::ZERO,
+            after_search: false,
         };
         let line = super::native_verdict_line(&outcome, &ended);
         assert!(

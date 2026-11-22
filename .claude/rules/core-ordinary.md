@@ -245,9 +245,9 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   stands, so no verdict is lost. With no method given, the
   method gives way to the embedding where `gives_way` (on any method's
   `Outcome`) says so: an unknown at a bound
-  other than `Reason::Stopped`, or an `Error::Refused` other than the
-  stop (a derivation past the memory bound included: it is a
-  refusal, `Refusal::Memory`). The outcome's
+  other than `Reason::Stopped` (a derivation past the memory bound
+  included, `Reason::MemoryLimit` since fixup-21), or an
+  `Error::Refused` other than the stop. The outcome's
   `search` (`Search::Embedding` with the translation and the image's
   outcome, `Search::Ljt` with LJT's statistics, `Search::Sat` with the
   solver's, LJT's among them where it gave the derivation) says which
@@ -256,8 +256,25 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   command still runs the steps itself (its race and its output, the
   dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
   (no copy bound, the time limit), affine classical mode for `Affine`,
-  intuitionistic mode otherwise. A proof whose read-back a bound or the
-  stop refuses is that refusal from `decide`, never a verdict. The
+  intuitionistic mode otherwise. **A bound or the stop that ends the
+  read-back or a check after the search decided is an unknown with that
+  reason and the search's statistics** (`decide::ended`: the stop, the
+  memory, the work, the index bound; fixup-21, the planning session's
+  decision): in LJT, the SAT solver in all three logics (its read-back,
+  LJT after it, the clausal proof's check, the model's check), both
+  connection provers and the model checks of the truth table and the
+  tableau, as a bound that ends the search already was, so every
+  bounded end has an outcome the command can write as JSON. A defect
+  stays an error, a first-order read-back past `limits.terms` stays
+  `Refusal::Terms` (no reason names it), and the truth table and the
+  tableau ended while they are built (the tableau's until its derivation
+  is checked) stay that refusal: their outcome holds the table or the
+  tableau, which is not there. **The embedding keeps its refusal** in
+  `decide` (departs from the decision): beside a proved image an
+  unknown verdict is a document `OutcomeRead::within` refuses, which
+  lost a workspace's edit (the review of fixup-21,
+  `every_decided_outcome_reads_back`); the command's own race answers
+  with `Evidence::Image` there (`Image::outcome`). The
   default translation for intuitionistic and minimal logic is
   `Translation::DEFAULT_INTUITIONISTIC`, chosen by the ILTP run
   (`plan/reports/25-ordinary-logic.md`). The goal state's `close` and
@@ -1076,7 +1093,8 @@ the trust.
   Every engine's model goes through `Countermodel::found`: checked,
   `None` where the check refuses it for its size (past `MODEL_CELLS`, or
   `limits.memory_bytes`), `Error::Model` turned into
-  `Error::Countermodel` (a defect), a stop during its check the stop. So
+  `Error::Countermodel` (a defect), a stop during its check the stop,
+  which each engine answers as an unknown (`decide::ended`). So
   a model too large to check drops the model, never the verdict, and so
   does the SAT method's order past its memory account (the prompt's "too
   large to show"; such a verdict rests on the search, as LJT's does): the SAT method's

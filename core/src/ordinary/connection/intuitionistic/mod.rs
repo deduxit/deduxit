@@ -42,9 +42,11 @@ use crate::ordinary::{Evidence, Logic, Sequent, Verdict};
 ///
 /// [`Error::Succedents`] for more than one formula right of `⊢`;
 /// [`Refusal::Occurrences`] for a sequent that
-/// unfolds past `limits.occurrences`; a refusal of the derivation by a
-/// bound or the stop; and [`Error::ReadBack`] where a derivation read back
-/// fails the check, a defect.
+/// unfolds past `limits.occurrences`; [`Refusal::Terms`] where an
+/// instance would pass `limits.terms`; and [`Error::ReadBack`] where a
+/// derivation read back fails the check, a defect. Another bound or the
+/// stop that ends a read-back or its check is no error: the outcome is
+/// unknown with that reason and the search's statistics.
 pub(super) fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -119,10 +121,13 @@ fn decide_counting(
         &mut accept,
         &mut counts,
         &mut rejected,
-    )?;
+    );
     let verdict = match end {
-        prove::End::Proved(derivation) => Verdict::Valid(Evidence::Derivation(derivation)),
-        prove::End::Unknown(reason) => Verdict::Unknown(reason),
+        Ok(prove::End::Proved(derivation)) => Verdict::Valid(Evidence::Derivation(derivation)),
+        Ok(prove::End::Unknown(reason)) => Verdict::Unknown(reason),
+        // A bound or the stop that ends a read-back or its check leaves the
+        // sequent unknown, the search's statistics kept.
+        Err(error) => Verdict::Unknown(super::super::decide::ended(error)?),
     };
     let outcome = Outcome {
         verdict,

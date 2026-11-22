@@ -319,9 +319,11 @@ pub(super) fn decide(
         None => (super::Verdict::Valid(super::Evidence::Table), None),
         Some(&row) => {
             let model = table.model(row);
-            let countermodel =
-                super::Countermodel::found(sequent.clone(), model, logic, limits, &mut stop)?;
-            (super::Verdict::NotValid, countermodel)
+            match super::Countermodel::found(sequent.clone(), model, logic, limits, &mut stop) {
+                Ok(countermodel) => (super::Verdict::NotValid, countermodel),
+                // The stop ended the model's check: the table stands.
+                Err(error) => (super::Verdict::Unknown(super::decide::ended(error)?), None),
+            }
         }
     };
     Ok(super::Outcome {

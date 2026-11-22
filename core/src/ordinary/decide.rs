@@ -313,6 +313,34 @@ impl Evidence {
     }
 }
 
+/// Returns the reason an outcome is unknown where `error` is a bound or
+/// the stop that ended the read-back or a check after the search decided,
+/// or the error itself where it is no such bound (a defect stays an
+/// error). Every method answers such an end as an unknown with its
+/// search's statistics, as it answers a bound that ends its search.
+pub(crate) fn ended(error: Error) -> Result<Reason, Error> {
+    let Error::Refused(refusal) = &error else {
+        return Err(error);
+    };
+    match *refusal {
+        Refusal::Stopped { .. } => Ok(Reason::Stopped),
+        Refusal::Memory { limit_bytes, .. } => Ok(Reason::MemoryLimit { limit_bytes }),
+        Refusal::Work { limit } => Ok(Reason::WorkLimit { limit }),
+        Refusal::Index { .. } => Ok(Reason::IndexLimit),
+        // No reason of a search names these: a first-order read-back past
+        // the terms' bound stays that refusal, and the others end no
+        // read-back or check.
+        Refusal::Occurrences { .. }
+        | Refusal::Terms { .. }
+        | Refusal::Output { .. }
+        | Refusal::Pixels { .. }
+        | Refusal::Elimination { .. }
+        | Refusal::Atoms { .. }
+        | Refusal::Workspace { .. }
+        | Refusal::Form { .. } => Err(error),
+    }
+}
+
 /// Returns whether a method's answer leaves the sequent to the embedding,
 /// where the method is the logic's default and was not named. It does
 /// when the method gave no verdict and the embedding may give one: the
@@ -609,10 +637,12 @@ impl super::Image {
 /// # Errors
 ///
 /// As [`translate()`], [`search::prove_within`], [`Image::read_back`] and
-/// [`Derivation::check`], or as [`ljt::decide`] or `sat::decide`. A proof
-/// whose derivation a bound or the stop refused is that refusal, not a
-/// verdict, and a derivation that fails the check is [`Error::ReadBack`],
-/// a defect.
+/// [`Derivation::check`], or as [`ljt::decide`] or `sat::decide`. Through
+/// the embedding, a proof whose derivation a bound or the stop refused is
+/// that refusal, not a verdict; by every other method, a bound or the
+/// stop that ends the derivation or a check after the search decided is
+/// no error, the outcome unknown with that reason. A derivation that fails
+/// the check is [`Error::ReadBack`], a defect.
 ///
 /// [`Image::read_back`]: super::Image::read_back
 ///
@@ -737,6 +767,10 @@ fn within(
             Err(Error::ReadBack { reason, .. }) if reason == super::derivation::OPEN_WITNESS => {
                 Verdict::Unknown(Reason::Incomplete)
             }
+            // A bound or the stop that ends the read-back or its check
+            // stays that refusal: beside a proved image an unknown verdict
+            // is a document the outcome's reader refuses. The command keeps
+            // the image's proof as the evidence there (`Image::outcome`).
             read => {
                 let derivation = read?;
                 derivation.check(limits, &mut stop)?;

@@ -460,6 +460,7 @@ impl Session {
         let ended = Ended {
             stop: stopped(&deadline),
             elapsed: start.elapsed(),
+            after_search: false,
         };
         let closed = match closed {
             Ok(closed) => closed,
