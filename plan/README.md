@@ -8102,3 +8102,18 @@ move (D26).
   on 70 and 75 (77a's clausal form for resolution only); its prompt (`plan/78-equality-resolution.md`)
   is written. **78a** starts in a new session (Opus, high, the panel and the reviewer; cores 4-6, the
   panels sharing 13-15), the planning session's third worker.
+- 2026-11-22, about 12:15: **76a reviewed and pushed; 76b started.** 76a (Opus, high; the full panel
+  and the reviewer on Fable; blocked 01:59–09:34 on the author's prompt) wrote the design
+  (`plan/notes/first-order-countermodels-design.md`: quantifiers expanded over the domain, no Skolem
+  function; function symbols as value atoms with totality and functionality after Paradox; symmetry
+  breaking on the constants; each size afresh; the check the one trust) and the classical model
+  search (`--method models`, `--model-size`, finite structures with function tables at wire level
+  26). ILTP's first-order problems at 2 s: 210 refuted (176 of 178 CounterSatisfiable), every one of
+  grounding's 77 and nanoCoP's 84 among them, slowest 0.4 s; no verdict against a status. The panel
+  found no wrong "not valid" (36 000 pairs, 8 350 sequents against brute force); its bound faults
+  (an 8 GiB table text, unbounded term evaluation, a quadratic term walk, a quadratic signature)
+  fixed. **Accepted departures, measured:** the model search after the embedding in the library's
+  default (before it, SYJ018+1 was lost); the command races it beside the connection prover with a
+  5 % grace after the prover gives way (the reviewer's "valid waited 90 %" fixed); a table's text
+  capped at 64 entries. The web module's ceiling raised to 2 700 000. Full check passed; pushed
+  (`kpwlyunq`). In its worker: **76b**, Kripke models with growing domains and Glivenko's failure.

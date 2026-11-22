@@ -110,7 +110,7 @@ fixup-14	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-21 09:00	20
 75d	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-21 13:45	2026-11-22 00:40	fragments, comparison, defaults
 fixup-15	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 00:30	2026-11-22 02:25	shared terms walked once
 75	step	-	-	-	-	-	2026-11-22 01:30	complete: first-order search, embedding, two connection provers, grounding, comparison
-76a	design	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 01:30		countermodels, design and classical
+76a	design	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 01:30	2026-11-22 12:10	countermodels, design and classical
 fixup-16	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 02:30	2026-11-22 03:10	glue licence, non-UTF-8 TPTP
 fixup-17	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 03:15	2026-11-22 03:55	one TPTP decoder
 fixup-18	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 04:00	2026-11-22 04:55	LJT's leftovers
@@ -120,3 +120,4 @@ fixup-21	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 07:50	20
 fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25	2026-11-22 10:35	tests in every pair of features
 77a	design	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 10:40		transformations, design and normal forms
 78a	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_f223ef15	2026-11-22 11:35		equality, cnf and SZS
+76b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 12:15		Kripke models with growing domains
