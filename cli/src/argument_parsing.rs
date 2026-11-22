@@ -812,8 +812,9 @@ pub(crate) struct ProveArgs {
     /// without Unsatisfiable or Satisfiable, both meaning validity in the
     /// logic decided; an unknown one Timeout at the time limit, User when
     /// interrupted, and GaveUp otherwise; an error SyntaxError where the
-    /// input does not read, and Error otherwise. Text output only, one
-    /// problem per call.
+    /// input does not read, MemoryOut or ResourceOut where the memory
+    /// limit or another limit refused it, and Error otherwise. Text output
+    /// only, one problem per call.
     #[arg(help_heading = OUTPUT, long, requires = "logic")]
     pub(crate) szs: bool,
     /// Also print what the search cost: the counters of the engine that

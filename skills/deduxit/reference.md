@@ -1643,7 +1643,8 @@ hold `cnf(NAME, ROLE, CLAUSE).` clauses, each the universal closure of
 its disjunction, `negated_conjecture` a hypothesis. `prove --logic L
 --szs` ends its text output with `% SZS status STATUS for NAME`
 (`Theorem`, `CounterSatisfiable`, without a conjecture `Unsatisfiable`,
-`Satisfiable`; `Timeout`, `GaveUp`, `User`, `SyntaxError`, `Error`). A
+`Satisfiable`; `Timeout`, `GaveUp`, `User`, `SyntaxError`, `MemoryOut`,
+`ResourceOut`, `Error`). A
 TPTP file's
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed

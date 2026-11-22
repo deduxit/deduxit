@@ -531,9 +531,26 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   `structure_of` divides the domain by it (`identified`: union-find over
   the true `=` atoms, classes numbered by their least element, tuples
   mapped and deduplicated); the check of the quotient is the verdict's
-  check. `within` turns any other `NotValid` of an augmented sequent
-  into `Unknown(Incomplete)` (none arises today: the axioms give the
-  connection prover slots, and the embedding is unknown at first order).
+  check. Grounding answers `Unknown(Incomplete)` with `=` where the
+  structure's check or the solver's model is refused at a bound (without
+  `=` it keeps "not valid" there), and `within` turns any other
+  `NotValid` without a structure of a sequent with `=` into
+  `Unknown(Incomplete)`, keyed on `has_equality`, not on whether it
+  augmented: the command augments as it reads, so `within` gets the
+  axioms already (the panel's finding: keyed on its own augmentation,
+  `prove --work-limit 20 'a = b, p(a) |- p(c)'` said "not valid" with an
+  unchecked structure). The axioms give the connection prover slots, so
+  it never refutes, and the embedding is unknown at first order.
+- **The linear reader takes `=` too** (`serialize/sequents.rs`,
+  `FirstOrder::check`, shared): the embedding's image carries the
+  ordinary tables verbatim, `=` among them, and the ordinary outcome
+  nests the image's JSON. Such a linear sequent prints `=(a, b)`, which
+  the linear text parser refuses: the one exception to "atom names are
+  identifiers" (core-sequents.md), until the linear printer writes it
+  infix and the linear parser reads it.
+- **`Formulas::of_tables` interns `=` as a predicate** even where no
+  atom uses it: interned as a function (every unused symbol is), the
+  axioms' atoms were refused as a symbol in two roles.
   A Kripke model with domains (step 76) must read `=` as identity at
   each world, or be refused beside `=`.
 - **`axiom_count(formulas, left)`** finds the axioms in a copy of the

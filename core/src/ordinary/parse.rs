@@ -1097,8 +1097,9 @@ fn read_clauses(
 #[inline(never)]
 fn closure(clause: &str) -> Option<(String, usize)> {
     let mut variables: Vec<std::borrow::Cow<'_, str>> = Vec::new();
+    let mut seen = crate::hash::HashSet::default();
     for word in words(clause) {
-        if word.starts_with(|c: char| c.is_ascii_uppercase()) && !variables.contains(&word) {
+        if word.starts_with(|c: char| c.is_ascii_uppercase()) && seen.insert(word.clone()) {
             variables.push(word);
         }
     }

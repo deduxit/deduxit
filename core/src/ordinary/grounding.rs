@@ -542,7 +542,11 @@ fn run(
                     // A structure too large to check is dropped, never the
                     // verdict: the ground sequent's model was checked, and
                     // the verdict rests on grounding as a verdict without
-                    // its model rests on the search.
+                    // its model rests on the search. With `=` the verdict
+                    // needs the checked structure of identity.
+                    Err(Error::Refused(_)) if sequent.formulas().has_equality() => {
+                        (Verdict::Unknown(Reason::Incomplete), None)
+                    }
                     Err(Error::Refused(_)) => (Verdict::NotValid, None),
                     Err(Error::Structure { reason }) => {
                         return Err(Error::Countermodel {
@@ -555,7 +559,11 @@ fn run(
                 }
             }
             // The solver's model was too large to check; the verdict
-            // stands without it, as the solver's own does.
+            // stands without it, as the solver's own does, but with `=`,
+            // which needs the checked structure of identity.
+            None if sequent.formulas().has_equality() => {
+                (Verdict::Unknown(Reason::Incomplete), None)
+            }
             None => (Verdict::NotValid, None),
         },
         Verdict::Unknown(reason) => (Verdict::Unknown(reason), None),

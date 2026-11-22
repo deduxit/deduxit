@@ -19,7 +19,7 @@
 use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
 use crate::first_order::{EQUALS, FoTerm, FoTermId, Symbol};
-use crate::limits::{Limits, Refusal};
+use crate::limits::{Limits, Phase, Refusal};
 
 /// Returns `sequent` with the equality axioms of its symbols that its
 /// hypotheses lack appended after them, or `None` where the sequent has no
@@ -45,8 +45,10 @@ pub fn with_axioms(sequent: &Sequent, limits: &Limits) -> Result<Option<Sequent>
     let axioms = axioms(&mut formulas, limits)?;
     let mut left = sequent.left().to_vec();
     let before = left.len();
+    // A set, since a sequent may have as many hypotheses as symbols.
+    let mut held: crate::hash::HashSet<NodeId> = left.iter().copied().collect();
     for axiom in axioms {
-        if !left.contains(&axiom) {
+        if held.insert(axiom) {
             left.push(axiom);
         }
     }
@@ -69,6 +71,7 @@ pub fn axiom_count(formulas: &Formulas, left: &[NodeId]) -> usize {
     let Ok(axioms) = axioms(&mut copy, &Limits::default().with_occurrences(None)) else {
         return 0;
     };
+    let axioms: crate::hash::HashSet<NodeId> = axioms.into_iter().collect();
     left.iter()
         .rev()
         .take_while(|id| axioms.contains(id))
@@ -105,13 +108,11 @@ fn axioms(formulas: &mut Formulas, limits: &Limits) -> Result<Vec<NodeId>, Error
             .collect()
     };
     // A symbol of arity n makes about 4n + 4 nodes and 2n variables: the
-    // whole is held to the bound before anything is built, at most
-    // `u32::MAX` nodes, so `2 * arity` below cannot wrap. A JSON sequent
-    // may declare a symbol of any arity that nothing uses.
-    let most = limits
-        .occurrences
-        .unwrap_or(u64::from(u32::MAX))
-        .min(u64::from(u32::MAX));
+    // whole is held to `u32::MAX` nodes before anything is built, so
+    // `2 * arity` below cannot wrap. `limits.occurrences` bounds the
+    // arena as it grows (`Build::within`), so axioms the arena holds
+    // already cost nothing against it and a second call adds none.
+    let most = u64::from(u32::MAX);
     let needed = symbols
         .iter()
         .fold(formulas.len() as u64 + 16, |sum, &(_, arity, _)| {
@@ -123,7 +124,12 @@ fn axioms(formulas: &mut Formulas, limits: &Limits) -> Result<Vec<NodeId>, Error
             limit: most,
         }));
     }
-    let mut build = Build { formulas, limits };
+    let start = formulas.len() as u64;
+    let mut build = Build {
+        formulas,
+        limits,
+        start,
+    };
     let mut axioms = Vec::with_capacity(3 + symbols.len());
     // ∀x. x = x
     let x = build.variable(0);
@@ -149,12 +155,21 @@ fn axioms(formulas: &mut Formulas, limits: &Limits) -> Result<Vec<NodeId>, Error
     Ok(axioms)
 }
 
-/// The arena the axioms are built into, and the bound on its size.
+/// What one node the axioms add holds, its keys, names and table entries
+/// with it: an axiom of a symbol of a million arguments held 967 MB for
+/// its four million nodes.
+const NODE_BYTES: u64 = 256;
+
+/// The arena the axioms are built into, and the bounds on its size.
 struct Build<'a> {
     /// The arena.
     formulas: &'a mut Formulas,
-    /// The bound on the arena's nodes.
+    /// The bounds on the arena's nodes and on the memory the axioms add.
     limits: &'a Limits,
+    /// The arena's length before the axioms: only what they add is
+    /// charged to the memory bound, so axioms it holds already cost
+    /// nothing.
+    start: u64,
 }
 
 impl Build<'_> {
@@ -169,17 +184,30 @@ impl Build<'_> {
         self.within(id)
     }
 
-    /// Returns `id` where the arena keeps within the bound.
+    /// Returns `id` where the arena keeps within the bound on occurrences,
+    /// and what the axioms added within the memory bound, at
+    /// [`NODE_BYTES`] a node.
     fn within(&self, id: NodeId) -> Result<NodeId, Error> {
-        match self.limits.occurrences {
-            Some(limit) if self.formulas.len() as u64 > limit => {
-                Err(Error::Refused(Refusal::Occurrences {
-                    occurrences: limit.saturating_add(1),
-                    limit,
-                }))
-            }
-            _ => Ok(id),
+        let len = self.formulas.len() as u64;
+        if let Some(limit) = self.limits.occurrences
+            && len > limit
+        {
+            return Err(Error::Refused(Refusal::Occurrences {
+                occurrences: limit.saturating_add(1),
+                limit,
+            }));
         }
+        let held = len.saturating_sub(self.start).saturating_mul(NODE_BYTES);
+        if let Some(limit) = self.limits.memory_bytes
+            && held > limit
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Read,
+                limit_bytes: limit,
+                needed_bytes: Some(held),
+            }));
+        }
+        Ok(id)
     }
 
     /// Returns the atom `left = right`.
@@ -200,6 +228,19 @@ impl Build<'_> {
     /// Returns the congruence axiom of `symbol`, a predicate where
     /// `predicate` is set, else a function symbol, of `arity` ≥ 1.
     fn congruence(&mut self, symbol: Symbol, arity: u32, predicate: bool) -> Result<NodeId, Error> {
+        // The axiom adds at least its 2n binders, unless the arena has it,
+        // in which case a first call added them within the bound: so the
+        // variables are not made where the binders cannot fit.
+        let binders = u64::from(arity) * 2;
+        if let Some(limit) = self.limits.memory_bytes
+            && binders.saturating_mul(NODE_BYTES) > limit
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Read,
+                limit_bytes: limit,
+                needed_bytes: Some(binders.saturating_mul(NODE_BYTES)),
+            }));
+        }
         // Under the binders x₁ … xₙ y₁ … yₙ, yₙ innermost: xᵢ is the bound
         // variable 2n − i binders out, yᵢ the variable n − i.
         let xs: Vec<FoTermId> = (1..=arity).map(|i| self.variable(2 * arity - i)).collect();
@@ -367,5 +408,13 @@ mod tests {
                 structure.check(logic, &limits, |_| false).unwrap();
             }
         }
+        // A sequent augmented already, as the command hands it over,
+        // whose structure a bound leaves unchecked, is unknown.
+        let sequent: Sequent = "a = b, p(a) |- p(c)".parse().unwrap();
+        let with = with_axioms(&sequent, &limits).unwrap().unwrap();
+        let small = limits.with_work(Some(20));
+        let options = Options::default().with_logic(Logic::Classical);
+        let outcome = decide_within(&with, &options, &search, &small, |_| false).unwrap();
+        assert!(!matches!(outcome.verdict, Verdict::NotValid) || outcome.structure.is_some());
     }
 }

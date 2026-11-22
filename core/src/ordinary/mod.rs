@@ -948,11 +948,14 @@ impl Formulas {
         for ((name, arity), &predicate) in tables.symbols.iter().zip(&predicates) {
             // Equality is a binary predicate, which `FirstOrder::check`
             // has held it to; no identifier is its name.
-            if name != crate::first_order::EQUALS {
+            let equals = name == crate::first_order::EQUALS;
+            if !equals {
                 crate::name::check_ordinary(name)?;
             }
+            // `=` is a predicate though no atom uses it: interned as a
+            // function, it would refuse the atoms the axioms make.
             let symbol = fo
-                .symbol(name, *arity, predicate)
+                .symbol(name, *arity, predicate || equals)
                 .map_err(|fault| Error::Symbol {
                     name: name.clone(),
                     fault,

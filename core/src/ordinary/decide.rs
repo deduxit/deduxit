@@ -737,19 +737,39 @@ fn within(
     options: &Options,
     search: &search::Options,
     limits: &Limits,
-    mut stop: &mut dyn FnMut(Progress) -> bool,
+    stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     // A sequent with `=` is decided with the equality axioms as
-    // hypotheses. Valid with them is valid; "not valid" stands only on a
-    // checked structure, which reads `=` as identity.
-    if let Some(with) = super::equality::with_axioms(sequent, limits)? {
-        let mut outcome = within(&with, options, search, limits, stop)?;
-        if matches!(outcome.verdict, Verdict::NotValid) && outcome.structure.is_none() {
-            outcome.verdict = Verdict::Unknown(Reason::Incomplete);
-            outcome.countermodel = None;
-        }
-        return Ok(outcome);
+    // hypotheses, whoever added them (the command adds them as it reads).
+    // Valid with them is valid; "not valid" stands only on a checked
+    // structure, which reads `=` as identity.
+    if !sequent.formulas().has_equality() {
+        return dispatch(sequent, options, search, limits, stop);
     }
+    let with = super::equality::with_axioms(sequent, limits)?;
+    let mut outcome = dispatch(
+        with.as_ref().unwrap_or(sequent),
+        options,
+        search,
+        limits,
+        stop,
+    )?;
+    if matches!(outcome.verdict, Verdict::NotValid) && outcome.structure.is_none() {
+        outcome.verdict = Verdict::Unknown(Reason::Incomplete);
+        outcome.countermodel = None;
+    }
+    Ok(outcome)
+}
+
+/// Decides `sequent` by the method `options` choose, as [`within`] does
+/// once the equality axioms are among the hypotheses.
+fn dispatch(
+    sequent: &Sequent,
+    options: &Options,
+    search: &search::Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
     // At first order the embedding, the connection prover, grounding and
     // the model search decide: every other method refuses at its door.
     let method = options.method_for(sequent);

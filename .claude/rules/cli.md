@@ -1399,8 +1399,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`ordinary::equality::with_axioms`, within `--occurrence-limit`) to a
   sequent with `=` right after reading it, so every path of `prove`, the
   batch, `interact --logic` and `grade` decides or proves the one
-  sequent with them; `seq print` reads through `show::sequent_in` and
-  prints the sequent as written. A valid verdict line ends `, its last N
+  sequent with them; `seq print --logic` prints the image of that
+  sequent, the axioms included, which is what the search sees. A valid
+  verdict line ends `, its last N
   hypotheses the equality axioms` (`axioms_note`: `image_axioms` on the
   image path, `outcome_axioms` from the derivation on the native one,
   nothing for a clausal proof); a session's `close` passes 0.
@@ -1413,10 +1414,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   presence is the `CONJECTURE` static `proved` sets from the sequent
   read; `Timeout` is an unknown after the time limit counted from the
   wrapper's start, `User` one after Ctrl-C, `GaveUp` any other (a memory
-  bound included); an error's status is `SyntaxError` where
-  `Explained::of` finds `Error::Parse` or `Error::Tptp`, else `Error`,
-  the error itself still written to standard error. Refused beside a
-  batch and a format other than text.
+  bound included: the status sees the exit status, not the reason); an
+  error's status is `SyntaxError` where `Explained::of` finds
+  `Error::Parse` or `Error::Tptp`, `MemoryOut` for a memory refusal,
+  `ResourceOut` for another refusal, else `Error`, the error itself
+  still written to standard error. Refused beside a batch and a format
+  other than text. `CONJECTURE` is a process-wide `OnceLock`: one
+  `prove` per process, which is the binary's use.
 - **The first-order share** (`FIRST_ORDER_SHARE`, 90): where no method
   is given and the sequent's method is grounding or the connection
   prover, `first_order_share` starts a second deadline at 90% of the

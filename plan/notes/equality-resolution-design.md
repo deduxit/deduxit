@@ -129,7 +129,10 @@ sequent's, grounding grounds it. No method changes.
   classical default with the embedding's evidence, the image path, the
   race) decides one sequent and draws one derivation. A session starts
   with the axioms as hypotheses, which a proof by hand needs as well.
-- `seq print` and `seq json` print the sequent as written.
+- `seq print --logic` prints the image of the sequent decided, the axioms
+  included (as built: the first draft said the sequent as written, but
+  the image is what the search sees, and the command reads one sequent
+  for both).
 
 ### A5. How a derivation shows them
 
@@ -158,10 +161,14 @@ unchanged: it checks that the derivation derives its conclusion.
   quotient is a homomorphism onto a structure that makes every formula as
   true as before [M, Prop. 2.28], so the check of the quotient is the
   check of the verdict.
-- Every other "not valid" of an augmented sequent (none arises today: the
-  axioms give the connection prover slots, and the embedding is unknown
-  at first order) becomes `Unknown(Incomplete)` in `within`: no checked
-  identity structure, no verdict.
+- Every other "not valid" of a sequent with `=` becomes
+  `Unknown(Incomplete)`: in `within`, keyed on the sequent's `=` (the
+  command hands it a sequent it augmented already), and in grounding
+  where the structure's check or the solver's model is refused at a
+  bound. No checked identity structure, no verdict. (The argument
+  member of the panel found the first version keyed on whether `within`
+  itself augmented, which let grounding's unchecked "not valid" through
+  the command under `--work-limit 20`.)
 - In intuitionistic and minimal logic the axioms are sound [TvD], and a
   classical structure with `=` identity is a one-world Kripke model, so
   the same rule holds.

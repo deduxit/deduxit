@@ -273,6 +273,8 @@ fn szs_status(
         Ok(Status::Error) => "Error",
         Err(error) => match crate::Explained::of(error) {
             Some(deduxit::Error::Parse(_) | deduxit::Error::Tptp { .. }) => "SyntaxError",
+            Some(deduxit::Error::Refused(deduxit::Refusal::Memory { .. })) => "MemoryOut",
+            Some(deduxit::Error::Refused(_)) => "ResourceOut",
             _ => "Error",
         },
     }

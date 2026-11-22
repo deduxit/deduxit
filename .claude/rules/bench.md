@@ -60,7 +60,8 @@ serde_json, which the CLI and the core's tests already have.
   and a finding. A problem with `=` gets the equality axioms as its
   last hypotheses after loading (`ordinary::equality::with_axioms` in
   `tail`), whichever method runs, as the command decides it; files from
-  before 78a have `refused`/`equality` rows for those problems. The
+  before equality was read have `refused`/`equality` rows for those
+  problems. The
   embedding takes a first-order problem, and an unprovable image of one is
   an `unknown` row with the reason `incomplete` (`Searched::incomplete`),
   as `ordinary::decide` answers: mapped to `unprovable` it read a
@@ -631,8 +632,10 @@ serde_json, which the CLI and the core's tests already have.
   `ps` loop answered nothing before a second. Their wrapper sets `TPTP`
   to the library's root, two directories above the problem's real path,
   so a problem's includes resolve wherever the file is linked from.
-  They decide equality (axioms added), which deduxit refuses: a
-  comparison on deduxit's set leaves those problems out. 107 of ILTP's
+  They decide equality (axioms added), as deduxit does since it reads
+  `=`; the comparison of 2026-11-21 ran before that and left those
+  problems out, so a comparison with equality is a run of its own.
+  107 of ILTP's
   940 first-order problems without equality hold Latin-1 in comments,
   which deduxit reads as they are (the run of 2026-11-21 gave every tool
   those files converted, since the command refused them then).
