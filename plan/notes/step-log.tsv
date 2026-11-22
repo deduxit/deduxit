@@ -129,4 +129,6 @@ fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25	20
 fixup-23	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 19:05	2026-11-22 21:30	first-order defaults' open items
 77	step	-	-	-	-	-	2026-11-22 19:30	complete: first-order transformations, Herbrand, translations, interpolants, Glivenko's failure
 fixup-24	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-22 19:30	2026-11-22 22:45	shift spelling, Herbrand bounds
-78c	small	opus-5-5	high	reviewer (fable), panel if paramodulation lands	local_f223ef15	2026-11-22 19:50		equality measured against the provers, follow-ups, step 78 complete
+78c	small	opus-5-5	high	reviewer (fable), panel if paramodulation lands	local_f223ef15	2026-11-22 19:50	2026-11-23 00:10	equality measured against the provers, follow-ups, step 78 complete
+fixup-25	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 22:55		clausal normal form within its bounds
+78	step	-	-	-	-	-	2026-11-23 00:10	complete: equality by axioms and paramodulation, first-order resolution, cnf and SZS

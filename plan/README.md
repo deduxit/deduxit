@@ -8250,3 +8250,24 @@ move (D26).
   derivation that fits) fixed. Full check passed before the rebase onto fixup-23; the combined head
   goes through `push-ci`. **For later:** 77a's clausal normal form overruns its bounds on many
   hypotheses (1 500 reached 54 GB uncapped): a fixup.
+- 2026-11-22, about 22:55: **fixup-25 started** in fixup-23's worker: 77a's clausal normal form
+  within its time, work and memory bounds (fixup-24's finding).
+- 2026-11-23, about 00:10: **78c reviewed; step 78 complete once it lands.** 78c (Opus, high; the full
+  panel and the reviewer on Fable). The comparison on every fourth of ILTP's 1 730 equality problems
+  (433): leanCoP 134, nanoCoP 115, deduxit's connection prover 88 classically; iLeanCoP 90, nanoCoP-i
+  87, deduxit 32 intuitionistically; no verdict against a status. All of Otten's provers use the axioms
+  too, so the gap is the search: **no native rule in the connection prover** (`later.md`).
+  **Paramodulation in first-order resolution** (the default, `--equality axioms` the other), checked
+  by recomputing each rewrite, with reflexivity alone (Brand); `a = b ⊢ a = c` saturates at once. The
+  command adds the axioms where it decides (`resolve` and the transformations read the sequent as
+  written); `grade` accepts the axioms; linear text reads and writes `=`; grounding and the model
+  search stop at their bounds (100 s to 1.8 s on a 4 000-argument congruence). D19: the
+  intuitionistic connection prover shared before the embedding gained 36 and lost 28, so not taken
+  (a race in the command recorded in `later.md`). The panel and the reviewer found no unsound answer;
+  their findings (an eigenvariable skipped as a place, the walk unbounded and without the stop, a
+  step that counted places, the schema) fixed. `read-text`'s ceiling raised to 12 591 991 in a commit
+  of its own. **Accepted departures:** reflexivity alone beside paramodulation; the comparison on a
+  quarter of the problems. **For later:** `--method connection` on a 3 000-argument congruence runs
+  41 s and 2.6 GB at a 2 s limit (the matrix build asks no stop). Full check passed on fixup-23's head;
+  rebased onto fixup-24 without a conflict, the combined head through `push-ci`. **Step 78 complete.**
+  Next: step 80, the release of 0.8.0.
