@@ -62,6 +62,8 @@
 // existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+/// What moving or removing a binder does to de Bruijn indices.
+mod bruijn;
 pub mod connection;
 /// Deciding an ordinary sequent in one call.
 mod decide;

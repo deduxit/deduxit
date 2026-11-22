@@ -6,7 +6,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::promises::{
-    DECIDES, EQUISATISFIABLE, EQUIVALENT, EXACT, INTERPOLATES, PROVES, RENDERS, SAME_VERDICT,
+    DECIDES, EQUISATISFIABLE, EQUIVALENT, EQUIVALID, EXACT, INTERPOLATES, PROVES, RENDERS,
+    SAME_VERDICT,
 };
 use super::shared::{Term, Text};
 use super::{
@@ -188,6 +189,11 @@ fn form_of(operation: &str) -> Option<normal::Form> {
         "ordinary.dnf" => normal::Form::Dnf,
         "ordinary.tseitin" => normal::Form::Tseitin,
         "ordinary.plaisted_greenbaum" => normal::Form::PlaistedGreenbaum,
+        "ordinary.prenex" => normal::Form::Prenex,
+        "ordinary.miniscope" => normal::Form::Miniscope,
+        "ordinary.skolem" => normal::Form::Skolem,
+        "ordinary.herbrand" => normal::Form::Herbrand,
+        "ordinary.clausal" => normal::Form::Clausal,
         _ => return None,
     })
 }
@@ -394,6 +400,11 @@ static OPERATIONS: &[Operation] = &[
         &EQUISATISFIABLE,
         "Plaisted and Greenbaum's clauses",
     ),
+    normal_form("ordinary.prenex", &EQUIVALENT, "Prenex normal form"),
+    normal_form("ordinary.miniscope", &EQUIVALENT, "Miniscope form"),
+    normal_form("ordinary.skolem", &EQUISATISFIABLE, "Skolem normal form"),
+    normal_form("ordinary.herbrand", &EQUIVALID, "Herbrand normal form"),
+    normal_form("ordinary.clausal", &EQUISATISFIABLE, "Clausal normal form"),
     Operation {
         name: "ordinary.resolve",
         from: &[&["ordinary.sequent"]],
@@ -1225,7 +1236,9 @@ impl Suite for Ordinary {
                     ],
                 ))
             }
-            "equivalent" | "equisatisfiable" => normal_check(call, output, limits, ask, stop),
+            "equivalent" | "equisatisfiable" | "equivalid" => {
+                normal_check(call, output, limits, ask, stop)
+            }
             "certifies" => Ok(Check::whole(promise, Status::Outside)),
             _ => Ok(Check::whole(promise, Status::None)),
         }
@@ -1299,9 +1312,16 @@ fn normal_check(
             return Ok(Check::of(promise, parts));
         }
     };
+    // The SAT solver decides propositional claims; at first order the
+    // logic's default does.
+    let parameters = if input.formulas().is_first_order() {
+        ""
+    } else {
+        CLAIMS
+    };
     for (claim, sequent) in claims {
         let statement = write_statement(&sequent, Logic::Classical)?;
-        let verdict = verdict_of(&ask("ordinary.decide", &[&statement], CLAIMS)?)?;
+        let verdict = verdict_of(&ask("ordinary.decide", &[&statement], parameters)?)?;
         parts.push(part(claim.name(), verdict, Verdict::Valid));
     }
     Ok(Check::of(promise, parts))

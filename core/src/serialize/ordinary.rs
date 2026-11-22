@@ -1729,6 +1729,10 @@ struct StepForm {
     right: Vec<u32>,
     /// The clauses the step adds as hypotheses.
     added: Vec<u32>,
+    /// The term a Skolem or Herbrand step puts in, an index of the result's
+    /// terms (`fo.terms`); left out for every other step.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    term: Option<u32>,
 }
 
 /// The written form of a claim decided.
@@ -1736,6 +1740,10 @@ struct StepForm {
 struct CheckedForm<'a> {
     /// The claim.
     claim: crate::ordinary::normal::Claim,
+    /// The step whose law the claim is, by its index; left out for the
+    /// other claims.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    step: Option<usize>,
     /// The sequent whose validity is the claim.
     sequent: SequentForm,
     /// The sequent decided.
@@ -1743,12 +1751,18 @@ struct CheckedForm<'a> {
 }
 
 impl Serialize for crate::ordinary::normal::NormalForm {
-    /// Serializes the normal form as a document at level 21.
+    /// Serializes the normal form as a document at level 21, at 25 where
+    /// its sequents are first-order.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
         let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
+        let version = if self.result.formulas().is_first_order() {
+            wire::FORMS.max(wire::ORDINARY_TERMS)
+        } else {
+            wire::FORMS
+        };
         NormalFormForm {
-            version: wire::FORMS,
+            version,
             deduxit: env!("CARGO_PKG_VERSION"),
             form: self.form,
             promise: self.form.promise(),
@@ -1766,6 +1780,7 @@ impl Serialize for crate::ordinary::normal::NormalForm {
                     left: ids(&step.left),
                     right: ids(&step.right),
                     added: ids(&step.added),
+                    term: step.term.map(|t| t.index() as u32),
                 })
                 .collect(),
             checks: self
@@ -1773,6 +1788,7 @@ impl Serialize for crate::ordinary::normal::NormalForm {
                 .iter()
                 .map(|c| CheckedForm {
                     claim: c.claim,
+                    step: c.step,
                     sequent: form(&c.sequent),
                     outcome: NestedOutcome(&c.outcome),
                 })

@@ -30,6 +30,17 @@ second number (0.1.x to 0.2.0), anything else the third.
   `read_tptp`: a byte that is not UTF-8 in a `%` comment, where some of
   ILTP's problems write an author's name in Latin-1, is read, and one
   anywhere else is `Error::Tptp` naming its line.
+- **Normal forms at first order**: `seq normalize --to prenex`,
+  `miniscope`, `skolem`, `herbrand` and `clausal`, and `--to nnf` at first
+  order, every step shown; the protocol's `ordinary.prenex`,
+  `ordinary.miniscope`, `ordinary.skolem`, `ordinary.herbrand` and
+  `ordinary.clausal`. Each equivalence step's law is checked by its own
+  derivation, of LJ where the law holds in intuitionistic logic
+  (`normal::Rule::intuitionistic`, `normal::Claim::Law`); each Skolem or
+  Herbrand step's symbol is checked new and applied to exactly the
+  variables free in its quantifier (`normal::Step::term`), and the
+  result is checked to imply the input's negation (Skolem, clausal) or
+  to follow from the input (Herbrand, `normal::Promise::Equivalid`).
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
   `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
   recording its witness or eigenvariable (`Inference::term`).

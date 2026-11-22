@@ -456,6 +456,11 @@ const OPERATIONS: &[&str] = &[
     "ordinary.dnf",
     "ordinary.tseitin",
     "ordinary.plaisted_greenbaum",
+    "ordinary.prenex",
+    "ordinary.miniscope",
+    "ordinary.skolem",
+    "ordinary.herbrand",
+    "ordinary.clausal",
     "ordinary.resolve",
     "ordinary.term",
     #[cfg(feature = "svg")]
@@ -941,7 +946,14 @@ mod promises {
     pub(super) static EQUISATISFIABLE: Promise = Promise {
         name: "equisatisfiable",
         check: Some(Cost::Search),
-        description: "The output's clauses can be satisfied exactly when the input can be false: the input with the new atoms' definitions implies the clauses, and the clauses imply the input's negation.",
+        description: "The output's clauses can be satisfied exactly when the input can be false: the clauses imply the input's negation, and for an encoding the input with the new atoms' definitions implies the clauses, for Skolem's terms each new symbol stands for its quantifier's witness, which a structural check confirms.",
+    };
+
+    /// The output is valid exactly when the input is, its sides kept.
+    pub(super) static EQUIVALID: Promise = Promise {
+        name: "equivalid",
+        check: Some(Cost::Search),
+        description: "The output is valid exactly when the input is: the input implies the output side by side, and each new symbol stands for its quantifier's witness, which a structural check confirms.",
     };
 
     /// A term is well typed.

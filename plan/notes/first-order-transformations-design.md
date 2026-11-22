@@ -109,7 +109,15 @@ van Dalen §3.5 (the prenex lemmas), Troelstra and van Dalen,
 **Decision: each step of an equivalent form gets the derivation of its
 law instance, decided and checked; the whole result gets 70's claim.**
 - The instance is the closed sequent `⊢ ∀ȳ. (C ↔ C')`, `C` the node the
-  step rewrote, `C'` what replaced it, `ȳ` their free variables. It is
+  step rewrote, `C'` what replaced it, `ȳ` their free variables. (Built:
+  `⊢ C ↔ C'` with each free variable a new constant `c1`, … instead,
+  valid exactly when the closure is: the closure cost the intuitionistic
+  search copies and stopped at copy bound 3 on a distribution under
+  `∀`, departs from the design; the claim is decided with the copy bound
+  lifted, since it is valid in its logic by the law's table, the LJ
+  attempt within 2²⁰ units of work and LK past it, since one in twelve
+  generated clausal forms had a law the intuitionistic search did not
+  finish.) It is
   decided in intuitionistic logic where the law holds there (an LJ
   derivation, by the embedding or the intuitionistic connection prover),
   else in classical logic (an LK derivation, by the connection prover),

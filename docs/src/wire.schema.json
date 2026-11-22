@@ -3660,7 +3660,7 @@
       }
     },
     "normal_form": {
-      "description": "A classical sequent rewritten into a normal form (level 21, `seq normalize --format json`, written only): the form, what it promises, whether every claim of the promise was decided valid, the input, the result, the steps and the claims decided. A step's numbers are positions in the result's `formulas`.",
+      "description": "A classical sequent rewritten into a normal form (level 21, 25 where the sequents are first-order; `seq normalize --format json`, written only): the form, what it promises, whether every claim of the promise was decided valid, the input, the result, the steps and the claims decided. A step's numbers are positions in the result's `formulas`.",
       "type": "object",
       "required": [
         "version",
@@ -3688,13 +3688,19 @@
             "cnf",
             "dnf",
             "tseitin",
-            "plaisted-greenbaum"
+            "plaisted-greenbaum",
+            "prenex",
+            "miniscope",
+            "skolem",
+            "herbrand",
+            "clausal"
           ]
         },
         "promise": {
           "enum": [
             "equivalent",
-            "equisatisfiable"
+            "equisatisfiable",
+            "equivalid"
           ]
         },
         "checked": {
@@ -3721,7 +3727,7 @@
       }
     },
     "normal_step": {
-      "description": "A step of a normal form: the rule and its law, the subformula rewritten (every occurrence at once) and what replaces it, the input's formulas on each side after the step, and the clauses the step adds as hypotheses.",
+      "description": "A step of a normal form: the rule and its law, the subformula rewritten (every occurrence at once) and what replaces it, the input's formulas on each side after the step, the clauses the step adds as hypotheses, and for a Skolem or Herbrand step the term it puts in for the quantifier's variable, a position in the result's `fo.terms`.",
       "type": "object",
       "required": [
         "rule",
@@ -3752,7 +3758,24 @@
             "distribute-and",
             "negate",
             "define",
-            "true-hypothesis"
+            "true-hypothesis",
+            "not-forall",
+            "not-exists",
+            "forall-and",
+            "exists-and",
+            "forall-or",
+            "exists-or",
+            "forall-antecedent",
+            "exists-antecedent",
+            "forall-consequent",
+            "exists-consequent",
+            "equivalence-as-implications",
+            "forall-distribute",
+            "exists-distribute",
+            "vacuous",
+            "skolemize",
+            "herbrandize",
+            "split-conjunction"
           ]
         },
         "law": {
@@ -3772,11 +3795,14 @@
         },
         "added": {
           "$ref": "#/$defs/indices"
+        },
+        "term": {
+          "$ref": "#/$defs/index"
         }
       }
     },
     "normal_check": {
-      "description": "A claim of a normal form's promise decided: its name, the classical sequent whose validity is the claim, and its outcome.",
+      "description": "A claim of a normal form's promise decided: its name, the step whose law it is (for `law`), the sequent whose validity is the claim (classical, but for a law that holds intuitionistically), and its outcome.",
       "type": "object",
       "required": [
         "claim",
@@ -3789,8 +3815,13 @@
           "enum": [
             "equivalent",
             "extends",
-            "restricts"
+            "restricts",
+            "law",
+            "implied"
           ]
+        },
+        "step": {
+          "$ref": "#/$defs/index"
         },
         "sequent": {
           "$ref": "#/$defs/nested_ordinary_sequent"

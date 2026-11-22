@@ -799,7 +799,15 @@ pub fn clauses_of(
         Form::Tseitin | Form::PlaistedGreenbaum => {
             normal::normalize(sequent, &options, search, limits, &mut stop)?
         }
-        Form::Nnf | Form::Dnf => {
+        // Resolution is propositional here: the clausal form's clauses
+        // have variables, which only a first-order resolution reads.
+        Form::Nnf
+        | Form::Dnf
+        | Form::Prenex
+        | Form::Miniscope
+        | Form::Skolem
+        | Form::Herbrand
+        | Form::Clausal => {
             return Err(Error::InvalidOption {
                 key: "clauses",
                 message: format!(

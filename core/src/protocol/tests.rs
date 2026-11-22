@@ -175,6 +175,37 @@ fn a_normal_form_keeps_its_promise_and_its_check_says_so() {
     ));
 }
 
+/// The first-order forms are edges between two sequents too, and their
+/// checks hold a right output and fail a wrong one.
+#[test]
+fn a_first_order_normal_form_keeps_its_promise() {
+    let classical = crate::ordinary::Logic::Classical;
+    let sequent = ordinary(
+        "forall x. exists y. r(x, y) |- exists z. r(a, z)",
+        classical,
+    );
+    let limits = settings().limits;
+    for (operation, written) in [
+        ("ordinary.prenex", "∀x. ∃y. r(x, y) ⊢ ∃z. r(a, z)"),
+        ("ordinary.miniscope", "∀x. ∃y. r(x, y) ⊢ ∃z. r(a, z)"),
+        ("ordinary.skolem", "∀x. r(x, sk1(x)), ∀z. ¬r(a, z) ⊢"),
+        ("ordinary.herbrand", "∀x. r(x, sk1(x)) ⊢ ∃z. r(a, z)"),
+        ("ordinary.clausal", "∀x. r(x, sk1(x)), ∀z. ¬r(a, z) ⊢"),
+    ] {
+        let output = ran(operation, &[&sequent], "");
+        assert_eq!(
+            summary("ordinary.sequent", &output, &limits).unwrap(),
+            written,
+            "{operation}"
+        );
+        let check = checked(operation, &[&sequent], "", &output);
+        assert_eq!(check.status, Status::Held, "{operation}");
+        let wrong = ordinary("forall x. p(x) |-", classical);
+        let check = checked(operation, &[&sequent], "", &wrong);
+        assert_eq!(check.status, Status::Failed, "{operation}");
+    }
+}
+
 /// A resolution decides a sequent's clauses by either method; its check
 /// holds the clauses to the input's and the refutation or model to the
 /// clauses, and fails a refutation changed after it was made.

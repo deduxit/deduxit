@@ -1992,6 +1992,65 @@ decided not valid is `Error::ClaimFails` (kind defect).
   `sat` is on, else the classical default; the classical default with
   `sat` would also run the embedding for a derivation, which costs the
   embedding's search.
+- **At first order** (step 77a, `plan/notes/first-order-transformations-design.md`):
+  - `Form::takes_first_order`: `nnf`, `prenex`, `miniscope`, `skolem`,
+    `herbrand`, `clausal`; `cnf`, `dnf`, `tseitin` and
+    `plaisted-greenbaum` keep the propositional door.
+  - **The propositional laws apply under binders unchanged**: an open
+    subformula is one node at every depth (de Bruijn), and an
+    equivalence of open formulas holds under every value of its free
+    variables, so `substitute` replaces it everywhere (rebuilding a
+    binder by `add_like`, which keeps its name).
+  - **A quantifier law moves a binder and shifts indices** (`bruijn.rs`:
+    `lifted`, `lowered`, `substituted`, `free_variables`, iterative and
+    memoised per node and depth): out of a junction the other operand is
+    lifted by one; in, the operand that does not mention the binder
+    (`mentions_binder`, no outside index 0) is lowered by one, which is
+    the textbook side condition "`x` not free in `B`".
+    `quantifier_law` is the table, `apply_quantifier` what it makes; the
+    same `Rule` serves both directions, the node's shape telling which.
+  - **Prenex** splits `↔` into implications first (`Stage::Iffs`) and
+    keeps `→`, so more steps hold in LJ; **miniscoping** runs NNF, then
+    `Stage::Inward` (vacuous first, then distribution, then the
+    side-conditioned shifts). Behmann's `∨`-over-`∧` distribution is no
+    part of it.
+  - **Skolem, Herbrand, clausal** (`skolemized`): Skolem and clausal
+    move the right side left negated, then NNF, then `Run::strong`
+    replaces each strong quantifier, the outermost first, by
+    `sk{n}(x̄)`, `x̄` all the variables free in the quantified node, the
+    outermost first (inner Skolemization). Equal nodes are one node and
+    share their symbol (δ⁺⁺); one symbol per variable name was unsound
+    (grounding's SYN316+1 witness), so never key by name. Herbrand keeps
+    the sides: `∃` strong left of `⊢`, `∀` right, each side substituted
+    on its own roots (a node shared between the sides is strong on one
+    side only). The clausal form then pulls the `∀`s out
+    (`Outward { universal }`), runs constants and distribution under the
+    prefix, `Stage::Split` gives each clause its own prefix, and
+    `Run::hypotheses` splits the conjunctions into hypotheses.
+  - **The checks**: every equivalence step of a first-order sequent gets
+    `Claim::Law` (`law_claim`: `⊢ C ↔ C'`, each free variable a new
+    constant `c{n}`, valid exactly when its universal closure is; the
+    closure cost the intuitionistic search copies and stopped at copy 3,
+    departs from the design), decided in LJ where `Rule::intuitionistic`
+    says the law holds there, else in LK, with the copy bound lifted
+    (the claim is valid in its logic by the table, so the deepening
+    ends; the call's limits still bound it). The LJ attempt has its own
+    work, `LAW_WORK` (2²⁰), and past it the claim is decided in LK: an
+    intuitionistic search that did not end (a vacuous `∀` over a closed
+    formula of a few `↔`, the review of 77a) starved every claim after
+    it. Skolem and clausal check `skolem_fresh` (first `replay`: the
+    steps made again from the input in the result's arena, each
+    equivalence its law where the law applies, each Skolem term's
+    symbol absent from the sequent before it, each move the move, the
+    last sequent the result; a result set by hand passed before, the
+    review's witness; then the symbol new, applied to exactly the free
+    variables in order, the step's `after` what `substituted` makes) and
+    `Restricts`; Herbrand checks `skolem_fresh` and `Claim::Implied`
+    (`(∧Γ → ∨Δ) ⊢ (∧Γ' → ∨Δ')`). Extends has no derivation at first
+    order (choice): it rests on `skolem_fresh`. First-order claims go to
+    the classical default (the SAT solver refuses them), the protocol's
+    too. `transfer` rebuilds the input by symbol names, terms first, so
+    a result read from JSON is judged as it is.
 
 ## Resolution and DPLL (`resolution/`)
 
