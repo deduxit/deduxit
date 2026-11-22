@@ -946,3 +946,63 @@ false texts, fixed in `vupwskro`:
 - `nix flake check` under the machine lock at the report's commit
   (02:57 to 03:06), on the chain rebased onto `main@origin`: every check
   passed. Only this line changed after.
+
+## Session fixup-17: one TPTP decoder
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c, fixup-15 and fixup-16), cores 10 to 12,
+from fixup-16's recommendation, decided by the planning session
+unattended. Nothing was pushed.
+
+### What landed
+
+- `zvpusorn`: **`ordinary::tptp_text(&[u8]) -> Result<Cow<str>,
+  Error>`** (feature `parse`, beside `read_tptp`): a file's text for
+  `read_tptp`, UTF-8 borrowed as it is, a byte that is no UTF-8 in a `%`
+  comment read as U+FFFD, one elsewhere `Error::Tptp` ("line N holds a
+  byte that is not UTF-8 outside a comment", kind malformed, code
+  `tptp`). The command's `io::read_tptp` and the harness's `text_of`
+  call it and lose their copies. Its doc comment has an example that
+  runs; the crate docs' feature list, the guide's library section, the
+  changelog's Added and the rules name it.
+- **The shape departs from the brief's `read_tptp_bytes(bytes,
+  limits)`**, as the brief allowed when argued: both callers inline a
+  file's `include('NAME').` lines between decoding and parsing, from
+  files the library cannot read (it reads none), so a function from
+  bytes to a `Problem` would serve neither; the decoding is the shared
+  step. A library user writes `read_tptp(&tptp_text(&bytes)?, &limits)`.
+  `Cow` keeps the common case (UTF-8) a borrow; the name says what it
+  returns, as `read_tptp` says what it reads.
+- **`breaks 0.7.0`**: the diff of both public APIs names the change once,
+  under Added (`pub fn deduxit::ordinary::tptp_text(&[u8]) -> …`); its
+  one semver failure is the quantifiers' new variants of `Node` and
+  `Rule`, already in the changelog's breaking list.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`) at `zvpusorn`. Decoding is
+identical: the removed copy against `tptp_text` on 2 million random byte
+strings, equal text on every accepted one, borrowed exactly when UTF-8,
+every refusal `Error::Tptp`, no panic. The argument for the shape held
+(a bytes-to-`Problem` call could not sit between decoding and the
+callers' inlining of includes), the doc example ran, and the public API
+changed by the one addition. Two findings:
+- **The refusal gained the library error's prefix**: `cannot read FILE:
+  not a TPTP problem: line 2 holds …` where it read `cannot read FILE:
+  line 2 holds …`, and a batch's record for such an entry now carries
+  the library's `error` object (code `tptp`, kind malformed). Kept: it is
+  the library's kind of error the brief asked for, and the old line was
+  never released (fixup-16's reading is under Unreleased); no lock file
+  or manual page quotes it.
+- **"stands as"** in the public doc comment, which `writing.md` lists:
+  now "is read as", in `zvpusorn`.
+
+### Checks
+
+- `cargo test --workspace` (the doc example among them) and `cargo
+  clippy --workspace --all-targets -- --deny warnings`; the gate passed
+  (`ordinary-pigeons` +1.88 %, within the tolerance); `breaks 0.7.0` as
+  above.
+- `nix flake check` under the machine lock at the report's commit, on
+  the chain rebased onto `main@origin`: every check passed. Only this
+  line changed after.
