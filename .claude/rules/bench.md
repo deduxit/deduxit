@@ -981,6 +981,9 @@ serde_json, which the CLI and the core's tests already have.
   (verdicts, not times), split by logic and method so that each file is
   under jj's 1 MiB snapshot limit. The tables, and the verdicts against
   both statuses of every file, are in step 78's report.
+  `equality-iltp-rebased-LOGIC-{auto,models}.csv` are the default and the
+  model search again on the code after the model search landed, the
+  machine under load from another session's flake check.
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the
