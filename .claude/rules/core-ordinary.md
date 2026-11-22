@@ -556,6 +556,14 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   `prove --work-limit 20 'a = b, p(a) |- p(c)'` said "not valid" with an
   unchecked structure). The axioms give the connection prover slots, so
   it never refutes, and the embedding is unknown at first order.
+- **No Kripke countermodel with `=`**: the model search tries no Kripke
+  model for a sequent with `=` (`least` above every level), since a
+  world reads `=` as an atom, and `within` drops `outcome.kripke` with
+  any other "not valid" it turns unknown. A Kripke model whose worlds
+  read `=` as identity (or a congruence growing along the order, the
+  usual semantics of intuitionistic equality) is a follow-up; with
+  identity alone `a = b ∨ ¬a = b` holds in every model, so identity
+  worlds would refute less than the axioms leave open.
 - **The linear reader takes `=` too** (`serialize/sequents.rs`,
   `FirstOrder::check`, shared): the embedding's image carries the
   ordinary tables verbatim, `=` among them, and the ordinary outcome

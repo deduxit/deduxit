@@ -208,9 +208,16 @@ fn run(
     };
     // Minimal logic's `⊥` makes a model of one world more than a finite
     // structure, which forces it nowhere.
-    let least = match logic {
-        Logic::Minimal => 1,
-        Logic::Classical | Logic::Intuitionistic => 2,
+    // With `=` no Kripke model is tried: a model's worlds read `=` as an
+    // atom, and "not valid" with `=` stands only on a structure that
+    // reads it as identity.
+    let least = if sequent.formulas().has_equality() {
+        u32::MAX
+    } else {
+        match logic {
+            Logic::Minimal => 1,
+            Logic::Classical | Logic::Intuitionistic => 2,
+        }
     };
     for level in 1..=most.max(worlds) {
         // A Kripke model, on a pair not tried yet.

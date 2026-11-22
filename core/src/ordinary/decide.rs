@@ -757,6 +757,7 @@ fn within(
     if matches!(outcome.verdict, Verdict::NotValid) && outcome.structure.is_none() {
         outcome.verdict = Verdict::Unknown(Reason::Incomplete);
         outcome.countermodel = None;
+        outcome.kripke = None;
     }
     Ok(outcome)
 }
