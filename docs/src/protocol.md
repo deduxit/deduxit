@@ -57,6 +57,7 @@ text, quick to make again.
 | `ordinary.derivation` | a derivation of LK or LJ | the derivation's JSON |
 | `ordinary.interpolant` | a Craig interpolant and its two halves | `{"logic", "partition", "outcome", "interpolant"}` |
 | `ordinary.resolution` | the clauses of a sequent's negation decided: a refutation or a model | the document of `resolve --format json` |
+| `ordinary.instances` | ground instances of a sequent's clauses that have no model, with the derivation of LK they give | the document of `herbrand --format json` |
 | `rules.calculus` | a calculus | the rule file |
 | `rules.sequent` | a sequent to derive in a calculus | `{"goal", "assumptions"}`, text the calculus reads |
 | `rules.session` | a derivation in progress | the session's JSON |
@@ -116,6 +117,7 @@ promises something of its output and says what checking that costs.
 | `ordinary.herbrand` | `ordinary.sequent` | `ordinary.sequent` | equivalid |
 | `ordinary.clausal` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
 | `ordinary.resolve` | `ordinary.sequent` | `ordinary.resolution` | decides |
+| `ordinary.instances` | `ordinary.sequent` | `ordinary.instances` | decides |
 | `ordinary.term` | a session or a derivation | `term` | renders |
 | `ordinary.draw` | a session, a derivation or an outcome | `drawing` | renders |
 | `ordinary.export` | a session or a derivation | `text` | renders |

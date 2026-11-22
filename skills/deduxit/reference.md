@@ -1406,7 +1406,10 @@ agree. `--by kolmogorov` (the default) or `godel-gentzen` reach minimal
 logic, `kuroda` or `glivenko` intuitionistic logic. `--to
 intuitionistic|minimal` names the target, and a target a translation
 does not reach is an error. The exit status is 0 where both verdicts
-are valid, 1 where neither is, 3 for unknown.
+are valid, 1 where neither is, 3 for unknown. At first order Kuroda's
+puts `¬¬` after every `∀` and Gödel and Gentzen's writes `∃x. A` as
+`¬∀x. ¬A`; `glivenko` refuses a first-order sequent (exit 2), since its
+theorem fails there.
 
 `deduxit interpolate SEQUENT` finds a Craig interpolant of a valid
 sequent and checks it: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂` are decided again,
@@ -1471,6 +1474,36 @@ every formula is equivalent to its normal form: valid, a checked clausal proof
 "result", "steps", "checks"}`, each step's `before` and `after` numbers
 of the result's `formulas`, a Skolem step's `term` a number of its
 terms, a law's check with its `step`.
+
+### Herbrand's theorem
+
+`deduxit herbrand SEQUENT` proves a first-order sequent of classical
+logic from ground instances of the clauses of its negation (the clausal
+form above): closed terms up to `--depth N` (3 by default, `none` for no
+bound; a constant is of depth 0) go in for the clauses' variables, the
+SAT solver refutes the instances, and the instances it needs are kept.
+From them a derivation of LK of the sequent as written is built (each
+Skolem term an eigenvariable again) and checked. Exit 0 for valid, 3 for
+unknown: a sequent that is not valid never gets instances that refute
+it, so the search ends at the depth; `prove --logic classical` refutes
+it where it can.
+
+```console
+$ deduxit herbrand 'forall x. p(x) |- p(f(a))'
+Clausal normal form: ∀x. p(x), ¬p(f(a)) ⊢
+1. p(f(a)) moves left of ⊢ as ¬p(f(a))
+Instances of terms up to depth 1 (2 terms), 2 of 3 kept:
+  p(f(a))   clause 1, x := f(a)
+  ¬p(f(a))  clause 2
+They have no model: the SAT solver's clausal proof is checked.
+valid (classical logic by Herbrand's theorem): a checked derivation of LK (5 inferences) built from the instances
+```
+
+`--format json` writes a document at wire level 28: `{"version",
+"deduxit", "verdict", "sequent", "clausal", "depth", "ground",
+"instances", "refutation", "derivation", "statistics"}`, each instance
+its `clause`, `terms` (numbers of `ground`'s terms) and `formula`, and
+for `valid` the derivation of LK.
 
 ### Resolution and DPLL
 

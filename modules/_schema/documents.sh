@@ -186,6 +186,8 @@ run clause_resolution-saturation 0 "$deduxit" resolve "${t[@]}" --format json 'a
 run clause_resolution-dpll 0 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b, ~a |- b'
 run clause_resolution-satisfiable 1 "$deduxit" resolve "${t[@]}" --method dpll --format json 'a \/ b |- a'
 run clause_resolution-unknown 3 "$deduxit" resolve "${t[@]}" --step-limit 1 --format json 'a -> b, b -> c |- a -> c'
+run herbrand-valid 0 "$deduxit" herbrand "${t[@]}" --format json '|- exists x. (p(x) -> forall y. p(y))'
+run herbrand-unknown 3 "$deduxit" herbrand "${t[@]}" --depth 1 --format json 'forall x. (p(x) -> p(f(x))) |- p(a)'
 # Lambda-terms: a term checked, well typed and not; a type with a term
 # and one without; a type's terms counted exactly, infinitely many, and
 # at least as many as a shallow search met.

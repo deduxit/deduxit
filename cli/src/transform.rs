@@ -1,12 +1,13 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! `seq translate`, `seq normalize` and `interpolate`: transformations of
-//! ordinary sequents, each with its claim checked by the library before it
-//! is printed.
+//! `seq translate`, `seq normalize`, `interpolate` and `herbrand`:
+//! transformations of ordinary sequents, each with its claim checked by
+//! the library before it is printed.
 
 use crate::argument_parsing::{
-    AnswerFormat, FormArg, InterpolateArgs, NormalizeArgs, TransformArgs, TranslateArgs,
+    AnswerFormat, FormArg, HerbrandArgs, InterpolateArgs, NormalizeArgs, TransformArgs,
+    TranslateArgs,
 };
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
@@ -14,6 +15,7 @@ use crate::settings::{Given, time_limit};
 use crate::{Status, catch_interrupt, interrupted, io};
 use anyhow::{Result, bail};
 use deduxit::linear::search::{Jobs, Reason};
+use deduxit::ordinary::herbrand::{self, Herbrand};
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative::{self, Agreement};
 use deduxit::ordinary::normal::{self, NormalForm, Rule};
@@ -283,6 +285,129 @@ pub(crate) fn interpolate(args: &InterpolateArgs, given: &Given) -> Result<Statu
     };
     io::write(args.common.output.as_deref(), &text)?;
     Ok(status)
+}
+
+/// Runs `herbrand`: searches for ground instances of the sequent's clauses
+/// that have no model, and prints the clausal form, the instances and the
+/// verdict. Returns the exit status: yes for a valid sequent, unknown
+/// otherwise.
+///
+/// # Errors
+///
+/// An input that cannot be read, a bound that refuses the clausal form or
+/// the instances, a derivation the checker rejects (a defect), an output
+/// that cannot be written.
+pub(crate) fn herbrand(args: &HerbrandArgs, given: &Given) -> Result<Status> {
+    let (settings, sequent, deadline) = start(&args.common, given)?;
+    let options = herbrand::Options::default().with_depth(args.depth.0);
+    let found = on_large_stack(settings.limits.stack_bytes(), || {
+        herbrand::herbrand(&sequent, &options, &settings.limits, |_| {
+            interrupted() || deadline.passed()
+        })
+    })?;
+    let found = match found {
+        Ok(found) => found,
+        Err(Error::Refused(Refusal::Stopped { .. })) => {
+            return unknown(&args.common, &Stop::why(stopped(&deadline)));
+        }
+        Err(error @ Error::Refused(Refusal::Form { .. })) => {
+            bail!("{error}; raise the limit with --settings and limits.form_occurrences")
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let status = match found.verdict {
+        Verdict::Valid(_) => Status::Yes,
+        _ => Status::Unknown,
+    };
+    let text = match args.common.format {
+        AnswerFormat::Json => serde_json::to_string(&found)?,
+        AnswerFormat::Text => herbrand_text(&found, &deadline)?,
+    };
+    io::write(args.common.output.as_deref(), &text)?;
+    Ok(status)
+}
+
+/// Returns the text of Herbrand's theorem applied: the clausal form and
+/// its steps, the instances with their terms, and the verdict.
+///
+/// # Errors
+///
+/// None in practice: writing into a string does not fail.
+fn herbrand_text(found: &Herbrand, deadline: &Deadline) -> Result<String> {
+    let mut text = steps_text(&found.clausal, deadline)?;
+    text.push('\n');
+    let refuted = found
+        .refutation
+        .as_ref()
+        .is_some_and(|r| matches!(r.verdict, Verdict::Valid(_)));
+    let terms = format!(
+        "terms up to depth {} ({} term{})",
+        found.depth,
+        found.statistics.terms,
+        if found.statistics.terms == 1 { "" } else { "s" }
+    );
+    if refuted {
+        writeln!(
+            text,
+            "Instances of {terms}, {} of {} kept:",
+            found.instances.len(),
+            found.statistics.instances
+        )?;
+        let formulas = found.ground.formulas();
+        let shown: Vec<String> = found
+            .instances
+            .iter()
+            .map(|i| formulas.formula(i.formula).to_string())
+            .collect();
+        let width = shown.iter().map(|s| s.chars().count()).max().unwrap_or(0);
+        for (instance, shown) in found.instances.iter().zip(&shown) {
+            let bindings: Vec<String> = found
+                .bindings(instance)
+                .into_iter()
+                .map(|(name, term)| format!("{name} := {term}"))
+                .collect();
+            let pad = width - shown.chars().count();
+            let mut line = format!("  {shown}{:pad$}  clause {}", "", instance.clause + 1);
+            if !bindings.is_empty() {
+                write!(line, ", {}", bindings.join(", "))?;
+            }
+            writeln!(text, "{}", line.trim_end())?;
+        }
+        writeln!(
+            text,
+            "They have no model: the SAT solver's clausal proof is checked."
+        )?;
+    }
+    let line = match &found.verdict {
+        Verdict::Valid(Evidence::Derivation(d)) => {
+            let n = d.inferences().len();
+            format!(
+                "valid (classical logic by Herbrand's theorem): a checked derivation of LK ({n} \
+                 inference{}) built from the instances",
+                if n == 1 { "" } else { "s" }
+            )
+        }
+        Verdict::Valid(_) => {
+            "valid (classical logic by Herbrand's theorem): the instances' checked \
+                              clausal proof; a limit refused the derivation of LK"
+                .to_owned()
+        }
+        Verdict::Unknown(Reason::WitnessDepth { .. }) => format!(
+            "unknown: the {} instances of {terms} have a model; raise --depth, or decide the \
+             sequent with prove --logic classical",
+            found.statistics.instances
+        ),
+        Verdict::Unknown(Reason::Incomplete) => format!(
+            "unknown: the {} instances over every term of its universe have a model, so no \
+             instances refute it; prove --logic classical decides it",
+            found.statistics.instances
+        ),
+        Verdict::Unknown(Reason::Stopped) => format!("unknown: {}", Stop::why(stopped(deadline))),
+        Verdict::Unknown(reason) => format!("unknown: {reason}"),
+        _ => "decided".to_owned(),
+    };
+    text.push_str(&line);
+    Ok(text)
 }
 
 /// Reads the settings and the sequent, and starts the time limit.

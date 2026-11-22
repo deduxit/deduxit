@@ -743,6 +743,7 @@ mod tests {
             .unwrap(),
             Command::Interpolate(args) => args.common.settings(&given).unwrap(),
             Command::Resolve(args) => args.common.settings(&given).unwrap(),
+            Command::Herbrand(args) => args.common.settings(&given).unwrap(),
             Command::Seq {
                 command: crate::argument_parsing::SeqCommand::Translate(args),
             } => args.common.settings(&given).unwrap(),
@@ -992,6 +993,7 @@ mod tests {
             &["deduxit", "seq", "translate", "a"],
             &["deduxit", "seq", "normalize", "a"],
             &["deduxit", "interpolate", "a |- a"],
+            &["deduxit", "herbrand", "a |- a"],
             &[
                 "deduxit",
                 "workspace",
@@ -1012,6 +1014,7 @@ mod tests {
                 Command::Eliminate(args) => drop(args.settings(&given).unwrap()),
                 Command::Interpolate(args) => drop(args.common.settings(&given).unwrap()),
                 Command::Resolve(args) => drop(args.common.settings(&given).unwrap()),
+                Command::Herbrand(args) => drop(args.common.settings(&given).unwrap()),
                 Command::Seq {
                     command: crate::argument_parsing::SeqCommand::Translate(args),
                 } => drop(args.common.settings(&given).unwrap()),

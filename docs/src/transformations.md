@@ -4,7 +4,9 @@ deduxit turns a sequent of [ordinary logic](ordinary-logic.md) into
 another and checks what the change promises before it prints the
 result. Three changes are built: the negative translations of classical
 logic into intuitionistic and minimal logic, the normal forms of
-classical formulas, and Craig interpolants.
+classical formulas, and Craig interpolants. Herbrand's theorem builds on
+the clausal form: it proves a first-order sequent from ground instances
+of its clauses.
 
 ## Translate classical logic into a weaker one
 
@@ -26,8 +28,8 @@ The verdicts agree, as Kolmogorov's translation claims.
 | `--by` | what it does | the logic it reaches |
 |---|---|---|
 | `kolmogorov` (the default) | `¬¬` before every subformula | minimal logic |
-| `godel-gentzen` | `¬¬` before every atom, and `A ∨ B` as `¬(¬A ∧ ¬B)` | minimal logic |
-| `kuroda` | `¬¬` before every formula of the sequent | intuitionistic logic |
+| `godel-gentzen` | `¬¬` before every atom, `A ∨ B` as `¬(¬A ∧ ¬B)` and `∃x. A` as `¬∀x. ¬A` | minimal logic |
+| `kuroda` | `¬¬` before every formula of the sequent and after every `∀` | intuitionistic logic |
 | `glivenko` | `¬¬` before the formula right of `⊢` | intuitionistic logic |
 
 Several formulas right of `⊢` are translated as their disjunction. In
@@ -43,6 +45,20 @@ classical logic: valid, a checked derivation of LK (4 inferences)
 intuitionistic logic: valid, a checked derivation of LJ (16 inferences)
 The verdicts agree, as Glivenko's translation claims.
 ```
+
+The first three translate first-order sequents too:
+
+```console
+$ deduxit seq translate --by kuroda 'forall x. p(x) |- exists y. p(y)'
+Kuroda's translation into intuitionistic logic: ¬¬(∀x. ¬¬p(x)) ⊢ ¬¬(∃y. p(y))
+classical logic: valid, a checked derivation of LK (5 inferences)
+intuitionistic logic: valid, a checked derivation of LJ (12 inferences)
+The verdicts agree, as Kuroda's translation claims.
+```
+
+Glivenko's theorem fails at first order, so `--by glivenko` refuses a
+first-order sequent: `⊢ ∀x. (p(x) ∨ ¬p(x))` holds classically, but its
+double negation does not hold intuitionistically.
 
 `--to intuitionistic` translates by Kolmogorov's or Gödel and Gentzen's
 translation into intuitionistic logic, which proves what minimal logic
@@ -217,6 +233,57 @@ when the sequent can be false. The exit status is 0 where the check
 passes, 3 where a limit stopped it and 2 for an error. A claim found
 false would be a defect of deduxit, and is an error.
 
+## Prove a first-order sequent by Herbrand's theorem
+
+A first-order sequent is valid in classical logic exactly when finitely
+many ground instances of its clauses have no model (Herbrand's theorem).
+`herbrand` makes the clausal form, puts closed terms for the clauses'
+variables, the constants first and then each function applied to them,
+and has the SAT solver decide the instances at each depth. It prints
+the instances it needs, and the derivation of LK of the sequent it
+builds from them:
+
+```console
+$ deduxit herbrand 'forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(a)))'
+Clausal normal form: ∀x. (¬p(x) ∨ p(f(x))), p(a), ¬p(f(f(a))) ⊢
+1. p(f(f(a))) moves left of ⊢ as ¬p(f(f(a)))
+2. A → B ≡ ¬A ∨ B:
+   ∀x. (¬p(x) ∨ p(f(x))), p(a), ¬p(f(f(a))) ⊢
+Instances of terms up to depth 1 (2 terms), 4 of 4 kept:
+  ¬p(a) ∨ p(f(a))        clause 1, x := a
+  ¬p(f(a)) ∨ p(f(f(a)))  clause 1, x := f(a)
+  p(a)                   clause 2
+  ¬p(f(f(a)))            clause 3
+They have no model: the SAT solver's clausal proof is checked.
+valid (classical logic by Herbrand's theorem): a checked derivation of LK (18 inferences) built from the instances
+```
+
+deduxit checks the solver's clausal proof, keeps only the instances the
+solver needs, and builds the derivation from them: each Skolem term of
+the clausal form becomes an eigenvariable again, and the terms of the
+instances are the witnesses of `∀` left of `⊢` and `∃` right of it.
+deduxit's checker accepts the derivation before the verdict is printed,
+so the verdict does not rest on the clausal form. `--format json` holds
+the derivation.
+
+`--depth` bounds the terms, 3 by default (a constant is of depth 0). A
+sequent that is not valid has no such instances, so the search ends
+unknown at the depth:
+
+```console
+$ deduxit herbrand 'forall x. (p(x) -> p(f(x))) |- p(a)'; echo "exit $?"
+Clausal normal form: ∀x. (¬p(x) ∨ p(f(x))), ¬p(a) ⊢
+1. p(a) moves left of ⊢ as ¬p(a)
+2. A → B ≡ ¬A ∨ B:
+   ∀x. (¬p(x) ∨ p(f(x))), ¬p(a) ⊢
+unknown: the 5 instances of terms up to depth 3 (4 terms) have a model; raise --depth, or decide the sequent with prove --logic classical
+exit 3
+```
+
+`prove --logic classical` refutes such a sequent where it can, with a
+checked finite structure. The exit status is 0 for a valid sequent, 3
+for unknown and 2 for an error.
+
 ## Find an interpolant
 
 Split a valid sequent into two halves. An interpolant is a formula `I`
@@ -286,7 +353,12 @@ countermodels, and `agreement`, which is `valid`, `not_valid` or
 `unknown`. `interpolate` writes `{"version", "deduxit", "logic",
 "partition", "outcome", "interpolant"}`: the positions of the first half,
 the sequent's outcome, and the interpolant's `text` with its `first` and
-`second` halves, each a `sequent` with its `outcome`.
+`second` halves, each a `sequent` with its `outcome`. `herbrand` writes level 28: `{"version", "deduxit", "verdict",
+"sequent", "clausal", "depth", "ground", "instances", "refutation",
+"derivation", "statistics"}`, the clausal form's `result` and `steps`
+as a normal form has them, the instances as the sequent `ground` and
+each instance's `clause`, `terms` and `formula`, the SAT solver's
+outcome on them, and the derivation of LK.
 
 In a program, `deduxit::ordinary::normal::normalize`,
 `deduxit::ordinary::negative::compare` and

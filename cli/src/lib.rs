@@ -316,6 +316,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
         Command::Interact(args) => interact::interact(args, given),
         Command::Interpolate(args) => transform::interpolate(args, given),
         Command::Resolve(args) => resolve::resolve(args, given),
+        Command::Herbrand(args) => transform::herbrand(args, given),
         Command::Seq { command } => seq::run(command, given),
         Command::Term { command } => term::run(command, given),
         Command::Workspace { command } => workspace::run(command, given),

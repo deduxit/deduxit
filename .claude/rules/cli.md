@@ -547,6 +547,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   valid, 3 unknown, 2 an error, a disagreement or a failed check
   included (the library's `claim_fails`, a defect). Neither has a
   derivation drawing: the JSON holds the derivations.
+- `transform.rs`'s `herbrand` (`HerbrandArgs`: `TransformArgs` and
+  `--depth N|none`, an option of the call, so no settings key) through
+  `ordinary::herbrand::herbrand` on the large stack: text is the clausal
+  form's steps (`steps_text`, with no checks: the form is not checked
+  there), the instances kept with their clause and bindings
+  (`Herbrand::bindings`), and the verdict line naming `--depth` or
+  `prove --logic classical` for an unknown; JSON the level-28 document.
+  Exit 0 valid, 3 unknown (never 1: no countermodel is built), 2 an
+  error.
 - `resolve.rs`: `resolve` (`ResolveArgs`: `TransformArgs` with
   `--dimacs FILE`, `--method`, `--clauses`, `--clause-limit`,
   `--step-limit`; the bounds are options of the call, so no settings

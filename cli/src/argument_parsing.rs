@@ -330,6 +330,31 @@ pub(crate) enum Command {
     /// DIMACS writes them.
     #[command(after_help = ORDINARY)]
     Resolve(ResolveArgs),
+    /// Prove a first-order sequent by Herbrand's theorem: ground instances
+    /// of its clauses that have no model
+    ///
+    /// The sequent is valid in classical logic exactly when finitely many
+    /// instances of the clauses of its negation have no model. The command
+    /// makes the clausal form (as `seq normalize --to clausal`), then puts
+    /// closed terms for the clauses' variables, the constants first, then
+    /// each function applied to them, up to --depth. At each depth the SAT
+    /// solver decides the instances, and its clausal proof is checked. The
+    /// first set it refutes is cut down to the instances it needs.
+    ///
+    /// From those instances the command builds a derivation of LK of the
+    /// sequent as written, each Skolem term of the clausal form an
+    /// eigenvariable again, and checks it.
+    ///
+    /// The command prints the clausal form and its steps, the instances
+    /// with the terms put for each clause's variables, and the verdict.
+    /// The exit status is 0 for a valid sequent, 3 where no instances up to
+    /// --depth have no model (a sequent that is not valid ends so; `prove
+    /// --logic classical` refutes it where it can), and 2 for an error.
+    /// With `--format json` the answer is the record `{"version",
+    /// "deduxit", "verdict", "sequent", "clausal", "depth", "ground",
+    /// "instances", "refutation", "derivation", "statistics"}`.
+    #[command(after_help = ORDINARY)]
+    Herbrand(HerbrandArgs),
     /// Print a sequent, convert it to JSON, name its fragment, translate it
     /// from classical logic, or rewrite it into a normal form
     Seq {
@@ -583,6 +608,7 @@ impl Command {
             } => Some((&["seq", "fragment"], input, false)),
             Command::Interpolate(args) => Some((&["interpolate"], &args.common.input, true)),
             Command::Resolve(args) => Some((&["resolve"], &args.common.input, true)),
+            Command::Herbrand(args) => Some((&["herbrand"], &args.common.input, true)),
             Command::Grade(args) => Some((&["grade"], &args.input, args.logic.is_some())),
             Command::Seq {
                 command: SeqCommand::Translate(args),
@@ -630,6 +656,7 @@ impl Command {
             | Command::Eliminate(_)
             | Command::Interpolate(_)
             | Command::Resolve(_)
+            | Command::Herbrand(_)
             | Command::Term { .. } => false,
         }
     }
@@ -1833,6 +1860,18 @@ pub(crate) struct ResolveArgs {
     /// The most steps, resolvents made or steps of DPLL, or `none`
     #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_STEPS)))]
     pub(crate) step_limit: Count<u64>,
+}
+
+/// The arguments of `herbrand`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct HerbrandArgs {
+    /// The sequent, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// The deepest term put for a variable, a constant being of depth 0,
+    /// or `none` to go on until a limit ends the search
+    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(Some(deduxit::ordinary::herbrand::DEFAULT_DEPTH)))]
+    pub(crate) depth: Count<u32>,
 }
 
 /// How `resolve` searches.
