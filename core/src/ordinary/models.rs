@@ -506,7 +506,16 @@ struct Writer<'n> {
 impl Writer<'_> {
     /// Refuses past the bounds and asks the stop every few steps.
     fn tick(&mut self, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
-        grounding::poll(&mut self.steps, stop)?;
+        self.tick_by(1, stop)
+    }
+
+    /// [`tick`](Self::tick) for a step that costs `weight` units.
+    fn tick_by(
+        &mut self,
+        weight: usize,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        grounding::poll_by(&mut self.steps, weight, stop)?;
         if self.formulas.len() as u64 > self.most {
             return Err(Error::Refused(Refusal::Occurrences {
                 occurrences: self.most.saturating_add(1),
@@ -924,7 +933,15 @@ fn expand(
     let mut results: Vec<NodeId> = Vec::new();
     let mut tasks = vec![Task::Enter(root, NONE)];
     while let Some(task) = tasks.pop() {
-        w.tick(stop)?;
+        // A node's step looks up its free variables' values, one walk of
+        // the bindings each: counted as one unit, a nest of thousands of
+        // quantifiers let the stop wait seconds past a time limit.
+        let weight = match &task {
+            Task::Enter(n, _) | Task::Expand(n, _) => nnf.free[*n as usize].len(),
+            Task::Join(_, count) => *count,
+            Task::Store(_, values) => values.len(),
+        };
+        w.tick_by(weight, stop)?;
         if tasks.len() as u64 > w.most {
             return Err(Error::Refused(Refusal::Occurrences {
                 occurrences: w.most.saturating_add(1),

@@ -154,11 +154,25 @@ pub(super) struct Nnf {
     /// make quadratic in the nesting: charged to the memory bound beside
     /// the nodes.
     free_entries: usize,
+    /// The work done making nodes: each node's operands and the entries
+    /// of their free-variable lists read, which miniscoping counts towards
+    /// its stop.
+    work: u64,
 }
 
 impl Nnf {
     /// Adds a node, computing its free variables, and returns its index.
     fn push(&mut self, node: G) -> u32 {
+        let read: usize = match &node {
+            G::And(kids) | G::Or(kids) => kids
+                .iter()
+                .map(|&k| self.free[k as usize].len().saturating_add(1))
+                .sum(),
+            G::Forall(_, body) | G::Exists(_, body) => self.free[*body as usize].len(),
+            G::Lit(_, _, args) => args.len(),
+            G::True | G::False => 0,
+        };
+        self.work = self.work.saturating_add(read as u64).saturating_add(1);
         let free = match &node {
             G::Lit(_, _, args) => {
                 let mut v: Vec<u32> = Vec::new();
@@ -464,7 +478,20 @@ pub const DEFAULT_NODES: u64 = 1 << 21;
 /// [`Refusal::Occurrences`] for a sequent whose normal form passes
 /// `limits.occurrences`.
 pub fn applies(sequent: &Sequent, limits: &Limits) -> Result<bool, Error> {
-    Ok(prepare(sequent, limits, &mut |_| false)?.is_some())
+    applies_within(sequent, limits, &mut |_| false)
+}
+
+/// [`applies`], asking `stop` as it goes.
+///
+/// # Errors
+///
+/// [`applies`]'s, and [`Refusal::Stopped`] when `stop` answers true.
+pub(super) fn applies_within(
+    sequent: &Sequent,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<bool, Error> {
+    Ok(prepare(sequent, limits, stop)?.is_some())
 }
 
 /// [`decide`] with the stop as a trait object.
@@ -629,8 +656,22 @@ fn canonical(nnf: &Nnf) -> Vec<u32> {
 
 /// Counts a step of the set-up and asks the stop every [`POLL`] steps.
 pub(super) fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
-    *steps += 1;
-    if steps.is_multiple_of(POLL) && stop(Progress::new(Phase::Search, POLL, *steps)) {
+    poll_by(steps, 1, stop)
+}
+
+/// Counts a step of the set-up that costs `weight` units and asks the
+/// stop each time the count passes a multiple of [`POLL`]: a step of the
+/// grounding walk builds keys as long as its bindings, which a nest of
+/// thousands of quantifiers makes thousands long, and counted as one unit
+/// a step let the stop wait seconds past a time limit.
+pub(super) fn poll_by(
+    steps: &mut u64,
+    weight: usize,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<(), Error> {
+    let before = *steps / POLL;
+    *steps = steps.saturating_add((weight as u64).max(1));
+    if *steps / POLL != before && stop(Progress::new(Phase::Search, POLL, *steps)) {
         return Err(Refusal::Stopped {
             phase: Phase::Search,
         }
@@ -884,7 +925,7 @@ pub(super) fn normal_form(
             }
         }
     }
-    let root = miniscope(&mut nnf, root);
+    let root = miniscope(&mut nnf, root, &mut steps, stop)?;
     nnf.within(memory)?;
     Ok(Some((nnf, root)))
 }
@@ -995,12 +1036,25 @@ fn literal(
 }
 
 /// Returns the root of the formula miniscoped: every node made again
-/// bottom-up, each quantifier moved in as far as it goes.
-fn miniscope(nnf: &mut Nnf, root: u32) -> u32 {
+/// bottom-up, each quantifier moved in as far as it goes. Counts the work
+/// of making the nodes in `steps` and asks `stop` as it goes: a nest of
+/// thousands of quantifiers over a junction of thousands of operands makes
+/// each quantifier's node again with its operands, quadratic in the nest.
+///
+/// # Errors
+///
+/// [`Refusal::Stopped`] when `stop` answers true.
+fn miniscope(
+    nnf: &mut Nnf,
+    root: u32,
+    steps: &mut u64,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<u32, Error> {
     // Postorder over the nodes reachable from the root; each made once.
     let mut made: HashMap<u32, u32> = HashMap::default();
     let mut stack = vec![(root, false)];
     while let Some((n, done)) = stack.pop() {
+        let work = nnf.work;
         if made.contains_key(&n) {
             continue;
         }
@@ -1029,8 +1083,10 @@ fn miniscope(nnf: &mut Nnf, root: u32) -> u32 {
             G::Lit(..) | G::True | G::False => n,
         };
         made.insert(n, result);
+        let weight = usize::try_from(nnf.work.saturating_sub(work)).unwrap_or(usize::MAX);
+        poll_by(steps, weight, stop)?;
     }
-    made[&root]
+    Ok(made[&root])
 }
 
 /// Returns whether no `∀` reachable from `root` lies in the scope of an
@@ -1122,7 +1178,9 @@ fn ground(
     let mut stack: Vec<(u32, Vec<(u32, u32)>)> = vec![(root, Vec::new())];
     let mut steps: u64 = 0;
     while let Some((n, env)) = stack.pop() {
-        poll(&mut steps, stop)?;
+        // Its values are found by a walk of the bindings per free variable.
+        let weight = env.len().saturating_mul(nnf.free[n as usize].len().max(1));
+        poll_by(&mut steps, weight, stop)?;
         let values = universal_values(n, &env);
         if !visited.insert((n, values.clone())) {
             continue;
@@ -1247,7 +1305,14 @@ fn ground(
     let mut atom_bytes: u64 = 0;
     let memory = limits.memory_bytes.unwrap_or(u64::MAX);
     while let Some(task) = tasks.pop() {
-        poll(&mut steps, stop)?;
+        // A node's step looks up its free variables' values, one walk of
+        // the bindings each.
+        let weight = match &task {
+            Task::Enter(n, _) | Task::Expand(n, _) => nnf.free[*n as usize].len(),
+            Task::Join(_, count) => *count,
+            Task::Store(_, values) => values.len(),
+        };
+        poll_by(&mut steps, weight, stop)?;
         let held = (formulas.len() as u64)
             .saturating_mul(NODE_BYTES)
             .saturating_add(atom_bytes)
@@ -1541,6 +1606,39 @@ mod tests {
             excluded.verdict,
             Verdict::Unknown(Reason::Incomplete)
         ));
+    }
+
+    /// Miniscoping a congruence axiom of many arguments, a nest of
+    /// quantifiers over a junction of as many operands, takes work
+    /// quadratic in the nest, and it asks the stop as it goes: the class
+    /// test ends where the stop says so.
+    #[test]
+    fn the_class_test_stops_in_miniscoping() {
+        let n = 200;
+        let xs: Vec<String> = (0..n).map(|i| format!("x{i}")).collect();
+        let ys: Vec<String> = (0..n).map(|i| format!("y{i}")).collect();
+        let equal: Vec<String> = (0..n).map(|i| format!("e(x{i}, y{i})")).collect();
+        let text = format!(
+            "forall {} {}. ({} /\\ p({}) -> p({})) |-",
+            xs.join(" "),
+            ys.join(" "),
+            equal.join(" /\\ "),
+            xs.join(", "),
+            ys.join(", "),
+        );
+        let sequent: Sequent = text.parse().unwrap();
+        let mut asked = 0;
+        let stopped = super::applies_within(&sequent, &Limits::default(), &mut |_| {
+            asked += 1;
+            asked > 3
+        });
+        assert!(
+            matches!(
+                stopped,
+                Err(crate::Error::Refused(crate::Refusal::Stopped { .. }))
+            ),
+            "{stopped:?}"
+        );
     }
 
     /// Returns a function-free formula over `p/1`, `q/2`, `r/0` and the

@@ -668,12 +668,27 @@ impl Options {
 
 /// Returns whether grounding decides `sequent`: whether it lies in the
 /// Bernays–Schönfinkel or the monadic class, read within a normal form of
-/// at most [`GROUNDS_NODES`] nodes, past which the default does not try.
+/// at most [`GROUNDS_NODES`] nodes made within [`GROUNDS_WORK`] units of
+/// work, past which the default does not try. The test takes no stop of
+/// the caller's, so its own bound ends it.
 #[cfg(feature = "sat")]
 fn grounds(sequent: &Sequent) -> bool {
     let limits = crate::Limits::default().with_occurrences(Some(GROUNDS_NODES));
-    grounding::applies(sequent, &limits).unwrap_or(false)
+    grounding::applies_within(sequent, &limits, &mut |progress| {
+        progress.done > GROUNDS_WORK
+    })
+    .unwrap_or(false)
 }
+
+/// The most work of the normal form in which the default asks whether
+/// grounding decides a first-order sequent, in grounding's units (a node
+/// made, an operand or a free variable read): 2²¹, about a hundred times
+/// the most an ILTP problem in the classes takes (21 538) and a few tens
+/// of milliseconds, while a congruence axiom of thousands of arguments, a
+/// nest of thousands of quantifiers whose miniscoping is quadratic, took
+/// minutes. The command asks several times per sequent.
+#[cfg(feature = "sat")]
+const GROUNDS_WORK: u64 = 1 << 21;
 
 /// The most nodes of the normal form in which the default asks whether
 /// grounding decides a first-order sequent: 2²⁰, far above ILTP's

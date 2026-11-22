@@ -838,8 +838,8 @@ the search, `read_back.rs` the derivation of LK.
   is not polled (R2 at n = 26: 5.5 s at a 5 s limit).
 - **The dispatch**: `Options::method_for` makes grounding the default of
   a first-order sequent of its classes (feature `sat`, `grounds`: the
-  class test within `GROUNDS_NODES`, 2²⁰ nodes of the normal form, any
-  error read as "no"), else the connection prover the default of a
+  class test within `GROUNDS_NODES`, 2²⁰ nodes of the normal form, and
+  `GROUNDS_WORK`, any error read as "no"), else the connection prover the default of a
   first-order classical sequent with no method and no translation
   given; where it gives way (`gives_way`: unknown at a bound other than
   the stop, `Incomplete` included) the embedding decides. The default's
@@ -1108,7 +1108,17 @@ the clausal proof's checker is the trust for "valid".
   grew to gigabytes and was killed. The bindings are never freed during
   the walk (a leak bounded by the work, charged). `grounds` (the
   default's class test in `method_for`, run several times per command)
-  is bounded by `GROUNDS_NODES` and is linear now, but has no stop.
+  is bounded by `GROUNDS_NODES` and by `GROUNDS_WORK`, 2²¹ units of the
+  normal form's work, its own stop (it takes none of the caller's): a
+  congruence axiom of thousands of arguments is a nest of thousands of
+  `∀` whose miniscoping is quadratic (100 s at 4 000 arguments before).
+  ILTP's problems in the classes take at most 21 538 units, those
+  outside 754 814 (78c's measurement): a lower bound would send some to
+  the connection prover. Miniscoping counts its work in `Nnf::work`
+  (each node made, its operands and their free variables read) and asks
+  the stop through `poll_by`; the ground walk and the model search's
+  expansion weigh each step by the free variables it looks up, a walk
+  of the bindings each.
 - **The default** (`decide.rs`, `by_grounding`): grounds within
   `grounding::DEFAULT_NODES` (2²¹; ILTP's largest grounding decided
   within 2 s has 65 540 atoms, and SYJ020's grew until the time limit,
