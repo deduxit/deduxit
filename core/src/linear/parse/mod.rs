@@ -590,22 +590,30 @@ impl<'a> Parser<'a> {
     }
 
     /// Returns whether `=`, `!=` or `≠` follows, skipping white space: the
-    /// operand just read is then a term. An inline scan and one compare per
-    /// atom; the sign itself is tested out of line.
+    /// operand just read is then a term. Every atom asks, so the common
+    /// case is a few compares inline: past one space, a byte that starts no
+    /// sign and no more white space answers no; `≠`'s second byte is
+    /// compared too, since `⊗`, `⅋` and `⊸` share its first.
+    #[inline(always)]
     fn equality_follows(&self) -> bool {
         let bytes = self.input.as_bytes();
         let mut at = self.at;
-        while bytes.get(at).is_some_and(u8::is_ascii_whitespace) {
+        if bytes.get(at) == Some(&b' ') {
             at += 1;
         }
-        matches!(bytes.get(at), Some(b'=' | b'!' | 0xE2)) && self.equality_sign(at)
+        match bytes.get(at) {
+            Some(b'=' | b'!' | b'\t' | b'\n' | b'\r' | b' ' | 0x0C) => self.equality_sign(at),
+            Some(0xE2) if bytes.get(at + 1) == Some(&0x89) => self.equality_sign(at),
+            _ => false,
+        }
     }
 
-    /// Returns whether an equality's sign starts at byte `at`.
+    /// Returns whether an equality's sign follows the white space from
+    /// byte `at`.
     #[cold]
     #[inline(never)]
     fn equality_sign(&self, at: usize) -> bool {
-        let rest = &self.input[at..];
+        let rest = self.input[at..].trim_start();
         rest.starts_with('=') || rest.starts_with("!=") || rest.starts_with('≠')
     }
 
@@ -821,8 +829,6 @@ impl<'a> Parser<'a> {
             };
         };
         self.at += c.len_utf8();
-        // An equality read with `!=` or `≠` is its atom's dual.
-        let mut negated = false;
         let term = match c {
             '~' => return self.prefix(Pending::Dual),
             '!' => return self.prefix(Pending::Bang),
@@ -859,16 +865,14 @@ impl<'a> Parser<'a> {
                 "exists" => return self.binder(false),
                 name if self.input.as_bytes().get(self.at) == Some(&b'(') => {
                     self.at += 1;
-                    let (atom, dual) = self.predicate(name, start)?;
-                    negated = dual;
-                    Term::Atom(atom)
-                }
-                name if self.equality_follows() => {
-                    let (atom, dual) = self.equality_after(name, start)?;
-                    negated = dual;
-                    Term::Atom(atom)
+                    let read = self.predicate(name, start)?;
+                    return self.literal(read);
                 }
                 name => {
+                    if self.equality_follows() {
+                        let read = self.equality_after(name, start)?;
+                        return self.literal(read);
+                    }
                     let atom = self.atom(name);
                     if self.first_order {
                         self.nullary(atom, name)?;
@@ -880,6 +884,17 @@ impl<'a> Parser<'a> {
         };
         self.empty = false;
         let id = self.push(term)?;
+        Ok(State::Operator(id))
+    }
+
+    /// Pushes the atom of a predicate or an equality just read, as its dual
+    /// where the sign negates it (`!=`, `≠`), and returns the state after
+    /// it.
+    #[cold]
+    #[inline(never)]
+    fn literal(&mut self, (atom, negated): (Atom, bool)) -> Result<State, Error> {
+        self.empty = false;
+        let id = self.push(Term::Atom(atom))?;
         if negated {
             self.negate(id);
         }

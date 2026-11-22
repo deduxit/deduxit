@@ -473,6 +473,29 @@ impl Notation {
         name.to_owned()
     }
 
+    /// Writes the dual of the atom `atom` of a first-order `sequent`, after
+    /// its prefix: an equality in brackets before a postfix dual,
+    /// `(a = b)^⊥`.
+    #[cold]
+    #[inline(never)]
+    fn write_dual_predicate<W: Write + ?Sized>(
+        &self,
+        out: &mut W,
+        sequent: &Sequent,
+        atom: Atom,
+        scope: Option<&Scope<'_>>,
+    ) -> FmtResult {
+        let bracket = !self.dual.is_empty() && Self::is_equality(sequent, atom);
+        if bracket {
+            out.write_char('(')?;
+        }
+        self.write_predicate(out, sequent, atom, scope)?;
+        if bracket {
+            out.write_char(')')?;
+        }
+        out.write_str(self.dual)
+    }
+
     /// Returns whether the atom `atom` of `sequent` is an equality, which
     /// a postfix dual writes in brackets: `(a = b)^⊥`.
     #[cold]
@@ -642,17 +665,12 @@ impl Notation {
                             if !self.dual_prefix.is_empty() {
                                 out.write_str(self.dual_prefix)?;
                             }
-                            let bracket = predicates
-                                && !self.dual.is_empty()
-                                && Self::is_equality(sequent, a);
-                            if bracket {
-                                out.write_char('(')?;
+                            if predicates {
+                                self.write_dual_predicate(out, sequent, a, scope.as_deref())?;
+                            } else {
+                                self.atom.write(out, sequent.atom_name(a))?;
+                                out.write_str(self.dual)?;
                             }
-                            self.write_atom(out, sequent, a, predicates, scope.as_deref())?;
-                            if bracket {
-                                out.write_char(')')?;
-                            }
-                            out.write_str(self.dual)?;
                         }
                         One => out.write_str(self.one)?,
                         Bot => out.write_str(self.bot)?,
