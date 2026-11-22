@@ -389,9 +389,9 @@ the commit that lands it rewrites that bullet.
   its type and would change with a new value.
 - **The marked ones** (every public enum and every struct with a public
   field, each `#[non_exhaustive]`, and `workspace::Computed`, marked
-  though its fields are private: 217 at 0.7.0, 196 at 0.6.0, 186 at
-  0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the closed are the
-  nineteen above at 0.7.0 and 0.6.0, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
+  though its fields are private: 240 at 0.8.0, 217 at 0.7.0, 196 at
+  0.6.0, 186 at 0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the
+  closed are the nineteen above at 0.8.0, 0.7.0 and 0.6.0, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
   0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
@@ -428,6 +428,7 @@ the commit that lands it rewrites that bullet.
   `ordinary::{End, Sign, Signed}` (added at step 56a);
   `ordinary::{Evaluation, FiniteCountermodel, Structure}` and
   `ordinary::grounding::{Outcome, Statistics}` (added at step 75d);
+  `ordinary::connection::{Outcome, Statistics}` (added at step 75b);
   `ordinary::models::{Outcome, Statistics}` (added at step 76a);
   `ordinary::herbrand::{Herbrand, Instance, Options, Statistics}` (added
   at step 77b); `ordinary::resolution::first_order::{Answer, FirstOrder,
