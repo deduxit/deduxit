@@ -8185,3 +8185,19 @@ move (D26).
   0.6.0's commit); the chain's check on `ci/step-76c`, then `main`. **rocq-deduxit needs its tag
   before 0.8.0's** (the author's). In its worker, back on Opus: **77c**, Glivenko's failure shown with
   the chain lemmas; step 77 completes with it.
+- 2026-11-22, about 19:05: **78b reviewed and pushed; fixup-23 started.** 78b (Opus, high; the full
+  panel and the reviewer on Fable at medium): first-order resolution (`ordinary::resolution::first_order`,
+  `deduxit resolve` on a first-order sequent, `ordinary.resolve`, wire level 29): clauses from 77a's
+  clausal form, binary resolution with the shared unifier and factoring through one inference
+  function, a given-clause search with subsumption and a set of support, a checker that recomputes
+  every unifier, and the read-back to a deskolemized LK derivation (77b's). The panel found no unsound
+  answer (5 269 command-line sequents, 997 library runs, 53 706 random inferences against its own
+  resolution); its findings (a given `□`, a term exponential as a tree, an open witness, the
+  protocol's substring test, Herbrand's stop) fixed with tests; it also fixed 77b's Herbrand read-back,
+  whose overreach the reviewer caught and which is repaired. **Accepted departures:** a saturated set
+  answers unknown (no model built); the set of support found by text; where the read-back does not
+  reach, the verdict rests on the checked refutation and the clausal rewrite. The web module's ceiling
+  raised to 2 875 000. Full check passed; pushed (`lrowvknq`). 78b created
+  `plan/reports/78-equality-resolution.md`, which 78a creates too: its rebase merges them, 78a's
+  section first. In its worker while 78c waits on 78a: **fixup-23**, the connection prover bounded
+  in the library's default (76a's open item) and the batch's race at first order (76b's).
