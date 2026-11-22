@@ -1889,12 +1889,6 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
   step, or LJT's derivation is made cut-free for a hint (cut
   elimination on LJ, with its blow-up). The page's `ordinary_close` is
   the same call.
-- **`check` reads no derivation of LK or LJ**: it checks proofs of
-  linear logic, so the JSON of `prove --logic` under LJT (the ordinary
-  outcome) is refused with what it is, where the embedding's outcome is
-  checked (54b's counterexamples panel). Reading an ordinary outcome or
-  derivation and running `Derivation::check` is a new feature of the
-  command, the author's to ask for.
 
 Left by step 54s (`plan/reports/54s-sat-engines.md`):
 
