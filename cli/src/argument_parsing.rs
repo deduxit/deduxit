@@ -27,6 +27,7 @@ Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   quantifiers  forall x. A, ∀x. A, exists x. A, ∃x. A, forall x y. A
   predicates  p(x, f(a)): a name bound by a quantifier is a variable, any
     other name a constant, or a function symbol before a bracket
+  equality  s = t, and s != t or s ≠ t for its negation
 Binding, tightest first: A^, then ~ ! ?, then *, |, &, +, then -o, which
 groups to the right, and last a quantifier, which reaches right as far as
 it can."
@@ -1882,7 +1883,7 @@ pub(crate) struct ResolveArgs {
     /// The most clauses saturation keeps, the input's included, or `none`
     #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_CLAUSES)))]
     pub(crate) clause_limit: Count<u64>,
-    /// The most steps, resolvents made or steps of DPLL, or `none`
+    /// The most steps, inferences made or steps of DPLL, or `none`
     #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_STEPS)))]
     pub(crate) step_limit: Count<u64>,
     /// How a first-order sequent with `=` is resolved

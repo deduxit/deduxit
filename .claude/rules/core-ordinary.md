@@ -518,9 +518,10 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   and the roots keep their positions (the read-backs match roots by
   position). Symmetry and transitivity make `=`'s own congruence
   redundant. One place serves every method: `decide_within`'s `within`
-  augments before the dispatch, the command's `ordinary::sequent_in`
-  after reading (so `prove`, the batch, `interact --logic` and `grade`
-  see the axioms), the harness's `ordinary::tail` after loading, and the
+  augments before the dispatch, the command's `ordinary::with_equality`
+  after `prove`, the batch, `interact --logic` and `grade` read the
+  sequent (`ordinary::sequent_in` reads it as written, for `resolve`, the
+  transformations and `seq print`), the harness's `ordinary::tail` after loading, and the
   public `connection::decide`, `grounding::decide`, `models::decide` and
   first-order resolution's `resolve` and `clauses_of` (whose saturated
   set would otherwise read `=` as an atom and call the clauses
@@ -570,10 +571,13 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
 - **The linear reader takes `=` too** (`serialize/sequents.rs`,
   `FirstOrder::check`, shared): the embedding's image carries the
   ordinary tables verbatim, `=` among them, and the ordinary outcome
-  nests the image's JSON. Such a linear sequent prints `=(a, b)`, which
-  the linear text parser refuses: the one exception to "atom names are
-  identifiers" (core-sequents.md), until the linear printer writes it
-  infix and the linear parser reads it.
+  nests the image's JSON. The linear printer writes it between its terms
+  (`s = t`, a postfix dual bracketing it) and the linear parser reads
+  `=`, `!=` and `≠` there, so such a sequent reads back as itself; the
+  atom's key stays `=(a, b)`, which a refutation's message writes infix
+  too (`Notation::atom_text`). The reader's test after every atom is a
+  few compares inline (`equality_follows`; read-text's ceiling was
+  raised for it, +1.3 %).
 - **`Formulas::of_tables` interns `=` as a predicate** even where no
   atom uses it: interned as a function (every unused symbol is), the
   axioms' atoms were refused as a symbol in two roles.
@@ -2481,7 +2485,7 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
   - **Paramodulation** (`Step::Paramodulation`, `Options::equality`,
     `Equality::Paramodulation` by default): a positive equation `s = t`
     of `from` (each way round, `reverse`) rewrites the subterm at
-    `position` of `into`'s literal (`occurrences`: the literal's
+    `position` of `into`'s literal (`places`: the literal's
     subterms left to right, each before its arguments, a shared part
     once per place) under the unifier of `s` and that subterm, through
     `made` like the other steps (`paramodulant`, `replaced`,
@@ -2494,11 +2498,15 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
     (`equality::with_reflexivity`), which Brand's (1975) completeness of
     paramodulation not into variables needs; functional reflexivity, which
     Robinson and Wos need where variables are rewritten, adds nothing here
-    (the panel's correction of the first version, which added it). Each
-    place walked counts as a step (`places`, stopping at the place asked
-    and at `MOST_PLACES`, no path stored: a term that shares its parts has
-    exponentially many places, and the first version held gigabytes), and
-    a place past `MOST_PLACES` is refused or ends the search at that bound.
+    (the panel's correction of the first version, which added it). The
+    walk keeps a parent index per place, no path (the first version held
+    gigabytes on a wide literal), stops at the place asked, and asks the
+    stop every `PLACES_PER_POLL` places and once per pair of clauses; a
+    place is no step (the steps are inferences, the step bound's meaning;
+    the reviewer's witness: a wide literal ended "at the step bound" with
+    none made, and with no step bound ran 8 s past `--timeout`). A
+    literal has fewer places than `limits.terms`, its atom's bound, so a
+    step naming a place past that bound is refused before any walk.
     `Equality::Axioms` gets every axiom (`with_axioms`) and resolves
     alone. A refutation with a paramodulation is not read back (`read_back`
     refuses it: a ground instance of a paramodulant follows only with

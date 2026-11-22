@@ -78,6 +78,9 @@ use crate::hash::HashMap;
 ///   term, an identifier that an enclosing quantifier binds is that
 ///   variable. Any other identifier is a constant, or a function symbol
 ///   when a `(` follows it.
+/// - `s = t` is the atom of the predicate `=` on two terms, written
+///   between them, and `s != t` (`s ≠ t`) its dual. It has no axioms in
+///   linear logic.
 /// - A symbol has one arity in the whole sequent. A name is a predicate
 ///   or a function symbol, never both. No keyword names a symbol or a
 ///   variable.

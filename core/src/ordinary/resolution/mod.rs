@@ -631,8 +631,9 @@ pub struct Options {
     /// past it the answer is unknown.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub clauses: Option<u64>,
-    /// The most steps: resolvents made by saturation, events of DPLL's
-    /// trace; past it the answer is unknown.
+    /// The most steps: inferences made by saturation (resolvents, and at
+    /// first order factors and rewrites too), events of DPLL's trace; past
+    /// it the answer is unknown.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub steps: Option<u64>,
     /// How first-order resolution treats `=`: paramodulation by default.

@@ -196,7 +196,7 @@ resolution read off the steps:
 
 Resolution can need exponentially many clauses. `--clause-limit N` (2000
 by default) bounds the clauses the search keeps and `--step-limit N`
-(100000 by default) the resolvents it makes or the steps of DPLL; `none`
+(100000 by default) the inferences it makes or the steps of DPLL; `none`
 lifts either. Past a bound the answer is unknown:
 
 ```console
@@ -272,7 +272,11 @@ document is at level 29: `{"version", "deduxit", "method", "verdict",
 "bound", "sequent", "clausal", "clauses", "inferences", "derivation",
 "not_read_back", "statistics"}`, its clauses as text, each inference's
 `rule` (`resolution` with `first`, `second`, `first_literal` and
-`second_literal`, or `factor` with `parent`), its `unifier` and the
+`second_literal`, `factor` with `parent`, or `paramodulation` with
+`from`, `from_literal`, `into`, `into_literal`, the subterm's `position`
+counted from 0 as the literal is written, each term before its
+arguments, and `reverse` where the equation is read right to left), its
+`unifier` and the
 `clause` it made, numbered on after the given clauses; `verdict` is
 `unsatisfiable`, `saturated` or `unknown`.
 

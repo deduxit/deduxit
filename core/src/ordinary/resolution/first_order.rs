@@ -476,12 +476,12 @@ impl Clauses {
             });
         }
         let target = renamed_b[into_literal].atom;
-        if position >= MOST_PLACES {
-            return Ok(Err(
-                "the place lies past the most a paramodulation takes, 2^20",
-            ));
+        // A literal has fewer places than `limits.terms`, its atom's bound,
+        // so the walk to a place past it would find none, and is not made.
+        if self.most_terms.is_some_and(|most| position as u64 >= most) {
+            return Ok(Err("the literal has no subterm at that place"));
         }
-        let places = self.places(target, position + 1);
+        let places = self.places(target, position.saturating_add(1));
         let Some(&(u, _, _)) = places.get(position) else {
             return Ok(Err("the literal has no subterm at that place"));
         };
@@ -536,10 +536,16 @@ impl Clauses {
     /// clause `from` into a literal of the clause `into`, at each place
     /// that is no variable, each way round, but where the side and the
     /// subterm begin with two symbols or eigenvariables (no unifier), and by
-    /// no equation of two equal sides (it rewrites nothing). Returns the
-    /// places it walked, which the search counts as steps, or `None` where
-    /// a literal has more than [`MOST_PLACES`].
-    fn paramodulations(&self, from: usize, into: usize, steps: &mut Vec<Step>) -> Option<u64> {
+    /// no equation of two equal sides (it rewrites nothing). Asks `stop`
+    /// every [`PLACES_PER_POLL`] places walked, telling it the places, and
+    /// returns `false` where it answered true.
+    fn paramodulations(
+        &self,
+        from: usize,
+        into: usize,
+        steps: &mut Vec<Step>,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> bool {
         let tables = self.formulas.first_order();
         // What a term begins with: a symbol or an eigenvariable, either a
         // constant of the clauses; nothing for a variable.
@@ -557,12 +563,14 @@ impl Clauses {
                 continue;
             }
             for (j, y) in self.items[into].literals.iter().enumerate() {
-                let places = self.places(y.atom, MOST_PLACES + 1);
-                if places.len() > MOST_PLACES {
-                    return None;
-                }
-                walked = walked.saturating_add(places.len() as u64);
+                let places = self.places(y.atom, usize::MAX);
                 for (position, &(u, _, _)) in places.iter().enumerate() {
+                    walked += 1;
+                    if walked.is_multiple_of(PLACES_PER_POLL)
+                        && stop(Progress::new(Phase::Search, PLACES_PER_POLL, walked))
+                    {
+                        return false;
+                    }
                     let Some(g) = head(u) else {
                         continue;
                     };
@@ -581,7 +589,7 @@ impl Clauses {
                 }
             }
         }
-        Some(walked)
+        true
     }
 
     /// Returns the two sides of `atom` where it is an equation `s = t`.
@@ -1240,12 +1248,9 @@ pub struct FirstOrder {
 /// The most matchings one subsumption test tries.
 const SUBSUMPTION_LIMIT: u64 = 1 << 12;
 
-/// The most places of a literal that paramodulation takes, 2²⁰: a term
-/// that shares its parts may have exponentially many, and each place the
-/// search tries is a step. A literal with more ends the search at a bound
-/// ([`Bound::Steps`] of this many), and a step naming a place past it is
-/// refused.
-const MOST_PLACES: usize = 1 << 20;
+/// How many places of the literals paramodulation walks between two asks
+/// of the stop: a pair of clauses with wide literals walks millions.
+const PLACES_PER_POLL: u64 = 1 << 12;
 
 /// The most ground instances the read-back collects.
 const MOST_INSTANCES: usize = 1 << 12;
@@ -1697,21 +1702,15 @@ impl<'l> Search<'l> {
                     }
                 }
                 if paramodulating {
-                    // Each place walked counts as a step, so a wide literal
-                    // ends the search at its bound on steps.
+                    // The walk over wide literals asks the stop as it goes,
+                    // and once per pair of clauses.
                     let pairs = [(given, other), (other, given)];
                     for &(from, into) in &pairs[..if other == given { 1 } else { 2 }] {
-                        let Some(walked) = self.set.paramodulations(from, into, &mut steps) else {
-                            return Ok(Found::Unknown(Bound::Steps {
-                                limit: MOST_PLACES as u64,
-                            }));
-                        };
-                        self.statistics.steps = self.statistics.steps.saturating_add(walked);
-                    }
-                    if let Some(limit) = self.options.steps
-                        && self.statistics.steps >= limit
-                    {
-                        return Ok(Found::Unknown(Bound::Steps { limit }));
+                        if !self.set.paramodulations(from, into, &mut steps, &mut *stop)
+                            || stop(Progress::new(Phase::Search, 1, self.statistics.steps))
+                        {
+                            return Ok(Found::Unknown(Bound::Stopped));
+                        }
                     }
                     self.charge((steps.len() as u64).saturating_mul(size_of::<Step>() as u64))?;
                 }
@@ -2341,6 +2340,31 @@ mod tests {
             };
             assert!(clauses.infer(step).is_err(), "{from} into {into}");
         }
+    }
+
+    /// Paramodulation's walk over a wide literal asks the stop as it goes,
+    /// telling it the places walked, and counts no place as a step.
+    #[test]
+    fn the_walk_over_a_wide_literal_asks_the_stop() {
+        let args = vec!["a"; 3 * PLACES_PER_POLL as usize].join(", ");
+        let sequent: Sequent = format!("c = d, p({args}) |-").parse().unwrap();
+        let options = Options::default().with_steps(None);
+        let found = resolve(&sequent, &options, &Limits::default(), |progress| {
+            progress.work == PLACES_PER_POLL
+        })
+        .unwrap();
+        assert!(
+            matches!(found.answer, Answer::Unknown(Bound::Stopped)),
+            "{:?}",
+            found.answer
+        );
+        let saturated = resolve(&sequent, &options, &Limits::default(), |_| false).unwrap();
+        assert!(matches!(saturated.answer, Answer::Saturated));
+        assert!(
+            saturated.statistics.steps < 16,
+            "{:?}",
+            saturated.statistics
+        );
     }
 
     /// A sequent that is not valid saturates where its clauses are finite,
