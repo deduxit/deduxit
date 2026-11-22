@@ -8239,3 +8239,14 @@ move (D26).
   give way, since a step there costs ten times more; a bound counting the unifier's work is a change of
   the prover's measure. Full check passed on `luxmwxss`. The push (`rtsztskz`) waits for the keys,
   which locked; 78c rebases onto it meanwhile.
+- 2026-11-22, about 22:50: **fixup-24 reviewed.** (Opus, high; the reviewer on Fable.) rocq-deduxit's
+  comments write the double-negation shift with its brackets (`vxkypqzt`, pushed; the lock moved).
+  Herbrand's instance search and read-back keep to the memory bound (78b's 1 500-variable witness
+  261 MB to 91 MB under 128 MiB, a clausal proof where the derivation does not fit) and name the
+  caller's bound; each quantifier tries the witnesses its instances give first (six nested `∀` over
+  six constants through `resolve` 60 s to 0.01 s; ILTP's first-order problems through `herbrand`: no
+  verdict or derivation lost, 20 derivations gained, the shared ones 2.5 times fewer inferences). The
+  reviewer's three findings (the share named, the solver's copy uncharged, a charge that refused a
+  derivation that fits) fixed. Full check passed before the rebase onto fixup-23; the combined head
+  goes through `push-ci`. **For later:** 77a's clausal normal form overruns its bounds on many
+  hypotheses (1 500 reached 54 GB uncapped): a fixup.
