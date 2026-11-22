@@ -2745,3 +2745,17 @@ the old code decided. Two answers, for when a user meets one: a walk that meets 
 first without breaking the finished parts, or a replay of an unsat entry's proof under a renaming
 (it needs other `Trans` steps when the key's boxes sit at other worlds). Source: the fixup-10
 section of `plan/reports/fixups.md`.
+
+## A native equality rule in the connection prover (78c, 2026-11-22)
+
+Not built. On a sample of 433 of ILTP's 1 730 problems with equality at
+2 s (`bench/comparison/2026-11-22-iltp-equality/`), leanCoP 2.1 proves 134
+and nanoCoP 2.0 115 classically, deduxit's connection prover 88; iLeanCoP
+1.2 proves 90 and nanoCoP-i 2.0 87 intuitionistically, deduxit's default 33.
+All of them decide equality by adding its axioms, and nanoCoP's calculus is
+deduxit's, so the gap is the search (restricted backtracking schedules and
+strategy portfolios, as 75b found without equality), not the axioms. A
+native rule would need a published equality-handling connection calculus to
+follow, which no session has read; revisit only once deduxit's prover
+closes the gap with the axioms, then measure again. Source: step 78's
+report, session 78c.
