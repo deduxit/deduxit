@@ -188,6 +188,17 @@ fn run(
     };
     let signature = Signature::of(&nnf, root);
     let most = bound.unwrap_or(u32::MAX);
+    // A bound of no element leaves nothing to try.
+    if most == 0 {
+        let reason = match logic {
+            Logic::Classical => Reason::ModelSize { size: 0 },
+            Logic::Intuitionistic | Logic::Minimal => Reason::KripkeSize {
+                worlds: worlds_bound.unwrap_or(u32::MAX),
+                size: 0,
+            },
+        };
+        return unknown(reason, statistics);
+    }
     let worlds = match logic {
         Logic::Classical => 1,
         Logic::Intuitionistic | Logic::Minimal => worlds_bound.unwrap_or(u32::MAX).max(1),
@@ -1196,6 +1207,17 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
+        // A bound of no element is unknown at once, in every logic.
+        let none = search::Options::default().with_model_size(Some(0));
+        for &logic in Logic::ALL {
+            let outcome = decide(&sequent, logic, &none, &Limits::default(), |_| false).unwrap();
+            assert!(matches!(
+                outcome.verdict,
+                Verdict::Unknown(
+                    Reason::ModelSize { size: 0 } | Reason::KripkeSize { size: 0, .. }
+                )
+            ));
+        }
         let two: Sequent = "|- p(a), p(b)".parse().unwrap();
         assert!(
             decide(

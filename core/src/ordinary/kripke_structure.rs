@@ -16,7 +16,9 @@
 //! what a world below it forces, since the domains, the predicates and
 //! `falsity` grow; the check tests that growth and does not rely on it.
 
-use super::structure::{ENTRY_BYTES, Evaluation, write_domain, write_function, write_predicate};
+use super::structure::{
+    ENTRY_BYTES, Evaluation, SHOWN, write_domain, write_function, write_predicate,
+};
 use super::{Logic, Node, NodeId, Sequent, Structure};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
@@ -140,8 +142,9 @@ impl From<Structure> for KripkeStructure {
 }
 
 /// The bytes a world holds in the check beside its tables: its entry, its
-/// arrows and its list of the worlds above it.
-const WORLD_BYTES: u64 = 96;
+/// arrows, its list of the worlds above it and its tables' maps (a model of
+/// three million worlds of one element measured 240 bytes a world).
+const WORLD_BYTES: u64 = 256;
 
 impl KripkeStructure {
     /// Returns the model of these worlds, constants and refuted world,
@@ -236,7 +239,7 @@ impl KripkeStructure {
             return Err(refuse(held));
         }
         // The arrows: in range, and no cycle (Kahn's order, a world after
-        // every world above it).
+        // every world below it).
         let mut below = vec![0u32; count];
         for (w, world) in self.worlds.iter().enumerate() {
             if world.size == 0 {
@@ -269,16 +272,37 @@ impl KripkeStructure {
         if order.len() < count {
             return Err(wrong("draws its arrows in a cycle".to_owned()));
         }
+        // Each world's arrows, each once: an arrow written twice is one.
+        let ups: Vec<Vec<u32>> = self
+            .worlds
+            .iter()
+            .map(|world| {
+                let mut ups = world.arrows.clone();
+                ups.sort_unstable();
+                ups.dedup();
+                ups
+            })
+            .collect();
         // The worlds at or above each world, the latest in Kahn's order
         // first: each holds its own and those above its arrows' ends.
         let mut above: Vec<Vec<u32>> = vec![Vec::new(); count];
         let mut mark = vec![u32::MAX; count];
-        for (step, &w) in order.iter().rev().enumerate() {
-            poll(stop, step)?;
+        // The steps of the passes below, for the stop and the work bound.
+        let most_work = limits.work.unwrap_or(Structure::WORK);
+        let mut steps: u64 = 0;
+        for &w in order.iter().rev() {
             let mut list = vec![w];
             mark[w as usize] = w;
-            for &u in &self.worlds[w as usize].arrows {
+            for &u in &ups[w as usize] {
                 for &v in &above[u as usize] {
+                    steps += 1;
+                    if steps.is_multiple_of(4_096)
+                        && stop(Progress::new(Phase::Check, 4_096, steps))
+                    {
+                        return Err(Error::Refused(Refusal::Stopped {
+                            phase: Phase::Check,
+                        }));
+                    }
                     if mark[v as usize] != w {
                         mark[v as usize] = w;
                         list.push(v);
@@ -315,7 +339,7 @@ impl KripkeStructure {
         }
         for (w, world) in self.worlds.iter().enumerate() {
             poll(stop, w)?;
-            for &u in &world.arrows {
+            for &u in &ups[w] {
                 let up = &self.worlds[u as usize];
                 if up.size < world.size {
                     return Err(wrong(format!(
@@ -328,15 +352,24 @@ impl KripkeStructure {
                     )));
                 }
                 for (name, set) in &holds[w] {
-                    let lost = set.iter().find(|tuple| {
-                        !holds[u as usize]
+                    for tuple in set {
+                        steps += 1;
+                        if steps.is_multiple_of(4_096)
+                            && stop(Progress::new(Phase::Check, 4_096, steps))
+                        {
+                            return Err(Error::Refused(Refusal::Stopped {
+                                phase: Phase::Check,
+                            }));
+                        }
+                        if !holds[u as usize]
                             .get(name)
-                            .is_some_and(|s| s.contains(*tuple))
-                    });
-                    if lost.is_some() {
-                        return Err(wrong(format!(
-                            "lets {name} hold of fewer tuples at world {u} than at world {w} below it"
-                        )));
+                            .is_some_and(|s| s.contains(tuple))
+                        {
+                            return Err(wrong(format!(
+                                "lets {name} hold of fewer tuples at world {u} than at world {w} \
+                                 below it"
+                            )));
+                        }
                     }
                 }
             }
@@ -443,21 +476,25 @@ impl KripkeStructure {
             }
             functions.push(map);
         }
-        let mut steps: u64 = 0;
         for (w, world) in self.worlds.iter().enumerate() {
-            for &u in &world.arrows {
+            for &u in &ups[w] {
                 let up = &self.worlds[u as usize];
                 for (&name, &k) in &arity {
                     let (low, high) = (functions[w][name], functions[u as usize][name]);
                     let (n, m) = (world.size as usize, up.size as usize);
                     for (i, &value) in low.iter().enumerate() {
-                        steps += 1;
-                        if steps.is_multiple_of(4_096)
+                        // An entry costs its arguments, each a step.
+                        let before = steps;
+                        steps = steps.saturating_add(u64::from(k));
+                        if steps / 4_096 != before / 4_096
                             && stop(Progress::new(Phase::Check, 4_096, steps))
                         {
                             return Err(Error::Refused(Refusal::Stopped {
                                 phase: Phase::Check,
                             }));
+                        }
+                        if steps > most_work {
+                            return Err(Error::Refused(Refusal::Work { limit: most_work }));
                         }
                         // The tuple's place in the larger table.
                         let mut rest = i;
@@ -839,11 +876,18 @@ impl Forcing<'_, '_> {
 
     /// Counts an evaluation, refusing past the bound and asking the stop.
     fn tick(&mut self) -> Result<(), Error> {
-        self.work += 1;
+        self.tick_by(1)
+    }
+
+    /// Counts `units` evaluations, refusing past the bound and asking the
+    /// stop each time the count passes a multiple of 4 096.
+    fn tick_by(&mut self, units: u64) -> Result<(), Error> {
+        let before = self.work;
+        self.work = self.work.saturating_add(units);
         if self.work > self.most {
             return Err(Error::Refused(Refusal::Work { limit: self.most }));
         }
-        if self.work.is_multiple_of(4_096)
+        if self.work / 4_096 != before / 4_096
             && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
         {
             return Err(Error::Refused(Refusal::Stopped {
@@ -897,7 +941,9 @@ impl Forcing<'_, '_> {
                         })?;
                         values.push(e);
                     } else if applied {
-                        self.tick()?;
+                        // An application costs its arguments too: a
+                        // function may take millions of them.
+                        self.tick_by(1 + args.len() as u64)?;
                         let table = self.functions[w as usize].get(name).ok_or_else(|| {
                             (self.wrong)(format!("has no table for the function {name}"))
                         })?;
@@ -1033,8 +1079,14 @@ impl std::fmt::Display for KripkeStructure {
                 write!(f, "; ⊥")?;
             }
             if !world.arrows.is_empty() {
-                let arrows: Vec<String> = world.arrows.iter().map(u32::to_string).collect();
-                write!(f, "; below {}", arrows.join(", "))?;
+                write!(f, "; below ")?;
+                for (i, u) in world.arrows.iter().enumerate().take(SHOWN) {
+                    let comma = if i == 0 { "" } else { ", " };
+                    write!(f, "{comma}{u}")?;
+                }
+                if world.arrows.len() > SHOWN {
+                    write!(f, ", … ({} more)", world.arrows.len() - SHOWN)?;
+                }
             }
         }
         Ok(())

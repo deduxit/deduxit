@@ -40,6 +40,10 @@ workspace graph builds on it.
   add it. The time limits are no part of it: a stop leaves no output.
   A check runs its operations under the call's settings, so its result
   depends on what they read.
+- **The check of `decides` re-checks the outcome's evidence**: a
+  derivation, a Kripke countermodel, a finite structure, a Kripke model
+  with growing domains (`kripke`), each by its own check; only an
+  outcome with none of them is `Recorded`.
 - **A check never calls a fault what a bound left open**: a promise
   between two verdicts (`same_verdict`) with one side unknown is `Open`,
   the decided side `Held`; only two decided verdicts that differ fail.

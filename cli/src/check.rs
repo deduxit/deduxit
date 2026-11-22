@@ -945,7 +945,7 @@ fn check_structure(
     let refuted = Refuted {
         sequent: &countermodel.sequent,
         model,
-        text: structure.to_string(),
+        text: structure,
     };
     write_refuted(&refuted, result, logic, show, quiet, out)
 }
@@ -972,7 +972,7 @@ fn check_kripke_structure(
     let refuted = Refuted {
         sequent: &countermodel.sequent,
         model,
-        text: countermodel.model.to_string(),
+        text: &countermodel.model,
     };
     write_refuted(&refuted, result, logic, show, quiet, out)
 }
@@ -983,8 +983,9 @@ struct Refuted<'a> {
     sequent: &'a ordinary::Sequent,
     /// The model in words: `a finite structure of 2 elements`.
     model: String,
-    /// The model as text, written after the verdict.
-    text: String,
+    /// The model, written as text after the verdict of a valid
+    /// refutation only (a refused one may be too large to write).
+    text: &'a dyn std::fmt::Display,
 }
 
 /// Writes the verdict of a checked first-order refutation by a model and
@@ -1040,7 +1041,7 @@ fn write_refuted(
     show.open(out, line.as_deref())?;
     let keep = show.close(out, Shown::Nothing, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
-        show.after(out, &refuted.text, false)?;
+        show.after(out, &refuted.text.to_string(), false)?;
     }
     Ok((status, keep))
 }

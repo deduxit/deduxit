@@ -244,6 +244,42 @@ fn a_resolution_is_checked() {
     );
 }
 
+/// A first-order sequent the model search refutes by a Kripke model with
+/// growing domains: the check of `decides` checks the model again, and
+/// fails a forged one.
+#[test]
+fn a_kripke_model_is_checked_again() {
+    let sequent = ordinary(
+        "(forall x. p(x)) -> q |- exists x. (p(x) -> q)",
+        crate::ordinary::Logic::Intuitionistic,
+    );
+    let decided = ran("ordinary.decide", &[&sequent], r#"{"method": "models"}"#);
+    assert!(decided.contains("kripke_structure"), "{decided}");
+    assert_eq!(
+        checked(
+            "ordinary.decide",
+            &[&sequent],
+            r#"{"method": "models"}"#,
+            &decided
+        )
+        .status,
+        Status::Held
+    );
+    // The upper world's predicate taken away: the model forces the goal.
+    let forged = decided.replace(r#","predicates":[["p",[[0]]]]"#, "");
+    assert_ne!(forged, decided);
+    assert_eq!(
+        checked(
+            "ordinary.decide",
+            &[&sequent],
+            r#"{"method": "models"}"#,
+            &forged
+        )
+        .status,
+        Status::Failed
+    );
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);

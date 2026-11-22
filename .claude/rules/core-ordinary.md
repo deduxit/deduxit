@@ -1125,8 +1125,12 @@ The countermodels of intuitionistic and minimal logic at first order
   along every arrow on the smaller domain's tuples; then forcing by its
   definition on a stack of its own (`Forcing`: `→`, `¬`, `↔`, `∀` over
   the worlds above, `∃` over the world's domain, `⊥` as `falsity`),
-  each evaluation and each function application a `tick` (work bound,
-  stop every 4 096). It does not rely on persistence. In classical logic
+  each evaluation a `tick` and each function application `1 + arity`
+  (`tick_by`; the finite structure's evaluator likewise), the closure
+  and agreement passes counted as well (work bound, stop every 4 096).
+  The evaluator does not rely on persistence; the verdict's soundness
+  does (Kripke soundness needs a model), which is why the growth and
+  agreement checks come first. In classical logic
   it refuses a model with worlds above the refuted one; with nothing
   right of `⊢` it refuses `falsity` at the refuted world (minimal
   logic's `⊥`). A test runs it beside `Structure::refutes` on one world.
@@ -1156,7 +1160,15 @@ The countermodels of intuitionistic and minimal logic at first order
 - **The dispatch**: the library's default after the embedding runs
   `models::decide`, which in intuitionistic and minimal logic includes
   this search; the command races it beside the embedding
-  (`races_the_embedding`, `prove.rs`).
+  (`races_the_embedding`, `prove.rs`). The protocol's check of `decides`
+  and `deduxit check` check the model again.
+- **What the panel found** (answered): `--model-size 0` reached a pair
+  with no element and panicked (now unknown at once); the protocol's
+  check of `decides` passed over `kripke` (`Recorded`, a forged model
+  too); the agreement pass, the closure lists and a term's arguments
+  went uncounted (a function of 10⁶ arguments ran 16 s past a 1 s stop);
+  the text listed every arrow uncapped and was built after a refused
+  check; `WORLD_BYTES` was 2.4 times short.
 
 ## The SAT engine (`sat/`, behind `sat`)
 

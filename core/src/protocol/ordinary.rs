@@ -1479,19 +1479,28 @@ fn decides(
             checked("derivation", derivation.check(limits, stop))?.status
         }
         ordinary::Verdict::Valid(_) => Status::Recorded,
-        ordinary::Verdict::NotValid => match (&outcome.countermodel, &outcome.structure) {
-            (Some(countermodel), _) => {
-                checked(
-                    "countermodel",
-                    countermodel.check(outcome.logic, limits, stop),
-                )?
-                .status
+        ordinary::Verdict::NotValid => {
+            match (&outcome.countermodel, &outcome.structure, &outcome.kripke) {
+                (Some(countermodel), _, _) => {
+                    checked(
+                        "countermodel",
+                        countermodel.check(outcome.logic, limits, stop),
+                    )?
+                    .status
+                }
+                (None, Some(structure), _) => {
+                    checked("structure", structure.check(outcome.logic, limits, stop))?.status
+                }
+                (None, None, Some(kripke)) => {
+                    checked(
+                        "kripke_structure",
+                        kripke.check(outcome.logic, limits, stop),
+                    )?
+                    .status
+                }
+                (None, None, None) => Status::Recorded,
             }
-            (None, Some(structure)) => {
-                checked("structure", structure.check(outcome.logic, limits, stop))?.status
-            }
-            (None, None) => Status::Recorded,
-        },
+        }
         ordinary::Verdict::Unknown(_) => Status::None,
     };
     Ok(Check::whole(promise, status))

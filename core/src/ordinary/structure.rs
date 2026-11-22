@@ -450,11 +450,18 @@ impl Evaluator<'_, '_> {
 
     /// Counts an evaluation, refusing past the bound and asking the stop.
     fn tick(&mut self) -> Result<(), Error> {
-        self.work += 1;
+        self.tick_by(1)
+    }
+
+    /// Counts `units` evaluations, refusing past the bound and asking the
+    /// stop each time the count passes a multiple of 4 096.
+    fn tick_by(&mut self, units: u64) -> Result<(), Error> {
+        let before = self.work;
+        self.work = self.work.saturating_add(units);
         if self.work > self.most {
             return Err(Error::Refused(Refusal::Work { limit: self.most }));
         }
-        if self.work.is_multiple_of(4_096)
+        if self.work / 4_096 != before / 4_096
             && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
         {
             return Err(Error::Refused(Refusal::Stopped {
@@ -513,7 +520,9 @@ impl Evaluator<'_, '_> {
                         })?;
                         values.push(e);
                     } else if applied {
-                        self.tick()?;
+                        // An application costs its arguments too: a
+                        // function may take millions of them.
+                        self.tick_by(1 + args.len() as u64)?;
                         let table = self.functions.get(name).ok_or_else(|| {
                             (self.wrong)(format!("has no table for the function {name}"))
                         })?;
@@ -615,7 +624,7 @@ impl FiniteCountermodel {
 /// The most entries of a function's table or tuples of a predicate a
 /// structure's text shows, the rest counted: a table holds `size^arity`
 /// values, and its text would be some fifty times its bytes.
-const SHOWN: usize = 64;
+pub(super) const SHOWN: usize = 64;
 
 impl std::fmt::Display for Structure {
     /// Writes the structure in lines: the domain (`domain: {0, 1}`, past
