@@ -117,4 +117,5 @@ fixup-18	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 04:00	20
 fixup-19	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 05:00	2026-11-22 06:50	verdict past the drawing limit
 fixup-20	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 07:00	2026-11-22 07:45	LJT's preference within a bound
 fixup-21	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 07:50	2026-11-22 09:20	JSON for a late unknown
-fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25		tests in every pair of features
+fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25	2026-11-22 10:35	tests in every pair of features
+77a	design	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 10:40		transformations, design and normal forms

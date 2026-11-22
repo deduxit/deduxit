@@ -8088,3 +8088,11 @@ move (D26).
   now depends on 74 to 78. The library's web bindings (`web/`, `web-render/`, `web-tab/`) may still
   change with the library, since the page takes them only through a lock bump; the manual and the
   rustdoc on Pages are deduxit's and still deploy from `main`.
+- 2026-11-22, about 10:40: **fixup-22 reviewed and pushed; 77a started.** fixup-22 (Opus, high;
+  the reviewer on Fable): `cargo hack check --feature-powerset --depth 2 --tests -p deduxit` passes
+  (each test and test-only item under its uses' `cfg`; the integration files keep inner `cfg`s, since
+  each holds tests of several needs), the same 923 tests before and after; a check of its own,
+  `features-tests`, on its own CI runner (CI's wall time about a minute more at most). The reviewer's
+  finding (the check built no integration test) fixed. Full check passed on `main`; pushed
+  (`zktlyxzq`). In the same worker, keeping its conversation: **77a**, the first-order
+  transformations' design and the normal forms (prenex, miniscoping, Skolemization, clausal form).
