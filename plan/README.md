@@ -8154,3 +8154,18 @@ move (D26).
 - 2026-11-22, about 15:30: **76c switched to Fable 5.2** on the author's word ("Switch it to
   Fable"), from its next turn on (the row allows Fable for the Rocq lemmas). Its reviewer and the
   panel's argument member then run on Opus at high, never the writer's model.
+- 2026-11-22, about 16:00: **77b reviewed and pushed; 78b started.** 77b (Opus, high; the reviewer
+  on Fable at medium): the negative translations at first order (Kuroda's `¬¬` after each `∀`,
+  Gödel–Gentzen's `∃` as `¬∀¬`, Kolmogorov's; Glivenko's refuses first order); Herbrand's theorem
+  (`deduxit herbrand`, `ordinary.instances`, wire level 28): ground instances level by level, the
+  SAT solver's checked refutation cut to the instances it needs, and a **deskolemized derivation of
+  LK of the sequent as written**, checked (2 000 generated sequents: all 402 classically valid ones
+  derived and checked); Craig interpolants at first order in LK, LJ and LM (terms of one half's names
+  bound by their own quantifiers, the eigenvariable conditions kept; a latent fault fixed, the root's
+  halves read by position). The reviewer's four Herbrand findings fixed with tests. **Accepted
+  departures:** where a bound refuses the derivation, the valid verdict carries the instances'
+  checked clausal proof (Skolem's theorem and the clausal form's structural check); Herbrand answers
+  unknown where `prove` gives a countermodel; the witnesses are every kept instance's terms. The web
+  module's ceiling raised to 2 800 000. Full check passed; pushed (`tpnruzyx`). Step 77 is complete
+  but for 77c (Glivenko's failure, after 76c's Rocq lemma). In its worker: **78b**, first-order
+  resolution, from 78a's design section B while 78a finishes.
