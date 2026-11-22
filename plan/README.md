@@ -8213,3 +8213,18 @@ move (D26).
   **Step 77 complete** with it. In its worker: **fixup-24**, the shift's spelling in rocq-deduxit's
   comments (before the library's tag) and Herbrand's read-back within the memory bound with a witness
   set per quantifier (78b's panel's open items).
+- 2026-11-22, about 19:55: **78a reviewed and pushed; 78c started.** 78a (Opus, high; the full
+  panel and the reviewer on Fable): `=` and `!=` read natively and in TPTP, decided by their axioms
+  (reflexivity, symmetry, transitivity, a congruence per symbol) appended as hypotheses in one place
+  (`ordinary::equality::with_axioms`), every method, every logic; "not valid" only with a checked
+  structure that reads `=` as identity (grounding's and the model search's divided by `=`), else
+  unknown; TPTP `cnf` and `prove --szs`; 78b's resolution adds the axioms at its door. ILTP's 1 730
+  equality problems, all refused before: classical default 321 valid, 18 not valid; intuitionistic
+  103 and 18; the model search alone refutes 105; no verdict against a status. The panel and the
+  reviewer found no wrong verdict; their findings (an unchecked "not valid" at a bound, the
+  methods' own doors, uncharged axioms, a quadratic scan) fixed. **Accepted departures:** no
+  `Outcome` field for the axioms; the SZS line last; `seq print --logic` shows the axioms; the linear
+  reader's `=`. read-tptp +1.2 %, within the ceiling. Full check passed; pushed (`wzvqwqso`). In its
+  worker: **78c**, the comparison with leanCoP, nanoCoP and iLeanCoP on the equality problems deciding
+  any native rule (paramodulation in resolution the candidate), 78a's follow-ups, D19 for `=` after
+  fixup-23, the docs; step 78 complete with it.
