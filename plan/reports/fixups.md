@@ -869,3 +869,80 @@ all fixed in `kyvlvztt`:
   which this change does not reach).
 - `nix flake check` under the machine lock at the report's commit
   (02:15 to 02:33): every check passed. Only this line changed after.
+
+## Session fixup-16: the glue's licence and non-UTF-8 TPTP
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixup-15), cores 10 to 12, from 75d's
+two questions for the author, decided by the planning session
+unattended. Nothing was pushed.
+
+### What landed
+
+- `oqylutum`: **`modules/_provers/ileancop_main.pl` is under the GPL.**
+  It follows leanCoP 2.1's `leancop_main.pl` closely, and leanCoP's
+  archive states "License: GNU General Public License" in every file
+  without a version, which lets any version be chosen: the header's
+  second line is `SPDX-License-Identifier: GPL-3.0-or-later`, followed by
+  why, and that it is benchmark glue in no crate. The `conventions` check
+  did not read Prolog or OCaml files at all; it now reads `.pl` and
+  `.ml` too, and names this one file's licence line in a `case` (the
+  four other `.pl` files and the `.ml` file keep the EUPL's, and a run
+  with the glue's line put back to the EUPL's fails the check).
+  Recorded in CLAUDE.md's conventions, `flake.md` and `bench/TOOLS.md`.
+- `vupwskro`: **TPTP files whose comments are not UTF-8 are read.**
+  `io::read_tptp` (the command's problem and its includes, and the
+  batch's TPTP files) decodes the bytes with `tptp_text`: valid UTF-8 as
+  it is; otherwise a byte that is no UTF-8 inside a `%` comment stands as
+  U+FFFD, and one anywhere else (a formula, a quoted
+  name, a string) is refused as "line N holds a byte that is not UTF-8
+  outside a comment". The harness's `text_of` does the same in place of
+  its lossy reading of every byte. All 107 of ILTP's first-order
+  problems without equality that are not UTF-8 now read (`prove --logic
+  classical` on each: none refused). Tests in `cli/tests/cli.rs`
+  (`tptp_comments_need_not_be_utf8`, an included file too) and the
+  harness's; the manual's TPTP section, the guide and the changelog say
+  so.
+- **The decoder is in two places**, the command's and the harness's: the
+  harness depends on the core library alone, and the core's `read_tptp`
+  takes text, so a shared one would be a new public function (bytes in,
+  text out, or `read_tptp` taking bytes). An API change goes to the
+  author: **recommended**, a public `ordinary::read_tptp_bytes(&[u8],
+  &Limits)` (or `read_tptp` over `impl AsRef<[u8]>`), which the command,
+  the harness and a library user reading ILTP from disk would share.
+- The core's TPTP reader takes no `/* */` comment at all (a file with
+  one is "not a TPTP problem"); ILTP writes `%` comments alone, and the
+  decoders know the reader's `%` comments alone (the review's finding).
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`) at both commits. Points 1 and 2
+held: the archive's licence line as the header says; the header rule
+applied by hand to the 418 sources it globs; every input path of a
+TPTP file (a file, standard input, a batch, `--isolate`, JSON,
+`seq print`) reads a `%` comment's byte, and a byte in a formula, a
+quoted name or an included file is refused with the right line; the
+decoder alone on 2 million random byte strings never panicked, gave
+`from_utf8_lossy`'s text whenever it accepted and never refused valid
+UTF-8; every other input still refuses text that is not UTF-8. Two
+false texts, fixed in `vupwskro`:
+- `bench.md`'s comparison bullet still said the command refuses the 107
+  files; it now says they are read, and that the run of 2026-11-21
+  converted them.
+- `tptp_text`'s and `text_of`'s docs said the reader skips `/* */`
+  comments, which it does not; the decoders now know `%` comments
+  alone, as the reader does.
+- Left as it is: `bench/COMPARISON.md` records the run of 2026-11-21,
+  when the command refused the files.
+
+### Checks
+
+- `cargo test --workspace` and `cargo clippy --workspace --all-targets
+  -- --deny warnings`; the gate passed before the review's text fixes
+  (`ordinary-pigeons` +1.88 %, within the tolerance), clippy and the
+  TPTP tests after them; the 107 files read again on the final build.
+- `nix build .#checks.x86_64-linux.conventions`: passed, and failed with
+  the glue's line put back to the EUPL's.
+- `nix flake check` under the machine lock at the report's commit
+  (02:57 to 03:06), on the chain rebased onto `main@origin`: every check
+  passed. Only this line changed after.
