@@ -1093,3 +1093,152 @@ findings, all fixed in the commits named:
 - `nix flake check` under the machine lock at the report's commit
   (04:33 to 04:50), on the chain rebased onto `main@origin`: every
   check passed. Only this line changed after.
+
+## Session fixup-19: the verdict past the drawing's limit
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixups 15 to 18), cores 10 to 12,
+from the brief `/tmp/linlog-handoff/start-fixup-19.md`: the pigeonhole
+entry's first way (the planning session's decision, unattended) and
+the comparison script's ILTP pass. Nothing was pushed.
+
+### What landed
+
+- `ywwvtxow`: **a derivation of LK or LJ is bounded by memory, and
+  `--derivation-limit` only what is drawn.** Every reader back (the
+  embedding's `linear_derivation`, unfolded with `derivation_bytes`
+  lifted, and its LK read-back; LJT's `Lj`; the SAT read-back; the
+  classical connection read-back, now `Refusal::Memory`; the
+  intuitionistic `Emit`) charges its inferences to `memory_bytes` and
+  compares nothing with `derivation_bytes`. The command gates the
+  drawing instead (`Written::drawn_bytes` in `show.rs`, by the new
+  public `ordinary::Derivation::drawn_bytes`, the size estimate's
+  measure): past the limit the drawing is left out with "the derivation
+  is not written: its N inferences are estimated at X drawn, over the
+  limit of Y; prove --format json writes it, …", the verdict and its
+  exit status kept, in every drawn format, `--output`, the batch's
+  directory and `check`. Three places still read `derivation_bytes` on
+  purpose, from the review: the intuitionistic default keeps LJT's
+  derivation only where its drawing fits (`ljt::decide_drawable`), the
+  tableau method builds its tableau within it (it is what the method
+  shows), and the protocol's `ordinary.draw`, `export` and
+  `certificate` refuse a drawing past it (`drawable`). The manual's
+  limits table and `commands.md`, `--help`, the guide, the changelog,
+  `limits.rs`'s table and the rules say what each bound governs; the
+  manual's gave-way example uses `--work-limit 6` now, since
+  `--derivation-limit` no longer makes the default give way.
+- `krpumtzr`: the lock's `help-prove.txt` and `help-check.txt`, the
+  only lock files the change moved.
+- `lkwyqolo`: **`bench/comparison.sh` runs ILTP as its third pass**:
+  both packages (`iltp`, `iltp-first-order`) in classical and
+  intuitionistic logic with the tools of ordinary logic (deduxit,
+  intuit, intuitR, leanCoP, nanoCoP, nanoCoP-i, ileanCoP; the default's
+  stream with `deduxit-default`), resumed and sharded as the other
+  passes, empty under `--growing`; `--quick` takes SYJ101+1 and SYN036+1.
+  The dry run found intuit and intuitR answering a parse error on a
+  first-order problem: `tools::Ordinary` has `first_order`, false for
+  those two, and such a run is `refused`/`fragment`. `plan/later.md`
+  keeps the pigeonhole entry's second way (shared subderivations checked
+  once) and gains the review's follow-up on LJT's preference (below).
+
+### Measurements
+
+All on core 10 (the ILTP runs on 10 to 12), release builds of
+`pmoppnoz` ("before") and of the chain ("after"; "fixed" after the
+review's fixes).
+
+ILTP's SYJ202 in intuitionistic logic at the default bounds (2 s):
+
+| size | before, `-q` | after, `-q` | after, JSON |
+|---|---|---|---|
+| 4 | unknown (embedding, time limit at copy bound 9) | valid, 0.09 s, 26 MB | 2.5 MB |
+| 5 | unknown: the search ended, the time limit came before the check | valid, 2.11 s, 143 MB | 10.9 MB |
+| 6 | the same | valid, 2.20 s, 453 MB | 136 MB, 2.65 s |
+
+The drawn tree: at size 4 the default leaves it out ("its 20223
+inferences are estimated at 68.7 MiB drawn, over the limit of 64.0
+MiB"); with `--derivation-limit none` both builds draw it, 95.9 MB of
+text in 0.25 s; at sizes 5 and 6 the drawing reaches the time limit and
+is left out ("the time limit of 2s was reached"), the verdict kept.
+Size 5 and 6 take the whole limit because the default's LJT search for
+a derivation it may prefer runs on (1 019 980 sequents, 5 s, against
+the solver's 28 ms), older than this chain and now a `later.md` entry.
+
+ILTP's 274 propositional problems in the three logics at 2 s
+(`--engines auto`, three shards), before against after (before the
+review's fixes): 757 decided against 761 (755 and 756 within the
+2 s; the rest a little past it). Gained six: SYJ202+1.004, .005 and
+.006 in intuitionistic and minimal logic. Two classical rows went the
+other way, SYJ202+1.010 and SYJ208+1.010; run three times with each
+build, each build loses one run in three at the limit (1.85 to 2.11 s):
+noise at the edge. The fixed build again: 761 decided, 756 within the
+limit, nothing lost against the chain before the fixes, the same two
+edge rows against `pmoppnoz`, and the decided rows' time summed 8.8 s
+against 18.8 s (LJT's translation now stops at the drawing's bound).
+`summary --strict` passes all three runs: no row against a status, no
+error, no disagreement.
+
+The comparison script's dry run (`--quick --timeout 2 --cores 10`,
+built under the machine lock in 3 min, run in 3 min, exit 0):
+`seq-1-1-iltp.csv` has 28 rows (2 problems, 2 logics, 7 tools) and
+`ranking.md` its group "ILTP (ordinary logic)"; with the `first_order`
+flag, intuit and intuitR are refused SYN036+1 and prove SYJ101+1.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`). Points 2 (every drawing path
+leaves the drawing out with the verdict and exit 0 kept, JSON at any
+size, `--lambda` under its own bound), 4 (the shards partition, the
+flag refuses only intuit and intuitR, `--growing` skips the pass) and 5
+(`cargo hack check --each-feature`, `drawn_bytes` documented) held.
+Its findings, all fixed in `ywwvtxow` unless named:
+- **The default no longer drew 19 ILTP derivations it drew before**
+  (SYJ201 from size 6, SYJ206 at 11 to 14): LJT's derivation, unbounded,
+  displaced the one read off the SAT search (SYJ201+1.020: 184 826
+  inferences, 14.7 GiB drawn, where the one read off is 11.7 MB of
+  text; JSON 427 KB before, 310 MB). `prefer_ljt` now takes LJT's only
+  where its drawing fits `derivation_bytes`, LJT's translation stopping
+  past it (`decide_drawable`; `ljt_is_preferred_where_its_drawing_fits`).
+  The fixed build writes the same bytes as before on SYJ201+1.006 and
+  .020 and SYJ206+1.012, and gives SYJ202+1.004 its "valid" in 0.06 s
+  (it drew no derivation before either).
+- **The embedding's read-back charged nothing for its LK inferences**: a
+  classical negation has no image, so each rule under d negations adds
+  d inferences, each holding the whole sequent (2 000 hypotheses under
+  20 000 negations reached 6.3 GB at a 1 GiB bound). `Out` charges each
+  inference and the linear derivation beside it, and the chain asks the
+  stop (`the_read_back_keeps_to_the_memory_bound`, whose linear proof
+  unfolds within the bound its read-back passes).
+- **The protocol drew a decided derivation of any size** (its `reads`
+  name `derivation_bytes`, nothing applied it):
+  `drawable` (`a_drawing_past_the_derivation_bound_is_refused`).
+- **The tableau method still refuses past `--derivation-limit`**, against
+  the new texts: they name the exception now (the method shows its
+  tableau, which its steps build).
+- **Stale text**: the changelog's fixup-18 line ("a derivation past
+  `--derivation-limit` among them"), `limits.rs`'s table and the field's
+  doc, LJT's and the SAT method's `# Errors` (`Refusal::Output`), the
+  named method's advice to raise `--derivation-limit` (now only for a
+  refusal of that bound), `gave_way`'s unreachable arm and its rules
+  line, the line's "--format json writes it" under `check` (now
+  "prove --format json"), `commands.md`'s "in every format … is not
+  built", the guide's "made within its limits", and the comment that
+  deduxit needs `$TPTP` for includes (every tool finds them above the
+  problem; `lkwyqolo`).
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` after each commit and after the review's
+  fixes (39 test binaries); the lock moved only in `help-prove.txt` and
+  `help-check.txt`, reblessed in `krpumtzr`; the harness's tests on the
+  `first_order` flag; shellcheck on the script.
+- The gate passed twice: on the chain before the review, and on the
+  fixed chain rebased onto `main@origin` (`rqqlsulk`). The ratchet:
+  `ordinary-pigeons` +1.03 % over its ceiling's count (the read-back's
+  charge per inference), within the 2 % tolerance; every other journey
+  within it, misses moved on `search-chain-128` and `check-qbf-20-2`
+  (a notice, not a failure).
+- `nix flake check` under the machine lock at the report's commit
+  (06:28 to 06:44), on the chain rebased onto `main@origin`: every
+  check passed. Only this line changed after.
