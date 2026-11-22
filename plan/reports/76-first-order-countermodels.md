@@ -368,3 +368,203 @@ the documentation into `zvwsmssm`:
 - No incrementality across sizes, and no symmetry breaking on function
   values (RSV16 §3.4's second clause, Mace4's least-number heuristic):
   measure on harder sets before adding.
+
+## Session 76b: Kripke models with growing domains
+
+Opus 5.5 at `high`, in the same workspace, on 76a's head (`kpwlyunq`),
+cores 7 to 9; the panel on 13 to 15. Nothing was pushed.
+
+### Outcome
+
+- **The type and its check**: `ordinary::KripkeStructure` (worlds with a
+  prefix domain each, arrows, function tables per world, predicates,
+  `falsity`; constants once; the refuted world), `KripkeWorld`,
+  `KripkeCountermodel`, `Outcome::kripke`, the JSON
+  `"kripke_structure"` at wire level 27, the text form a line per
+  world. The check is the forcing relation's definition on a stack of
+  its own, with the growth of domains, predicates and `falsity`, the
+  tables' agreement and the acyclic order checked apart.
+- **The bounded search**: in intuitionistic and minimal logic
+  `models::decide` tries, for L = 1, 2, …, the classical structures of L
+  elements and then the Kripke models of min(L, worlds) worlds with
+  domains of min(L, size) elements, each one propositional sequent for
+  `sat::falsify` (`kripke_search`); the model read off is checked before
+  "not valid"; past both bounds the answer is unknown,
+  `Reason::KripkeSize` (`search::Options::model_worlds`, library 4,
+  command none; `--model-worlds`).
+- **In the dispatch**: the library's default after the embedding (the
+  same call as the classical model search's, which now includes the
+  Kripke models); the command races the model search beside the
+  embedding on a thread of its own, which takes one of the command's
+  threads; a proof stops the model search at once (measured, below:
+  a long theorem 1 to 3 % slower).
+- **Glivenko's failure has no finite countermodel** (design §10): in a
+  finite frame every world sees a maximal one, which forces what is
+  classically true in its structure, so `¬¬A` is forced everywhere for
+  every classically valid `A`. The search answers unknown on
+  `¬¬∀x (p(x) ∨ ¬p(x))` and on the double-negation shift, which a test
+  pins; the countermodels are infinite chains (world n with domain
+  `0 .. n`, `p(k)` forced from world k + 1 on). The planning session was
+  told at once, since step 77's item waits for it.
+
+### Measurements
+
+ILTP's 2 670 first-order problems at 2 s, intuitionistic logic, three
+shards on cores 7 to 9 (`bench/defaults/kripke-iltp-first-order-{1,2,3}.csv`,
+`--engines models,auto`; the 1 730 with equality are refused, four do
+not read):
+
+| method | not valid | intuitionistic Non-Theorems refuted | slowest |
+|---|--:|--:|--:|
+| model search (structures and Kripke models) | **324** | 93 of 94 | 1.97 s |
+| nanoCoP-i 2.0 (75d's comparison) | 86 | – | – |
+| iLeanCoP 1.2 (the same) | 74 | – | – |
+| deduxit's default at 75d | 109 | – | – |
+
+- The 324 hold every one of nanoCoP-i's 86 and iLeanCoP's 74; the rest
+  are marked Unsolved (190) or Open (41) intuitionistically. None is
+  marked Theorem. Median 0.5 ms, 90% within 19 ms, 99% within 0.5 s.
+- **The library's default** (`auto`): 226 proved and 304 refuted (76a:
+  224 and 226 with the classical model search alone; 75d: 224 and 109).
+  Its refutations: the model search 196, grounding 75, the SAT solver 33
+  (sequents without quantifiers). No verdict contradicts a status.
+- **The command's race**, on the 530 problems the library's default
+  decides, three at a time on cores 7 to 9 (`--timeout 2s`, the default
+  threads): all 226 theorems proved, 298 of the 304 refutations; the
+  other 6 end at grounding's time limit or its bound on the ground
+  formula, which the library without a clock passes (SYN418, SYN420,
+  SYN421, SYN544, SYN545, SYN547), as before this step.
+
+### The panel
+
+Argument (Fable 5.2), counterexamples (Opus 5.5), integers (Sonnet
+5.5), all at `high`, on cores 13 to 15 beside 77a's and 78a's runs.
+None found a wrong "not valid":
+- the argument member stated the invariant (a poset, domains growing,
+  persistent interpretations, atoms and minimal logic's `⊥` growing,
+  forcing by definition, the refuted world forcing Γ and not C, one
+  world classically: Kripke soundness for LJ and LM), checked it at every
+  site, and ran 620 000 (sequent, model) pairs against a recursive
+  evaluator and validator of its own (0 disagreements) and 277 models of
+  the search (0 wrong);
+- the counterexamples member compared 3 680 sequents with a brute-force
+  enumerator of every Kripke model within the bounds (up to 4 worlds,
+  the diamond included): the search found a model exactly where one
+  exists (1 514), no sequent either the embedding or the connection
+  prover proves got a model, the command's race on 300 sequents agreed,
+  and `deduxit check` accepted exactly the 2 870 refuting models among
+  6 154 forgeries and the 977 among 5 070 random models.
+
+Their findings were bounds and one panic, answered in `zxtlwutr`:
+- **`--model-size 0` panicked** (argument and integers): a pair with no
+  element indexed an empty domain; in the command's race the panic
+  replaced a valid answer by exit 101. Now unknown at once in every
+  logic.
+- **The protocol's check of `decides` passed over a Kripke model**
+  (argument): `Recorded`, a forged one too. Now `KripkeCountermodel::check`
+  (`Held` honest, `Failed` forged, a test).
+- **Passes that counted no work** (argument and integers): the function
+  agreement (a function of 10⁶ arguments ran 16 s past a 1 s stop), the
+  closure lists (cubic in a complete order, 4 000 worlds 7.5 s past a 2 s
+  limit), a term's arguments in both evaluators. Now each counts its
+  steps (an application `1 + arity`) against `limits.work` and the stop.
+- **The text and the account** (integers): the model's text listed every
+  arrow and was built after a refused check (765 MB at 40 MiB); a world
+  was charged 96 bytes where 240 were measured. Now arrows are capped as
+  tables are, the text is built only for a valid refutation, and a world
+  is charged 256 bytes. The JSON read itself stays outside the account,
+  as for every form (`serialize`'s reading is bounded by the document).
+
+### The reviewer's round
+
+`fresh-reviewer` (Fable 5.2, medium) on `zuquzurw::zxtlwutr`. It found no
+wrong "not valid", agreed with the Glivenko argument for intuitionistic
+logic (it covers the double-negation shift too) and with pinning
+"unknown"; its findings:
+- **The race slowed a valid answer** (high): the model thread ran on
+  top of `--jobs`, a long theorem 12 to 17 % slower (16.4–16.8 s against
+  18.4–19.6 s at `--jobs 3` on three cores). Answered in `tmyyoyzo`: the
+  race's model search takes one of the command's threads; the same
+  witness then took 16.2–16.5 s against 16.0 s for the embedding alone,
+  three alternating runs each on cores 7 to 9 (departs from the design's
+  condition by that remainder, which a second search costs).
+- **"A finite model never refutes ¬¬A for a classically valid A" is
+  false in minimal logic** (medium): a maximal world may force `⊥`;
+  `|- ~~(false -> p(a))` is refuted minimally. Answered: the manual, the
+  guide, the changelog and the rules say it of intuitionistic logic and
+  name minimal logic's case.
+- **The JSON form came a commit before its documentation** (low):
+  answered by folding the command's and the documentation's commit into
+  the core's (`kylzmpzn`).
+- **The guide's `--stats` list and cli.md's counter count** (low):
+  updated.
+- **A question**: the search's domains are initial segments of one
+  numbering, so two worlds not ordered add the same new elements, and a
+  diamond whose middle worlds add different elements below a common top
+  is not among the models searched. Answered: `Reason::KripkeSize` now
+  reads "the search found no Kripke model of up to …", the reason's doc
+  and the manual say what kind of model is searched, and the rules note
+  that models over trees, which suffice for completeness, lose nothing.
+
+### Departures
+
+- **The race costs a valid answer 1 to 3 %** on a long theorem
+  (departs from the design's "no valid answer slower" by that much,
+  measured): the model search shares the machine with the embedding's
+  search, which keeps all but one of the command's threads.
+- **The batch does not race**: `deduxit prove --batch` leaves
+  intuitionistic and minimal first-order sequents to the embedding alone
+  (open, below).
+- **The library's default asks the Kripke search after the embedding in
+  intuitionistic and minimal logic through the same call as the
+  classical model search** (as the brief asks); the classical sizes are
+  tried first at each level, since a classical structure refutes in
+  every logic and costs less.
+- **Glivenko's failure is pinned as unknown, not as a countermodel**:
+  no finite model exists (design §10); step 77's plan moved to a Rocq
+  lemma on an infinite model meanwhile.
+
+### What was checked, and by what
+
+- `cargo clippy --workspace --all-targets --all-features -- --deny
+  warnings` and `cargo test --workspace` at every commit's build here.
+- The gate: passed on 76b's first head (`ordinary-pigeons` −0.82 %: D17's
+  propositional path unchanged), after the panel's fixes, and on the
+  rebased head (`ordinary-pigeons` −0.82 %).
+- `nix flake check --keep-going` before the reviewer's round failed three
+  checks: `budget` (2 708 195 bytes against 2 700 000, answered in
+  `nqqvzlvv`) and the two wasm32 Clippy checks (a lint expectation that
+  does not fire on 32-bit, answered by a `target_pointer_width` guard);
+  on the rebased final head every check passed.
+- The measurement and the race's check on ILTP (above); the panel's and
+  the reviewer's witnesses rerun on the fixed build.
+- Rebased onto `main@origin` (`zuppslkx`, 77a's chain) without
+  conflicts.
+
+### What 76c must know
+
+- **The types to certify**: `KripkeStructure` (worlds with prefix
+  domains `0 .. size`, arrows to the worlds directly above, tables per
+  world over its own domain agreeing along arrows, predicates and
+  minimal logic's `falsity` growing, constants once in every domain, the
+  refuted world) and `Structure` (`From<Structure>` is the one-world
+  case). The check (`KripkeStructure::refutes`) is the definition a
+  Rocq checker reflects: the growth and agreement conditions, then
+  forcing with `→`, `¬`, `↔`, `∀` over the worlds at or above, `∃` over
+  the world's own domain.
+- **Prefix domains** make "D(v) ⊆ D(u)" a size test and the inclusion
+  the identity on indices, which a boolean checker in Rocq can use as
+  is; the design's §8 names the lemmas (persistence, soundness of LJ for
+  such models, a boolean forcing function reflected,
+  `fo_kripke_refutation`).
+- **Glivenko's failure** needs an infinite model: world n with domain
+  `0 .. n` on a chain, `p(k)` forced from world k + 1 on; it refutes
+  `¬¬∀x (p(x) ∨ ¬p(x))` and the double-negation shift. Step 77's plan
+  takes it as a Rocq lemma.
+- **Drawing**: the text form is a line per world (`world 0 (the model's
+  world): domain {0}; below 1`); SVG, LaTeX and Typst draw no first-order
+  model yet.
+- **Open**: the batch's race; the connection prover's long run at the
+  library's path length of 8 on some sequents (76a's open item), which
+  keeps the library's default from reaching the embedding and the model
+  search there.
