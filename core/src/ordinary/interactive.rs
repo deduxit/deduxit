@@ -1488,9 +1488,9 @@ impl Interactive {
     fn eigen_name(&self, e: Eigen) -> String {
         self.formulas
             .eigen_names()
-            .into_iter()
-            .find(|&(k, _)| k == e.get())
-            .map_or_else(|| format!("#{}", e.get()), |(_, name)| name)
+            .iter()
+            .find(|&&(k, _)| k == e.get())
+            .map_or_else(|| format!("#{}", e.get()), |(_, name)| name.clone())
     }
 
     /// Returns the inferences a step of a quantifier rule makes: the goal's
@@ -1747,7 +1747,7 @@ impl Interactive {
     pub fn witness(&mut self, goal: GoalId, text: &str) -> Result<FoTermId, StepError> {
         self.open(goal)?;
         let fault = |reason: String| StepError::Witness { reason };
-        let eigens = self.formulas.eigen_names();
+        let eigens = self.formulas.eigen_names().to_vec();
         let scope = self.scope(InfId::new(goal.get()));
         // The tokens: names, brackets and commas.
         let mut tokens = Vec::new();

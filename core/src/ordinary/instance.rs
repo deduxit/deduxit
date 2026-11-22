@@ -8,7 +8,7 @@
 
 use super::{Formulas, Node, NodeId};
 use crate::Error;
-use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
+use crate::first_order::{Args, EigenNames, FirstOrder, FoTerm, FoTermId, Symbol};
 use crate::hash::{HashMap, HashSet};
 
 impl Formulas {
@@ -199,7 +199,32 @@ impl Formulas {
     /// hold, not by the number, so a document's large numbers cost
     /// nothing; an eigenvariable made later takes a larger number and
     /// leaves the earlier names as they were.
-    pub(crate) fn eigen_names(&self) -> Vec<(u32, String)> {
+    pub(crate) fn eigen_names(&self) -> &[(u32, String)] {
+        &self.eigen_table().0
+    }
+
+    /// Returns whether an eigenvariable of the arena is printed `name`.
+    pub(crate) fn is_eigen_name(&self, name: &str) -> bool {
+        self.eigen_table().1.contains(name)
+    }
+
+    /// Returns the eigenvariables' names by number and as a set, computed
+    /// once per state of the tables.
+    fn eigen_table(&self) -> &EigenNames {
+        /// The names of an arena without first-order tables: none.
+        static NONE: std::sync::LazyLock<EigenNames> = std::sync::LazyLock::new(Default::default);
+        let Some(fo) = self.fo.as_deref() else {
+            return &NONE;
+        };
+        fo.eigens.get_or_init(|| {
+            let names = self.compute_eigen_names();
+            let set = names.iter().map(|(_, name)| name.clone()).collect();
+            Box::new((names, set))
+        })
+    }
+
+    /// Computes [`eigen_names`](Self::eigen_names) from the terms.
+    fn compute_eigen_names(&self) -> Vec<(u32, String)> {
         let tables = self.tables();
         let mut numbers: Vec<u32> = tables
             .terms
@@ -776,6 +801,25 @@ mod tests {
         ];
         let body = make(&mut formulas, terms);
         (formulas, body, terms[2])
+    }
+
+    /// The eigenvariables' names are kept between prints and made again
+    /// once the tables change: an eigenvariable added after a print gets
+    /// its name, and a binder named like it is renamed.
+    #[test]
+    fn eigenvariable_names_follow_the_tables() {
+        use crate::first_order::{Eigen, FoTerm};
+        let mut formulas = Formulas::default();
+        let e0 = formulas.interner().term(FoTerm::Eigen(Eigen::new(0)));
+        let p = formulas.predicate("p", &[e0]).unwrap();
+        assert_eq!(formulas.formula(p).to_string(), "p(a)");
+        let e1 = formulas.interner().term(FoTerm::Eigen(Eigen::new(1)));
+        let q = formulas.predicate("q", &[e1]).unwrap();
+        assert_eq!(formulas.formula(q).to_string(), "q(b)");
+        let v = formulas.variable(0);
+        let body = formulas.predicate("p", &[v]).unwrap();
+        let all = formulas.binder(true, body, "b").unwrap();
+        assert_eq!(formulas.formula(all).to_string(), "∀b_1. p(b_1)");
     }
 
     #[test]

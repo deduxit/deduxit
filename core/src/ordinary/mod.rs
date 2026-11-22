@@ -1050,7 +1050,17 @@ impl Formulas {
     /// Returns the first-order tables and their maps, made empty where the
     /// arena has none yet.
     fn interner(&mut self) -> &mut Interner<NodeId> {
-        self.fo.get_or_insert_with(Box::default)
+        let fo = self.fo.get_or_insert_with(Box::default);
+        // The names printed follow the tables, which the caller may change.
+        fo.eigens.take();
+        fo
+    }
+
+    /// Returns whether a symbol of the arena is named `name`.
+    fn has_symbol(&self, name: &str) -> bool {
+        self.fo
+            .as_ref()
+            .is_some_and(|fo| fo.find_symbol(name).is_some())
     }
 
     /// Gives every atom without one its nullary predicate, so that the
@@ -1361,12 +1371,10 @@ impl Formulas {
     ) -> FmtResult {
         let tables = self.tables();
         let eigens = self.eigen_names();
-        let taken: std::collections::HashSet<&str> = tables
-            .symbols
-            .iter()
-            .map(|(s, _)| s.as_str())
-            .chain(eigens.iter().map(|(_, name)| name.as_str()))
-            .collect();
+        // A lookup per candidate, never a set of every symbol: the
+        // printer runs once per formula, and a sequent's formulas share
+        // one arena.
+        let taken = |candidate: &str| self.has_symbol(candidate) || self.is_eigen_name(candidate);
         // The names of the open binders, the innermost last, and how many
         // open binders have each, so that a clash costs one lookup.
         let mut scope: Vec<String> = Vec::new();
@@ -1387,7 +1395,7 @@ impl Formulas {
                 Stop::Enter(k, nested) => {
                     let in_body = std::mem::take(&mut body);
                     match self.node(k) {
-                        Node::Atom(a) => self.write_atom(out, a, &scope, &eigens, atom, name)?,
+                        Node::Atom(a) => self.write_atom(out, a, &scope, eigens, atom, name)?,
                         Node::True => out.write_str(symbols.truth)?,
                         Node::False => out.write_str(symbols.falsity)?,
                         Node::Not(_) => {
@@ -1413,7 +1421,7 @@ impl Formulas {
                             })?;
                             let recorded = tables.binder_name(k).unwrap_or("x");
                             let clashes = |candidate: &str| {
-                                taken.contains(candidate) || open_names.contains_key(candidate)
+                                taken(candidate) || open_names.contains_key(candidate)
                             };
                             let candidate = |n: u32| {
                                 if n == 0 {

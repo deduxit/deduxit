@@ -586,7 +586,16 @@ pub(crate) struct Interner<K> {
     terms: HashMap<FoTerm, FoTermId>,
     /// Every argument list by its terms.
     lists: HashMap<Box<[FoTermId]>, Args>,
+    /// The eigenvariables' names an ordinary arena prints, computed at
+    /// its first print and dropped whenever it lends the tables out to be
+    /// changed: the printer asks per formula, and computing them reads
+    /// every term.
+    pub(crate) eigens: std::sync::OnceLock<Box<EigenNames>>,
 }
+
+/// The eigenvariables' names of an arena by number, ascending, and the
+/// same names as a set.
+pub(crate) type EigenNames = (Vec<(u32, String)>, std::collections::HashSet<String>);
 
 impl<K> Default for Interner<K> {
     fn default() -> Self {
@@ -596,6 +605,7 @@ impl<K> Default for Interner<K> {
             predicate: Vec::new(),
             terms: HashMap::default(),
             lists: HashMap::default(),
+            eigens: std::sync::OnceLock::new(),
         }
     }
 }
