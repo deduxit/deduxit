@@ -1467,6 +1467,17 @@ impl Image {
         let tag = |o: OccId| tags[o.index()].expect("every occurrence is tagged");
         let mut instances = Instances::new(proof, &mut arena).map_err(&fail)?;
         let propositional = linear.framing().is_none();
+        // What the instances add to the arena is held beside the
+        // inferences: a member past the forest builds its formula, and a
+        // deep nest of binders builds hundreds of bytes a member.
+        let mut grown = if propositional {
+            ArenaSize::default()
+        } else {
+            ArenaSize {
+                bytes: 0,
+                ..ArenaSize::of(&arena, &ArenaSize::default())
+            }
+        };
 
         let mut out = Out {
             inferences: Vec::new(),
@@ -1508,6 +1519,9 @@ impl Image {
                     };
                     members.push((node, t.side));
                 }
+                let now = ArenaSize::of(&arena, &grown);
+                out.held = out.held.saturating_add(now.bytes - grown.bytes);
+                grown = now;
                 members
             };
             let premises: Vec<InfId> = inference
@@ -1684,6 +1698,66 @@ impl Image {
             (Node::Exists(_), Left, L::Forall) => Rule::ExistsLeft,
             _ => return None,
         })
+    }
+}
+
+/// The size of an arena as the read-back charges it: its nodes, terms,
+/// argument lists and atoms with their keys, each with the hash entry that
+/// finds it.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct ArenaSize {
+    /// The formulas.
+    nodes: usize,
+    /// The terms.
+    terms: usize,
+    /// The arguments of every list.
+    args: usize,
+    /// The lists.
+    lists: usize,
+    /// The atoms.
+    atoms: usize,
+    /// The bytes all of them hold, estimated.
+    pub(super) bytes: u64,
+}
+
+impl ArenaSize {
+    /// The bytes a formula is charged, with its hash entry and a binder's
+    /// name: the read-back of a sequent of 600 and of 1 500 nested `∀`
+    /// held about 160 bytes a formula of the arena it grew.
+    const NODE: u64 = 192;
+    /// The bytes a term is charged, with its hash entry.
+    const ENTRY: u64 = 64;
+    /// The bytes an atom is charged besides its key's text, which is held
+    /// twice (its name and the key that finds it).
+    const ATOM: u64 = 96;
+
+    /// Returns the size of `formulas`, counting the atoms' keys past
+    /// `before`'s atoms only, since the arena only grows.
+    pub(super) fn of(formulas: &Formulas, before: &Self) -> Self {
+        let tables = formulas.first_order();
+        let (nodes, terms) = (formulas.len(), tables.terms.len());
+        let (args, lists) = (tables.args.len(), tables.lists.len());
+        let atoms = formulas.atom_names().len();
+        let keys: u64 = formulas.atom_names()[before.atoms.min(atoms)..]
+            .iter()
+            .map(|name| 2 * name.len() as u64 + Self::ATOM)
+            .sum();
+        let grown = |now: usize, then: usize, each: u64| (now.saturating_sub(then) as u64) * each;
+        let bytes = before
+            .bytes
+            .saturating_add(grown(nodes, before.nodes, Self::NODE))
+            .saturating_add(grown(terms, before.terms, Self::ENTRY))
+            .saturating_add(grown(args, before.args, 8))
+            .saturating_add(grown(lists, before.lists, 32))
+            .saturating_add(keys);
+        Self {
+            nodes,
+            terms,
+            args,
+            lists,
+            atoms,
+            bytes,
+        }
     }
 }
 
@@ -2196,6 +2270,76 @@ mod tests {
             image.read_back(proof, &tight, |_| false),
             Err(Error::Refused(Refusal::Memory { .. }))
         ));
+    }
+
+    /// The formulas the instances add to the derivation's arena are charged
+    /// beside the inferences: under a bound that holds the inferences, the
+    /// linear derivation and an eighth of that growth, a proof through a
+    /// nest of binders does not read back.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn the_read_back_charges_the_instances_it_builds() {
+        let k = 20;
+        let vars: Vec<String> = (0..k).map(|i| format!("x{i}")).collect();
+        let body: Vec<String> = vars.iter().map(|x| format!("q({x})")).collect();
+        let text = format!(
+            "forall {}. ({}) |- q(a)",
+            vars.join(" "),
+            body.join(" /\\ ")
+        );
+        let sequent: Sequent = text.parse().unwrap();
+        let image = translate(
+            &sequent,
+            Logic::Intuitionistic,
+            Translation::CallByName,
+            &crate::Limits::default(),
+        )
+        .unwrap();
+        let outcome = prove(image.sequent(), image.mode(), &Options::default()).unwrap();
+        let Verdict::Proved(proof) = &outcome.verdict else {
+            panic!("provable");
+        };
+        let unbounded = crate::Limits::default();
+        let derivation = image.read_back(proof, &unbounded, |_| false).unwrap();
+        let inferences: u64 = derivation
+            .inferences()
+            .iter()
+            .map(|i| {
+                (size_of::<Inference>() + (i.left.len() + i.right.len() + i.premises.len()) * 4)
+                    as u64
+            })
+            .sum();
+        let linear = image
+            .linear_derivation(proof, &unbounded, |_| false)
+            .unwrap();
+        let unfolded: u64 = linear
+            .inferences()
+            .iter()
+            .map(|i| (size_of_val(i) + size_of_val(i.sequent.as_slice())) as u64)
+            .sum();
+        let arena = |f: &Formulas| ArenaSize::of(f, &ArenaSize::default()).bytes;
+        let growth = arena(derivation.formulas()) - arena(image.ordinary.formulas());
+        assert!(growth > inferences, "{growth} bytes of instances");
+        // The least bound the linear derivation's view unfolds within: the
+        // read-back runs it under the same bound, on its own account.
+        let (mut low, mut high) = (0u64, 1 << 30);
+        while low + 1 < high {
+            let mid = (low + high) / 2;
+            let bound = unbounded.with_memory_bytes(Some(mid));
+            if image.linear_derivation(proof, &bound, |_| false).is_ok() {
+                high = mid;
+            } else {
+                low = mid;
+            }
+        }
+        let held = inferences + unfolded;
+        let tight = unbounded.with_memory_bytes(Some(held.max(high) + growth / 8));
+        assert!(matches!(
+            image.read_back(proof, &tight, |_| false),
+            Err(Error::Refused(Refusal::Memory { .. }))
+        ));
+        let roomy = unbounded.with_memory_bytes(Some(inferences + unfolded + 2 * growth));
+        assert!(image.read_back(proof, &roomy, |_| false).is_ok());
     }
 
     /// A cut checks in LJ, sharing the context or splitting it, reads back

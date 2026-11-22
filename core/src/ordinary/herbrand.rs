@@ -39,7 +39,7 @@
 //! ```
 
 use super::bruijn::Replaced;
-use super::derivation::Inference;
+use super::derivation::{ArenaSize, Inference};
 use super::normal::{self, NormalForm, Rule as NormalRule};
 use super::sat;
 use super::{
@@ -936,66 +936,6 @@ struct Skolemized {
     after: NodeId,
     /// The Skolem term.
     term: FoTermId,
-}
-
-/// The size of an arena as the read-back charges it: its nodes, terms,
-/// argument lists and atoms with their keys, each with the hash entry that
-/// finds it.
-#[derive(Clone, Copy, Debug, Default)]
-struct ArenaSize {
-    /// The formulas.
-    nodes: usize,
-    /// The terms.
-    terms: usize,
-    /// The arguments of every list.
-    args: usize,
-    /// The lists.
-    lists: usize,
-    /// The atoms.
-    atoms: usize,
-    /// The bytes all of them hold, estimated.
-    bytes: u64,
-}
-
-impl ArenaSize {
-    /// The bytes a formula is charged, with its hash entry and a binder's
-    /// name: the read-back of a sequent of 600 and of 1 500 nested `∀`
-    /// held about 160 bytes a formula of the arena it grew.
-    const NODE: u64 = 192;
-    /// The bytes a term is charged, with its hash entry.
-    const ENTRY: u64 = 64;
-    /// The bytes an atom is charged besides its key's text, which is held
-    /// twice (its name and the key that finds it).
-    const ATOM: u64 = 96;
-
-    /// Returns the size of `formulas`, counting the atoms' keys past
-    /// `before`'s atoms only, since the arena only grows.
-    fn of(formulas: &Formulas, before: &Self) -> Self {
-        let tables = formulas.first_order();
-        let (nodes, terms) = (formulas.len(), tables.terms.len());
-        let (args, lists) = (tables.args.len(), tables.lists.len());
-        let atoms = formulas.atom_names().len();
-        let keys: u64 = formulas.atom_names()[before.atoms.min(atoms)..]
-            .iter()
-            .map(|name| 2 * name.len() as u64 + Self::ATOM)
-            .sum();
-        let grown = |now: usize, then: usize, each: u64| (now.saturating_sub(then) as u64) * each;
-        let bytes = before
-            .bytes
-            .saturating_add(grown(nodes, before.nodes, Self::NODE))
-            .saturating_add(grown(terms, before.terms, Self::ENTRY))
-            .saturating_add(grown(args, before.args, 8))
-            .saturating_add(grown(lists, before.lists, 32))
-            .saturating_add(keys);
-        Self {
-            nodes,
-            terms,
-            args,
-            lists,
-            atoms,
-            bytes,
-        }
-    }
 }
 
 /// A formula on a branch of the derivation built.
