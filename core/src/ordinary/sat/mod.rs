@@ -179,7 +179,7 @@ struct Lemma {
 /// A conflict or a call is a unit of `limits.work`, and the clauses
 /// and worlds are charged to `limits.memory_bytes`. A valid sequent's
 /// derivation of LJ is read off the search within
-/// `limits.derivation_bytes`, `limits.memory_bytes` and `limits.work`
+/// `limits.memory_bytes` and `limits.work`
 /// facts. Where a bound, not the stop, refuses it, [`ljt::decide`]
 /// finds one within the same limits. Either derivation is checked. A
 /// sequent that is not valid gets its Kripke model, checked, unless the
@@ -198,11 +198,10 @@ struct Lemma {
 ///
 /// - [`Error::Succedents`] for more than one formula right of `⊢` in
 ///   intuitionistic or minimal logic.
-/// - [`Refusal::Output`], [`Refusal::Memory`], [`Refusal::Work`],
-///   [`Refusal::Index`] or [`Refusal::Stopped`] where a bound or the stop
-///   refused the derivation of a proof (where LJT gave none either), the
-///   check of a model or, in classical logic, the check of the clausal
-///   proof. None of them is a verdict.
+/// - [`Refusal::Memory`], [`Refusal::Work`], [`Refusal::Index`] or
+///   [`Refusal::Stopped`] where a bound or the stop refused the derivation
+///   of a proof (where LJT gave none either), the check of a model or, in
+///   classical logic, the check of the clausal proof. None of them is a verdict.
 /// - As [`Derivation::check`].
 /// - [`Error::ReadBack`] where the derivation or the clausal proof fails
 ///   its check, or where LJT refutes a sequent the search proved, and
@@ -226,9 +225,11 @@ pub fn decide(
 
 /// Decides a sequent as [`decide`] does, but takes a valid sequent's
 /// derivation of LJ from [`ljt::decide`] where LJT gives one within the
-/// limits and before the stop, and otherwise the one read off the search.
-/// LJT's derivations are smaller, and their lambda-terms have fewer
-/// redexes. The verdict is the search's either way. The logic's default
+/// limits, whose drawing fits `limits.derivation_bytes`, before the stop,
+/// and otherwise the one read off the search. LJT's derivations are
+/// mostly smaller, and their lambda-terms have fewer redexes; where LJT's
+/// could not be drawn, the one read off often can (ILTP's SYJ201 from
+/// size 6). The verdict is the search's either way. The logic's default
 /// decides intuitionistic and minimal logic this way
 /// ([`decide`](super::decide()) with no method given). In classical logic
 /// this function is [`decide`].
@@ -428,7 +429,8 @@ fn run(
 /// Returns LJT's derivation of a sequent the search proved and whose
 /// `derivation` it read off and checked, with LJT's statistics in
 /// `statistics`, or that derivation where LJT gives none within the
-/// limits and before the stop.
+/// limits, with a drawing within `limits.derivation_bytes`, and before
+/// the stop.
 fn prefer_ljt(
     sequent: &Sequent,
     logic: Logic,
@@ -437,7 +439,11 @@ fn prefer_ljt(
     derivation: Derivation,
     statistics: &mut Statistics,
 ) -> Result<Derivation, Error> {
-    let Ok(outcome) = ljt::decide(sequent, logic, limits, &mut *stop) else {
+    let decided = match limits.derivation_bytes {
+        Some(most) => ljt::decide_drawable(sequent, logic, limits, most, &mut *stop),
+        None => ljt::decide(sequent, logic, limits, &mut *stop),
+    };
+    let Ok(outcome) = decided else {
         return Ok(derivation);
     };
     match outcome.verdict {
@@ -1206,12 +1212,11 @@ mod tests {
             .verdict,
             Verdict::NotValid
         ));
+        // The bound on a drawing's size bounds no derivation that is built.
         let sequent: Sequent = "a, b, c |- a /\\ (b /\\ c)".parse().unwrap();
         let small = Limits::default().with_derivation_bytes(Some(100));
-        assert!(matches!(
-            decide(&sequent, logic, &small, |_| false),
-            Err(Error::Refused(Refusal::Output { .. }))
-        ));
+        let outcome = decide(&sequent, logic, &small, |_| false).unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)));
         // A model of more cells than the check computes.
         let chain: Vec<String> = (0..1 << 14).map(|i| format!("a{i}")).collect();
         let sequent: Sequent = format!("|- {}", chain.join(" /\\ ")).parse().unwrap();
@@ -1298,6 +1303,20 @@ mod tests {
             &mut |_| true,
         );
         assert!(matches!(stopped, Err(Reason::Stopped)));
+    }
+
+    /// The default prefers LJT's derivation only where its drawing fits
+    /// `limits.derivation_bytes`, and keeps the one read off otherwise.
+    #[test]
+    fn ljt_is_preferred_where_its_drawing_fits() {
+        let sequent: Sequent = "a, a -> b, b -> c |- c".parse().unwrap();
+        let logic = Logic::Intuitionistic;
+        let roomy = decide_preferring_ljt(&sequent, logic, &Limits::default(), |_| false);
+        assert!(roomy.unwrap().statistics.ljt.is_some());
+        let small = Limits::default().with_derivation_bytes(Some(10));
+        let outcome = decide_preferring_ljt(&sequent, logic, &small, |_| false).unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{outcome:?}");
+        assert_eq!(outcome.statistics.ljt, None);
     }
 
     /// Where a bound refuses the derivation read off the search, LJT

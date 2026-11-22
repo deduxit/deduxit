@@ -342,13 +342,6 @@ fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveW
             ordinary::Verdict::Unknown(reason) => reason.to_string(),
             _ => return None,
         },
-        // The derivation of a proof it found passed the bound: say which
-        // flag buys it. The refusal's estimate is where the read-back
-        // stopped, not the whole derivation's, so no number is given.
-        Err(Error::Refused(Refusal::Output { limit_bytes, .. })) => format!(
-            "its derivation passes the --derivation-limit of {}",
-            crate::show::bytes_text(*limit_bytes)
-        ),
         Err(error) => error.to_string(),
     };
     Some(format!("{} gave no verdict: {why}", by(method)))
@@ -451,12 +444,19 @@ pub(crate) fn by_native(
                 "{error}; raise the limit with --table-atoms, or decide the sequent by another \
                  method (--method tableau)"
             ),
-            Err(error @ Error::Refused(_)) => bail!(
-                "{} gave no verdict: {error}; raise the limit (--derivation-limit, \
-                 --memory-limit, --work-limit), or decide through the embedding with --method \
-                 embedding",
-                by(method)
-            ),
+            Err(error @ Error::Refused(_)) => {
+                // Only the tableau's steps are held to the drawing's bound.
+                let flags = if matches!(error, Error::Refused(Refusal::Output { .. })) {
+                    "--derivation-limit"
+                } else {
+                    "--memory-limit, --work-limit"
+                };
+                bail!(
+                    "{} gave no verdict: {error}; raise the limit ({flags}), or decide through \
+                     the embedding with --method embedding",
+                    by(method)
+                )
+            }
             Err(error) => return Err(error.into()),
         };
         write_native(args, settings, &outcome, &ended, deadline).map(Native::Answered)

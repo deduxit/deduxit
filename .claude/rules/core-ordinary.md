@@ -177,6 +177,23 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `ordinary_negation_*.v` the `rocq` check compiles). Minimal logic's `⊥` is Rocq's `False`, so a certificate
   of minimal logic proves the intuitionistic statement only (minimality
   rests on the checker).
+- **A derivation of LK or LJ is bounded by the memory it holds, not by
+  the drawn text's estimate** (fixup-19's planning decision): every
+  reader back (the embedding's `linear_derivation`, which unfolds with
+  `derivation_bytes` lifted; LJT's `Lj`; the SAT read-back; the
+  connection provers' emitters) charges its inferences to
+  `limits.memory_bytes` (`Refusal::Memory`) and never compares with
+  `derivation_bytes`, which bounds what is drawn:
+  `Derivation::drawn_bytes` estimates a drawing by `Size::bytes`'s
+  measure, and the command leaves out a drawing past it with the
+  verdict kept (`cli.md`). So a checked "valid" stands where its
+  drawing would be too large (ILTP's SYJ202 at sizes 4 to 6, whose
+  derivations repeat twenty-odd hypotheses per inference: 20 223
+  inferences, 68.7 MiB drawn, at size 4). Three places still read
+  `derivation_bytes` on purpose: the SAT method's preference for LJT's
+  derivation (below), the tableau method's goal state (its steps and
+  `finished`, a tableau being what it is asked to show), and the
+  protocol's drawings (`drawable`, `core-protocol.md`).
 - **Deciding** is `decide(&sequent, &ordinary::Options)` within the
   default limits and search options, or `decide_within(&sequent,
   &ordinary::Options, &search::Options, &limits, stop)`, which the
@@ -212,16 +229,21 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`a_large_image_gives_no_evidence_and_costs_no_search`). The command
   does the same with its own search (`cli.md`). The intuitionistic default's SAT solver is
   `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
-  where LJT gives one (smaller, its terms with fewer redexes), else the
-  one read off; LJT never runs past the derivation it was asked for, and
+  where LJT gives one whose drawing fits `derivation_bytes`
+  (`ljt::decide_drawable`, whose translation stops past it; mostly
+  smaller, its terms with fewer redexes), else the one read off: with
+  LJT unbounded the default drew none of SYJ201 from size 6 (184 826
+  inferences, 14.7 GiB drawn, at size 20, where the one read off is
+  11.7 MB of text) and spent the time limit on SYJ202+1.005 (the review
+  of fixup-19); LJT never runs past the derivation it was asked for, and
   where it is stopped the derivation read off stands, so no verdict is
   lost (on ILTP LJT gave one or was refused at the derivation bound
   within 0.3 s on every valid problem). With no method given, the
   method gives way to the embedding where `gives_way` (on any method's
   `Outcome`) says so: an unknown at a bound
   other than `Reason::Stopped`, or an `Error::Refused` other than the
-  stop (the derivation past `derivation_bytes` included: it is a
-  refusal, `Refusal::Output`). The outcome's
+  stop (a derivation past the memory bound included: it is a
+  refusal, `Refusal::Memory`). The outcome's
   `search` (`Search::Embedding` with the translation and the image's
   outcome, `Search::Ljt` with LJT's statistics, `Search::Sat` with the
   solver's, LJT's among them where it gave the derivation) says which
@@ -490,9 +512,8 @@ its search and translation are untrusted, the checker is the trust.
   step) or failed: the search has no history, so a sequent's verdict
   does not depend on the branch. Proofs are steps in an arena, premises
   first, shared between branches; the translation unfolds them into a
-  tree, so its size is bounded by `derivation_bytes` (the size
-  estimate's measure, `derivation::inference_bytes`) and the memory
-  account, never assumed linear.
+  tree, so its size is bounded by the memory account (each inference
+  by its capacity and ids), never assumed linear.
 - **The translation into LJ** (`Lj::step`) is one fixed derivation per
   rule. LJT's `∧→L`, `↔→L`, `∨→L` and `→→L` are derivable in LJ only
   with a cut: each cuts the formula the rule makes, derived from the
@@ -510,7 +531,7 @@ its search and translation are untrusted, the checker is the trust.
   and once per inference of the translation; the search charges its frames, memo
   entries, steps and the formulas it adds to an `Account` and answers
   `Reason::MemoryLimit` past it; the translation charges its own and
-  refuses with `Refusal::Memory` or `Refusal::Output`. Classical logic is
+  refuses with `Refusal::Memory`. Classical logic is
   `Error::Logic`.
 - **`Derivation::term` checks a derivation read from JSON first**
   (`Derivation::trusted`, an `AtomicBool` so that `check(&self)` can set
@@ -826,9 +847,9 @@ of the classical one, changed), `read_back.rs` the derivation of LJ.
   from the matrix's formula, each child cost the whole subformula (900
   conjuncts over a disjunction of 100 000 took 12.6 s at 1 s); the
   nodes an instance adds are charged (`NODE_BYTES`) and counted as
-  work. The emitted derivation is charged to the memory bound too, not
-  only to `derivation_bytes` (`Emit::held`: 3.6 GB under 64 MiB with
-  `--derivation-limit none`). Proof terms share parts, so every walk over one visits each
+  work. The emitted derivation is charged to the memory bound
+  (`Emit::held`: 3.6 GB under 64 MiB when only its drawn size bounded
+  it). Proof terms share parts, so every walk over one visits each
   part once (`tm_of`'s memo by pattern and copy, `term`, `ready`,
   `constants`, and the domain equations in `prefixes_unify`): a chain
   of `f(x, x)` bindings is exponential as a tree. An arena whose

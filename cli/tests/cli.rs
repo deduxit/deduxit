@@ -2890,20 +2890,35 @@ fn ordinary_logic() {
         "{out}"
     );
     // By default the SAT solver gives way to the embedding where a bound
-    // stops it.
+    // stops it, and the line says so; the bound on a drawing stops no
+    // derivation that is built.
     let (status, out, _) = decide(&[
+        "--logic",
+        "intuitionistic",
+        "--work-limit",
+        "6",
+        "-q",
+        "a -> b, b -> c |- a -> c",
+    ]);
+    assert_eq!(status, 3);
+    assert!(
+        out.starts_with("unknown (intuitionistic logic by the cbn")
+            && out.contains("the SAT solver gave no verdict"),
+        "{out}"
+    );
+    let (status, out, err) = decide(&[
         "--logic",
         "intuitionistic",
         "--derivation-limit",
         "100",
-        "-q",
         "a |- a",
     ]);
     assert_eq!(status, 0);
     assert!(
-        out.starts_with("valid (intuitionistic logic by the cbn"),
+        out.starts_with("valid (intuitionistic logic by the SAT solver)"),
         "{out}"
     );
+    assert!(err.contains("drawn, over the limit of 100 B"), "{err}");
     let (status, out, _) = decide(&["--logic", "minimal", "--stats", "a, a -> b |- b"]);
     assert_eq!(status, 0);
     assert!(

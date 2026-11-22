@@ -456,6 +456,19 @@ pub(crate) fn too_large(size: &Size, limit: u64, least: Option<u64>) -> String {
     )
 }
 
+/// Returns the line for a derivation that was built and checked but is
+/// too large to draw within `--derivation-limit`.
+pub(crate) fn too_large_to_draw(inferences: u64, bytes: u64, limit: u64) -> String {
+    format!(
+        "the derivation is not written: its {} inferences are estimated at {} drawn, over the \
+         limit of {}; prove --format json writes it, --derivation-limit SIZE raises the limit and \
+         --derivation-limit none lifts it",
+        count_text(inferences),
+        bytes_text(bytes),
+        bytes_text(limit)
+    )
+}
+
 /// Returns the line for a derivation the view did not build: its size
 /// over a bound, from `size` where it can be had, or the error's own words.
 pub(crate) fn not_built(error: &Error, size: impl FnOnce() -> Option<Size>) -> String {
@@ -736,6 +749,12 @@ pub(crate) trait Written {
     fn text_size(&self, options: &TextOptions) -> (usize, usize);
     /// How many inferences it has.
     fn inferences(&self) -> usize;
+    /// The bytes a drawing of it is estimated at, where it was built
+    /// without that bound (an ordinary derivation, bounded by the memory
+    /// alone); `None` for one the bound held as it was built.
+    fn drawn_bytes(&self) -> Option<u64> {
+        None
+    }
     /// Writes its text tree.
     fn write_text(
         &self,
@@ -804,6 +823,10 @@ impl Written for deduxit::ordinary::Derivation {
         Self::inferences(self).len()
     }
 
+    fn drawn_bytes(&self) -> Option<u64> {
+        Some(Self::drawn_bytes(self))
+    }
+
     fn write_text(
         &self,
         options: &TextOptions,
@@ -854,6 +877,17 @@ pub(crate) fn shown(
 ) -> Result<Shown> {
     let stopped = || Shown::LeftOut(format!("the derivation is not written: {}", why()));
     let styles = &show.styles;
+    // A derivation built within the memory alone is drawn only within
+    // `--derivation-limit`; its verdict stands either way.
+    if let (Some(bytes), Some(limit)) = (d.drawn_bytes(), show.limits.derivation_bytes)
+        && bytes > limit
+    {
+        return Ok(Shown::LeftOut(too_large_to_draw(
+            d.inferences() as u64,
+            bytes,
+            limit,
+        )));
+    }
     if let Some((columns, most)) = fit {
         let (width, lines) = d.text_size(&styles.text);
         let (width, lines) = (width as u64, lines as u64);

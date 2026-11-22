@@ -140,9 +140,25 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- **`--derivation-limit` bounds what is drawn, not what is built, under
+  `--logic`**: a derivation of LK or LJ is built and checked within the
+  memory bound whatever its size, so `-q` and `--format json` give the
+  checked "valid" where the drawing would be too large (ILTP's SYJ202,
+  Cook's pigeonhole formulas, at sizes 4 to 6), and the drawing past the
+  limit is left out with its verdict kept. The tableau method still
+  builds its tableau within the limit. The default of intuitionistic
+  logic keeps LJT's derivation where its drawing fits the limit, and the
+  SAT solver's otherwise. In the library, every reader back of an
+  ordinary derivation (the embedding's, LJT's, the SAT solver's, the
+  connection provers') is bounded by `limits.memory_bytes`, the
+  protocol's `ordinary.draw`, `ordinary.export` and
+  `ordinary.certificate` refuse a drawing past
+  `limits.derivation_bytes`, and `ordinary::Derivation::drawn_bytes`
+  estimates a drawing by the measure that bound takes, for a caller that
+  draws a decided derivation itself.
 - Where the default of intuitionistic or minimal logic stops at a bound
   and the embedding decides, `prove`'s verdict line says which bound
-  stopped it, a derivation past `--derivation-limit` among them.
+  stopped it.
 - The modal search in K4, KD4 and S4 makes its worlds in depth and keeps
   what it learns about a world across branches: a world made again under
   the same conditions reuses the earlier world's part of the model, or

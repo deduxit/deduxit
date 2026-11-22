@@ -21,7 +21,7 @@
 //! it does not use is left out, and so is a split whose first branch does
 //! not use its disjunct.
 
-use super::super::derivation::{inference_bytes, same, widths};
+use super::super::derivation::same;
 use super::super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Side};
 use super::{Lemma, NEGATIVE, POSITIVE};
 use crate::Error;
@@ -41,9 +41,8 @@ const POLL: u64 = 1 << 8;
 ///
 /// # Errors
 ///
-/// [`Refusal::Output`], [`Refusal::Memory`] or [`Refusal::Index`] where a
-/// bound refused the derivation, [`Refusal::Work`] past `limits.work`
-/// facts, [`Refusal::Stopped`] when the stop fired; [`Error::ReadBack`]
+/// [`Refusal::Memory`] or [`Refusal::Index`] where a bound refused the
+/// derivation, [`Refusal::Work`] past `limits.work` facts, [`Refusal::Stopped`] when the stop fired; [`Error::ReadBack`]
 /// where no rule closes a tableau, a defect.
 #[expect(
     clippy::too_many_arguments,
@@ -793,14 +792,8 @@ fn without(list: &[NodeId], out: &[NodeId]) -> Vec<NodeId> {
 /// The derivation being made, within the bounds and until the stop
 /// fires.
 struct Lj<'s, S> {
-    /// The characters of every formula, for the size estimate.
-    widths: Vec<u64>,
     /// The inferences made, premises first.
     inferences: Vec<Inference>,
-    /// Their estimated size.
-    bytes: u64,
-    /// The bound on it.
-    limit: Option<u64>,
     /// The memory the read-back holds.
     account: Account,
     /// The caller's stop.
@@ -811,16 +804,13 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     /// Starts an empty derivation over the arena, within `limits`, while
     /// the search still holds `held` bytes.
     fn new(formulas: &Formulas, limits: &Limits, held: u64, stop: &'s mut S) -> Self {
-        let widths = widths(formulas);
         let account = Account::holding(limits.memory_bytes, held);
-        // The widths and the copy of the arena the derivation keeps (a
-        // node and its entry in the table of ids).
-        account.charge(widths.len() * size_of::<u64>() + formulas.len() * 4 * size_of::<Node>());
+        // The copy of the arena the derivation keeps (a node and its entry
+        // in the table of ids). The derivation is bounded by the memory
+        // alone: `limits.derivation_bytes` bounds what is drawn.
+        account.charge(formulas.len() * 4 * size_of::<Node>());
         Self {
-            widths,
             inferences: Vec::new(),
-            bytes: 0,
-            limit: limits.derivation_bytes,
             account,
             stop,
         }
@@ -859,18 +849,6 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         if (self.stop)(Progress::new(Phase::ReadBack, 1, n + 1)) {
             return Err(Error::Refused(Refusal::Stopped {
                 phase: Phase::ReadBack,
-            }));
-        }
-        let estimate = inference_bytes(&self.widths, &left, &right);
-        self.bytes = self.bytes.saturating_add(estimate);
-        if let Some(limit) = self.limit
-            && self.bytes > limit
-        {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: self.bytes,
-                limit_bytes: limit,
-                least_bytes: None,
             }));
         }
         self.account

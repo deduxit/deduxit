@@ -27,13 +27,13 @@
 //! | `Interactive::close`, `close_with`, `close_all`, `proof` | the search's and the derivation's | as the search and the derivation |
 //! | `ProofStructure::is_correct` | none: its memory is linear in the structure | at every round of the criterion |
 //! | `ProofStructure::from_proof`, `ProofStructure::sequentialize` | `memory_bytes` | at every node, at every stage |
-//! | `ordinary::Image::read_back`, `ordinary::Derivation::check` | `derivation_bytes`, `memory_bytes`; `work` inferences checked | at every inference |
+//! | `ordinary::Image::read_back`, `ordinary::Derivation::check` | `memory_bytes`; `work` inferences checked | at every inference |
 //! | `ordinary::decide` | all of the above it runs | as each step |
 //! | `ordinary::Interactive::within` | `occurrences` | never: linear in the bound |
 //! | `ordinary::Interactive::apply` | `derivation_bytes` of the start, for the run of structural rules an axiom or a shared rule makes, by an estimate before it is made | never: within the bound |
 //! | `ordinary::Interactive::close`, `hint` | as `ordinary::decide`; `derivation_bytes` for the graft | as `ordinary::decide` |
 //! | `ordinary::Interactive::derivation_within`, `finished` | `derivation_bytes` by an estimate before anything is built; `work` for the check | before building, then as the check |
-//! | `export::{latex, typst, svg, rocq}::write`, `Derivation::write_text`, `write_steps` | the derivation's, when it was made | at every inference written |
+//! | `export::{latex, typst, svg, rocq}::write`, `Derivation::write_text`, `write_steps` | none: a linear derivation was made within `derivation_bytes`, and an ordinary one's drawing is estimated by `ordinary::Derivation::drawn_bytes` | at every inference written |
 //! | `export::{latex, typst, svg}::sequent` | `derivation_bytes`, by an estimate before anything is laid out | never: linear in the estimate |
 //! | `export::svg::net` | `derivation_bytes` | as the criterion |
 //! | `export::{png, pdf}::from_svg` | `memory_bytes`, the pixel bound of the options | never: refused before the render starts |
@@ -75,8 +75,10 @@ pub struct Limits {
     /// document of shared terms can name an atom of exponential length.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub terms: Option<u64>,
-    /// The most bytes a derivation, or the drawing of a net or a sequent,
-    /// may be estimated at. Past it nothing is made.
+    /// The most bytes the drawing of a derivation, a net or a sequent may
+    /// be estimated at. Past it a linear derivation is not made and
+    /// nothing is drawn; a derivation of LK or LJ is made within
+    /// `memory_bytes` whatever its drawing's size.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub derivation_bytes: Option<u64>,
     /// The most units of work a call may do. The unit depends on the

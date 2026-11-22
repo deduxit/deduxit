@@ -18,7 +18,7 @@ use crate::ordinary::{
     self, Derivation, Interactive, Logic, Method, Outcome, Sequent, Translation, negative, normal,
     resolution,
 };
-use crate::{Error, ErrorKind, Limits, Progress};
+use crate::{Error, ErrorKind, Limits, Progress, Refusal};
 
 /// The ordinary suite.
 pub(super) static ORDINARY: Ordinary = Ordinary;
@@ -603,6 +603,26 @@ fn derivation_of(
     }
 }
 
+/// Refuses a derivation whose drawing is estimated past
+/// `limits.derivation_bytes` with [`Refusal::Output`]: a decided
+/// outcome's derivation is built within the memory bound whatever its
+/// drawn size, which only that bound holds.
+fn drawable(derivation: &Derivation, limits: &Limits) -> Result<(), Error> {
+    let Some(limit) = limits.derivation_bytes else {
+        return Ok(());
+    };
+    let drawn = derivation.drawn_bytes();
+    if drawn > limit {
+        return Err(Error::Refused(Refusal::Output {
+            what: "derivation",
+            estimate_bytes: drawn,
+            limit_bytes: limit,
+            least_bytes: None,
+        }));
+    }
+    Ok(())
+}
+
 /// Returns the bound that ended a decision, where one did.
 fn limit_of(outcome: &Outcome) -> Option<Limit> {
     match &outcome.verdict {
@@ -1033,6 +1053,7 @@ impl Suite for Ordinary {
                     }
                     input => {
                         let derivation = derivation_of(input, false, call, stop)?;
+                        drawable(&derivation, limits)?;
                         let mut out = String::new();
                         crate::export::svg::write(
                             &derivation,
@@ -1048,6 +1069,7 @@ impl Suite for Ordinary {
             "ordinary.export" => {
                 let input = input(call, limits)?;
                 let derivation = derivation_of(input, false, call, stop)?;
+                drawable(&derivation, limits)?;
                 let p: Format = parameters(call)?;
                 let format = p.format.unwrap_or_else(|| "text".to_owned());
                 let styles = &settings.styles;
@@ -1093,6 +1115,7 @@ impl Suite for Ordinary {
                     }
                     input => {
                         let derivation = derivation_of(input, true, call, stop)?;
+                        drawable(&derivation, limits)?;
                         crate::export::rocq::write(
                             &derivation,
                             &settings.styles.rocq,

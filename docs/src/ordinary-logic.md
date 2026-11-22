@@ -144,15 +144,18 @@ does not raise these bounds, and a smaller one lowers them;
 `--method embedding` gives the embedding the whole time limit.
 
 Where the SAT solver stops at a bound other than the time limit, such
-as a derivation past `--derivation-limit`, the default hands the
-sequent to the embedding. The verdict line names the translation, then
-says which bound stopped the SAT solver, so you know which one to
-raise:
+as `--work-limit` or `--memory-limit`, the default hands the sequent to
+the embedding. The verdict line names the translation, then says which
+bound stopped the SAT solver, so you know which one to raise:
 
 ```console
-$ deduxit prove --logic intuitionistic --derivation-limit 1KiB -q 'a -> b, b -> c |- a -> c'
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine); the SAT solver gave no verdict: its derivation passes the --derivation-limit of 1.0 KiB, and the embedding took over
+$ deduxit prove --logic intuitionistic --work-limit 6 -q 'a -> b, b -> c |- a -> c'
+unknown (intuitionistic logic by the cbn translation into ILL, two-sided engine): the work limit of 6 was reached after … at a copy bound of 0; raise it with --work-limit N; the SAT solver gave no verdict: the call did the most work allowed, 6 units, and the embedding took over
 ```
+
+`--derivation-limit` bounds only what is drawn: a valid sequent whose
+derivation is too large to draw keeps its verdict, and `--format json`
+writes the derivation.
 
 `--method sat` reports the bound instead. `--translation` and `--linear`
 name the embedding, so either of them alone chooses it. Through the

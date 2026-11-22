@@ -144,8 +144,8 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
 /// within the run's memory bound and time limit, and returns the tail of
 /// its row. The evidence is
 /// checked inside the time measured. A proof whose derivation a bound
-/// refuses is `unknown`, with the bound as the reason (`derivation_limit`
-/// for its size).
+/// refuses is `unknown`, with the bound as the reason (`memory_limit`,
+/// `work_limit`).
 ///
 /// LJT's `nodes` and `work` are its sequents expanded; the SAT solver's
 /// `nodes` are its conflicts and `work` its calls and conflicts, the

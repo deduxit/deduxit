@@ -244,7 +244,8 @@ the proof tree is not shown: 7 inferences, at least 31 columns by 8 lines, for a
 ```
 
 In every format, a derivation estimated above `--derivation-limit`
-(64 MiB by default; `none` lifts it) is not built. The line then goes to
+(64 MiB by default; `none` lifts it) is not built; under `--logic` it is
+built and checked, and only its drawing is left out. The line then goes to
 standard error, unless the output is a terminal:
 
 ```console

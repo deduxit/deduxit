@@ -2431,7 +2431,11 @@ pub(crate) struct OutputArgs {
     /// with a line that says how large it is, and the exit status is the
     /// verdict's. `--format json` writes the proof itself at any size. The
     /// drawing of a proof net (`--net`) is estimated before it is drawn,
-    /// and left out above the same limit.
+    /// and left out above the same limit. Under --logic the derivation of
+    /// LK or LJ is built and checked within --memory-limit whatever its
+    /// size, so the verdict is a checked one, and this limit bounds only
+    /// its drawing (the tableau method builds its tableau within it);
+    /// `prove --format json` writes the derivation at any size.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_DERIVATION_BYTES)))]
     pub(crate) derivation_limit: Bytes,
     /// When to draw a run of one structural rule, such as the weakenings of

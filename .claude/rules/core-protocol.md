@@ -137,6 +137,12 @@ workspace graph builds on it.
   their checks read each term, check it and hold it to the type with
   `lambda::has_type`; an `empty` answer is `Recorded` (its countermodel
   was checked by the engine, or LJT's search was exhaustive).
+- **`ordinary.draw`, `export` and `certificate` hold the derivation to
+  `limits.derivation_bytes`** (`drawable`, by
+  `ordinary::Derivation::drawn_bytes`): a decided outcome's derivation
+  is built within the memory bound whatever its drawn size, so the bound
+  their `reads` list is applied here, where nothing upstream applies it
+  (`a_drawing_past_the_derivation_bound_is_refused`).
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

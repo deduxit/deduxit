@@ -31,7 +31,6 @@ use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::proofs::InfId;
-use crate::ordinary::derivation::{inference_bytes, widths};
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
 
 /// The rules the search tries before it gives a proof up.
@@ -245,7 +244,7 @@ pub(super) fn read_back(
         formulas, steps, ..
     } = search;
     let inferences = {
-        let mut emit = Emit::new(&formulas, limits, stop);
+        let mut emit = Emit::new(limits, stop);
         let d = emit.derivation(&steps, root)?;
         let d = emit.weaken_to(d, &written)?;
         emit.in_order(d, &written);
@@ -1207,15 +1206,10 @@ fn difference(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
 
 /// The derivation of LJ made from the steps.
 struct Emit<'s> {
-    /// The width of every formula, for the size estimate.
-    widths: Vec<u64>,
     /// The inferences, premises first.
     inferences: Vec<Inference>,
-    /// Their estimated size.
-    bytes: u64,
-    /// The bound on it.
-    limit: Option<u64>,
-    /// The bytes the inferences hold.
+    /// The bytes the inferences hold, the derivation's one bound
+    /// (`limits.derivation_bytes` bounds what is drawn).
     held: usize,
     /// The memory bound, `None` for none.
     memory: Option<u64>,
@@ -1224,17 +1218,10 @@ struct Emit<'s> {
 }
 
 impl<'s> Emit<'s> {
-    /// The emitter of a derivation over `formulas` within `limits`.
-    fn new(
-        formulas: &Formulas,
-        limits: &Limits,
-        stop: &'s mut dyn FnMut(Progress) -> bool,
-    ) -> Self {
+    /// The emitter of a derivation within `limits`.
+    fn new(limits: &Limits, stop: &'s mut dyn FnMut(Progress) -> bool) -> Self {
         Self {
-            widths: widths(formulas),
             inferences: Vec::new(),
-            bytes: 0,
-            limit: limits.derivation_bytes,
             held: 0,
             memory: limits.memory_bytes,
             stop,
@@ -1256,19 +1243,6 @@ impl<'s> Emit<'s> {
         if (self.stop)(Progress::new(Phase::ReadBack, 1, n + 1)) {
             return Err(Error::Refused(Refusal::Stopped {
                 phase: Phase::ReadBack,
-            }));
-        }
-        self.bytes = self
-            .bytes
-            .saturating_add(inference_bytes(&self.widths, &left, &right));
-        if let Some(limit) = self.limit
-            && self.bytes > limit
-        {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: self.bytes,
-                limit_bytes: limit,
-                least_bytes: None,
             }));
         }
         // The derivation is held in memory too, whatever its own bound.

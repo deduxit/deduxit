@@ -658,3 +658,21 @@ fn a_first_order_statement_is_proved_step_by_step_and_rendered() {
         "first_order"
     );
 }
+
+#[test]
+fn a_drawing_past_the_derivation_bound_is_refused() {
+    let sequent = ordinary(
+        "a -> b, b -> c |- a -> c",
+        crate::ordinary::Logic::Intuitionistic,
+    );
+    // The decision builds its derivation whatever the bound; the drawing
+    // is held to it.
+    let mut small = settings();
+    small.limits = small.limits.with_derivation_bytes(Some(100));
+    let ran_small = |operation: &str, input: &str| run(operation, &[input], "", &small, |_| false);
+    let decided = ran_small("ordinary.decide", &sequent).unwrap().value;
+    let derivation = ran_small("ordinary.derivation", &decided).unwrap().value;
+    assert!(ran("ordinary.export", &[&derivation], "").contains("→R"));
+    let error = ran_small("ordinary.export", &derivation).unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::Limit);
+}

@@ -4,7 +4,7 @@
 use super::translate::{Core, Image, pattern};
 use super::{Formulas, Logic, Node, NodeId, Translation};
 use crate::first_order::FoTermId;
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::style::Drawn;
 use crate::linear::proofs::{
@@ -1069,6 +1069,18 @@ pub(super) fn check_inference(
 }
 
 impl Derivation {
+    /// Returns the bytes a drawing of the derivation is estimated at, by
+    /// the measure [`Limits::derivation_bytes`] bounds: a front end draws
+    /// it only within that bound. The derivation is built within the
+    /// memory bound alone, so a valid verdict and its checked derivation
+    /// stand where a drawing of it would be too large.
+    pub fn drawn_bytes(&self) -> u64 {
+        let widths = widths(&self.formulas);
+        self.inferences.iter().fold(0u64, |sum, i| {
+            sum.saturating_add(inference_bytes(&widths, &i.left, &i.right))
+        })
+    }
+
     /// Returns the width in characters and the number of lines of the tree
     /// that [`write_text`](Self::write_text) draws under the options,
     /// without drawing it.
@@ -1328,7 +1340,10 @@ impl Image {
         let view = ViewOptions::default()
             .with_compact(Compact::Never)
             .with_sides(sides);
-        proof.derivation_within(&view, limits, stop)
+        // What is built is bounded by the memory; `derivation_bytes`
+        // bounds what is drawn of the read-back.
+        let limits = limits.with_derivation_bytes(None);
+        proof.derivation_within(&view, &limits, stop)
     }
 
     /// Returns the derivation of the ordinary sequent that a proof of the
@@ -1340,8 +1355,9 @@ impl Image {
     /// weakening is one of the ordinary formula. A classical negation has
     /// no image of its own, so it is a `¬` rule where its operand is taken
     /// apart. The proof is unfolded first, never compact (two-sided for an
-    /// image in ILL), within `limits.derivation_bytes` and
-    /// `limits.memory_bytes`. `stop` is asked as that unfolding asks it,
+    /// image in ILL), within `limits.memory_bytes`;
+    /// `limits.derivation_bytes` bounds what is drawn, not what is built.
+    /// `stop` is asked as that unfolding asks it,
     /// and once per inference read.
     ///
     /// # Errors
@@ -1452,7 +1468,11 @@ impl Image {
         let mut instances = Instances::new(proof, &mut arena).map_err(&fail)?;
         let propositional = linear.framing().is_none();
 
-        let mut out = Vec::new();
+        let mut out = Out {
+            inferences: Vec::new(),
+            held: 0,
+            limit: limits.memory_bytes.unwrap_or(u64::MAX),
+        };
         // Per linear inference, the ordinary inference that stands for it.
         let mut mapped: Vec<InfId> = Vec::with_capacity(linear.inferences().len());
         for (i, inference) in linear.inferences().iter().enumerate() {
@@ -1461,6 +1481,10 @@ impl Image {
                     phase: Phase::ReadBack,
                 }));
             }
+            // The linear derivation is held beside the one read back.
+            out.held = out.held.saturating_add(
+                (size_of_val(inference) + size_of_val(inference.sequent.as_slice())) as u64,
+            );
             // A member of the forest is its occurrence's formula; only an
             // instance is built. A proof without instances, every proof of
             // a propositional image, takes the plain loop.
@@ -1505,7 +1529,7 @@ impl Image {
                         (_, Side::Left) => Rule::WeakenLeft,
                         (_, Side::Right) => Rule::WeakenRight,
                     };
-                    push(&mut out, &members, at, rule, premises)
+                    out.push(&members, at, rule, premises)?
                 }
                 // Every proof the search finds is cut-free, so the
                 // read-back needs no rule for a cut.
@@ -1524,9 +1548,9 @@ impl Image {
                             (at, chain)
                         })
                         .collect();
-                    let mut id = push(&mut out, &members, usize::MAX, Rule::Axiom, premises);
+                    let mut id = out.push(&members, usize::MAX, Rule::Axiom, premises)?;
                     for (at, chain) in chains {
-                        id = negations(&mut out, &mut members, at, chain, id);
+                        id = out.negations(&mut members, at, chain, id, &mut stop)?;
                     }
                     id
                 }
@@ -1574,9 +1598,9 @@ impl Image {
                     } else {
                         None
                     };
-                    let id = push(&mut out, &members, at, ordinary, premises);
-                    out[id.index()].term = term;
-                    negations(&mut out, &mut members, at, chain, id)
+                    let id = out.push(&members, at, ordinary, premises)?;
+                    out.inferences[id.index()].term = term;
+                    out.negations(&mut members, at, chain, id, &mut stop)?
                 }
             };
             mapped.push(next);
@@ -1591,7 +1615,7 @@ impl Image {
             formulas: arena,
             left: self.ordinary.left.clone(),
             right: self.ordinary.right.clone(),
-            inferences: out,
+            inferences: out.inferences,
             trusted: Trusted::new(true),
         })
     }
@@ -1663,69 +1687,108 @@ impl Image {
     }
 }
 
-/// Adds the inference concluding `members` by `rule`, with the formula at
-/// `at` principal (none for an axiom), and returns its id.
-fn push(
-    out: &mut Vec<Inference>,
-    members: &[(NodeId, Side)],
-    at: usize,
-    rule: Rule,
-    premises: Vec<InfId>,
-) -> InfId {
-    let lefts = members
-        .iter()
-        .filter(|&&(_, side)| side == Side::Left)
-        .count();
-    let (mut left, mut right) = (
-        Vec::with_capacity(lefts),
-        Vec::with_capacity(members.len() - lefts),
-    );
-    let mut principal = None;
-    for (i, &(node, side)) in members.iter().enumerate() {
-        let list = if side == Side::Left {
-            &mut left
-        } else {
-            &mut right
-        };
-        if i == at {
-            principal = Some((side, list.len()));
-        }
-        list.push(node);
-    }
-    out.push(Inference {
-        term: None,
-        left,
-        right,
-        rule,
-        principal,
-        premises,
-    });
-    // Fits a `u32`: a read-back has an inference per linear inference and
-    // per negation passed, at most the linear derivation's inferences
-    // times a formula's depth, far below `u32::MAX` for any proof a search
-    // returns within its memory bound.
-    InfId::new(out.len() as u32 - 1)
+/// The inferences read back, and the memory they and the linear
+/// derivation hold, against the bound.
+struct Out {
+    /// The inferences made, premises first.
+    inferences: Vec<Inference>,
+    /// The bytes held.
+    held: u64,
+    /// The bound on them.
+    limit: u64,
 }
 
-/// Adds below `id` the `¬` inferences that take the formula at `at` from
-/// the formula under its negations back through the negations of
-/// `chain`, the innermost first, and returns the last one.
-fn negations(
-    out: &mut Vec<Inference>,
-    members: &mut [(NodeId, Side)],
-    at: usize,
-    chain: Vec<(NodeId, Side)>,
-    mut id: InfId,
-) -> InfId {
-    for (node, side) in chain.into_iter().rev() {
-        members[at] = (node, side);
-        let rule = match side {
-            Side::Left => Rule::NotLeft,
-            Side::Right => Rule::NotRight,
-        };
-        id = push(out, members, at, rule, vec![id]);
+impl Out {
+    /// Adds the inference concluding `members` by `rule`, with the formula
+    /// at `at` principal (none for an axiom), and returns its id; refuses
+    /// past the memory bound or 2³² inferences.
+    fn push(
+        &mut self,
+        members: &[(NodeId, Side)],
+        at: usize,
+        rule: Rule,
+        premises: Vec<InfId>,
+    ) -> Result<InfId, Error> {
+        self.held = self.held.saturating_add(
+            (size_of::<Inference>() + (members.len() + premises.len()) * size_of::<u32>()) as u64,
+        );
+        if self.held > self.limit {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: self.limit,
+                needed_bytes: None,
+            }));
+        }
+        let n = self.inferences.len();
+        let id = u32::try_from(n).map_err(|_| {
+            Error::Refused(Refusal::Index {
+                what: Space::Inference,
+                count: n as u64 + 1,
+                most: u64::from(u32::MAX),
+            })
+        })?;
+        let lefts = members
+            .iter()
+            .filter(|&&(_, side)| side == Side::Left)
+            .count();
+        let (mut left, mut right) = (
+            Vec::with_capacity(lefts),
+            Vec::with_capacity(members.len() - lefts),
+        );
+        let mut principal = None;
+        for (i, &(node, side)) in members.iter().enumerate() {
+            let list = if side == Side::Left {
+                &mut left
+            } else {
+                &mut right
+            };
+            if i == at {
+                principal = Some((side, list.len()));
+            }
+            list.push(node);
+        }
+        self.inferences.push(Inference {
+            term: None,
+            left,
+            right,
+            rule,
+            principal,
+            premises,
+        });
+        Ok(InfId::new(id))
     }
-    id
+
+    /// Adds below `id` the `¬` inferences that take the formula at `at`
+    /// from the formula under its negations back through the negations of
+    /// `chain`, the innermost first, and returns the last one; asks `stop`
+    /// once per inference, since a formula may be under many negations.
+    fn negations(
+        &mut self,
+        members: &mut [(NodeId, Side)],
+        at: usize,
+        chain: Vec<(NodeId, Side)>,
+        mut id: InfId,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<InfId, Error> {
+        for (node, side) in chain.into_iter().rev() {
+            if stop(Progress::new(
+                Phase::ReadBack,
+                1,
+                self.inferences.len() as u64,
+            )) {
+                return Err(Error::Refused(Refusal::Stopped {
+                    phase: Phase::ReadBack,
+                }));
+            }
+            members[at] = (node, side);
+            let rule = match side {
+                Side::Left => Rule::NotLeft,
+                Side::Right => Rule::NotRight,
+            };
+            id = self.push(members, at, rule, vec![id])?;
+        }
+        Ok(id)
+    }
 }
 
 /// The read-back's reason where a quantifier's term would be an open
@@ -2102,6 +2165,37 @@ mod tests {
             image.read_back(proof, &limits, |_| false).unwrap_err(),
             Error::GoalProof
         );
+    }
+
+    /// The read-back holds the inferences it adds to the memory bound: a
+    /// classical negation has no image, so a deep chain of them is a tiny
+    /// linear proof read back as hundreds of `¬` inferences.
+    #[test]
+    fn the_read_back_keeps_to_the_memory_bound() {
+        let chain = format!("{}a", "~".repeat(400));
+        let sequent: Sequent = format!("{chain} |- {chain}").parse().unwrap();
+        let image = translate(
+            &sequent,
+            Logic::Classical,
+            Translation::Affine,
+            &crate::Limits::default(),
+        )
+        .unwrap();
+        let outcome = prove(image.sequent(), image.mode(), &Options::default()).unwrap();
+        let Verdict::Proved(proof) = &outcome.verdict else {
+            panic!("A ⊢ A is provable");
+        };
+        let roomy = crate::Limits::default();
+        let derivation = image.read_back(proof, &roomy, |_| false).unwrap();
+        assert!(derivation.inferences().len() > 800);
+        let tight = roomy.with_memory_bytes(Some(32 * 1024));
+        // The linear proof unfolds within the tight bound; its read-back
+        // does not.
+        assert!(image.linear_derivation(proof, &tight, |_| false).is_ok());
+        assert!(matches!(
+            image.read_back(proof, &tight, |_| false),
+            Err(Error::Refused(Refusal::Memory { .. }))
+        ));
     }
 
     /// A cut checks in LJ, sharing the context or splitting it, reads back

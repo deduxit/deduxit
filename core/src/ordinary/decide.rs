@@ -796,15 +796,17 @@ mod tests {
         let classical = ljt.with_logic(Logic::Classical);
         assert!(decide_within(&sequent, &classical, &search, &limits, |_| false).is_err());
 
-        // By default LJT gives way to the embedding where a bound refuses
-        // its derivation; named, it reports the bound.
-        let small = limits.with_derivation_bytes(Some(64));
+        // By default LJT gives way to the embedding where a bound stops it
+        // (the memory: the bound on a drawing bounds no derivation built);
+        // named, it reports the bound.
+        let small = limits.with_memory_bytes(Some(64));
         let refused = super::ljt::decide(&sequent, Logic::Intuitionistic, &small, |_| false);
+        assert!(super::gives_way(&refused.map(Into::into)), "the memory");
+        let named = decide_within(&sequent, &ljt, &search, &small, |_| false);
         assert!(
-            super::gives_way(&refused.map(Into::into)),
-            "the derivation's bound"
+            !matches!(&named, Ok(outcome) if matches!(outcome.verdict, Verdict::Valid(_))),
+            "{named:?}"
         );
-        assert!(decide_within(&sequent, &ljt, &search, &small, |_| false).is_err());
         let stopped = super::ljt::decide(&sequent, Logic::Intuitionistic, &limits, |_| true);
         assert!(!super::gives_way(&stopped.map(Into::into)), "the stop");
         let classical = super::ljt::decide(&sequent, Logic::Classical, &limits, |_| false);
@@ -849,13 +851,14 @@ mod tests {
         #[cfg(feature = "sat")]
         round(&decide_within(&sequent, &stopped, &search, &limits, |_| false).unwrap());
 
-        // The image's proof stands where its derivation is refused.
+        // The image's proof stands where its derivation is refused (by the
+        // memory: the bound on a drawing bounds no derivation built).
         let peirce: Sequent = "((a -> b) -> a) -> a".parse().unwrap();
         let image: Image =
             super::super::translate(&peirce, Logic::Classical, Translation::Affine, &limits)
                 .unwrap();
         let linear = search::prove(image.sequent(), image.mode(), &search).unwrap();
-        let small = limits.with_derivation_bytes(Some(64));
+        let small = limits.with_memory_bytes(Some(64));
         let outcome = image.outcome(linear, &small, |_| false).unwrap();
         assert!(matches!(
             outcome.verdict,

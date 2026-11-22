@@ -94,7 +94,7 @@ const SUBSUMING: usize = 1 << 10;
 /// and charges what it holds to `limits.memory_bytes`. It asks `stop`
 /// every [`POLL`] sequents expanded, and sooner where those sequents hold
 /// [`POLL`] hypotheses together. A proof is translated into a derivation
-/// of LJ within `limits.derivation_bytes` and `limits.memory_bytes`,
+/// of LJ within `limits.memory_bytes`,
 /// asking `stop` once per inference, and then checked. A sequent with
 /// nothing right of `⊢` is decided as `Γ ⊢ ⊥`, and its derivation
 /// concludes `Γ ⊢ ⊥`.
@@ -105,7 +105,7 @@ const SUBSUMING: usize = 1 << 10;
 /// than one formula right of `⊢`; [`Refusal::Index`] where the arena has
 /// no room for `⊥` or the derivation would pass 2³² inferences. Where a
 /// bound or the stop refuses the derivation of a proof:
-/// [`Refusal::Output`], [`Refusal::Memory`] or [`Refusal::Stopped`], and
+/// [`Refusal::Memory`] or [`Refusal::Stopped`], and
 /// [`Refusal::Work`] where its check would pass `limits.work` inferences.
 /// None of these is a verdict. [`Error::ReadBack`], as from
 /// [`Derivation::check`], is a defect of the translation.
@@ -115,17 +115,34 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, limits, &mut stop, None)
+    run(sequent, logic, limits, &mut stop, None, None)
 }
 
-/// [`decide`], with the fault `plant` names planted in the translation
-/// (only tests plant one). The stop is a trait object, so that the search
-/// is compiled once, not once per caller's closure.
+/// Decides a sequent as [`decide`] does, but refuses a derivation whose
+/// drawing is estimated past `most_drawn` bytes with
+/// [`Refusal::Output`], building no more of it: the SAT method prefers
+/// LJT's derivation only where it can be drawn.
+#[cfg(feature = "sat")]
+pub(super) fn decide_drawable(
+    sequent: &Sequent,
+    logic: Logic,
+    limits: &Limits,
+    most_drawn: u64,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    run(sequent, logic, limits, stop, Some(most_drawn), None)
+}
+
+/// [`decide`], with the drawing's bound `most_drawn` if any, and the fault
+/// `plant` names planted in the translation (only tests plant one). The
+/// stop is a trait object, so that the search is compiled once, not once
+/// per caller's closure.
 fn run(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
+    most_drawn: Option<u64>,
     plant: Option<Plant>,
 ) -> Result<Outcome, Error> {
     sequent
@@ -165,7 +182,7 @@ fn run(
         Err(reason) => Verdict::Unknown(reason),
         Ok(Known::Failed) => Verdict::NotValid,
         Ok(Known::Proved(root)) => {
-            let mut lj = Lj::new(&search, limits, &mut stop);
+            let mut lj = Lj::new(&search, limits, most_drawn, &mut stop);
             lj.plant = plant;
             let derivation = lj.translate(root, sequent.left(), goal)?;
             derivation.check(limits, &mut stop)?;
@@ -823,20 +840,26 @@ enum Plant {
     Contraction,
 }
 
+/// The drawing's estimated size, kept where the caller bounds it.
+struct Drawn {
+    /// The width of every formula in characters.
+    widths: Vec<u64>,
+    /// The estimate of the inferences made.
+    bytes: u64,
+    /// The bound on it.
+    limit: u64,
+}
+
 /// The translation of a proof found into a derivation of LJ.
 struct Lj<'s, S> {
     /// The search, with its formulas and steps.
     search: &'s Search,
-    /// The width of every formula in characters, for the size estimate.
-    widths: Vec<u64>,
     /// The inferences made, premises first.
     inferences: Vec<Inference>,
-    /// Their estimated size.
-    bytes: u64,
-    /// The bound on it.
-    limit: Option<u64>,
     /// The memory the inferences hold.
     account: Account,
+    /// The drawing's size estimated so far, where a bound on it was asked.
+    drawn: Option<Drawn>,
     /// The caller's stop.
     stop: S,
     /// A fault to plant, in tests.
@@ -844,24 +867,30 @@ struct Lj<'s, S> {
 }
 
 impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
-    /// A translation of a proof of `search`, within `limits`.
-    fn new(search: &'s Search, limits: &Limits, stop: S) -> Self {
-        let widths = super::derivation::widths(&search.formulas);
+    /// A translation of a proof of `search`, within `limits` and, where
+    /// `most_drawn` is given, a drawing of at most that many bytes.
+    fn new(search: &'s Search, limits: &Limits, most_drawn: Option<u64>, stop: S) -> Self {
         // What the search still holds counts against the same bound, and
-        // so do the widths and the copy of the arena the derivation keeps
-        // (a node and its entry in the table of ids).
+        // so does the copy of the arena the derivation keeps (a node and
+        // its entry in the table of ids). The derivation is bounded by the
+        // memory: `limits.derivation_bytes` bounds what is drawn.
         let held = search.account.used();
         let account = Account::holding(limits.memory_bytes, held);
-        account.charge(
-            widths.len() * size_of::<u64>() + search.formulas.len() * 4 * size_of::<Node>(),
-        );
+        account.charge(search.formulas.len() * 4 * size_of::<Node>());
+        let drawn = most_drawn.map(|limit| {
+            let widths = super::derivation::widths(&search.formulas);
+            account.charge(widths.len() * size_of::<u64>());
+            Drawn {
+                widths,
+                bytes: 0,
+                limit,
+            }
+        });
         Self {
             search,
-            widths,
             inferences: Vec::new(),
-            bytes: 0,
-            limit: limits.derivation_bytes,
             account,
+            drawn,
             stop,
             plant: None,
         }
@@ -888,17 +917,17 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 phase: Phase::ReadBack,
             }));
         }
-        let estimate = super::derivation::inference_bytes(&self.widths, &left, &right);
-        self.bytes = self.bytes.saturating_add(estimate);
-        if let Some(limit) = self.limit
-            && self.bytes > limit
-        {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: self.bytes,
-                limit_bytes: limit,
-                least_bytes: None,
-            }));
+        if let Some(drawn) = &mut self.drawn {
+            let estimate = super::derivation::inference_bytes(&drawn.widths, &left, &right);
+            drawn.bytes = drawn.bytes.saturating_add(estimate);
+            if drawn.bytes > drawn.limit {
+                return Err(Error::Refused(Refusal::Output {
+                    what: "derivation",
+                    estimate_bytes: drawn.bytes,
+                    limit_bytes: drawn.limit,
+                    least_bytes: None,
+                }));
+            }
         }
         let held = (left.len() + right.len() + premises.len()) * size_of::<u32>();
         self.account.charge(held);
@@ -1524,6 +1553,7 @@ mod tests {
                 &Limits::default(),
                 &mut |_| false,
                 None,
+                None,
             );
             assert!(
                 matches!(honest.unwrap().verdict, Verdict::Valid(_)),
@@ -1534,6 +1564,7 @@ mod tests {
                 Logic::Intuitionistic,
                 &Limits::default(),
                 &mut |_| false,
+                None,
                 Some(plant),
             );
             assert!(
@@ -1577,12 +1608,11 @@ mod tests {
             outcome.verdict,
             Verdict::Unknown(Reason::MemoryLimit { .. })
         ));
-        // A proof whose derivation passes the bound on its size is refused.
+        // The bound on a drawing's size bounds no derivation that is built:
+        // the verdict and its checked derivation stand.
         let sequent: Sequent = "a, b, c |- a /\\ (b /\\ c)".parse().unwrap();
         let small = Limits::default().with_derivation_bytes(Some(100));
-        assert!(matches!(
-            decide(&sequent, Logic::Intuitionistic, &small, |_| false),
-            Err(Error::Refused(Refusal::Output { .. }))
-        ));
+        let outcome = decide(&sequent, Logic::Intuitionistic, &small, |_| false).unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)));
     }
 }

@@ -251,11 +251,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`ordinary::translated`, the sequent read once, since standard input
   cannot be read twice). `prove`'s verdict line then ends `; METHOD gave
   no verdict: REASON, and the embedding took over` (`gave_way`: the
-  reason, "its derivation passes the --derivation-limit of L" without
-  the refusal's estimate, which is where the read-back stopped and not
-  the whole derivation's (raising the limit past it was refused again,
-  the review's finding), or the
-  first-order share; nothing for `Incomplete`, which grounding answers
+  unknown's reason or the error, such as the memory bound its
+  derivation passed; nothing for `Incomplete`, which grounding answers
   outside its classes on every such sequent), so the user sees what a
   bound buys; the batch's lines and JSON say nothing of it.
   **The classical default** (`keeps_evidence`):
@@ -1089,7 +1086,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   otherwise (`Show::left_out`), so that a file or a pipe holds what it
   would hold for a small proof minus the tree. In a session the line is
   the command's output, and a `close` whose graft is refused leaves the
-  goal open.
+  goal open. **A derivation of LK or LJ is built whatever its size**
+  (within `--memory-limit`, `core-ordinary.md`) and checked, so the
+  verdict is the checked one; `shown` leaves out its drawing past the
+  limit (`Written::drawn_bytes`, which only the ordinary derivation
+  answers, a linear one being held to the limit as it is built;
+  `too_large_to_draw`), and JSON writes it at any size.
 - **`--compact`** (`CompactArg`, onto `ViewOptions::compact`, on `prove`
   and `check`) draws a run of one structural rule as one starred
   inference: `auto` (the default) where the whole derivation is over

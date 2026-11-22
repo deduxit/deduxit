@@ -34,7 +34,6 @@ use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::proofs::InfId;
-use crate::ordinary::derivation::{extend_widths, inference_bytes};
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
 
 /// A formula on a branch: its occurrence, its side, the formula as the
@@ -99,8 +98,6 @@ struct ReadBack<'m, 's> {
     terms: &'m Terms,
     /// The derivation's arena.
     formulas: Formulas,
-    /// The width of each of its formulas, for the size estimate.
-    widths: Vec<u64>,
     /// The witness lists: a term and the list before it, each list once,
     /// so that a list is known by its index.
     envs: Vec<(FoTermId, u32)>,
@@ -129,7 +126,7 @@ struct ReadBack<'m, 's> {
     default_number: u32,
     /// The inferences made, premises first.
     inferences: Vec<Inference>,
-    /// Their estimated size.
+    /// The bytes they hold, against the memory bound.
     bytes: u64,
     /// The caller's limits.
     limits: &'s Limits,
@@ -145,7 +142,7 @@ struct ReadBack<'m, 's> {
 /// # Errors
 ///
 /// [`Error::ReadBack`] where a branch stays open, a defect;
-/// [`Refusal::Output`] past `limits.derivation_bytes`,
+/// [`Refusal::Memory`] past `limits.memory_bytes`,
 /// [`Refusal::Terms`] where an instance's atoms would pass `limits.terms`,
 /// [`Refusal::Index`] past `u32` inferences and [`Refusal::Stopped`] when
 /// the stop fires.
@@ -169,13 +166,11 @@ pub(super) fn read_back(
         })
         .max()
         .unwrap_or(0);
-    let widths = super::super::derivation::widths(&formulas);
     let budget = TermBudget::new(&formulas, limits.terms);
     let mut back = ReadBack {
         matrix,
         terms,
         formulas,
-        widths,
         envs: Vec::new(),
         env_ids: HashMap::default(),
         relevant: vec![false; matrix.occs.len()],
@@ -509,17 +504,18 @@ impl ReadBack<'_, '_> {
                 phase: Phase::ReadBack,
             }));
         }
-        extend_widths(&self.formulas, &mut self.widths);
-        let estimate = inference_bytes(&self.widths, &left, &right);
-        self.bytes = self.bytes.saturating_add(estimate);
-        if let Some(limit) = self.limits.derivation_bytes
+        // The derivation is bounded by the memory it holds;
+        // `limits.derivation_bytes` bounds what is drawn.
+        let held =
+            size_of::<Inference>() + (left.len() + right.len() + premises.len()) * size_of::<u32>();
+        self.bytes = self.bytes.saturating_add(held as u64);
+        if let Some(limit) = self.limits.memory_bytes
             && self.bytes > limit
         {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: self.bytes,
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
                 limit_bytes: limit,
-                least_bytes: None,
+                needed_bytes: None,
             }));
         }
         let id = u32::try_from(n).map_err(|_| {

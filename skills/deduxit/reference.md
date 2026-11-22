@@ -483,7 +483,7 @@ recursion, witnesses or instances is unknown (exit status 3).
 | `--witness-depth N` | `64` | the deepest term a first-order search fills a witness in with |
 | `--instances N` | `65536` | the instances of quantified formulas a first-order search holds at once |
 | `--path-length N` | `none` | the longest active path the connection prover searches with; `none` deepens while the time limit lasts |
-| `--derivation-limit SIZE` | `64MiB` | the derivation built from a proof; above it the verdict stands without it |
+| `--derivation-limit SIZE` | `64MiB` | the derivation drawn: a linear proof's is not built above it, and a derivation of LK or LJ is built and checked within `--memory-limit` and not drawn above it (the tableau method builds its tableau within it); the verdict stands either way |
 | `--occurrence-limit N` | `50000000` | the sequent's subformula occurrences; a larger sequent is refused, exit status 2 |
 | `--term-limit N` | `50000000` | the first-order terms the sequent's atoms unfold to, and a proof's instance table; past it, refused |
 
@@ -1125,8 +1125,8 @@ expanded`). In classical logic the embedding then searches for at most
 decides, the output is the
 embedding's, with its derivation of LK, refutation and certificate;
 otherwise the solver's answer stands. Where another bound
-than the time limit stops it (a derivation past `--derivation-limit`,
-the memory), the default hands the sequent to the embedding, and the
+than the time limit stops it (the memory, the work), the default hands
+the sequent to the embedding, and the
 verdict line names the translation, then adds `; the SAT solver gave no
 verdict: REASON, and the embedding took over`. A method named reports
 that bound instead (exit status 2 for a derivation it could not check).
@@ -1810,7 +1810,9 @@ occurrences by id, and `describe(&forest)` names them by formula.
   natural deduction (`→I`, `→E`, `ax`, …).
 - `export::latex::to_string(&derivation, &options)` returns a derivation
   as LaTeX in one string, with no stop to write: the text is linear in
-  the derivation, which was made within its limits. `typst::to_string`,
+  the derivation. A derivation of LK or LJ is built within the memory
+  bound whatever its drawn size: compare its `drawn_bytes()` with the
+  limit before drawing it. `typst::to_string`,
   `svg::to_string` and `rocq::to_string` do the same for their formats.
 - Each export's `write` takes any `fmt::Write` and a stop, for a
   derivation written under a time limit.
