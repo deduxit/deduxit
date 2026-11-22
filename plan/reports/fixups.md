@@ -1425,3 +1425,81 @@ and batch held on SYJ202+1.007; `cargo hack check --each-feature
   (08:58 to 09:16), on `main@origin` (`tvmvslwk`): every check passed,
   the `features` check with each feature's tests among them. Only this
   line changed after.
+
+## Session fixup-22: tests in every pair of features
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixups 15 to 21), cores 10 to 12,
+from the entry fixup-21 added to `plan/later.md`. Nothing was pushed.
+
+### What landed
+
+- `mrnxrxny`: **`cargo hack check --feature-powerset --depth 2 --tests
+  -p deduxit` passes, warnings denied.** The first full run (175 s warm)
+  failed in two pairs, then a third file under the second; each test or
+  test-only item now carries the `cfg` of its uses:
+  - the linear session's `inferences()`, `serialize`'s and its tests':
+    `any(feature = "serialize", all(test, feature = "parse"))`;
+  - `tableau.rs`'s tests import `Interactive` and `expand` under
+    `serialize`, as the one test that uses them is;
+  - `tests/serialize.rs`: its three session tests and the session part of
+    `wire_levels` under `interactive`, with their imports;
+  - `tests/natural.rs` skips the tableau under `interactive` (the old
+    filter named a variant that exists only there), and
+    `tests/rules.rs`'s methods are one array with cfg'd elements (its
+    `let mut` was unused without `sat` and `interactive`).
+  The integration tests keep their files' `#![cfg(…)]` with inner
+  `cfg`s, not `required-features`: `serialize.rs`, `natural.rs` and
+  `rules.rs` each hold tests that need only `parse` and `serialize`
+  beside ones that need `interactive` (and `latex`), so a whole-file
+  requirement would skip tests or split the files (the reviewer agreed).
+  No feature is turned on for tests alone (`core/Cargo.toml` untouched).
+- **No test lost**: `cargo test -p deduxit --all-features -- --list`
+  gives the same 923 tests before and after, line for line; every new
+  gate is `interactive`, in the default features and in `test-core`'s.
+- **The check**: `features-tests` (`modules/checks.nix`), the pairs with
+  their tests on the crate with its integration tests (`core` and
+  `core-tests`), in a CI group of its own (`modules/ci.nix`); `features`
+  keeps its two runs without tests (fixup-21's `--each-feature --tests`
+  is covered, each feature alone being among the pairs' sets).
+  `flake.md` and CLAUDE.md say so. The `later.md` entry is gone.
+
+### The check's cost and the decision
+
+In the sandbox under the lock (`--max-jobs 4 --cores 8`): `features`
+283 s before fixup-21, 345 s with each feature's tests; the pairs with
+the unit tests added to it, 600 s. CI's `features` job took 8.2 min for
+the 283 s check (`plan/reports/ci-speed.md`), about 1.6 times the local
+build, so 600 s would have been about 16 minutes against the longest
+job's 9: twice CI's wall time. Split, `features` takes 296 s (about 8
+minutes in CI) and `features-tests` 373 s (about 10), each on a runner
+of its own, so CI's wall time grows by a minute at most, for one more
+runner. What it catches: a test or test-only item that breaks a pair's
+test build, which no other check builds (fixup-21's `Derive::Ljt` was
+one; this session fixed five); with a fault of `tests/rules.rs` put back
+it fails, as it should.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`): the run passes (78 sets, no
+warning), no test is lost, each gate is its uses' `cfg`, the inner
+`cfg`s are right for these files, the matrix evaluates. One finding,
+fixed in `mrnxrxny`:
+- **The check built no integration test**: its source was the part
+  `core`, without `core/tests` (in the part `core-tests` alone), so in
+  the sandbox `--tests` built the library's unit tests only, and the
+  rules and comments claimed more (fixup-21's `--each-feature --tests`
+  had the same gap). It takes `core-tests` now: 336 s became 373 s, and
+  the check fails with `tests/rules.rs`'s old `let mut` put back.
+
+### Checks
+
+- `cargo test -p deduxit --all-features -- --list` before and after;
+  the pairs with tests in the workspace (66 s warm, exit 0); clippy with
+  the default features.
+- The gate passed on the commit before the review's fix (which touched
+  `checks.nix` alone): `ordinary-pigeons` +1.03 %, as since fixup-19.
+- `nix flake check` under the machine lock at the report's commit
+  (10:15 to 10:32), on `main@origin` (`uzkwvksz`): every check passed,
+  `features-tests` among them. Only this line changed after, and the
+  chain was rebased onto `zuwuvsum`, which adds plan files alone.
