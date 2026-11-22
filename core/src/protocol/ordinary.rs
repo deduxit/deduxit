@@ -1726,9 +1726,14 @@ fn first_order_checked(
             texts.sort_unstable();
             texts
         };
+        // The search ran with reflexivity among the hypotheses of a
+        // sequent with `=`, and the derivation derives that sequent.
+        let resolved =
+            first_order::with_equality(&input, limits, resolution::Equality::Paramodulation)?;
         let (left, right) = derivation.sequent();
-        let same = texts(derivation.formulas(), left) == texts(input.formulas(), input.left())
-            && texts(derivation.formulas(), right) == texts(input.formulas(), input.right());
+        let same = texts(derivation.formulas(), left)
+            == texts(resolved.formulas(), resolved.left())
+            && texts(derivation.formulas(), right) == texts(resolved.formulas(), resolved.right());
         parts.push(Part {
             name: "sequent".to_owned(),
             status: status(same),

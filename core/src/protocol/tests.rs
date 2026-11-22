@@ -388,6 +388,13 @@ fn a_first_order_resolution_is_checked() {
     );
     let check = checked("ordinary.resolve", &[&named], "", &output);
     assert_eq!(check.status, Status::Held);
+    // With `=`, the derivation read back has reflexivity among its
+    // hypotheses, and the check holds it to that sequent.
+    let reflexive = ordinary("|- forall x. x = x", classical);
+    let output = ran("ordinary.resolve", &[&reflexive], "");
+    assert!(output.contains(r#""derivation":{"#), "{output}");
+    let check = checked("ordinary.resolve", &[&reflexive], "", &output);
+    assert_eq!(check.status, Status::Held);
 }
 
 #[test]

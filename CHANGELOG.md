@@ -50,7 +50,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   `Options::equality`, `resolve --equality paramodulation|axioms`): an
   equation rewrites a subterm of another clause's literal as a step of
   its own (`first_order::Step::Paramodulation`), which the checker
-  computes again, with reflexivity and functional reflexivity as clauses
+  computes again, with reflexivity as a clause
   (`equality::with_reflexivity`). `axioms` resolves with every equality
   axiom instead.
 

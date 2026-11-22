@@ -646,7 +646,7 @@ pub struct Options {
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Equality {
     /// Paramodulation, an inference that rewrites a term by an equation,
-    /// with reflexivity and functional reflexivity as clauses: a small set
+    /// with reflexivity as a clause: a small set
     /// whose saturation ends where the axioms' would not. A refutation is
     /// checked step by step; LK has no rule for the step, so it is not
     /// read back as a derivation.

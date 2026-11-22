@@ -476,10 +476,27 @@ impl Clauses {
             });
         }
         let target = renamed_b[into_literal].atom;
-        let occurrences = self.occurrences(target);
-        let Some((u, path)) = occurrences.get(position).cloned() else {
+        if position >= MOST_PLACES {
+            return Ok(Err(
+                "the place lies past the most a paramodulation takes, 2^20",
+            ));
+        }
+        let places = self.places(target, position + 1);
+        let Some(&(u, _, _)) = places.get(position) else {
             return Ok(Err("the literal has no subterm at that place"));
         };
+        // The path from the argument down, read off the parents.
+        let mut path = Vec::new();
+        let mut at = position;
+        loop {
+            let (_, parent, index) = places[at];
+            path.push(index);
+            if parent == usize::MAX {
+                break;
+            }
+            at = parent;
+        }
+        path.reverse();
         if matches!(
             self.formulas.first_order().terms[u.index()],
             FoTerm::Meta(_)
@@ -518,14 +535,20 @@ impl Clauses {
     /// Adds to `steps` every paramodulation by a positive equation of the
     /// clause `from` into a literal of the clause `into`, at each place
     /// that is no variable, each way round, but where the side and the
-    /// subterm begin with two symbols (no unifier), and by no equation of
-    /// two equal sides (it rewrites nothing).
-    fn paramodulations(&self, from: usize, into: usize, steps: &mut Vec<Step>) {
+    /// subterm begin with two symbols or eigenvariables (no unifier), and by
+    /// no equation of two equal sides (it rewrites nothing). Returns the
+    /// places it walked, which the search counts as steps, or `None` where
+    /// a literal has more than [`MOST_PLACES`].
+    fn paramodulations(&self, from: usize, into: usize, steps: &mut Vec<Step>) -> Option<u64> {
         let tables = self.formulas.first_order();
+        // What a term begins with: a symbol or an eigenvariable, either a
+        // constant of the clauses; nothing for a variable.
         let head = |t: FoTermId| match tables.terms[t.index()] {
-            FoTerm::App(f, _) => Some(f),
-            FoTerm::Meta(_) | FoTerm::Bound(_) | FoTerm::Eigen(_) => None,
+            FoTerm::App(f, _) => Some((false, f.get())),
+            FoTerm::Eigen(e) => Some((true, e.get())),
+            FoTerm::Meta(_) | FoTerm::Bound(_) => None,
         };
+        let mut walked = 0u64;
         for (i, x) in self.items[from].literals.iter().enumerate() {
             let Some((s, t)) = x.positive.then(|| self.equation(x.atom)).flatten() else {
                 continue;
@@ -534,7 +557,12 @@ impl Clauses {
                 continue;
             }
             for (j, y) in self.items[into].literals.iter().enumerate() {
-                for (position, (u, _)) in self.occurrences(y.atom).into_iter().enumerate() {
+                let places = self.places(y.atom, MOST_PLACES + 1);
+                if places.len() > MOST_PLACES {
+                    return None;
+                }
+                walked = walked.saturating_add(places.len() as u64);
+                for (position, &(u, _, _)) in places.iter().enumerate() {
                     let Some(g) = head(u) else {
                         continue;
                     };
@@ -553,6 +581,7 @@ impl Clauses {
                 }
             }
         }
+        Some(walked)
     }
 
     /// Returns the two sides of `atom` where it is an equation `s = t`.
@@ -568,11 +597,13 @@ impl Clauses {
         }
     }
 
-    /// Returns the subterms of `atom`'s arguments as they stand in the
-    /// text, left to right and each before its arguments, each with its
-    /// path: the argument's place, then the place below at each level. A
-    /// shared part counts once per place it stands at.
-    fn occurrences(&self, atom: NodeId) -> Vec<(FoTermId, Vec<u32>)> {
+    /// Returns the first `most` places of `atom`'s arguments as they stand
+    /// in the text, left to right and each before its arguments: each its
+    /// subterm, the index of its parent's place (`usize::MAX` for an
+    /// argument) and its place among the parent's arguments. A shared part
+    /// counts once per place it stands at; the walk stops at `most`, so a
+    /// term that shares its parts costs no more than that.
+    fn places(&self, atom: NodeId, most: usize) -> Vec<(FoTermId, usize, u32)> {
         let Node::Atom(a) = self.formulas.node(atom) else {
             return Vec::new();
         };
@@ -581,30 +612,30 @@ impl Clauses {
             return Vec::new();
         };
         let mut found = Vec::new();
-        let mut stack: Vec<(FoTermId, Vec<u32>)> = tables
+        let mut stack: Vec<(FoTermId, usize, u32)> = tables
             .list(args)
             .iter()
             .enumerate()
             .rev()
-            .map(|(i, &t)| (t, vec![i as u32]))
+            .map(|(i, &t)| (t, usize::MAX, i as u32))
             .collect();
-        while let Some((t, path)) = stack.pop() {
-            if let FoTerm::App(_, args) = tables.terms[t.index()] {
+        while let Some(place) = stack.pop() {
+            if found.len() >= most {
+                break;
+            }
+            let here = found.len();
+            if let FoTerm::App(_, args) = tables.terms[place.0.index()] {
                 for (i, &u) in tables.list(args).iter().enumerate().rev() {
-                    let mut below = path.clone();
-                    below.push(i as u32);
-                    stack.push((u, below));
+                    stack.push((u, here, i as u32));
                 }
             }
-            found.push((t, path));
+            found.push(place);
         }
         found
     }
 
-    /// Returns `atom` with the subterm at `path` ([`occurrences`]) put
-    /// as `with`.
-    ///
-    /// [`occurrences`]: Self::occurrences
+    /// Returns `atom` with the subterm at `path` (the argument's place,
+    /// then the place below at each level) put as `with`.
     fn replaced(&mut self, atom: NodeId, path: &[u32], with: FoTermId) -> Result<NodeId, Error> {
         let Node::Atom(a) = self.formulas.node(atom) else {
             return Ok(atom);
@@ -817,6 +848,7 @@ impl Clauses {
             return Vec::new();
         };
         let mut found = Vec::new();
+        let mut metas: HashSet<u32> = HashSet::default();
         let mut seen: HashSet<FoTermId> = HashSet::default();
         let mut stack: Vec<FoTermId> = tables.list(args).iter().rev().copied().collect();
         while let Some(t) = stack.pop() {
@@ -826,8 +858,10 @@ impl Clauses {
                 continue;
             }
             match tables.terms[t.index()] {
+                // A set, since a clause may have as many variables as a
+                // symbol's arity.
                 FoTerm::Meta(k) => {
-                    if !found.contains(&k) {
+                    if metas.insert(k) {
                         found.push(k);
                     }
                 }
@@ -1206,6 +1240,13 @@ pub struct FirstOrder {
 /// The most matchings one subsumption test tries.
 const SUBSUMPTION_LIMIT: u64 = 1 << 12;
 
+/// The most places of a literal that paramodulation takes, 2²⁰: a term
+/// that shares its parts may have exponentially many, and each place the
+/// search tries is a step. A literal with more ends the search at a bound
+/// ([`Bound::Steps`] of this many), and a step naming a place past it is
+/// refused.
+const MOST_PLACES: usize = 1 << 20;
+
 /// The most ground instances the read-back collects.
 const MOST_INSTANCES: usize = 1 << 12;
 
@@ -1213,9 +1254,11 @@ const MOST_INSTANCES: usize = 1 << 12;
 /// by first-order resolution, within the bounds of `options` (its method
 /// is ignored: the search is saturation), `limits` and `stop`; checks a
 /// refutation found and reads it back as a derivation of LK where it
-/// reaches. A sequent with `=` is resolved with the equality axioms
-/// among its hypotheses, so a saturated set has a model where `=` is
-/// identity.
+/// reaches. A sequent with `=` is resolved by `options.equality`: with
+/// reflexivity among its hypotheses and paramodulation, or with every
+/// equality axiom among them; either way a saturated set has a model
+/// where `=` is identity. A derivation read back derives the sequent with
+/// those hypotheses.
 ///
 /// # Errors
 ///
@@ -1235,7 +1278,7 @@ pub fn resolve(
 /// Returns `sequent` with what `equality` needs of a sequent that uses
 /// `=`: every equality axiom
 /// ([`with_axioms`](crate::ordinary::equality::with_axioms)), or
-/// reflexivity and functional reflexivity for paramodulation
+/// reflexivity alone for paramodulation
 /// ([`with_reflexivity`](crate::ordinary::equality::with_reflexivity)).
 /// Either way a saturated set has a model that reads `=` as identity once
 /// divided by it.
@@ -1243,7 +1286,7 @@ pub fn resolve(
 /// # Errors
 ///
 /// Their refusals.
-fn with_equality<'a>(
+pub(crate) fn with_equality<'a>(
     sequent: &'a Sequent,
     limits: &Limits,
     equality: super::Equality,
@@ -1654,10 +1697,23 @@ impl<'l> Search<'l> {
                     }
                 }
                 if paramodulating {
-                    self.set.paramodulations(given, other, &mut steps);
-                    if other != given {
-                        self.set.paramodulations(other, given, &mut steps);
+                    // Each place walked counts as a step, so a wide literal
+                    // ends the search at its bound on steps.
+                    let pairs = [(given, other), (other, given)];
+                    for &(from, into) in &pairs[..if other == given { 1 } else { 2 }] {
+                        let Some(walked) = self.set.paramodulations(from, into, &mut steps) else {
+                            return Ok(Found::Unknown(Bound::Steps {
+                                limit: MOST_PLACES as u64,
+                            }));
+                        };
+                        self.statistics.steps = self.statistics.steps.saturating_add(walked);
                     }
+                    if let Some(limit) = self.options.steps
+                        && self.statistics.steps >= limit
+                    {
+                        return Ok(Found::Unknown(Bound::Steps { limit }));
+                    }
+                    self.charge((steps.len() as u64).saturating_mul(size_of::<Step>() as u64))?;
                 }
             }
             for step in steps {
@@ -1709,14 +1765,23 @@ impl<'l> Search<'l> {
 
     /// Charges a clause made, and refuses past the memory bound.
     fn hold(&mut self, clause: &Clause) -> Result<(), Error> {
-        let bytes = 64 + 16 * clause.literals.len() as u64;
-        self.bytes = self.bytes.saturating_add(bytes);
+        self.bytes = self
+            .bytes
+            .saturating_add(64 + 16 * clause.literals.len() as u64);
+        self.charge(0)
+    }
+
+    /// Refuses where what the search holds, with `pending` bytes of steps
+    /// to try, passes the memory bound.
+    fn charge(&self, pending: u64) -> Result<(), Error> {
         match self.limits.memory_bytes {
-            Some(limit_bytes) if self.bytes > limit_bytes => Err(Error::Refused(Refusal::Memory {
-                phase: Phase::Search,
-                limit_bytes,
-                needed_bytes: None,
-            })),
+            Some(limit_bytes) if self.bytes.saturating_add(pending) > limit_bytes => {
+                Err(Error::Refused(Refusal::Memory {
+                    phase: Phase::Search,
+                    limit_bytes,
+                    needed_bytes: None,
+                }))
+            }
             _ => Ok(()),
         }
     }

@@ -4336,6 +4336,53 @@
                         "type": "string"
                       }
                     }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "rule",
+                      "from",
+                      "from_literal",
+                      "into",
+                      "into_literal",
+                      "position",
+                      "reverse",
+                      "unifier",
+                      "clause"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "rule": {
+                        "const": "paramodulation"
+                      },
+                      "from": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "from_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "into": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "into_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "position": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "reverse": {
+                        "type": "boolean"
+                      },
+                      "unifier": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "clause": {
+                        "type": "string"
+                      }
+                    }
                   }
                 ]
               }

@@ -1548,8 +1548,8 @@ refutation is checked step by step and read back as a checked derivation
 of LK where it reaches. No model is built there: a sequent that is not
 valid ends unknown, exit 3. `--method dpll` and `--clauses` other than
 `cnf` are refused at first order; the JSON is at wire level 29. With
-`=`, `--equality paramodulation` (the default) adds reflexivity and
-functional reflexivity as clauses and rewrites a subterm by an equation
+`=`, `--equality paramodulation` (the default) adds reflexivity alone
+as a clause and rewrites a subterm by an equation
 as a step of its own (JSON `{"rule": "paramodulation", "from",
 "from_literal", "into", "into_literal", "position", "reverse"}`, the
 position counted over the literal's subterms left to right, each before

@@ -1888,8 +1888,8 @@ pub(crate) struct ResolveArgs {
     /// How a first-order sequent with `=` is resolved
     ///
     /// `paramodulation` (the default) rewrites a term by an equation as a
-    /// step of its own, with reflexivity and functional reflexivity as
-    /// clauses: its refutation is checked step by step but not read back as
+    /// step of its own, with reflexivity as a clause: its refutation is
+    /// checked step by step but not read back as
     /// a derivation of LK. `axioms` takes every equality axiom as clauses
     /// and resolves alone, its refutation read back where the read-back
     /// reaches, its saturation slower.
@@ -1900,7 +1900,7 @@ pub(crate) struct ResolveArgs {
 /// How `resolve` treats `=`.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EqualityArg {
-    /// Paramodulation, with reflexivity and functional reflexivity
+    /// Paramodulation, with reflexivity
     Paramodulation,
     /// Every equality axiom as clauses
     Axioms,

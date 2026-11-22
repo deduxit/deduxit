@@ -2478,9 +2478,17 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
     `concluded`), so the checker computes it again. Never into a
     variable (refused, and the search does not try one), never by an
     equation of two equal sides; the search prefilters on the head
-    symbols. The clause set gets reflexivity and functional reflexivity
-    (`equality::with_reflexivity`), which Robinson and Wos's
-    completeness needs where paramodulation does not rewrite variables;
+    symbols, an eigenvariable (a session's parameter) as a constant of
+    its own (the panel's finding: skipped, a valid sequent over a
+    session's arena saturated). The clause set gets reflexivity alone
+    (`equality::with_reflexivity`), which Brand's (1975) completeness of
+    paramodulation not into variables needs; functional reflexivity, which
+    Robinson and Wos need where variables are rewritten, adds nothing here
+    (the panel's correction of the first version, which added it). Each
+    place walked counts as a step (`places`, stopping at the place asked
+    and at `MOST_PLACES`, no path stored: a term that shares its parts has
+    exponentially many places, and the first version held gigabytes), and
+    a place past `MOST_PLACES` is refused or ends the search at that bound.
     `Equality::Axioms` gets every axiom (`with_axioms`) and resolves
     alone. A refutation with a paramodulation is not read back (`read_back`
     refuses it: a ground instance of a paramodulant follows only with

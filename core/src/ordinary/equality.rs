@@ -41,12 +41,10 @@ pub fn with_axioms(sequent: &Sequent, limits: &Limits) -> Result<Option<Sequent>
     appended(sequent, limits, false)
 }
 
-/// Returns `sequent` with reflexivity, `∀x. x = x`, and for each function
-/// symbol `f` of arity n ≥ 1 `∀x₁ … xₙ. f(x₁, …, xₙ) = f(x₁, …, xₙ)`
-/// appended after its hypotheses where it lacks them, or `None` as
-/// [`with_axioms`] answers it. These are the axioms resolution with
-/// paramodulation needs beside its rules (Robinson and Wos's functional
-/// reflexivity, since paramodulation does not rewrite into a variable).
+/// Returns `sequent` with reflexivity, `∀x. x = x`, appended after its
+/// hypotheses where it lacks it, or `None` as [`with_axioms`] answers it:
+/// the one axiom resolution with paramodulation needs beside its rules
+/// where paramodulation never rewrites a variable (Brand, 1975).
 ///
 /// # Errors
 ///
@@ -56,7 +54,7 @@ pub fn with_reflexivity(sequent: &Sequent, limits: &Limits) -> Result<Option<Seq
 }
 
 /// Returns `sequent` with the axioms appended, every equality axiom or,
-/// where `reflexive` is set, reflexivity and functional reflexivity.
+/// where `reflexive` is set, reflexivity alone.
 fn appended(sequent: &Sequent, limits: &Limits, reflexive: bool) -> Result<Option<Sequent>, Error> {
     if !sequent.formulas().has_equality() {
         return Ok(None);
@@ -101,8 +99,7 @@ pub fn axiom_count(formulas: &Formulas, left: &[NodeId]) -> usize {
 /// Builds the equality axioms of the symbols of `formulas` into it and
 /// returns them, reflexivity, symmetry and transitivity first, then one
 /// per symbol in the order of the tables; where `reflexive` is set,
-/// reflexivity and one functional reflexivity axiom per function symbol
-/// alone.
+/// reflexivity alone.
 fn axioms(formulas: &mut Formulas, limits: &Limits, reflexive: bool) -> Result<Vec<NodeId>, Error> {
     // The symbols a term or an atom uses, each with its role: a JSON
     // sequent may declare others, which no formula needs an axiom for.
@@ -158,11 +155,6 @@ fn axioms(formulas: &mut Formulas, limits: &Limits, reflexive: bool) -> Result<V
     let body = build.equal(x, x)?;
     axioms.push(build.close(body, &["x"])?);
     if reflexive {
-        for (symbol, arity, predicate) in symbols {
-            if !predicate {
-                axioms.push(build.functional_reflexivity(symbol, arity)?);
-            }
-        }
         return Ok(axioms);
     }
     // ∀x y. x = y → y = x
@@ -253,29 +245,6 @@ impl Build<'_> {
             body = self.within(body)?;
         }
         Ok(body)
-    }
-
-    /// Returns `∀x₁ … xₙ. f(x₁, …, xₙ) = f(x₁, …, xₙ)` for the function
-    /// symbol `symbol` of `arity` ≥ 1.
-    fn functional_reflexivity(&mut self, symbol: Symbol, arity: u32) -> Result<NodeId, Error> {
-        // As a congruence axiom's binders, half as many: checked the same.
-        if let Some(limit) = self.limits.memory_bytes
-            && u64::from(arity).saturating_mul(NODE_BYTES) > limit
-        {
-            return Err(Error::Refused(Refusal::Memory {
-                phase: Phase::Read,
-                limit_bytes: limit,
-                needed_bytes: Some(u64::from(arity).saturating_mul(NODE_BYTES)),
-            }));
-        }
-        let xs: Vec<FoTermId> = (1..=arity).map(|i| self.variable(arity - i)).collect();
-        let fo = self.formulas.interner();
-        let list = fo.list(&xs);
-        let fx = fo.term(FoTerm::App(symbol, list));
-        let body = self.equal(fx, fx)?;
-        let names: Vec<String> = (1..=arity).map(|i| format!("x{i}")).collect();
-        let names: Vec<&str> = names.iter().map(String::as_str).collect();
-        self.close(body, &names)
     }
 
     /// Returns the congruence axiom of `symbol`, a predicate where
