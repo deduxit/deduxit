@@ -108,6 +108,7 @@ fixup-14	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-21 09:00	20
 75b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-21 10:20	2026-11-21 13:15	the classical connection prover
 75c	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_fe155f72	2026-11-21 11:30	2026-11-22 00:25	the intuitionistic connection prover
 75d	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-21 13:45	2026-11-22 00:40	fragments, comparison, defaults
-fixup-15	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 00:30		shared terms walked once
+fixup-15	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 00:30	2026-11-22 02:25	shared terms walked once
 75	step	-	-	-	-	-	2026-11-22 01:30	complete: first-order search, embedding, two connection provers, grounding, comparison
 76a	design	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 01:30		countermodels, design and classical
+fixup-16	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 02:30		glue licence, non-UTF-8 TPTP
