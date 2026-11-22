@@ -422,9 +422,13 @@ impl Refutation {
             }
         };
         let names = sequent.map(Sequent::atom_names);
-        let name = |atom: Atom| match names.and_then(|names| names.get(atom.index())) {
-            Some(name) => name.clone(),
-            None => format!("#{}", atom.get()),
+        let name = |atom: Atom| match (sequent, names.and_then(|names| names.get(atom.index()))) {
+            // An equality is written between its terms, as the printer does.
+            (Some(sequent), Some(_)) if sequent.is_first_order() => {
+                crate::linear::sequents::notation::Notation::atom_text(sequent, atom)
+            }
+            (_, Some(name)) => name.clone(),
+            (_, None) => format!("#{}", atom.get()),
         };
         // A predicate as its literals read: its name, with its arguments
         // left out.
@@ -2027,6 +2031,11 @@ mod tests {
                 "|- ~a, b",
                 "~a occurs 1 more time than a in the one-sided sequent, so they cannot all meet in \
                  axioms",
+            ),
+            // An equality is named as it is written.
+            (
+                "a = b, p(a) |- p(b)",
+                "a = b on the left has no a = b on the right to meet in an axiom",
             ),
         ] {
             assert_eq!(refuted(input, classical).to_string(), phrase, "{input}");

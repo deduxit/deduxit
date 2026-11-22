@@ -459,6 +459,20 @@ impl Notation {
         out.write_char(')')
     }
 
+    /// Returns the atom `atom` of `sequent` as the text printer writes it:
+    /// its name, or an equality between its terms, `a = b`, where the
+    /// name is `=(a, b)`.
+    pub(crate) fn atom_text(sequent: &Sequent, atom: Atom) -> String {
+        let name = sequent.atom_name(atom);
+        if Self::is_equality(sequent, atom) {
+            let mut text = String::new();
+            if TEXT.write_predicate(&mut text, sequent, atom, None).is_ok() {
+                return text;
+            }
+        }
+        name.to_owned()
+    }
+
     /// Returns whether the atom `atom` of `sequent` is an equality, which
     /// a postfix dual writes in brackets: `(a = b)^⊥`.
     #[cold]
