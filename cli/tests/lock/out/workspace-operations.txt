@@ -17,6 +17,7 @@ ordinary.skolem  ordinary.sequent -> ordinary.sequent: Skolem normal form
 ordinary.herbrand  ordinary.sequent -> ordinary.sequent: Herbrand normal form
 ordinary.clausal  ordinary.sequent -> ordinary.sequent: Clausal normal form
 ordinary.resolve  ordinary.sequent -> ordinary.resolution: A refutation by resolution
+ordinary.instances  ordinary.sequent -> ordinary.instances: Herbrand's theorem: ground instances
 ordinary.duplicate  ordinary.sequent -> ordinary.sequent: A copy
 lambda.inhabit  ordinary.sequent -> lambda.inhabitation: A term of the type, or that it has none
 lambda.enumerate  ordinary.sequent -> lambda.inhabitants: The type's terms, listed and counted

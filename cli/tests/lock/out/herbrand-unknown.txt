@@ -1,0 +1,9 @@
+$ deduxit herbrand --depth 1 'forall x. (p(x) -> p(f(x))) |- p(a)'
+--- status 3
+--- stdout
+Clausal normal form: ∀x. (¬p(x) ∨ p(f(x))), ¬p(a) ⊢
+1. p(a) moves left of ⊢ as ¬p(a)
+2. A → B ≡ ¬A ∨ B:
+   ∀x. (¬p(x) ∨ p(f(x))), ¬p(a) ⊢
+unknown: the 3 instances of terms up to depth 1 (2 terms) have a model; raise --depth, or decide the sequent with prove --logic classical
+--- stderr

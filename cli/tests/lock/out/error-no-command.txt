@@ -14,6 +14,7 @@ Commands:
   interact     Prove a sequent step by step, reading commands from standard input
   interpolate  Find a Craig interpolant of a valid sequent of ordinary logic, and check it
   resolve      Refute a set of clauses by resolution or DPLL, and check the refutation
+  herbrand     Prove a first-order sequent by Herbrand's theorem: ground instances of its clauses that have no model
   seq          Print a sequent, convert it to JSON, name its fragment, translate it from classical logic, or rewrite it into a normal form
   term         Check a lambda-term's type, or find and count the terms of a type
   workspace    Keep sequents and what is made from them in a workspace file

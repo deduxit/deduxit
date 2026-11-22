@@ -1,0 +1,29 @@
+$ deduxit herbrand '|- exists x. (p(x) -> forall y. p(y))'
+--- status 0
+--- stdout
+Clausal normal form: ∀y. p(y), ¬p(sk1) ⊢
+1. ∃x. (p(x) → (∀y. p(y))) moves left of ⊢ as ¬(∃x. (p(x) → (∀y. p(y))))
+2. A → B ≡ ¬A ∨ B:
+   ¬(∃x. (¬p(x) ∨ (∀y. p(y)))) ⊢
+3. ¬∃x. A ≡ ∀x. ¬A, at ¬(∃x. (¬p(x) ∨ (∀y. p(y)))):
+   ∀x. ¬(¬p(x) ∨ (∀y. p(y))) ⊢
+4. ¬(A ∨ B) ≡ ¬A ∧ ¬B:
+   ∀x. (¬¬p(x) ∧ ¬(∀y. p(y))) ⊢
+5. ¬¬A ≡ A:
+   ∀x. (p(x) ∧ ¬(∀y. p(y))) ⊢
+6. ¬∀x. A ≡ ∃x. ¬A, at ¬(∀y. p(y)):
+   ∀x. (p(x) ∧ (∃y. ¬p(y))) ⊢
+7. ∃y. A becomes A[f(x̄)/y], f a new function symbol over the variables x̄ free in ∃y. A: satisfiable exactly when the input is, at ∃y. ¬p(y):
+   ∀x. (p(x) ∧ ¬p(sk1)) ⊢
+8. ∀x. (A ∧ B) ≡ (∀x. A) ∧ (∀x. B), at ∀x. (p(x) ∧ ¬p(sk1)):
+   (∀y. p(y)) ∧ (∀x. ¬p(sk1)) ⊢
+9. ∀x. A ≡ A and ∃x. A ≡ A, x not free in A, at ∀x. ¬p(sk1):
+   (∀y. p(y)) ∧ ¬p(sk1) ⊢
+10. Γ, A ∧ B ⊢ Δ is valid exactly when Γ, A, B ⊢ Δ is, at (∀y. p(y)) ∧ ¬p(sk1):
+   ∀y. p(y), ¬p(sk1) ⊢
+Instances of terms up to depth 0 (1 term), 2 of 2 kept:
+  p(sk1)   clause 1, y := sk1
+  ¬p(sk1)  clause 2
+They have no model: the SAT solver's clausal proof is checked.
+valid (classical logic by Herbrand's theorem): a checked derivation of LK (9 inferences) built from the instances
+--- stderr

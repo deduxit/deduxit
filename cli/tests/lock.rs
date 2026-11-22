@@ -401,6 +401,23 @@ const CASES: &[Case] = &[
         "resolve-limit",
         &["resolve", "--step-limit", "1", "a -> b, b -> c |- a -> c"],
     ),
+    call(
+        "herbrand",
+        &["herbrand", "|- exists x. (p(x) -> forall y. p(y))"],
+    ),
+    call(
+        "herbrand-unknown",
+        &[
+            "herbrand",
+            "--depth",
+            "1",
+            "forall x. (p(x) -> p(f(x))) |- p(a)",
+        ],
+    ),
+    call(
+        "herbrand-json",
+        &["herbrand", "--format", "json", "forall x. p(x) |- p(f(a))"],
+    ),
     call("term-check", &["term", "check", "\\f:a -> b. \\x:a. f x"]),
     call(
         "term-ill-typed",
