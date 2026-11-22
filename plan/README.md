@@ -109,7 +109,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 77 | Transformations at first order, each checked: prenex form and its inverse (miniscoping), Skolemization and Herbrandization (equisatisfiable, the certificate covering it), clausal form, Herbrand's theorem with the ground instances found by the SAT engine as a certificate, the negative translations at first order (Kuroda's and Gödel and Gentzen's, and the formula on which Glivenko's theorem fails), Craig interpolants of LK and LJ at first order; in the command, the library and on the page, every step shown (two to three sessions) | `77-first-order-transformations.md` (written 2026-11-22, beside 76) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 63t, 70, 74, 75 (76b for Glivenko's failure only) |
 | 78 | Equality and first-order resolution: `=` as axioms in the image first, and a native rule only where measurement asks for it (more-logics-1); resolution with unification step by step, factoring and a refutation checker at teaching scale (resolution-2); TPTP `cnf` input and SZS status lines (resolution-4, interop-5) (three to four sessions) | `78-equality-resolution.md` (written at the review of 77) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 70, 75, 77 |
 | 79 | First order on the page: the ordinary tab and the linear tab at first order, witnesses and eigenvariables chosen as the linear page chooses them, countermodels drawn, the transformations shown, Learn's and Practice's lessons on quantifiers (two to three sessions, in the client) | `79-first-order-page.md` (written at the review of 78) | Opus 5.5; a fresh-context reviewer per client session | high | 63, 76, 77 |
-| 80 | The release of 0.8.0 (one session) | `80-release-0.8.0.md` (written at the review of 79) | Opus 5.5 | high | 74, 75, 76, 77, 78, 79 |
+| 80 | The release of 0.8.0 (one session) | `80-release-0.8.0.md` (written at the review of 79) | Opus 5.5 | high | 74, 75, 76, 77, 78 (79 after 0.8.0: the author holds the website) |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -8080,3 +8080,11 @@ move (D26).
   (`plan/77-first-order-transformations.md`) is written now. **77a** (the design, then the normal
   forms and Skolemization) starts in the fixup worker when fixup-22 lands, keeping its
   conversation; 76 keeps the other slot.
+- 2026-11-22, about 10:10: **No change to the website until 0.8.0** (the author: "don't make any
+  changes to the website until 0.8.0. I don't like the UI, it's not easy to use anymore, so I will
+  change it after 0.8.0 some time"). So nothing is pushed to the client repository
+  (`deduxit.github.io`) until then: no lock bump, no page work, and **step 79 (first order on the
+  page) moves after 0.8.0**, to be planned with the author's redesign; step 80 (the 0.8.0 release)
+  now depends on 74 to 78. The library's web bindings (`web/`, `web-render/`, `web-tab/`) may still
+  change with the library, since the page takes them only through a lock bump; the manual and the
+  rustdoc on Pages are deduxit's and still deploy from `main`.
