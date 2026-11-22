@@ -12,6 +12,7 @@ use crate::argument_parsing::{
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
+use crate::show::bytes_text;
 use crate::{Status, catch_interrupt, interrupted, io};
 use anyhow::{Result, bail};
 use deduxit::linear::search::{Jobs, Reason};
@@ -122,6 +123,14 @@ pub(crate) fn normalize(args: &NormalizeArgs, given: &Given) -> Result<Status> {
             }
             bail!("{error}; raise the limit with --form-limit")
         }
+        Err(Error::Refused(refusal @ (Refusal::Memory { .. } | Refusal::Work { .. }))) => {
+            let flag = match refusal.setting() {
+                Some("limits.memory_bytes") => "; raise it with --memory-limit",
+                Some("limits.work") => "; raise it with --work-limit",
+                _ => "",
+            };
+            return unknown(&args.common, &format!("{refusal}{flag}"));
+        }
         Err(error) => return Err(error.into()),
     };
     let status = if made.is_checked() {
@@ -131,19 +140,22 @@ pub(crate) fn normalize(args: &NormalizeArgs, given: &Given) -> Result<Status> {
     };
     let text = match args.common.format {
         AnswerFormat::Json => serde_json::to_string(&made)?,
-        AnswerFormat::Text => steps_text(&made, &deadline)?,
+        AnswerFormat::Text => steps_text(&made, &deadline, settings.limits.memory_bytes)?,
     };
     io::write(args.common.output.as_deref(), &text)?;
     Ok(status)
 }
 
 /// Returns the text of a normal form: the form, a line per step with the
-/// sequent after it, and a line per claim checked.
+/// sequent after it, and a line per claim checked. The steps' lines stop
+/// at the time limit, at Ctrl-C, or once the text passes `memory`, with a
+/// line that says so: each holds a whole sequent, so their text grows with
+/// the square of the input.
 ///
 /// # Errors
 ///
 /// None in practice: writing into a string does not fail.
-fn steps_text(made: &NormalForm, deadline: &Deadline) -> Result<String> {
+fn steps_text(made: &NormalForm, deadline: &Deadline, memory: Option<u64>) -> Result<String> {
     let mut title = made.form.title().to_owned();
     if let Some(first) = title.get_mut(..1) {
         first.make_ascii_uppercase();
@@ -151,7 +163,27 @@ fn steps_text(made: &NormalForm, deadline: &Deadline) -> Result<String> {
     let mut text = format!("{title}: {}\n", made.result);
     let formulas = made.result.formulas();
     let mut added: Vec<NodeId> = Vec::new();
+    let count = made.steps.len();
     for (n, step) in made.steps.iter().enumerate() {
+        let why = if interrupted() || deadline.passed() {
+            Some(Stop::why(stopped(deadline)))
+        } else {
+            memory
+                .filter(|&limit| text.len() as u64 > limit)
+                .map(|limit| {
+                    format!(
+                        "its text passed the memory limit of {}; --format json writes every step",
+                        bytes_text(limit)
+                    )
+                })
+        };
+        if let Some(why) = why {
+            writeln!(
+                text,
+                "(the steps are cut short after {n} of {count}: {why})"
+            )?;
+            break;
+        }
         let (before, after) = (formulas.formula(step.before), formulas.formula(step.after));
         let n = n + 1;
         match step.rule {
@@ -313,6 +345,14 @@ pub(crate) fn herbrand(args: &HerbrandArgs, given: &Given) -> Result<Status> {
         Err(error @ Error::Refused(Refusal::Form { .. })) => {
             bail!("{error}; raise the limit with --settings and limits.form_occurrences")
         }
+        Err(Error::Refused(refusal @ (Refusal::Memory { .. } | Refusal::Work { .. }))) => {
+            let flag = match refusal.setting() {
+                Some("limits.memory_bytes") => "; raise it with --memory-limit",
+                Some("limits.work") => "; raise it with --work-limit",
+                _ => "",
+            };
+            return unknown(&args.common, &format!("{refusal}{flag}"));
+        }
         Err(error) => return Err(error.into()),
     };
     let status = match found.verdict {
@@ -321,7 +361,7 @@ pub(crate) fn herbrand(args: &HerbrandArgs, given: &Given) -> Result<Status> {
     };
     let text = match args.common.format {
         AnswerFormat::Json => serde_json::to_string(&found)?,
-        AnswerFormat::Text => herbrand_text(&found, &deadline)?,
+        AnswerFormat::Text => herbrand_text(&found, &deadline, settings.limits.memory_bytes)?,
     };
     io::write(args.common.output.as_deref(), &text)?;
     Ok(status)
@@ -333,8 +373,8 @@ pub(crate) fn herbrand(args: &HerbrandArgs, given: &Given) -> Result<Status> {
 /// # Errors
 ///
 /// None in practice: writing into a string does not fail.
-fn herbrand_text(found: &Herbrand, deadline: &Deadline) -> Result<String> {
-    let mut text = steps_text(&found.clausal, deadline)?;
+fn herbrand_text(found: &Herbrand, deadline: &Deadline, memory: Option<u64>) -> Result<String> {
+    let mut text = steps_text(&found.clausal, deadline, memory)?;
     text.push('\n');
     let refuted = found
         .refutation

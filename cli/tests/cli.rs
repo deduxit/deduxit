@@ -898,6 +898,49 @@ fn the_memory_limit_named_is_the_one_given() {
     );
 }
 
+/// The clausal form's commands keep to the memory bound: the rewriting
+/// past it is unknown and names the flag, and the steps' lines, each a
+/// whole sequent, stop once their text passes it, the verdict standing.
+/// The sequent is an argument: standard input is read within the bound.
+#[test]
+fn the_clausal_form_keeps_to_the_memory_limit() {
+    let name = "p".repeat(200);
+    let left: Vec<String> = (0..60).map(|i| format!("forall x. {name}{i}(x)")).collect();
+    let right: Vec<String> = (0..60).map(|i| format!("{name}{i}(a)")).collect();
+    let sequent = format!("{} |- {}", left.join(", "), right.join(" /\\ "));
+    let (status, out, _) = deduxit(
+        &[
+            "seq",
+            "normalize",
+            "--to",
+            "clausal",
+            "--memory-limit",
+            "16KiB",
+            &sequent,
+        ],
+        "",
+    );
+    assert_eq!(status, 3, "{out}");
+    assert!(
+        out.starts_with("unknown: the rewriting takes more"),
+        "{out}"
+    );
+    assert!(out.ends_with("raise it with --memory-limit\n"), "{out}");
+    let (status, out, _) = deduxit(&["herbrand", "--memory-limit", "1MiB", &sequent], "");
+    assert_eq!(status, 0, "{out}");
+    assert!(
+        out.contains(
+            "(the steps are cut short after 30 of 60: its text passed the memory limit of \
+             1.0 MiB; --format json writes every step)"
+        ),
+        "{out}"
+    );
+    assert!(
+        out.contains("\nvalid (classical logic by Herbrand's theorem)"),
+        "{out}"
+    );
+}
+
 /// A first-order session of LJ takes a witness after `∃R`'s name, names
 /// a fresh eigenvariable for `∃L`, and refuses a witness that names
 /// neither a symbol nor an eigenvariable made.

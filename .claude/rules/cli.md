@@ -560,7 +560,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`Herbrand::bindings`), and the verdict line naming `--depth` or
   `prove --logic classical` for an unknown; JSON the level-28 document.
   Exit 0 valid, 3 unknown (never 1: no countermodel is built), 2 an
-  error.
+  error. In both `seq normalize` and `herbrand` a memory or work refusal
+  is unknown naming the flag, as `resolve` answers one, and the steps'
+  lines (each a whole sequent, so their text grows with the square of the
+  input) stop at the time limit, at Ctrl-C, or once the text passes
+  `--memory-limit`, with a line `(the steps are cut short after K of N:
+  …)`, the claims' lines and the verdict after it: they were built after
+  the search, outside every bound (105 s under `--timeout 10s`).
 - `resolve.rs`'s `first_order`: a first-order sequent (not `--dimacs`)
   goes to `resolution::first_order::resolve` before any propositional
   rewriting; `--method dpll` and `--clauses` other than `cnf` are exit 2.
