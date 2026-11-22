@@ -597,3 +597,257 @@ findings, both fixed:
   is the known cost.
 - Wire level 29 is first-order resolution's (28 Herbrand's). If 78a takes
   a level, whichever lands second renumbers.
+
+## Session 78c: equality measured, step 78 complete
+
+Opus 5.5 at `high`, keeping 78a's conversation, in the workspace
+`../deduxit-wt-step-78a-94ff76`, cores 4 to 6 (the panel on 13 to 15),
+from the brief `/tmp/linlog-handoff/start-78c.md` on `wzvqwqso`. Nothing
+was pushed.
+
+### The comparison (D19)
+
+`bench/comparison.sh`'s ILTP pass ran leanCoP 2.1, nanoCoP 2.0,
+nanoCoP-i 2.0 and iLeanCoP 1.2 (`comparison.nix`'s builds) on ILTP's
+problems with equality at 2 s, beside deduxit's runs of 78a (the default,
+`connection`, `embedding`, `grounding`; 2 s, the same harness). All 1 730
+at 30 s a problem for the slow ones would have taken the night, so the
+pass ran on every fourth problem in sorted order, 433 problems
+(`bench/comparison/2026-11-22-iltp-equality/problems.txt`), the rows in
+`runs-1.csv` and `runs-2.csv` there (local paths stripped from the
+environment files), on cores 4 and 5.
+
+| logic | prover | proved | not valid | unknown | against a status |
+|---|---|--:|--:|--:|--:|
+| classical | leanCoP | 134 | 1 | 298 | 0 |
+| classical | nanoCoP | 115 | 1 | 317 | 0 |
+| classical | deduxit, default | 91 | 5 | 337 | 0 |
+| classical | deduxit, `connection` | 88 | 0 | 345 | 0 |
+| classical | deduxit, `embedding` | 23 | 0 | 410 | 0 |
+| classical | deduxit, `grounding` | 5 | 5 | 423 | 0 |
+| intuitionistic | iLeanCoP | 90 | 1 | 342 | 0 |
+| intuitionistic | nanoCoP-i | 87 | 1 | 345 | 0 |
+| intuitionistic | deduxit, default | 32 | 5 | 396 | 0 |
+| intuitionistic | deduxit, `embedding` | 32 | 0 | 401 | 0 |
+| intuitionistic | deduxit, `connection` | 23 | 0 | 410 | 0 |
+| intuitionistic | deduxit, `grounding` | 0 | 5 | 428 | 0 |
+
+No verdict of any prover is against either status (iLeanCoP had one
+error). Classically leanCoP proves 15 that nobody else does; every
+theorem deduxit proves, leanCoP or nanoCoP proves too. Intuitionistically
+iLeanCoP proves 10 alone and nanoCoP-i 7; deduxit none alone.
+
+**No native equality rule in the connection prover** (recorded in
+`plan/later.md`). Every one of Otten's provers decides equality by adding
+its axioms, as deduxit does, and nanoCoP's calculus is deduxit's: the
+gap of 115 against 88 (and leanCoP's 134) is the search (restricted
+backtracking's schedule, leanCoP's strategies), as 75b found without
+equality, not the axioms. A native rule would need a published equality
+calculus for connection proving to follow, which this session did not
+find among the provers compared; it waits until deduxit's prover closes
+the gap with the axioms.
+
+**Paramodulation in first-order resolution: built.** With the axioms as
+clauses, `resolve --equality axioms 'a = b |- a = c'` is still unknown at
+the 2 s limit (the congruence and transitivity clauses saturate without
+end); with paramodulation it saturates at once (exit 3, "every inference
+was made"). On the panel's 3 850 generated sequents paramodulation
+refuted 1 696 and saturated 1 317, the axioms 1 671 and 497.
+
+### What landed
+
+- `noszslvu`: the linear printer writes `s = t` and the linear parser
+  reads `=`, `!=` and `≠` between terms, so a linear sequent with `=` (an
+  image's) reads back as itself; a postfix dual brackets it, `(a = b)^⊥`.
+- `klzmxpov`: the ordinary reader finds a term's binder in one map lookup
+  (`Scope`), where it scanned the open binders (R3's rest).
+- `qpzznqnt`: the command adds the equality axioms where it decides
+  (`prove`, its batch, `interact`, `grade`: `ordinary::with_equality`),
+  and `resolve`, the transformations and `seq print` read the sequent as
+  written; before, the reader added them to every sequent, so `resolve`
+  drowned in axioms. `grade` accepts a derivation that holds any of the
+  axioms beside the problem's own hypotheses, and a refusal says how many
+  of the problem's last hypotheses are the axioms.
+- `oywtrklt`: **paramodulation** (`first_order::Step::Paramodulation`:
+  the equation's clause and literal, the rewritten clause and literal,
+  the place counted in preorder from 0, and whether the equation is read
+  right to left), one more inference of `Clauses::made`, so the search,
+  the checker (`Refutation::check`, which makes each rewrite again from
+  the given clauses), `Clauses::infer` and the protocol's check share it.
+  Never into a variable (a clause variable stands for any term);
+  `resolution::Equality` (`Paramodulation`, the default, or `Axioms`),
+  `--equality`. The command writes `4. ¬f(c) = c  1 rewrites 3 with
+  X1 := f(c)`; the read-back refuses a refutation with a rewrite (LK has
+  no rule for it) and the verdict says it rests on the checked
+  refutation and the Skolem symbols.
+- `ozznpkox`: the rules' notes (`cli.md`, `core-ordinary.md`, `core.md`'s
+  list of marked types).
+- `lnusppqp`: the comparison's rows and ranking, above.
+- `xnpzswrz`: the panel's fixes (below).
+- `mymuopop`: **R4**: grounding's miniscoping counts its work
+  (`Nnf::work`) and asks the stop; the default's class test (`grounds`)
+  ends at a work bound of its own, `GROUNDS_WORK`, 2²¹ units: on ILTP's
+  2 670 first-order problems those in the classes take at most 21 538,
+  those outside 754 814. The model search's expansion and grounding's
+  walks weigh each step by the free variables they look up. A
+  predicate's congruence axiom of 4 000 arguments under `--timeout 2`
+  took 100 s before and 1.8 s now; every input of R4 and of the integers
+  member's wide disjunctions ends within the limit, each method and the
+  default.
+- `vvpzyypk`: a linear refutation names an equality as it is written
+  (`a = b on the left has no a = b on the right …`, where it said
+  `=(a, b)`).
+- `syrpzkqy`: the manual (the ordinary-logic chapter's equality section,
+  the resolution chapter's paramodulation, `first-order.md`'s `=`,
+  `grading.md`, `status.md`), the guide and the changelog.
+- `rxowuvww`, `wrmvyyzr`: the linear reader's and printer's equality off
+  the propositional path, and `read-text`'s ceiling raised (below).
+- `ytkswvsq`, `ylomslxp`, `yppykrrw`: the fresh review's fixes and the
+  lock's new calls (below).
+
+**Departures from the design**:
+- Paramodulation takes reflexivity alone as an axiom clause, by Brand's
+  completeness of resolution and paramodulation without paramodulating
+  into variables given reflexivity (Brand 1975); the design named "the
+  axioms as clauses" for resolution, before paramodulation was decided
+  (departs from the design).
+- The comparison ran on a quarter of the 1 730 problems, every fourth in
+  sorted order, for time (departs from the brief's 1 730).
+
+### The panel
+
+Argument (Fable 5.2, `high`), counterexamples (Opus 5.5, `high`),
+integers (Sonnet 5.5, `high`), on `oywtrklt` and `qpzznqnt`; every
+finding fixed in `xnpzswrz`.
+- **An eigenvariable was skipped as a place** (argument): an `Eigen` term
+  is a constant to paramodulation, and the walk now rewrites it.
+- **Functional reflexivity was added beside reflexivity** (argument): not
+  needed for completeness (Brand), and it fed the search; reflexivity
+  alone, the docs and help naming Brand's theorem.
+- **The wire schema lacked the step** (argument): a `oneOf` branch for
+  `rule: "paramodulation"`, and a document of it in the schema check.
+- **The protocol's check held a read-back derivation to the raw input**
+  (argument): it compares with the sequent with reflexivity appended,
+  which the search ran on; a test with `|- forall x. x = x`.
+- **The walk over a literal's places was unbounded** (integers): it built
+  a path per place, so a literal of a million places held gigabytes. It
+  keeps a parent index per place and charges the steps made to the
+  memory bound; `metas_of` was quadratic, now a set. (The first fix also
+  counted the places walked as steps and ended a literal past 2²⁰ places
+  at the step bound; the fresh review found both wrong, below.)
+- **Counterexamples**: no refutation. Its own reference (structures of 1
+  to 3 elements, `=` as identity) on 3 850 generated sequents both ways:
+  every refutation without a countermodel and every one of its 7 775
+  inferences (938 rewrites) entailed by its parents; every saturated
+  answer with a countermodel; never refuted against saturated. 579
+  paramodulation refutations held through the protocol, 4 399 of 4 404
+  mutants refused (the 5 others moved `from` to an identical given
+  clause, sound). 3.6 million random steps of `Clauses::infer`, 133 727
+  rewrites accepted, each entailed; no panic.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`), on the chain to `syrpzkqy`. No
+soundness defect: 1 030 generated sequents with `=` through `resolve`
+against `prove --logic classical`, 311 refuted (each valid by `prove`),
+364 saturated (each refuted by a checked structure), no disagreement;
+the protocol's check, the linear round trip on ten forms, `grade` with
+and without the axioms, R4 at 3 000 arguments (1.86 s at `--timeout
+2s`). Seven findings, all fixed:
+- **Paramodulation's walk never asked the stop** (medium): 2 000
+  equations against a literal of 500 000 arguments ran 16 s under
+  `--timeout 2s` with `--step-limit none`. The walk asks the stop every
+  4 096 places and once per pair of clauses (`ytkswvsq`, with a test);
+  the witness ends at the limit now.
+- **A literal past 2²⁰ places ended "at the step bound"** with no
+  inference made, and **a place counted as a step**, against the docs of
+  `Statistics::steps`, `Options::steps` and `--step-limit`. A step is an
+  inference again; the term bound caps a step's place (`ytkswvsq`).
+- **The manual's level-29 paragraph lacked the paramodulation rule**
+  (`ytkswvsq`).
+- **The linear syntax docs lacked `=`** (`Sequent`'s docs and the
+  command's syntax help; `ytkswvsq`, the help's line reblessed in
+  `yppykrrw`).
+- **Three rules notes were stale** (`sequent_in`, the linear printer,
+  `occurrences`; `ytkswvsq`).
+- **`--equality` had no lock call** (`yppykrrw`: paramodulation as text
+  and JSON, and `--equality axioms`).
+- Its question, fixed too: in `3 rewritten by 1 with X1 := f(c)` the
+  `X` variables were clause 1's, named second; the line is `1 rewrites 3
+  with X1 := f(c)` now, the equation's clause first (`ylomslxp`).
+- Outside this chain, for the planning session: `prove --logic classical
+  --method connection` on a congruence of 3 000 arguments ran 40.9 s and
+  2.6 GB at `--timeout 2s` (the default ends at 2.0 s); the connection
+  prover's matrix build asks no stop. Not this step's (the dispatch and
+  the prover are fixup-23's area); a follow-up.
+
+The gate after the chain found `read-text` 3.66 % and `render-latex`
+2.55 % over their ceilings, from `noszslvu`: every atom asked out of line
+whether `≠` followed, since `⊗`, `⅋` and `⊸` share its first byte.
+`rxowuvww` keeps the test to a few compares inline and the rest of the
+equality path out of line (render-latex back within its ceiling, +1.0 %);
+`read-text` stays 1.3 % above its parent, and `wrmvyyzr` raises its
+ceiling to 12 591 991 in a commit of its own that says why.
+
+### D19 at first order with `=`
+
+On fixup-23's head (`rtsztskz`, the library's connection prover bounded
+by 2²⁶ steps), ILTP's 1 730 problems with equality at 2 s, the harness's
+`auto` (the library's `ordinary::decide`), three shards on cores 4 to 6,
+the machine otherwise quiet; rows in
+`bench/defaults/equality-share-{before,after}.csv`:
+
+| logic | build | valid | not valid | unknown |
+|---|---|--:|--:|--:|
+| classical | head | 318 | 13 | 1 399 |
+| intuitionistic | head | 102 | 15 | 1 613 |
+| intuitionistic | with the share | 110 | 15 | 1 605 |
+
+No verdict against a status, no error.
+
+- **The intuitionistic share does not land.** The trial ran the
+  intuitionistic connection prover within 2²² steps (1.85 times the most
+  a theorem took in 78a's run, 2 272 102 on SWV095+1) before the
+  embedding, for a first-order sequent with `=` and no method given. It
+  gained 36 theorems (the SWV and AGT problems) and **lost 28**, all
+  theorems the embedding proves in 0.4 ms to 1.2 s, which now ran out
+  of time in the prover: its steps and its polled work units do not
+  track its time. SET585+3 makes 4.3 million steps in 20 s, SYN083+1
+  63 000; over 2 s SYN083+1 polls 75 000 units where SWV095+1's proof
+  takes 2.3 million in 0.19 s. With no clock in the library, no bound in
+  either unit keeps every verdict, so the library's default stays the
+  embedding; a race in the command, which has a clock and threads, is
+  recorded in `plan/later.md`. On the 89 rows decided alike the share
+  cost 7.5 s more in all (12.4 s against 19.9 s; the median row 0.70
+  times, the five most slowed by 0.45 to 1.6 s).
+- **The classical default's refutations stay 13** with fixup-23's bound,
+  all grounding's: at 2 s no row reaches the prover's 2²⁶ steps, so the
+  library's `decide` never reaches the model search, which alone
+  refutes 105 (78a). The bound acts where the library runs without a
+  clock. The command races the model search beside the prover, and on
+  every tenth of those 105 (11 problems) `prove --logic classical
+  --timeout 2` answers "not valid" with a checked structure, raced and
+  with `--jobs 1` alike (10 by the model search, NLP124+1 by grounding).
+  Nothing for `=` alone to add there.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` after each
+  commit; the focused tests of each change (resolution, equality,
+  protocol, grounding, models, refutation, parse, serialize, the core and
+  the command's locks, README's, the manual's and the guide's examples).
+- The gate on the chain before the review (failed in the ratchet alone,
+  `read-text` and `render-latex`, fixed above) and, after the rebase onto
+  fixup-23 (`rtsztskz`), on the whole chain: passed, `read-text` at
+  12 590 265 against its new ceiling, `render-latex` 1.06 % above its
+  own.
+- `nix flake check` under the machine lock at the report's commit
+  (`spvxpolr`): every check passed. Only this line changed after.
+
+### Step 78 is complete
+
+Equality is read, decided by its axioms in every method and logic,
+refuted only by a checked structure that reads it as identity, resolved
+by paramodulation, graded, and documented; the comparison decided
+against a native rule in the connection prover. With this session step
+78 is complete.
