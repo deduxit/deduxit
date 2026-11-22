@@ -8169,3 +8169,19 @@ move (D26).
   module's ceiling raised to 2 800 000. Full check passed; pushed (`tpnruzyx`). Step 77 is complete
   but for 77c (Glivenko's failure, after 76c's Rocq lemma). In its worker: **78b**, first-order
   resolution, from 78a's design section B while 78a finishes.
+- 2026-11-22, about 17:45: **76c reviewed; step 76 complete once it lands; 77c started.** 76c (Opus
+  high, then Fable 5.2 from the panel's findings on at the author's word; reviewer and argument
+  member on Opus): in rocq-deduxit (`vmoknupz`, pushed), a first-order Kripke semantics with growing
+  domains and finite structures (`FirstOrderFormulas`, `FirstOrderCalculus`, `FirstOrderKripke`,
+  `FirstOrderClassical`, `FirstOrderCheck`): persistence, LJ/LM and LK soundness, boolean checks
+  reflected (`fo_classical_refutation`, `fo_kripke_refutation`, fast variants proved equal), and the
+  chain model with `chain_excluded_middle` and `chain_double_negation_shift`; no `Admitted`, no
+  axiom, every new theorem closed. In deduxit: the Rocq writer of model refutations, their drawings
+  in SVG, LaTeX and Typst, the command's and the protocol's draw, export and certificate; 158 ILTP
+  certificates compile (60 classical, 98 intuitionistic). The panel found no false certificate (788
+  generated, 125 ILTP, each against its own writer); its findings (Rocq not stopping early, a table
+  listed twice, unused symbols' tables, cut-free statements, domains too large for Rocq, the layout's
+  sizes, 76b's unbounded passes) fixed. deduxit's lock moved to the library (`nwmlkvvt`, it was at
+  0.6.0's commit); the chain's check on `ci/step-76c`, then `main`. **rocq-deduxit needs its tag
+  before 0.8.0's** (the author's). In its worker, back on Opus: **77c**, Glivenko's failure shown with
+  the chain lemmas; step 77 completes with it.
