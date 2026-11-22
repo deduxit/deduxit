@@ -1093,9 +1093,10 @@ MACE's and Paradox's method (the design is
   before the embedding it cost SYJ018+1, which the embedding proves in
   50 ms, since the model search ran to the harness's stop (departs from
   the design, which put it before the embedding). The command, with a
-  clock, gives the classical prover `CONNECTION_SHARE` of the time limit,
-  the model search the rest of `FIRST_ORDER_SHARE`, and the embedding
-  what is left (`cli.md`); its intuitionistic default is the embedding
+  clock, races the classical prover and the model search on two threads
+  within `FIRST_ORDER_SHARE`, the embedding taking what is left or
+  taking over where the prover gives way (on one thread the prover gets
+  `CONNECTION_SHARE` first, `cli.md`); its intuitionistic default is the embedding
   alone until 76b's Kripke search. The
   outcome is `Search::Models(Statistics)` (the largest size tried, the
   last size's atoms and formulas, the solver's statistics), written at

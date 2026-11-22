@@ -743,8 +743,9 @@ exit 3
 
 In classical logic `prove` runs the search by default beside the
 connection prover, on a thread of its own, the first to answer winning;
-on one thread (`--jobs 1`) the prover gets 70% of the time limit and the
-search the rest of the first-order share. Without the time limit, the
+where the prover gives up at a bound, the search goes on for 5% of the
+time limit and the embedding then takes over. On one thread (`--jobs 1`) the prover gets 70% of
+the time limit and the search the rest of the first-order share. Without the time limit, the
 library runs it last, on a first-order sequent the embedding leaves
 unknown, in every logic. On ILTP's first-order problems it refutes 210
 in classical logic at 2 seconds, each within 0.4 seconds: 176 of the 178

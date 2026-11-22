@@ -1389,11 +1389,21 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `search.model_size`, none by default: it deepens while the time limit
   lasts): `decide_natively` runs `ordinary::models::decide`. As the
   classical default of a first-order sequent (after grounding gives way,
-  or where the method is the connection prover), `by_connection` runs
-  the prover until `connection_share`'s deadline (`CONNECTION_SHARE`
-  percent of the time limit) or until it gives way, then the model
-  search under the caller's stop, which the first-order share ends;
-  `decide_natively` takes that deadline from `prove` and the batch. Its
+  or where the method is the connection prover), `by_connection` races
+  the prover on the calling thread (its `stop`) and the model search on
+  a scoped thread of its own (`halt`, which must be `Sync`), each with
+  half the memory bound: the prover's verdict or the model search's
+  "not valid" stops the other (`done`), and so does the prover's giving
+  way, so that the embedding runs next with the time left (the
+  reviewer's witness: a theorem the embedding proves in 0.3 s waited 18 s
+  for the model search before). Which of the two answers a sequent both
+  refute depends on timing, as in the linear race; `--jobs 1` and
+  `--deterministic` take the sequential path: the prover until
+  `connection_share`'s deadline (`CONNECTION_SHARE` percent of the time
+  limit), then the model search only where the prover stopped there,
+  under the caller's stop, which the first-order share ends.
+  `decide_natively` takes that deadline, the `Sync` halt and the stop
+  from `prove` and the batch. Its
   "not valid" is `not_valid`'s structure line, the structure (function
   tables among it) printed after it; an unknown at its bound names
   `--model-size` (`advice`); `native_statistics` prints five counters.

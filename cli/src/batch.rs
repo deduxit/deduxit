@@ -936,8 +936,11 @@ impl Shared {
             sequent,
             &plan.search,
             &plan.limits,
-            &connection,
-            &halt,
+            &ordinary::Race {
+                connection: &connection,
+                grace: ordinary::model_grace(deadline),
+                halt: &halt,
+            },
             |p| {
                 if p.phase != deduxit::Phase::Search {
                     after_search.set(true);
