@@ -72,7 +72,8 @@ pub struct Outcome {
     pub countermodel: Option<super::Countermodel>,
     /// The finite structure that refutes a first-order sequent that is not
     /// valid, checked by [`FiniteCountermodel::check`](super::FiniteCountermodel::check):
-    /// grounding's ([`Method::Grounding`]). It refutes the sequent in every
+    /// grounding's ([`Method::Grounding`]) or the finite model search's
+    /// ([`Method::Models`]). It refutes the sequent in every
     /// logic, a classical structure being a Kripke model of one world.
     /// `None` for every other verdict and method.
     pub structure: Option<Box<super::FiniteCountermodel>>,
@@ -108,6 +109,10 @@ pub enum Search {
     /// cost. Needs the cargo feature `sat`.
     #[cfg(feature = "sat")]
     Grounding(super::grounding::Statistics),
+    /// By the finite model search, and what it cost. Needs the cargo
+    /// feature `sat`.
+    #[cfg(feature = "sat")]
+    Models(super::models::Statistics),
 }
 
 impl Outcome {
@@ -124,6 +129,8 @@ impl Outcome {
             Search::Connection(_) => Method::Connection,
             #[cfg(feature = "sat")]
             Search::Grounding(_) => Method::Grounding,
+            #[cfg(feature = "sat")]
+            Search::Models(_) => Method::Models,
         }
     }
 }
@@ -152,6 +159,21 @@ impl From<super::grounding::Outcome> for Outcome {
             verdict: outcome.verdict,
             logic: outcome.logic,
             search: Search::Grounding(outcome.statistics),
+            countermodel: None,
+            structure: outcome.structure.map(Box::new),
+        }
+    }
+}
+
+#[cfg(feature = "sat")]
+impl From<super::models::Outcome> for Outcome {
+    /// The outcome of the finite model search as an outcome of deciding an
+    /// ordinary sequent, its structure the countermodel.
+    fn from(outcome: super::models::Outcome) -> Self {
+        Self {
+            verdict: outcome.verdict,
+            logic: outcome.logic,
+            search: Search::Models(outcome.statistics),
             countermodel: None,
             structure: outcome.structure.map(Box::new),
         }
@@ -617,12 +639,15 @@ impl super::Image {
 /// it. By LJT it is [`ljt::decide`], and by the SAT solver `sat::decide`;
 /// neither reads `search`.
 ///
-/// The method is [`Options::method_for`] the sequent: at first order the
-/// embedding, unless another is given, which then refuses the sequent
-/// ([`Error::FirstOrder`]). There a valid sequent gets a checked
-/// derivation with the quantifier rules, and one whose image is
-/// unprovable is unknown ([`Reason::Incomplete`]), never not valid, since
-/// the translation may lose first-order proofs.
+/// The method is [`Options::method_for`] the sequent: at first order
+/// grounding, the connection prover or the embedding, unless another is
+/// given; the propositional methods refuse a first-order sequent
+/// ([`Error::FirstOrder`]). Through the embedding a valid sequent gets a
+/// checked derivation with the quantifier rules, and one whose image is
+/// unprovable is unknown ([`Reason::Incomplete`]), since the translation
+/// may lose first-order proofs; with no method given, the finite model
+/// search ([`Method::Models`], feature `sat`) then looks for a structure
+/// that refutes it, within `search.model_size` elements.
 ///
 /// With no method and no translation given, the method is the logic's
 /// default, [`Method::default_for`]: the SAT solver with the feature
@@ -677,12 +702,12 @@ pub fn decide_within(
 }
 
 /// Returns whether `method` decides first-order sequents: the embedding,
-/// the connection prover and grounding.
+/// the connection prover, grounding and the finite model search.
 pub(super) const fn takes_first_order(method: Method) -> bool {
     match method {
         Method::Embedding | Method::Connection => true,
         #[cfg(feature = "sat")]
-        Method::Grounding => true,
+        Method::Grounding | Method::Models => true,
         Method::Ljt | Method::Table => false,
         #[cfg(feature = "sat")]
         Method::Sat => false,
@@ -700,8 +725,8 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    // At first order the embedding, the connection prover and grounding
-    // decide: every other method refuses at its door.
+    // At first order the embedding, the connection prover, grounding and
+    // the model search decide: every other method refuses at its door.
     let method = options.method_for(sequent);
     if !takes_first_order(method) {
         sequent.formulas().propositional(method.title())?;
@@ -744,6 +769,10 @@ fn within(
             super::connection::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
         ),
         #[cfg(feature = "sat")]
+        Method::Models => Some(
+            super::models::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
+        ),
+        #[cfg(feature = "sat")]
         Method::Grounding => Some(by_grounding(
             sequent,
             logic,
@@ -781,6 +810,27 @@ fn within(
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
     };
     let countermodel = image.countermodel(&linear, limits, &mut stop)?;
+    // The default of a first-order sequent the embedding leaves open, at a
+    // bound or because its image is unprovable, asks the model search for
+    // a structure that refutes it: last, so that no theorem the embedding
+    // proves waits for it.
+    #[cfg(feature = "sat")]
+    if options.method.is_none()
+        && sequent.formulas().is_first_order()
+        && matches!(verdict, Verdict::Unknown(reason) if reason != Reason::Stopped)
+    {
+        match super::models::decide(sequent, logic, search, limits, &mut stop) {
+            Ok(
+                modelled @ super::models::Outcome {
+                    verdict: Verdict::NotValid,
+                    ..
+                },
+            ) => return Ok(Outcome::from(modelled)),
+            // Anything else leaves the embedding's answer, but a defect.
+            Err(error @ Error::Countermodel { .. }) => return Err(error),
+            Ok(_) | Err(_) => {}
+        }
+    }
     Ok(Outcome {
         verdict,
         logic,

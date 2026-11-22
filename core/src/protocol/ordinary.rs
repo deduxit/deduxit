@@ -90,6 +90,7 @@ static DECIDE_PARAMETERS: [Parameter; 2] = [
             "tableau",
             "connection",
             "grounding",
+            "models",
         ],
         default: None,
         description: "How to decide; left out, the logic's default",

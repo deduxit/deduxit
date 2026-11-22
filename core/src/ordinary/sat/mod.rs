@@ -69,6 +69,7 @@ pub(crate) mod drup;
 mod read_back;
 pub(crate) mod solver;
 
+pub(crate) use classical::falsify;
 pub use drup::ClausalProof;
 
 use crate::kripke::{Model, World};

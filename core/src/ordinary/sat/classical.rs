@@ -350,6 +350,56 @@ pub(super) fn decide(
     })
 }
 
+/// Looks for an assignment that falsifies a classical sequent, without a
+/// clausal proof where there is none: the atoms true in one (by index
+/// among the sequent's atom names, ascending), `None` where none exists,
+/// or the reason the solver stopped; beside the solver's statistics. The
+/// assignment is the solver's word: the caller checks what it reads off
+/// it. For a caller that needs only a model, as the finite model search
+/// at each domain does, it costs the solver alone.
+pub(crate) fn falsify(
+    sequent: &Sequent,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> (Result<Option<Vec<u32>>, Reason>, Statistics) {
+    let formulas = sequent.formulas();
+    let account = Account::holding(limits.memory_bytes, 0);
+    let mut statistics = Statistics::default();
+    let found = encode(
+        formulas,
+        sequent.left(),
+        sequent.right(),
+        super::MOST_VARIABLES,
+        &account,
+        &mut stop,
+    )
+    .and_then(|clauses| {
+        statistics.clauses = clauses.clauses.len() as u64;
+        let work = limits.work.unwrap_or(u64::MAX);
+        let mut solver = Batsat::new(work, &account, &mut *stop);
+        for _ in 0..clauses.variables {
+            solver.new_var();
+        }
+        for (n, clause) in clauses.clauses.iter().enumerate() {
+            solver.add_clause(clause);
+            if n % POLL == 0
+                && let Some(reason) = solver.poll(POLL as u64)
+            {
+                return Err(reason);
+            }
+        }
+        let answer = solver.solve(&[]);
+        statistics.calls = solver.calls();
+        statistics.conflicts = solver.conflicts();
+        match answer {
+            Answer::Satisfiable => Ok(Some(assignment(formulas, &clauses, &solver))),
+            Answer::Unsatisfiable => Ok(None),
+            Answer::Stopped(reason) => Err(reason),
+        }
+    });
+    (found, statistics)
+}
+
 /// What the solver found.
 enum Found {
     /// The atoms true in a model of the clauses, by index, ascending.

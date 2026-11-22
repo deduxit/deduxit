@@ -86,16 +86,30 @@ pub struct Outcome {
 
 /// A term of the formula in negation normal form.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Term {
+pub(super) enum Term {
     /// A variable, by its binder's number.
     Var(u32),
     /// A constant, by its symbol's index in the sequent's tables.
     Const(u32),
+    /// A function symbol applied to arguments, by its index in
+    /// [`Nnf::apps`]; only the finite model search's normal form has one.
+    App(u32),
+}
+
+/// A function symbol applied to arguments in the normal form.
+#[derive(Debug)]
+pub(super) struct App {
+    /// The symbol's index in the sequent's tables.
+    pub(super) symbol: u32,
+    /// The arguments, each made before the application.
+    pub(super) args: Vec<Term>,
+    /// The variables free in it, sorted.
+    pub(super) free: Vec<u32>,
 }
 
 /// A node of the formula in negation normal form, its variables named.
 #[derive(Clone, Debug)]
-enum G {
+pub(super) enum G {
     /// A literal: whether it is positive, its predicate (the symbol's index
     /// in a first-order arena, the atom's in a propositional one) and its
     /// arguments.
@@ -117,16 +131,21 @@ enum G {
 /// The formula in negation normal form: its nodes, each with its free
 /// variables, sorted.
 #[derive(Debug, Default)]
-struct Nnf {
+pub(super) struct Nnf {
     /// The nodes.
-    nodes: Vec<G>,
+    pub(super) nodes: Vec<G>,
     /// Each node's free variables, sorted.
-    free: Vec<Vec<u32>>,
+    pub(super) free: Vec<Vec<u32>>,
     /// How many variables were numbered.
-    vars: u32,
+    pub(super) vars: u32,
     /// The nodes and operands made, which bounds miniscoping's
     /// distribution.
     size: usize,
+    /// The applications of function symbols, each once, every argument's
+    /// before it.
+    pub(super) apps: Vec<App>,
+    /// Each application's index, by its symbol and arguments.
+    app_index: HashMap<(u32, Vec<Term>), u32>,
 }
 
 impl Nnf {
@@ -134,13 +153,14 @@ impl Nnf {
     fn push(&mut self, node: G) -> u32 {
         let free = match &node {
             G::Lit(_, _, args) => {
-                let mut v: Vec<u32> = args
-                    .iter()
-                    .filter_map(|t| match *t {
-                        Term::Var(x) => Some(x),
-                        Term::Const(_) => None,
-                    })
-                    .collect();
+                let mut v: Vec<u32> = Vec::new();
+                for t in args {
+                    match *t {
+                        Term::Var(x) => v.push(x),
+                        Term::Const(_) => {}
+                        Term::App(a) => v.extend_from_slice(&self.apps[a as usize].free),
+                    }
+                }
                 v.sort_unstable();
                 v.dedup();
                 v
@@ -171,6 +191,29 @@ impl Nnf {
         (self.nodes.len() - 1) as u32
     }
 
+    /// Returns the index of the application of `symbol` to `args`, made
+    /// once.
+    fn app(&mut self, symbol: u32, args: Vec<Term>) -> u32 {
+        if let Some(&a) = self.app_index.get(&(symbol, args.clone())) {
+            return a;
+        }
+        let mut free: Vec<u32> = Vec::new();
+        for t in &args {
+            match *t {
+                Term::Var(x) => free.push(x),
+                Term::Const(_) => {}
+                Term::App(a) => free.extend_from_slice(&self.apps[a as usize].free),
+            }
+        }
+        free.sort_unstable();
+        free.dedup();
+        let a = self.apps.len() as u32;
+        self.size = self.size.saturating_add(1 + args.len());
+        self.app_index.insert((symbol, args.clone()), a);
+        self.apps.push(App { symbol, args, free });
+        a
+    }
+
     /// Refuses a normal form past `memory` bytes, at [`NNF_BYTES`] a node
     /// or operand.
     fn within(&self, memory: u64) -> Result<(), Error> {
@@ -185,7 +228,7 @@ impl Nnf {
     }
 
     /// Returns whether `x` is free in node `n`.
-    fn has(&self, n: u32, x: u32) -> bool {
+    pub(super) fn has(&self, n: u32, x: u32) -> bool {
         self.free[n as usize].binary_search(&x).is_ok()
     }
 
@@ -522,8 +565,9 @@ fn canonical(nnf: &Nnf) -> Vec<u32> {
             G::Lit(positive, predicate, args) => {
                 let mut key = vec![0, u32::from(*positive), *predicate];
                 key.extend(args.iter().map(|t| match *t {
-                    Term::Var(x) => x.saturating_mul(2),
-                    Term::Const(c) => c.saturating_mul(2).saturating_add(1),
+                    Term::Var(x) => x.saturating_mul(3),
+                    Term::Const(c) => c.saturating_mul(3).saturating_add(1),
+                    Term::App(a) => a.saturating_mul(3).saturating_add(2),
                 }));
                 key
             }
@@ -545,7 +589,7 @@ fn canonical(nnf: &Nnf) -> Vec<u32> {
 }
 
 /// Counts a step of the set-up and asks the stop every [`POLL`] steps.
-fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
+pub(super) fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
     *steps += 1;
     if steps.is_multiple_of(POLL) && stop(Progress::new(Phase::Search, POLL, *steps)) {
         return Err(Refusal::Stopped {
@@ -559,15 +603,15 @@ fn poll(steps: &mut u64, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), E
 /// The bytes a node of the ground formula's arena holds, with its share of
 /// the arena's index (twice the node's size: the peaks measured were 1.4
 /// to 2.2 times an estimate of half these figures).
-const NODE_BYTES: u64 = 64;
+pub(super) const NODE_BYTES: u64 = 64;
 
 /// The bytes a ground atom holds beside 4 bytes an argument: its entries in
 /// the grounding's tables and the arena's, and its name.
-const ATOM_BYTES: u64 = 192;
+pub(super) const ATOM_BYTES: u64 = 192;
 
 /// The bytes the normal form holds a node or operand: the node, its free
 /// variables, and its share of the tables beside it.
-const NNF_BYTES: u64 = 64;
+pub(super) const NNF_BYTES: u64 = 64;
 
 /// How many times miniscoping distributes a junction over its dual within
 /// one quantifier.
@@ -580,10 +624,10 @@ const DISTRIBUTE_NODES: usize = 1 << 20;
 
 /// The bytes an entry of the ground walk's memo holds beside 4 bytes a
 /// value: its key's vector and its slot in the table.
-const MEMO_BYTES: u64 = 64;
+pub(super) const MEMO_BYTES: u64 = 64;
 
 /// How many steps of the set-up pass between two asks of the stop.
-const POLL: u64 = 4_096;
+pub(super) const POLL: u64 = 4_096;
 
 /// Returns the sequent's formula `⋀Γ → ⋁Δ` in negation normal form,
 /// miniscoped, and its root, where the sequent lies in the classes this
@@ -594,6 +638,19 @@ fn prepare(
     sequent: &Sequent,
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Option<(Nnf, u32)>, Error> {
+    Ok(normal_form(sequent, limits, stop, false)?.filter(|(nnf, root)| in_class(nnf, *root)))
+}
+
+/// Returns the sequent's formula `⋀Γ → ⋁Δ` in negation normal form,
+/// miniscoped, and its root; `None` where a term is no constant, no bound
+/// variable and, with `functions`, no function symbol applied to such
+/// terms (an eigenvariable or an open witness of a derivation's arena).
+pub(super) fn normal_form(
+    sequent: &Sequent,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+    functions: bool,
 ) -> Result<Option<(Nnf, u32)>, Error> {
     let formulas = sequent.formulas();
     let tables = formulas.first_order();
@@ -685,7 +742,8 @@ fn prepare(
                 let mut inner_scope = scope;
                 match node {
                     Node::Atom(a) => {
-                        let Some(lit) = literal(a, scope, &scopes, tables) else {
+                        let Some(lit) = literal(a, scope, &scopes, tables, functions, &mut nnf)
+                        else {
                             return Ok(None);
                         };
                         let made = nnf.push(G::Lit(!negated, lit.0, lit.1));
@@ -788,7 +846,7 @@ fn prepare(
     }
     let root = miniscope(&mut nnf, root);
     nnf.within(memory)?;
-    Ok(in_class(&nnf, root).then_some((nnf, root)))
+    Ok(Some((nnf, root)))
 }
 
 /// A formula and whether it is negated.
@@ -813,30 +871,64 @@ fn junction_of(node: Node, negated: bool) -> Option<(bool, Operand, Operand)> {
 }
 
 /// Returns the literal of atom `a` under the scope `scope`: its predicate
-/// and its arguments as terms, or `None` where a term is no constant and
-/// no bound variable.
+/// and its arguments as terms, or `None` where a term is no constant, no
+/// bound variable and, with `functions`, no function symbol applied to
+/// such terms. Applications go into `nnf`'s table, every argument before
+/// its application; the walk over a term keeps a stack of its own.
 fn literal(
     a: u32,
     scope: u32,
     scopes: &[(u32, u32)],
     tables: &crate::first_order::FirstOrder<NodeId>,
+    functions: bool,
+    nnf: &mut Nnf,
 ) -> Option<(u32, Vec<Term>)> {
     let Some(&(symbol, args)) = tables.atoms.get(a as usize) else {
         return Some((a, Vec::new()));
     };
+    let bound = |index: u32| -> Option<Term> {
+        // A variable no quantifier binds is outside the class
+        // (`Sequent::new` refuses one already).
+        let mut s = scope;
+        for _ in 0..index {
+            s = scopes.get(s as usize)?.1;
+        }
+        Some(Term::Var(scopes.get(s as usize)?.0))
+    };
     let mut terms = Vec::new();
     for &t in tables.list(args) {
         let term = match tables.terms[t.index()] {
-            FoTerm::Bound(index) => {
-                // A variable no quantifier binds is outside the class
-                // (`Sequent::new` refuses one already).
-                let mut s = scope;
-                for _ in 0..index {
-                    s = scopes.get(s as usize)?.1;
-                }
-                Term::Var(scopes.get(s as usize)?.0)
-            }
+            FoTerm::Bound(index) => bound(index)?,
             FoTerm::App(f, list) if tables.list(list).is_empty() => Term::Const(f.get()),
+            FoTerm::App(..) if functions => {
+                // Postorder over the term's subterms, each made once.
+                let mut made: HashMap<usize, Term> = HashMap::default();
+                let mut stack = vec![(t, false)];
+                while let Some((u, ready)) = stack.pop() {
+                    if made.contains_key(&u.index()) {
+                        continue;
+                    }
+                    let term = match tables.terms[u.index()] {
+                        FoTerm::Bound(index) => bound(index)?,
+                        FoTerm::App(f, list) if tables.list(list).is_empty() => {
+                            Term::Const(f.get())
+                        }
+                        FoTerm::App(f, list) => {
+                            let kids = tables.list(list);
+                            if !ready {
+                                stack.push((u, true));
+                                stack.extend(kids.iter().map(|&k| (k, false)));
+                                continue;
+                            }
+                            let args = kids.iter().map(|k| made[&k.index()]).collect();
+                            Term::App(nnf.app(f.get(), args))
+                        }
+                        FoTerm::Eigen(_) | FoTerm::Meta(_) => return None,
+                    };
+                    made.insert(u.index(), term);
+                }
+                made[&t.index()]
+            }
             FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_) => return None,
         };
         terms.push(term);
@@ -1151,6 +1243,7 @@ fn ground(
                     tuple.extend(args.iter().map(|t| match *t {
                         Term::Var(x) => lookup(&bindings, at, x),
                         Term::Const(c) => element_of[&c],
+                        Term::App(_) => unreachable!("grounding's normal form applies no function"),
                     }));
                     let hash = std::hash::BuildHasher::hash_one(&hasher, (*predicate, &tuple));
                     let mut found = first.get(&hash).copied().unwrap_or(NONE);

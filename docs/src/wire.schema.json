@@ -691,6 +691,22 @@
               "$ref": "#/$defs/index"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "size"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "model_size"
+            },
+            "size": {
+              "$ref": "#/$defs/index"
+            }
+          }
         }
       ]
     },
@@ -2827,6 +2843,31 @@
         "sat"
       ]
     },
+    "models_statistics": {
+      "description": "What the finite model search cost (level 26): the largest number of elements it tried, the atoms and formulas of that size's formula, and the SAT solver's statistics on it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "size": {
+          "$ref": "#/$defs/count"
+        },
+        "atoms": {
+          "$ref": "#/$defs/count"
+        },
+        "nodes": {
+          "$ref": "#/$defs/count"
+        },
+        "sat": {
+          "$ref": "#/$defs/sat_statistics"
+        }
+      },
+      "required": [
+        "size",
+        "atoms",
+        "nodes",
+        "sat"
+      ]
+    },
     "kripke_model_keys": {
       "description": "The keys of a Kripke model, at the top of a document or nested without `version`: each world's atoms by name, `falsity` where it forces `⊥` (minimal logic), its arrows to the worlds directly above it, and the world the model is about (0 where absent). The reader of a model given by hand refuses a key it does not know.",
       "type": "object",
@@ -3181,6 +3222,22 @@
             },
             "statistics": {
               "$ref": "#/$defs/grounding_statistics"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "statistics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "models"
+            },
+            "statistics": {
+              "$ref": "#/$defs/models_statistics"
             }
           }
         }

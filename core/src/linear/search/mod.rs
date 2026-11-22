@@ -3020,6 +3020,13 @@ pub struct Options {
     /// often proves sooner but may miss a proof, so a search under it
     /// never answers "not valid". Only that prover reads it.
     pub restricted_backtracking: bool,
+    /// The largest domain the finite model search of ordinary logic
+    /// (`ordinary::Method::Models`) tries, or `None` for no bound.
+    ///
+    /// The search tries domains of 1, 2, … elements up to the bound. One
+    /// that found no structure that refutes the sequent is not "valid" but
+    /// unknown with [`Reason::ModelSize`]. Only that search reads it.
+    pub model_size: Option<u32>,
     /// The thread pools a parallel search borrows instead of starting
     /// threads of its own. `None`, the default, is a pool built for the
     /// search and dropped with it.
@@ -3053,7 +3060,9 @@ impl Default for Options {
     ///   [`DEFAULT_INSTANCES`](Self::DEFAULT_INSTANCES);
     /// - the connection prover's bound
     ///   [`DEFAULT_PATH_LENGTH`](Self::DEFAULT_PATH_LENGTH), and full
-    ///   backtracking.
+    ///   backtracking;
+    /// - the finite model search's bound
+    ///   [`DEFAULT_MODEL_SIZE`](Self::DEFAULT_MODEL_SIZE).
     fn default() -> Self {
         Self {
             engine: None,
@@ -3071,6 +3080,7 @@ impl Default for Options {
             instances: Self::DEFAULT_INSTANCES,
             path_length: Some(Self::DEFAULT_PATH_LENGTH),
             restricted_backtracking: false,
+            model_size: Some(Self::DEFAULT_MODEL_SIZE),
             #[cfg(feature = "parallel")]
             pool: None,
         }
@@ -3125,6 +3135,11 @@ impl Options {
     /// with a clock lifts it ([`path_length`](Self::path_length)).
     pub const DEFAULT_PATH_LENGTH: u32 = 8;
 
+    /// The finite model search's largest domain in the default options: a
+    /// library call without a stop must end, and a front end with a clock
+    /// lifts it ([`model_size`](Self::model_size)).
+    pub const DEFAULT_MODEL_SIZE: u32 = 6;
+
     /// The most threads the options name: more are taken as this many.
     ///
     /// A pool beyond it has no known use, and a count without a bound
@@ -3167,6 +3182,13 @@ impl Options {
             path_length,
             ..self
         }
+    }
+
+    /// Returns the options with another bound on the finite model search's
+    /// [`model_size`](Self::model_size), `None` for none.
+    #[must_use]
+    pub fn with_model_size(self, model_size: Option<u32>) -> Self {
+        Self { model_size, ..self }
     }
 
     /// Returns the options with restricted backtracking in the connection
@@ -3514,6 +3536,13 @@ pub enum Reason {
         /// The bound.
         length: u32,
     },
+    /// The finite model search tried every domain up to its bound
+    /// ([`Options::model_size`]) and found no structure that refutes the
+    /// sequent.
+    ModelSize {
+        /// The bound.
+        size: u32,
+    },
 }
 
 impl Reason {
@@ -3531,6 +3560,7 @@ impl Reason {
         "instances",
         "incomplete",
         "path_length",
+        "model_size",
     ];
 
     /// Returns the reason's word, its `kind` in the JSON form.
@@ -3547,6 +3577,7 @@ impl Reason {
             Self::Instances { .. } => "instances",
             Self::Incomplete => "incomplete",
             Self::PathLength { .. } => "path_length",
+            Self::ModelSize { .. } => "model_size",
         }
     }
 
@@ -3588,6 +3619,7 @@ impl Reason {
             Self::WitnessDepth { .. } => Some("search.witness_depth"),
             Self::Instances { .. } => Some("search.instances"),
             Self::PathLength { .. } => Some("search.path_length"),
+            Self::ModelSize { .. } => Some("search.model_size"),
         }
     }
 }
@@ -3628,6 +3660,9 @@ impl Display for Reason {
             }
             Reason::PathLength { length } => {
                 write!(f, "the bound of {length} on the active path was reached")
+            }
+            Reason::ModelSize { size } => {
+                write!(f, "no structure of up to {size} elements refutes it")
             }
         }
     }
@@ -3880,6 +3915,7 @@ mod tests {
             Reason::Instances { instances: 1 },
             Reason::Incomplete,
             Reason::PathLength { length: 1 },
+            Reason::ModelSize { size: 1 },
         ];
         // No wildcard: a new reason fails to compile here until listed.
         let at = |reason: &Reason| match reason {
@@ -3894,6 +3930,7 @@ mod tests {
             Reason::Instances { .. } => 8,
             Reason::Incomplete => 9,
             Reason::PathLength { .. } => 10,
+            Reason::ModelSize { .. } => 11,
         };
         assert_eq!(reasons.len(), Reason::NAMES.len());
         for (i, reason) in reasons.iter().enumerate() {

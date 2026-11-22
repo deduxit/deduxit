@@ -648,6 +648,12 @@ enum SearchForm<'a> {
         /// Grounding's statistics.
         statistics: &'a crate::ordinary::grounding::Statistics,
     },
+    /// By the finite model search, and what it cost.
+    #[cfg(feature = "sat")]
+    Models {
+        /// The search's statistics.
+        statistics: &'a crate::ordinary::models::Statistics,
+    },
 }
 
 impl Serialize for Outcome {
@@ -707,6 +713,8 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         Search::Connection(statistics) => SearchForm::Connection { statistics },
         #[cfg(feature = "sat")]
         Search::Grounding(statistics) => SearchForm::Grounding { statistics },
+        #[cfg(feature = "sat")]
+        Search::Models(statistics) => SearchForm::Models { statistics },
     };
     // A reader of level 12 does not know the methods `table` and
     // `tableau`, so an outcome of either is at level 14; the method
@@ -718,6 +726,8 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         Search::Connection(_) => wire::ORDINARY_TERMS,
         #[cfg(feature = "sat")]
         Search::Grounding(_) => wire::ORDINARY_TERMS,
+        #[cfg(feature = "sat")]
+        Search::Models(_) => wire::MODELS,
         Search::Embedding { .. } | Search::Ljt(_) => wire::SEARCH,
         #[cfg(feature = "sat")]
         Search::Sat(_) => wire::SEARCH,
@@ -743,8 +753,17 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
     // A structure with function tables is read from level 26 on: a reader
     // of 25 refuses the key.
     let version = match &outcome.structure {
-        Some(found) if !found.structure.functions.is_empty() => version.max(wire::FUNCTIONS),
+        Some(found) if !found.structure.functions.is_empty() => version.max(wire::MODELS),
         Some(_) | None => version,
+    };
+    // So is the model search's unknown.
+    let version = if matches!(
+        outcome.verdict,
+        Verdict::Unknown(crate::linear::search::Reason::ModelSize { .. })
+    ) {
+        version.max(wire::MODELS)
+    } else {
+        version
     };
     let countermodel = outcome.countermodel.as_ref().map(CountermodelForm::of);
     // A reader of level 12 may ignore the countermodel without
@@ -825,6 +844,12 @@ enum SearchRead {
         /// Grounding's statistics.
         statistics: crate::ordinary::grounding::Statistics,
     },
+    /// By the finite model search.
+    #[cfg(feature = "sat")]
+    Models {
+        /// The search's statistics.
+        statistics: crate::ordinary::models::Statistics,
+    },
 }
 
 /// The keys an ordinary outcome is read from. `deduxit`, the writer's
@@ -893,6 +918,8 @@ impl OutcomeRead {
             SearchRead::Connection { statistics } => Search::Connection(statistics),
             #[cfg(feature = "sat")]
             SearchRead::Grounding { statistics } => Search::Grounding(statistics),
+            #[cfg(feature = "sat")]
+            SearchRead::Models { statistics } => Search::Models(statistics),
         };
         let image = match &search {
             Search::Embedding { linear, .. } => Some(&linear.verdict),
@@ -900,7 +927,7 @@ impl OutcomeRead {
             Search::Sat(_) => None,
             Search::Ljt(_) | Search::Table(_) | Search::Connection(_) => None,
             #[cfg(feature = "sat")]
-            Search::Grounding(_) => None,
+            Search::Grounding(_) | Search::Models(_) => None,
             #[cfg(feature = "interactive")]
             Search::Tableau(_) => None,
         };

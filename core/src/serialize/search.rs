@@ -102,6 +102,11 @@ pub(super) enum Why {
         /// The bound.
         length: u32,
     },
+    /// The finite model search tried every domain up to its bound.
+    ModelSize {
+        /// The bound.
+        size: u32,
+    },
 }
 
 impl From<Reason> for Why {
@@ -119,6 +124,7 @@ impl From<Reason> for Why {
             Reason::Instances { instances } => Why::Instances { instances },
             Reason::Incomplete => Why::Incomplete,
             Reason::PathLength { length } => Why::PathLength { length },
+            Reason::ModelSize { size } => Why::ModelSize { size },
         }
     }
 }
@@ -138,6 +144,7 @@ impl From<Why> for Reason {
             Why::Instances { instances } => Reason::Instances { instances },
             Why::Incomplete => Reason::Incomplete,
             Why::PathLength { length } => Reason::PathLength { length },
+            Why::ModelSize { size } => Reason::ModelSize { size },
         }
     }
 }
@@ -1065,6 +1072,7 @@ mod tests {
             Reason::Instances { instances: 1 << 16 },
             Reason::Incomplete,
             Reason::PathLength { length: 8 },
+            Reason::ModelSize { size: 6 },
         ] {
             let json = serde_json::to_string(&reason).unwrap();
             assert_eq!(

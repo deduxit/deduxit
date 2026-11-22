@@ -81,6 +81,8 @@ mod invert;
 pub mod ljt;
 /// The check of a Kripke model.
 mod model;
+#[cfg(feature = "sat")]
+pub mod models;
 pub mod negative;
 pub mod normal;
 #[cfg(feature = "parse")]
@@ -400,6 +402,14 @@ pub enum Method {
     /// valid in classical logic. Needs the cargo feature `sat`.
     #[cfg(feature = "sat")]
     Grounding,
+    /// The finite model search ([`models::decide`]): domains of 1, 2, …
+    /// elements up to [`search::Options::model_size`](crate::linear::search::Options::model_size),
+    /// each written as a propositional formula for the SAT solver. A
+    /// sequent that a structure of that size refutes is not valid, with
+    /// the checked [`Structure`], in every logic; the search never answers
+    /// "valid". Needs the cargo feature `sat`.
+    #[cfg(feature = "sat")]
+    Models,
 }
 
 impl Method {
@@ -415,6 +425,8 @@ impl Method {
         Self::Connection,
         #[cfg(feature = "sat")]
         Self::Grounding,
+        #[cfg(feature = "sat")]
+        Self::Models,
     ];
 
     /// The methods' names, which [`name`](Self::name) writes and `FromStr`
@@ -430,11 +442,13 @@ impl Method {
         "connection",
         #[cfg(feature = "sat")]
         "grounding",
+        #[cfg(feature = "sat")]
+        "models",
     ];
 
     /// Returns the method's name: `embedding`, `ljt`, `sat`, `table`,
-    /// `tableau`, `connection` or `grounding`, as the command and the JSON
-    /// spell it.
+    /// `tableau`, `connection`, `grounding` or `models`, as the command and
+    /// the JSON spell it.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Embedding => "embedding",
@@ -447,6 +461,8 @@ impl Method {
             Self::Connection => "connection",
             #[cfg(feature = "sat")]
             Self::Grounding => "grounding",
+            #[cfg(feature = "sat")]
+            Self::Models => "models",
         }
     }
 
@@ -463,6 +479,8 @@ impl Method {
             Self::Connection => "the connection prover",
             #[cfg(feature = "sat")]
             Self::Grounding => "grounding",
+            #[cfg(feature = "sat")]
+            Self::Models => "the finite model search",
         }
     }
 
@@ -479,6 +497,8 @@ impl Method {
             Self::Connection => "classical and intuitionistic logic",
             #[cfg(feature = "sat")]
             Self::Grounding => "every logic, refuting only in intuitionistic and minimal logic",
+            #[cfg(feature = "sat")]
+            Self::Models => "every logic, refuting only",
         }
     }
 
@@ -517,7 +537,7 @@ impl Method {
             Self::Tableau => matches!(logic, Logic::Classical),
             Self::Connection => matches!(logic, Logic::Classical | Logic::Intuitionistic),
             #[cfg(feature = "sat")]
-            Self::Grounding => true,
+            Self::Grounding | Self::Models => true,
         }
     }
 }
@@ -614,7 +634,9 @@ impl Options {
     /// embedding in the others, the methods that take quantifiers.
     /// [`decide()`] decides by it; where the method gives way (a bound, or
     /// a sequent grounding finds valid only classically), the embedding
-    /// decides in its place.
+    /// decides in its place, and where that leaves a first-order sequent
+    /// unknown, the finite model search (with the feature `sat`) may
+    /// refute it.
     pub fn method_for(&self, sequent: &Sequent) -> Method {
         match (self.method, self.translation) {
             #[cfg(feature = "sat")]

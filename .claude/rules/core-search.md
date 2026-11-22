@@ -480,7 +480,10 @@ copies they had are gone (F103, F104).
   `restricted_backtracking` are the ordinary connection prover's
   (`core-ordinary.md`), which no linear engine reads; its unknown is
   `Reason::PathLength { length }` (`search.path_length`,
-  `--path-length`).
+  `--path-length`). `model_size` (`DEFAULT_MODEL_SIZE` 6, `None` in
+  `Settings::default()`) is the ordinary finite model search's, its
+  unknown `Reason::ModelSize { size }` (`search.model_size`,
+  `--model-size`), the last variant.
 - **An ordered mode at the front door** (`prepare`, `read`): `Mode::check`
   first (`OrderedMode`), then a fragment beyond unit-free MLL is
   `OrderedFragment` (before the dispatch, so that it is named and not

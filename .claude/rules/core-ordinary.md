@@ -30,7 +30,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `connection/` (public): the connection prover of classical logic,
   below; `grounding.rs` (public, behind `sat`) and `structure.rs`: the
-  decidable classes and the finite structure, below; `decide.rs`: `decide`, translation, search, read-back and check in one
+  decidable classes and the finite structure, below; `models.rs`
+  (public, behind `sat`): the finite model search, below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
@@ -1003,15 +1004,89 @@ the clausal proof's checker is the trust for "valid".
   sequent grounding gives way on (a bound, outside the classes) goes to
   the connection prover, before the embedding. The command does the same
   in `decide_natively`; `--method grounding` keeps the general limits.
-- **What step 76 must keep** (its countermodels own and extend this
-  type): `FiniteCountermodel::check` is the one trust for a finite
-  "not valid"; `Structure`'s JSON (`{"size", "constants",
-  "predicates"}`, `deny_unknown_fields`) and the outcome's `"structure":
-  {"sequent", "structure"}` are released forms; a predicate left out
-  holds of nothing, a nullary one holds where it lists the empty tuple;
-  function symbols with arguments are refused by the evaluator today
-  (`Error::Structure`), so a structure that interprets functions is an
-  extension of `Structure`, not a new type.
+- **What a later change must keep**: `FiniteCountermodel::check` is the
+  one trust for a finite "not valid"; `Structure`'s JSON (`{"size",
+  "constants", "functions"?, "predicates"}`, `deny_unknown_fields`) and
+  the outcome's `"structure": {"sequent", "structure"}` are released
+  forms; a predicate left out holds of nothing, a nullary one holds where
+  it lists the empty tuple.
+- **Function tables** (`Structure::functions`, wire level 26,
+  `wire::MODELS`, the key left out where empty so grounding's documents
+  stay at 25): `f(d₀, …, dₖ₋₁)` at `Σ dᵢ·size^(k−1−i)`. The up-front
+  pass refuses a function symbol the sequent applies without a table of
+  exactly `size^arity` values (`checked_pow`) and a value past the domain
+  (`Error::Structure`), the tables charged to `limits.memory_bytes`
+  beside the rest (`ENTRY_BYTES` and 4 bytes a value); the evaluator
+  reads a term by its own stack (`Evaluator::term`, no recursion over a
+  term). `Display` prints `f: always v` where every value is one, else
+  each tuple (the arity read from the table's length, base the size or
+  2).
+
+## The finite model search (`models.rs`, behind `sat`)
+
+MACE's and Paradox's method (the design is
+`plan/notes/first-order-countermodels-design.md` §3), public as
+`ordinary::models::decide` and `Method::Models`, every logic, never
+"valid".
+
+- **The encoding**: grounding's normal form with function symbols kept
+  (`grounding::normal_form(…, functions: true)`, `Term::App` indexing
+  `Nnf::apps`, each application interned once with its free variables,
+  every argument made before its application, so an index order is
+  bottom-up), then per domain size `n` the expansion (`expand`): `∀` the
+  conjunction over the elements, `∃` the disjunction, each node memoised
+  by the values of its free variables. A term's value is a table of `n`
+  formulas "the term denotes `e`" (`Writer::term`, `Denotes`), memoised
+  per application and the values of its free variables; a function
+  symbol's principal term `f(d̄)` gets `n` value atoms (`values`), and a
+  literal or application over open arguments is the disjunction over
+  their tuples of "the arguments denote the tuple and …"
+  (`over_tuples`). The hypotheses are Paradox's totality and
+  functionality per principal term (exactly one value) and the symmetry
+  formulas on the constants in the order the normal form first names
+  them (`Signature`): the i-th takes one of the first i + 1 elements,
+  and m > 0 only where an earlier one takes m − 1. Atoms are `m_N`,
+  `N` the index of `Expansion::entries`.
+- **Why sound**: the structure read off the solver's model
+  (`Expansion::structure`: each principal term's true value atom, a
+  table entry no principal term reached left 0, each predicate's true
+  tuples) is checked by `FiniteCountermodel::check` against the sequent
+  as written; failing is `Error::Countermodel` (a defect), a check
+  refused at the stop or a work or memory bound is unknown (the verdict
+  has no other argument), any other refusal an error. So the encoding,
+  the symmetry formulas and miniscoping can lose structures (an unknown)
+  but not make a wrong "not valid". Every table entry the evaluator can
+  reach is a principal term the expansion made: every quantifier ranges
+  over the whole domain and every open argument over every element, and
+  miniscoping keeps each literal with the same variables.
+- **Each size is solved afresh** (`sat::falsify`: the classical encoder
+  and batsat without recording or checking a clausal proof, since a
+  size without a model proves nothing), the solver given the memory
+  bound less the expansion's estimate. A sequent without quantifiers
+  and function symbols stops at the constants' number of elements
+  (`enough`). Past the bound: `Reason::ModelSize { size }`
+  (`search.model_size`); `None` deepens until the stop.
+- **Bounds**: `Writer::tick` on every step and every tuple of
+  `over_tuples` (the stop every `grounding::POLL`, `limits.occurrences`
+  formulas, `limits.memory_bytes` by `NODE_BYTES` a formula, `ATOM_BYTES`
+  an atom, `MEMO_BYTES` a memo entry, as grounding's); the stop, a work
+  or memory refusal are unknown (`unknown_for`), an occurrence refusal
+  an error, which the default gives way on. A structure's function
+  tables are refused past `usize` (`IndexLimit`) or the memory bound
+  before they are allocated.
+- **The dispatch**: the library's default runs it last, in every logic,
+  on a first-order sequent the embedding left unknown (not stopped), and
+  takes its outcome only where it refutes (`within` in `decide.rs`):
+  before the embedding it cost SYJ018+1, which the embedding proves in
+  50 ms, since the model search ran to the harness's stop (departs from
+  the design, which put it before the embedding). The command, with a
+  clock, gives the classical prover `CONNECTION_SHARE` of the time limit,
+  the model search the rest of `FIRST_ORDER_SHARE`, and the embedding
+  what is left (`cli.md`); its intuitionistic default is the embedding
+  alone until 76b's Kripke search. The
+  outcome is `Search::Models(Statistics)` (the largest size tried, the
+  last size's atoms and formulas, the solver's statistics), written at
+  level 26.
 
 ## The SAT engine (`sat/`, behind `sat`)
 
