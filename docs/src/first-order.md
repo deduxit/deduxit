@@ -26,6 +26,9 @@ before it is shown, as every proof deduxit reports does.
 ## Write a first-order sequent
 
 - An atom may be a predicate applied to terms, as in `p(x, f(a))`.
+- `s = t` is the atom of the predicate `=` on two terms, written between
+  them, and `s != t` (or `s ≠ t`) its negation. In linear logic `=` is a
+  predicate like any other, with no axioms of its own.
 - A name bound by an enclosing quantifier is a variable. Any other name
   is a constant, or a function symbol when a bracket follows it.
 - A symbol has one arity (number of arguments) throughout the sequent,

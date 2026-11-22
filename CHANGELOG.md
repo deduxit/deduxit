@@ -33,8 +33,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   `ordinary::decide_within`, `prove --logic`, its batch and `interact
   --logic` do it themselves), so a valid one's derivation shows them as
   its last hypotheses (`equality::axiom_count`, and the verdict line
-  counts them). A finite structure reads `=` as identity, and "not
-  valid" comes only with such a checked structure. `Formulas::has_equality`
+  counts them), and `grade` accepts a derivation that holds any of them
+  beside the problem's own hypotheses. `resolve` and the other commands
+  that read a sequent take it as written. A finite structure reads `=`
+  as identity, and "not valid" comes only with such a checked structure.
+  `Formulas::has_equality`
   says whether an arena uses `=`; in JSON it is the binary predicate
   named `"="`.
 
@@ -335,6 +338,10 @@ second number (0.1.x to 0.2.0), anything else the third.
 - The Rocq certificate of an LJ derivation read from JSON that uses
   LK's one-premise `¬L` (`Γ, ¬A ⊢` from `Γ ⊢ A`, which the checker
   takes) was a term Rocq refused. No search makes that form.
+- Grounding and the finite model search stop at the time limit on a
+  nest of thousands of quantifiers: a congruence axiom of 4 000
+  arguments overran a limit of 2 s by 100 s, in the default's test of
+  whether grounding applies, which now ends at a bound of its own.
 
 ### Wire forms
 

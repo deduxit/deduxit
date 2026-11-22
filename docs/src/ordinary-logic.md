@@ -1030,8 +1030,15 @@ A structure reads `=` as identity, the same element on both sides, and
 lists no tuples for it. A sequent is called not valid only with such a
 structure, checked; every other search that ends without a proof leaves
 it unknown. `interact --logic` starts with the axioms among the
-hypotheses too, so that a proof by hand can use them. In JSON `=` is the
-binary predicate named `"="` in `symbols`.
+hypotheses too, so that a proof by hand can use them, and `grade`
+accepts a derivation that holds any of them. In JSON `=` is the binary
+predicate named `"="` in `symbols`.
+
+`resolve` takes reflexivity alone and rewrites with the equations
+instead, by [paramodulation](resolution.md#refute-a-first-order-sequent),
+which keeps its clauses few; `--equality axioms` gives it the axioms
+above. In linear logic `=` is a [predicate](first-order.md) like any
+other, without axioms.
 
 ## JSON output
 

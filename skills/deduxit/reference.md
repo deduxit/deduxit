@@ -102,6 +102,7 @@ formula alone is `|- A`. Quote the sequent for the shell.
 | units | `1`, `bot`, `top`, `0` | `⊥`, `⊤` |
 | quantifiers | `forall x. A`, `exists x. A`, `forall x y. A` | `∀x. A`, `∃x. A` |
 | predicates | `p(x, f(a))` | |
+| equality | `s = t`, `s != t` | `s ≠ t` |
 
 Binding, tightest first: `A^`, then `~ ! ?`, then `*`, `|`, `&`, `+`,
 and last `-o`, which groups to the right. A quantifier binds loosest and
@@ -114,9 +115,11 @@ An atom is an identifier, or a predicate applied to terms in brackets.
 Inside the brackets, an identifier that an enclosing quantifier binds is
 its variable; any other identifier is a constant, or a function symbol
 before a bracket. Each symbol has one arity throughout, a name is a
-predicate or a function symbol but not both, and no variable is free. A
-sequent with arguments and no quantifier is propositional, and every
-engine decides it.
+predicate or a function symbol but not both, and no variable is free.
+`s = t` is the atom of the predicate `=`, written between its terms,
+`s != t` its negation; in linear logic it has no axioms. A sequent with
+arguments and no quantifier is propositional, and every engine decides
+it.
 
 What each command does with a sequent that has a quantifier:
 
@@ -1645,7 +1648,8 @@ with the equality axioms of its symbols (reflexivity, symmetry,
 transitivity, and for each function and predicate symbol that equal
 arguments give equal values or the same truth) appended to its
 hypotheses, so a valid one's derivation has them as its last hypotheses
-(the verdict line counts them), and "not valid" comes only with a
+(the verdict line counts them), `grade` accepts a derivation that holds
+any of them beside the problem's own, and "not valid" comes only with a
 checked finite structure, which reads `=` as identity. A TPTP file may
 hold `cnf(NAME, ROLE, CLAUSE).` clauses, each the universal closure of
 its disjunction, `negated_conjecture` a hypothesis. `prove --logic L

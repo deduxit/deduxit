@@ -22,7 +22,8 @@ in use.
   refutations, nets, errors, exports and terms. It has a JSON form of its
   own.
 - First-order linear logic has quantifiers over terms, predicates with
-  arguments, function symbols and constants. Its sequents are read,
+  arguments, function symbols and constants, and `s = t` written between
+  its terms. Its sequents are read,
   printed one- and two-sided and written as JSON. A sequent with
   arguments but no quantifier is decided as a propositional one.
 
@@ -270,9 +271,14 @@ in use.
   each step. A refutation written by hand, and an outside SAT solver's
   DRAT or LRAT proof, are checked by `check`. At first order the
   clausal form's clauses resolve with the most general unifier and are
-  factored, each step with its unifier; a refutation is checked step by
-  step and read back as a checked derivation of LK where it reaches. The
-  library and the protocol have them; the web page does not yet.
+  factored, each step with its unifier, and a sequent with `=` is
+  resolved by paramodulation, an equation rewriting a subterm of
+  another clause, with reflexivity as the one axiom (or with every
+  equality axiom, `--equality axioms`); a refutation is checked step by
+  step, each rewrite made again, and read back as a checked derivation
+  of LK where it reaches (not through a rewrite, which LK has no rule
+  for). The library and the protocol have them; the web page does not
+  yet.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is

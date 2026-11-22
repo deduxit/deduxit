@@ -51,6 +51,11 @@ incorrect: the refutation is of ⊢ ~A, B in classical, and the problem is ⊢ ~
 exit 1
 ```
 
+A problem of ordinary logic that uses `=` is decided with the
+[equality axioms](ordinary-logic.md#equality) among its hypotheses, so a
+derivation of it may hold any of them beside the problem's own
+hypotheses, and none is required.
+
 In ordinary and modal logic a Kripke model answers that a sequent is
 not valid: the model must refute it. `prove` writes one under
 `countermodel` (for modal logic, under `countermodel.model`):
