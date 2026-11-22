@@ -128,6 +128,19 @@ workspace graph builds on it.
   makes the clauses again from the input without the normal form's
   check (`normal::rewrite`), compares them (part `clauses`), then checks
   the refutation (read through the level-22 reader) or the model.
+- **`ordinary.resolve` at first order** (feature `sat`): a first-order
+  statement takes `first_order::resolve` (parameters: saturation and the
+  default form only, else `InvalidOption` key `parameters`); its output
+  is the level-29 document, which `summary` and the check tell from the
+  propositional one by its parsed top-level key `clausal`
+  (`first_order_document`; a substring once sent an atom named
+  `clausal` to the wrong reader). A given `□` is a refutation of no
+  step there too. The check makes
+  the clauses again (`first_order::clauses_of`), compares their texts
+  (part `clauses`), replays each step by `Clauses::infer` comparing its
+  clause's and unifier's texts (part `refutation`, ending at `□`), and
+  holds a derivation to the input and checks it. A saturated output is
+  `Limit` `incomplete`.
 - **`ordinary.instances`** (feature `sat`; a classical statement to
   `ordinary.instances`, the `herbrand --format json` document, form
   `herbrand`): parameter `depth` (`null` for none); its `Limit` is the

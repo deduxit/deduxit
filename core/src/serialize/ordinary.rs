@@ -1926,6 +1926,110 @@ impl Serialize for crate::ordinary::herbrand::Herbrand {
     }
 }
 
+/// The written form of first-order resolution.
+#[cfg(feature = "sat")]
+#[derive(Serialize)]
+struct FirstOrderForm {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// The search, saturation.
+    method: crate::ordinary::resolution::Method,
+    /// `unsatisfiable`, `saturated` or `unknown`.
+    verdict: &'static str,
+    /// The bound that ended the search, for `unknown`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bound: Option<crate::ordinary::resolution::Bound>,
+    /// The sequent decided.
+    sequent: SequentForm,
+    /// The clausal form of its negation and its steps.
+    clausal: ClausalForm,
+    /// The clauses the search started from, as text.
+    clauses: Vec<String>,
+    /// The refutation's inferences, for `unsatisfiable`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inferences: Option<Vec<InferenceStepForm>>,
+    /// The derivation of LK read back, where it was.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    derivation: Option<DerivationForm>,
+    /// Why the read-back did not reach, where it did not.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    not_read_back: Option<String>,
+    /// What the search cost.
+    statistics: crate::ordinary::resolution::first_order::Statistics,
+}
+
+/// The written form of a first-order inference: its step, the unifier and
+/// the clause it made, as text.
+#[cfg(feature = "sat")]
+#[derive(Serialize)]
+struct InferenceStepForm {
+    /// The step: `rule` and its positions.
+    #[serde(flatten)]
+    step: crate::ordinary::resolution::first_order::Step,
+    /// The unifier, a binding per line of text.
+    unifier: Vec<String>,
+    /// The clause made.
+    clause: String,
+}
+
+#[cfg(feature = "sat")]
+impl Serialize for crate::ordinary::resolution::first_order::FirstOrder {
+    /// Serializes the decided clauses as a document at level 29.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use crate::ordinary::resolution::first_order::Answer;
+        let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
+        let (verdict, bound, inferences, derivation, not_read_back) = match &self.answer {
+            Answer::Refuted {
+                refutation,
+                derivation,
+                not_read_back,
+            } => {
+                let set = refutation.clauses();
+                let steps = refutation
+                    .inferences()
+                    .iter()
+                    .map(|i| InferenceStepForm {
+                        step: i.step,
+                        unifier: set.bindings_text(i),
+                        clause: set.text(i.clause),
+                    })
+                    .collect();
+                (
+                    "unsatisfiable",
+                    None,
+                    Some(steps),
+                    derivation.as_deref().map(DerivationForm::from),
+                    not_read_back.clone(),
+                )
+            }
+            Answer::Saturated => ("saturated", None, None, None, None),
+            Answer::Unknown(bound) => ("unknown", Some(*bound), None, None, None),
+        };
+        FirstOrderForm {
+            version: wire::FIRST_ORDER_CLAUSES,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            method: crate::ordinary::resolution::Method::Saturation,
+            verdict,
+            bound,
+            sequent: form(&self.sequent),
+            clausal: ClausalForm {
+                result: form(&self.clausal.result),
+                steps: self.clausal.steps.iter().map(step_form).collect(),
+            },
+            clauses: (0..self.clauses.clauses().len())
+                .map(|k| self.clauses.text(k))
+                .collect(),
+            inferences,
+            derivation,
+            not_read_back,
+            statistics: self.statistics,
+        }
+        .serialize(serializer)
+    }
+}
+
 impl Serialize for crate::ordinary::normal::NormalForm {
     /// Serializes the normal form as a document at level 21, at 25 where
     /// its sequents are first-order.

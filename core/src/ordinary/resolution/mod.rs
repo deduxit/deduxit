@@ -57,6 +57,8 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// The DPLL procedure and its trace.
 mod dpll;
+#[cfg(feature = "sat")]
+pub mod first_order;
 /// DRAT and LRAT proofs of outside solvers, checked.
 #[cfg(feature = "sat")]
 mod outside;

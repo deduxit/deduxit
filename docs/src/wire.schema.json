@@ -4071,109 +4071,301 @@
       }
     },
     "clause_resolution": {
-      "description": "A set of clauses decided (level 22, `resolve --format json`, written only): the method, the verdict, the atoms and clauses, the refutation's resolvents for unsatisfiable clauses, the atoms a checked model makes true (counted from 1) for satisfiable ones, the bound that ended an unknown search, DPLL's steps, and the counts.",
-      "type": "object",
-      "required": [
-        "version",
-        "deduxit",
-        "method",
-        "verdict",
-        "atoms",
-        "clauses",
-        "statistics"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "version": {
-          "type": "integer",
-          "minimum": 22
-        },
-        "deduxit": {
-          "$ref": "#/$defs/writer"
-        },
-        "method": {
-          "enum": [
-            "saturation",
-            "dpll"
-          ]
-        },
-        "verdict": {
-          "enum": [
-            "unsatisfiable",
-            "satisfiable",
-            "unknown"
-          ]
-        },
-        "atoms": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "clauses": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/clause"
-          }
-        },
-        "resolvents": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/resolvent"
-          }
-        },
-        "true_atoms": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "minimum": 1
-          }
-        },
-        "bound": {
+      "description": "A set of clauses decided (`resolve --format json`, written only): propositional clauses at level 22, a first-order sequent's at level 29.",
+      "oneOf": [
+        {
+          "description": "Propositional clauses decided (level 22): the method, the verdict, the atoms and clauses, the refutation's resolvents for unsatisfiable clauses, the atoms a checked model makes true (counted from 1) for satisfiable ones, the bound that ended an unknown search, DPLL's steps, and the counts.",
           "type": "object",
           "required": [
-            "kind"
+            "version",
+            "deduxit",
+            "method",
+            "verdict",
+            "atoms",
+            "clauses",
+            "statistics"
           ],
           "additionalProperties": false,
           "properties": {
-            "kind": {
+            "version": {
+              "type": "integer",
+              "minimum": 22
+            },
+            "deduxit": {
+              "$ref": "#/$defs/writer"
+            },
+            "method": {
               "enum": [
-                "clauses",
-                "steps",
-                "stopped"
+                "saturation",
+                "dpll"
               ]
             },
-            "limit": {
-              "type": "integer",
-              "minimum": 0
+            "verdict": {
+              "enum": [
+                "unsatisfiable",
+                "satisfiable",
+                "unknown"
+              ]
+            },
+            "atoms": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "clauses": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/clause"
+              }
+            },
+            "resolvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/resolvent"
+              }
+            },
+            "true_atoms": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "bound": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "clauses",
+                    "steps",
+                    "stopped"
+                  ]
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/dpll_event"
+              }
+            },
+            "statistics": {
+              "type": "object",
+              "required": [
+                "clauses",
+                "steps"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "clauses": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "steps": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
             }
           }
         },
-        "trace": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/dpll_event"
-          }
-        },
-        "statistics": {
+        {
+          "description": "A first-order sequent's clauses decided by resolution (level 29): the input, the clausal form of its negation and its steps, the clauses the search started from as text (each clause's variables X1, X2, …), for `unsatisfiable` the refutation's inferences (each clause made numbered on after the given ones, its unifier as text, the first parent's variables X1, … and the second's Y1, …) and the derivation of LK read back or why not, the bound for `unknown`, and the counts.",
           "type": "object",
           "required": [
+            "version",
+            "deduxit",
+            "method",
+            "verdict",
+            "sequent",
+            "clausal",
             "clauses",
-            "steps"
+            "statistics"
           ],
           "additionalProperties": false,
           "properties": {
-            "clauses": {
+            "version": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 29
             },
-            "steps": {
-              "type": "integer",
-              "minimum": 0
+            "deduxit": {
+              "$ref": "#/$defs/writer"
+            },
+            "method": {
+              "const": "saturation"
+            },
+            "verdict": {
+              "enum": [
+                "unsatisfiable",
+                "saturated",
+                "unknown"
+              ]
+            },
+            "bound": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "clauses",
+                    "steps",
+                    "stopped"
+                  ]
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "sequent": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "clausal": {
+              "type": "object",
+              "required": [
+                "result",
+                "steps"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "result": {
+                  "$ref": "#/$defs/nested_ordinary_sequent"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/normal_step"
+                  }
+                }
+              }
+            },
+            "clauses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "inferences": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "rule",
+                      "first",
+                      "second",
+                      "first_literal",
+                      "second_literal",
+                      "unifier",
+                      "clause"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "rule": {
+                        "const": "resolution"
+                      },
+                      "first": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "second": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "first_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "second_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "unifier": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "clause": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "rule",
+                      "parent",
+                      "first_literal",
+                      "second_literal",
+                      "unifier",
+                      "clause"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "rule": {
+                        "const": "factor"
+                      },
+                      "parent": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "first_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "second_literal": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "unifier": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "clause": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "derivation": {
+              "$ref": "#/$defs/ordinary_derivation_keys"
+            },
+            "not_read_back": {
+              "type": "string"
+            },
+            "statistics": {
+              "type": "object",
+              "required": [
+                "clauses",
+                "steps"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "clauses": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "steps": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
             }
           }
         }
-      }
+      ]
     },
     "herbrand": {
       "description": "Herbrand's theorem applied to a classical first-order sequent (level 28; `herbrand --format json`, written only): the verdict, the input, its clausal form with the steps that made it, the depth of the last terms tried, the ground instances as a sequent, each instance's clause, terms and formula, the SAT solver's outcome on them, for `valid` the derivation of LK built from them, for `unknown` the reason, and the counts.",

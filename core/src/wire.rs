@@ -44,6 +44,7 @@
 //! | 26 | the finite model search: its search `{"method": "models", "statistics": {…}}`, its reason `{"kind": "model_size", "size": 6}`, and a finite structure's function tables, `"functions": [["f", [1, 0]]]`, each function symbol with arguments by name with the values of its argument tuples in lexicographic order | an ordinary outcome of that search, one unknown for that reason, and one whose structure interprets a function symbol with arguments |
 //! | 27 | a Kripke model with growing domains, `"kripke_structure": {"sequent": {…}, "model": {"worlds": [{"size": 1, "functions": […], "predicates": […], "falsity": true, "arrows": [1]}], "constants": […], "world": 0}}`, and the reason `{"kind": "kripke_size", "worlds": 4, "size": 6}` | an ordinary outcome refuted by one, or unknown for that reason |
 //! | 28 | Herbrand's theorem applied: the clausal form with its steps, the ground instances, the SAT solver's outcome on them and the derivation built from them, each outcome nested without `version` and `deduxit`; written only | [`ordinary::herbrand::Herbrand`](crate::ordinary::herbrand::Herbrand) (feature `sat`) |
+//! | 29 | first-order resolution: a sequent's clausal form with its steps, its clauses as text, and the refutation's inferences (resolution or factor, the parents, the literals, the unifier as text, the clause made) with the derivation of LK read back from it; written only | [`ordinary::resolution::first_order::FirstOrder`](crate::ordinary::resolution::first_order::FirstOrder) (feature `sat`) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -268,6 +269,20 @@
 //!   solver's outcome on them, and for `valid` the derivation of LK built
 //!   from them, or for `unknown` its `reason`; see
 //!   [`ordinary::herbrand::Herbrand`](crate::ordinary::herbrand::Herbrand).
+//! - **First-order resolution** (written only, feature `sat`):
+//!   `{"version": 29, "deduxit": "0.7.0", "method": "saturation",
+//!   "verdict": "unsatisfiable", "sequent": {…}, "clausal": {"result": {…},
+//!   "steps": […]}, "clauses": ["¬p(X1) ∨ q(f(X1))", …], "inferences":
+//!   [{"rule": "resolution", "first": 2, "second": 0, "first_literal": 0,
+//!   "second_literal": 1, "unifier": ["X1 := f(Y1)"], "clause": "¬p(X1)"},
+//!   …], "derivation": {…}, "statistics": {…}}`, a factor's step `{"rule":
+//!   "factor", "parent", "first_literal", "second_literal"}`: the clauses the search
+//!   started from as text, each clause's variables `X1`, `X2`, …; for
+//!   `unsatisfiable` the refutation's inferences, each clause made after
+//!   the given ones and numbered on from them, and the derivation of LK
+//!   read back, or `not_read_back` with why; `saturated` or `unknown` with
+//!   the `bound`; see
+//!   [`ordinary::resolution::first_order::FirstOrder`](crate::ordinary::resolution::first_order::FirstOrder).
 //! - **Refutation**: `{"version": 22, "atoms": ["a", "b"], "clauses":
 //!   [[1, 2], [-1], [-2]], "resolvents": [{"first": 0, "second": 1,
 //!   "atom": 1, "clause": [2]}, …]}`, the literals as DIMACS writes them;
@@ -312,7 +327,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 28;
+pub const LEVEL: u32 = 29;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
@@ -535,6 +550,11 @@ pub(crate) const CLAUSES: u32 = 22;
 /// The level of Herbrand's theorem applied, which is written only.
 #[cfg(feature = "sat")]
 pub(crate) const HERBRAND: u32 = 28;
+
+/// The level of a sequent's clauses decided by first-order resolution,
+/// which is written only.
+#[cfg(feature = "sat")]
+pub(crate) const FIRST_ORDER_CLAUSES: u32 = 29;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

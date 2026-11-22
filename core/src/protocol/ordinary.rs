@@ -909,6 +909,14 @@ impl Suite for Ordinary {
                 let derivation: Derivation = document(value, limits)?;
                 format!("A derivation of {}", derivation.logic().calculus())
             }
+            #[cfg(feature = "sat")]
+            "ordinary.resolution" if first_order_document(value) => {
+                let keys: FirstOrderKeys = object(value, "clause resolution")?;
+                match keys.verdict.as_str() {
+                    "unsatisfiable" => "Unsatisfiable".to_owned(),
+                    _ => "Not decided".to_owned(),
+                }
+            }
             "ordinary.resolution" => {
                 let keys: ResolvedKeys = object(value, "clause resolution")?;
                 let refutation = serde_json::json!({
@@ -1055,6 +1063,10 @@ impl Suite for Ordinary {
             "ordinary.resolve" => {
                 let sequent = classical(call.input(0), limits)?;
                 let p: Resolve = parameters(call)?;
+                #[cfg(feature = "sat")]
+                if sequent.formulas().is_first_order() {
+                    return first_order_resolved(&sequent, &p, limits, stop);
+                }
                 let (clauses, _) =
                     resolution::clauses_of(&sequent, p.form, &settings.search, limits, &mut *stop)?;
                 let options = p.options();
@@ -1284,6 +1296,12 @@ impl Suite for Ordinary {
         let promise = call.operation.promise;
         let limits = &call.settings.limits;
         match promise.name {
+            #[cfg(feature = "sat")]
+            "decides"
+                if call.operation.name == "ordinary.resolve" && first_order_document(output) =>
+            {
+                first_order_checked(call, output, limits, stop)
+            }
             "decides" if call.operation.name == "ordinary.resolve" => {
                 resolved(call, output, limits, stop)
             }
@@ -1561,6 +1579,163 @@ fn instanced(
         },
         checked("derivation", derivation.check(limits, &mut *stop))?,
     ];
+    Ok(Check::of(promise, parts))
+}
+
+/// Decides a first-order sequent's clauses by first-order resolution,
+/// within the bounds of `p`, which takes saturation and the clausal form
+/// alone.
+///
+/// # Errors
+///
+/// [`Error::InvalidOption`] (key `parameters`) for DPLL or another form;
+/// first-order resolution's errors.
+#[cfg(feature = "sat")]
+fn first_order_resolved(
+    sequent: &Sequent,
+    p: &Resolve,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Produced, Error> {
+    use crate::ordinary::resolution::first_order::{self, Answer};
+    if p.method != resolution::Method::Saturation || p.form != normal::Form::Cnf {
+        return Err(Error::InvalidOption {
+            key: "parameters",
+            message: "a first-order sequent takes saturation on its clausal form".to_owned(),
+        });
+    }
+    let found = first_order::resolve(sequent, &p.options(), limits, &mut *stop)?;
+    let limit = match &found.answer {
+        Answer::Unknown(bound) => Some(Limit {
+            reason: match bound {
+                resolution::Bound::Clauses { .. } => "clause_limit",
+                resolution::Bound::Steps { .. } => "step_limit",
+                _ => "stopped",
+            },
+            setting: None,
+        }),
+        Answer::Saturated => Some(Limit {
+            reason: "incomplete",
+            setting: None,
+        }),
+        _ => None,
+    };
+    Ok(Produced {
+        value: written(&found)?,
+        limit,
+    })
+}
+
+/// Returns whether `text` is first-order resolution's document: an object
+/// with the key `clausal`, which the propositional one lacks.
+#[cfg(feature = "sat")]
+fn first_order_document(text: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(text)
+        .is_ok_and(|value| value.get("clausal").is_some())
+}
+
+/// The keys of first-order resolution's document that its check reads.
+#[cfg(feature = "sat")]
+#[derive(Deserialize)]
+struct FirstOrderKeys {
+    /// `unsatisfiable`, `saturated` or `unknown`.
+    verdict: String,
+    /// The clauses the search started from, as text.
+    clauses: Vec<String>,
+    /// The refutation's inferences, for `unsatisfiable`.
+    inferences: Option<Vec<FirstOrderStepKeys>>,
+    /// The derivation read back, where it was.
+    derivation: Option<serde_json::Value>,
+}
+
+/// The keys of a first-order inference that its check reads.
+#[cfg(feature = "sat")]
+#[derive(Deserialize)]
+struct FirstOrderStepKeys {
+    /// The step.
+    #[serde(flatten)]
+    step: crate::ordinary::resolution::first_order::Step,
+    /// The unifier as text.
+    unifier: Vec<String>,
+    /// The clause made, as text.
+    clause: String,
+}
+
+/// Checks first-order resolution's evidence: the clauses are the input's,
+/// each inference made again from them gives its unifier and clause, the
+/// last `□`, and a derivation read back derives the input and passes the
+/// checker.
+#[cfg(feature = "sat")]
+fn first_order_checked(
+    call: &Call<'_>,
+    output: &str,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Check, Error> {
+    use crate::ordinary::resolution::first_order;
+    let promise = call.operation.promise;
+    let keys: FirstOrderKeys = object(output, "clause resolution")?;
+    let input = classical(call.input(0), limits)?;
+    let (_, mut clauses) = first_order::clauses_of(&input, limits, &mut *stop)?;
+    let given: Vec<String> = (0..clauses.clauses().len())
+        .map(|k| clauses.text(k))
+        .collect();
+    let status = |held: bool| if held { Status::Held } else { Status::Failed };
+    let mut parts = vec![Part {
+        name: "clauses".to_owned(),
+        status: status(given == keys.clauses),
+        verdict: None,
+    }];
+    if keys.verdict != "unsatisfiable" {
+        return Ok(Check::whole(promise, Status::None));
+    }
+    // A given `□` is a refutation of no step.
+    let mut held = true;
+    let mut last_empty = keys.inferences.as_ref().is_none_or(Vec::is_empty)
+        && clauses.clauses().iter().any(|c| c.is_empty());
+    for step in keys.inferences.unwrap_or_default() {
+        match clauses.infer(step.step) {
+            Ok(inference) => {
+                let same = clauses.text(inference.clause) == step.clause
+                    && clauses.bindings_text(&inference) == step.unifier;
+                held &= same;
+                last_empty = clauses.clauses()[inference.clause].is_empty();
+            }
+            Err(Error::InvalidOption { .. }) => held = false,
+            Err(error) => return Err(error),
+        }
+        if !held {
+            break;
+        }
+    }
+    parts.push(Part {
+        name: "refutation".to_owned(),
+        status: status(held && last_empty),
+        verdict: None,
+    });
+    if let Some(mut derivation) = keys.derivation {
+        if let Some(fields) = derivation.as_object_mut() {
+            fields.insert("version".to_owned(), crate::wire::LEVEL.into());
+        }
+        let derivation: Derivation = document(&derivation.to_string(), limits)?;
+        let texts = |formulas: &ordinary::Formulas, ids: &[ordinary::NodeId]| {
+            let mut texts: Vec<String> = ids
+                .iter()
+                .map(|&k| formulas.formula(k).to_string())
+                .collect();
+            texts.sort_unstable();
+            texts
+        };
+        let (left, right) = derivation.sequent();
+        let same = texts(derivation.formulas(), left) == texts(input.formulas(), input.left())
+            && texts(derivation.formulas(), right) == texts(input.formulas(), input.right());
+        parts.push(Part {
+            name: "sequent".to_owned(),
+            status: status(same),
+            verdict: None,
+        });
+        parts.push(checked("derivation", derivation.check(limits, &mut *stop))?);
+    }
     Ok(Check::of(promise, parts))
 }
 

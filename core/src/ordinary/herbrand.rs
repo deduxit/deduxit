@@ -273,7 +273,8 @@ fn herbrand_dyn(
     let verdict = match (reason, &refutation) {
         (Some(reason), _) => Verdict::Unknown(reason),
         (None, Some(decided)) => {
-            match deskolemized(sequent, &clausal, &ground, &universe, limits, &mut *stop) {
+            let constants = universe.levels.first().map_or(&[][..], Vec::as_slice);
+            match deskolemized(sequent, &clausal, &ground, constants, limits, &mut *stop) {
                 Ok(derivation) => {
                     statistics.inferences = derivation.inferences().len() as u64;
                     Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
@@ -609,11 +610,14 @@ fn propositional(formulas: &Formulas, instances: &[Instance]) -> Result<Sequent,
 
 /// Returns the derivation of LK of `sequent` that the instances of
 /// `ground` give, each Skolem term of `clausal` an eigenvariable, checked.
-fn deskolemized(
+/// The first of `constants` that is no Skolem term, or a new constant
+/// where none is, is the witness a first `∀L` or `∃R` may take before any
+/// eigenvariable exists.
+pub(super) fn deskolemized(
     sequent: &Sequent,
     clausal: &NormalForm,
     ground: &Sequent,
-    universe: &Universe,
+    constants: &[FoTermId],
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Derivation, Error> {
@@ -640,13 +644,7 @@ fn deskolemized(
         FoTerm::App(f, _) => symbols.contains(&f),
         FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => false,
     };
-    let plain = universe
-        .levels
-        .first()
-        .into_iter()
-        .flatten()
-        .copied()
-        .find(|&t| !skolem(t));
+    let plain = constants.iter().copied().find(|&t| !skolem(t));
     let plain = match plain {
         Some(t) => Some(t),
         None if sequent.formulas().is_first_order() => Some(fresh_constant(&mut formulas)?),

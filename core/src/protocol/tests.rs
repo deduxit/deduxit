@@ -343,6 +343,53 @@ fn a_first_order_model_is_drawn_and_certified() {
     }
 }
 
+/// First-order resolution answers a first-order statement: its check makes
+/// the clauses and every inference again, and fails a refutation whose
+/// unifier was changed.
+#[cfg(feature = "sat")]
+#[test]
+fn a_first_order_resolution_is_checked() {
+    let classical = crate::ordinary::Logic::Classical;
+    let limits = settings().limits;
+    let valid = ordinary(
+        "forall x. (p(x) -> q(f(x))), p(a) |- exists y. q(y)",
+        classical,
+    );
+    let output = ran("ordinary.resolve", &[&valid], "");
+    assert_eq!(
+        summary("ordinary.resolution", &output, &limits).unwrap(),
+        "Unsatisfiable"
+    );
+    let check = checked("ordinary.resolve", &[&valid], "", &output);
+    assert_eq!(check.status, Status::Held);
+    let broken = output.replace("X1 := a", "X1 := f(a)");
+    assert_ne!(broken, output);
+    let check = checked("ordinary.resolve", &[&valid], "", &broken);
+    assert_eq!(check.status, Status::Failed);
+    let dpll = run(
+        "ordinary.resolve",
+        &[&valid],
+        r#"{"method": "dpll"}"#,
+        &settings(),
+        |_| false,
+    );
+    assert!(matches!(dpll, Err(Error::InvalidOption { .. })));
+    // A given `□` is a refutation of no step, which holds.
+    let given = ordinary("false, p(a) |-", classical);
+    let output = ran("ordinary.resolve", &[&given], "");
+    let check = checked("ordinary.resolve", &[&given], "", &output);
+    assert_eq!(check.status, Status::Held);
+    // An atom named `clausal` leaves a propositional output propositional.
+    let named = ordinary("clausal |- clausal", classical);
+    let output = ran("ordinary.resolve", &[&named], "");
+    assert_eq!(
+        summary("ordinary.resolution", &output, &limits).unwrap(),
+        "Unsatisfiable"
+    );
+    let check = checked("ordinary.resolve", &[&named], "", &output);
+    assert_eq!(check.status, Status::Held);
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);

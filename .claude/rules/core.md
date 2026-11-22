@@ -428,6 +428,9 @@ the commit that lands it rewrites that bullet.
   `ordinary::{Evaluation, FiniteCountermodel, Structure}` and
   `ordinary::grounding::{Outcome, Statistics}` (added at step 75d);
   `ordinary::models::{Outcome, Statistics}` (added at step 76a);
+  `ordinary::herbrand::{Herbrand, Instance, Options, Statistics}` (added
+  at step 77b); `ordinary::resolution::first_order::{Answer, FirstOrder,
+  Inference, Literal, Statistics, Step}` (added at step 78b);
   `ordinary::{KripkeCountermodel, KripkeStructure, KripkeWorld}` (added at
   step 76b);
   `ordinary::{Standing, TableauReview}` (added at step 68a);

@@ -2259,9 +2259,60 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
 - **Wire level 22** (`serialize/resolution.rs`): a refutation is read
   and written (`check` reads one), a clause set decided is written only;
   literals as DIMACS writes them, clauses numbered from 0, atoms from 1.
-- **Where quantifiers go**: first-order resolution needs unification on
-  `sequents::fo` terms and a TPTP `cnf` reader (`plan/later.md`); the
-  types here are propositional.
+- **First-order resolution** (`resolution/first_order.rs`, feature
+  `sat`: it reads back through `herbrand::deskolemized`) is its own path;
+  the propositional types and searches above are unchanged (D17).
+  - **Clauses** come from `normal::rewrite` to the clausal form, each
+    hypothesis `∀x̄. C` its literals over the arena with `x̄` the
+    metavariables `Meta(0)`, … (`given_clauses`), a tautology dropped,
+    `⊥` an empty clause. A clause's variables are its own, numbered in
+    the order they first occur left to right (`metas_of`).
+  - **One inference function** (`Clauses::made`) serves the search, the
+    checker, `Clauses::infer` and the read-back: the second parent's
+    variables shifted after the first's, the shared `unify::Unifier`
+    with one metavariable per variable (level `u32::MAX`, no
+    eigenvariable), the rest of both parents under it in order (a
+    factor keeps its first literal in place), each literal once, the
+    variables renumbered. So a step made again makes the same clause,
+    equal by ids in one arena; the checker compares bindings and clause
+    exactly, the protocol's check their texts.
+  - **The search** is the given clause, lightest first (`weight`), with
+    forward subsumption (`subsumes`, bounded matchings) and tautology
+    deletion; the set of support is the clauses that are no clause of
+    the hypotheses alone (the hypotheses' clausal form compared by
+    text; a mismatch only adds to the set of support), and when it runs
+    out the hypotheses' clauses become given clauses too, so the search
+    stays complete. No model is built: a saturated set is
+    `Answer::Saturated`, which the command answers unknown.
+  - **The read-back** composes the refutation's substitutions from `□`
+    down (`read_back`): each clause gets the ground substitutions its
+    consequences need, a variable no consequence fixes the clauses'
+    first constant (or a fresh `c1`); the given clauses' instances are a
+    ground refutation's, copied (`Copied`) into a clean copy of the
+    clausal arena (a derivation's arena may hold no metavariable: its
+    reader refuses one), and `herbrand::deskolemized` builds and checks
+    the derivation. A read-back that fails leaves the refutation as the
+    verdict's evidence, said so (`not_read_back`).
+  - **Terms are bounded on the DAG**: a unifier can double a term per
+    variable (`x₁ := f(x₂, x₂)`, …), linear as a DAG and 2ⁿ as a tree,
+    and an atom's key is its text, which unfolds it. `applied_atom`
+    refuses an atom past `limits.terms` (`Refusal::Terms`) from the
+    memoised `size` before `predicate_atom` writes the key; `weight`
+    reads the same sizes; `metas_of` and `match_atom` walk a shared part
+    once. The stop is asked per inference, not per given clause (the
+    integers member of the panel drove a 1 KB input to 3.9 GB under
+    `--timeout 2s` before).
+  - **A given `□`** is a refutation of no step: the checker accepts it
+    where a given clause is empty, and the read-back starts there.
+  - **The door**: a sequent whose formulas hold an open witness (`Meta`)
+    is refused (`refuse_open_witnesses`, `InvalidOption` key `sequent`),
+    since clause variables are metavariables; an eigenvariable is a
+    constant to the unifier (`constant` true) and prints by its proof
+    name. A propositional arena gets no default constant (`default`
+    `None`), so its derivation stays without tables.
+  - **Wire level 29**: written only, the clauses and clauses made as
+    text; a factor's parent is `parent` in JSON, beside the inference's
+    `clause` text.
 
 ## Decisions
 

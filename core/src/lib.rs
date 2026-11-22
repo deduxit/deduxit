@@ -395,8 +395,8 @@ mod sealed {
 mod serialize;
 pub mod settings;
 /// Unification of first-order terms with metavariables, for the
-/// interactive sessions.
-#[cfg(feature = "interactive")]
+/// interactive sessions and first-order resolution.
+#[cfg(any(feature = "interactive", feature = "sat"))]
 mod unify;
 #[cfg(feature = "serialize")]
 pub mod wire;

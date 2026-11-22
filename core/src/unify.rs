@@ -130,12 +130,14 @@ impl Unifier {
     }
 
     /// Drops the metavariables past the first `len`.
+    #[cfg(feature = "interactive")]
     pub(crate) fn truncate_metas(&mut self, len: usize) {
         self.metas.truncate(len);
     }
 
     /// Renumbers every metavariable's term and binding by `term`, for a
     /// store renumbered.
+    #[cfg(feature = "interactive")]
     pub(crate) fn renumber(&mut self, term: impl Fn(FoTermId) -> FoTermId) {
         for meta in &mut self.metas {
             meta.term = term(meta.term);
@@ -145,17 +147,19 @@ impl Unifier {
 
     /// Returns the trail: the bindings and lowerings made, in order, each
     /// with the number of the step that made it.
-    #[cfg(feature = "serialize")]
+    #[cfg(all(feature = "serialize", feature = "interactive"))]
     pub(crate) fn trail(&self) -> &[(u32, Trailed)] {
         &self.trail
     }
 
     /// Returns the trail's length, for [`undo_to`](Self::undo_to).
+    #[cfg(feature = "interactive")]
     pub(crate) fn trail_len(&self) -> usize {
         self.trail.len()
     }
 
     /// Returns how many entries of the trail the steps before `step` made.
+    #[cfg(feature = "interactive")]
     pub(crate) fn trail_before(&self, step: u32) -> usize {
         self.trail.partition_point(|&(s, _)| s < step)
     }
@@ -282,6 +286,7 @@ impl Unifier {
 
     /// Takes back what the steps numbered `step` and later bound and
     /// lowered.
+    #[cfg(feature = "interactive")]
     pub(crate) fn undo(&mut self, step: u32) {
         self.undo_to(self.trail_before(step));
     }
@@ -299,7 +304,7 @@ impl Unifier {
 
     /// Returns the bindings in force in the order made, each as the
     /// metavariable, its term and the step that made it.
-    #[cfg(feature = "serialize")]
+    #[cfg(all(feature = "serialize", feature = "interactive"))]
     pub(crate) fn bindings(&self) -> impl Iterator<Item = (u32, FoTermId, u32)> + '_ {
         self.trail
             .iter()
