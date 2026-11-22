@@ -229,16 +229,20 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`a_large_image_gives_no_evidence_and_costs_no_search`). The command
   does the same with its own search (`cli.md`). The intuitionistic default's SAT solver is
   `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
-  where LJT gives one whose drawing fits `derivation_bytes`
-  (`ljt::decide_drawable`, whose translation stops past it; mostly
-  smaller, its terms with fewer redexes), else the one read off: with
-  LJT unbounded the default drew none of SYJ201 from size 6 (184 826
+  where LJT finds one within `sat::PREFER_SEQUENTS` (2¹⁴) sequents whose
+  drawing fits `derivation_bytes` (`ljt::decide_preferred`, whose search
+  ends at the first bound and whose translation stops past the second;
+  mostly smaller, its terms with fewer redexes), else the one read off.
+  The sequents' bound is LJT's own, not `limits.work`, which bounds the
+  check's inferences too: every derivation the default kept from LJT on
+  ILTP took at most 3 440 sequents, and SYJ202+1.005's search, a million
+  sequents in 5 s, took the time limit where the solver took 30 ms
+  (`ljt_is_given_up_where_its_search_runs_long`, fixup-20). Without the
+  drawing's bound the default drew none of SYJ201 from size 6 (184 826
   inferences, 14.7 GiB drawn, at size 20, where the one read off is
-  11.7 MB of text) and spent the time limit on SYJ202+1.005 (the review
-  of fixup-19); LJT never runs past the derivation it was asked for, and
-  where it is stopped the derivation read off stands, so no verdict is
-  lost (on ILTP LJT gave one or was refused at the derivation bound
-  within 0.3 s on every valid problem). With no method given, the
+  11.7 MB of text; the review of fixup-19). LJT never runs past the derivation it was asked for, and
+  where it is stopped, bounded or refused the derivation read off
+  stands, so no verdict is lost. With no method given, the
   method gives way to the embedding where `gives_way` (on any method's
   `Outcome`) says so: an unknown at a bound
   other than `Reason::Stopped`, or an `Error::Refused` other than the

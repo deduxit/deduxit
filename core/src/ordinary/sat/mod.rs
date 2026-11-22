@@ -225,8 +225,9 @@ pub fn decide(
 
 /// Decides a sequent as [`decide`] does, but takes a valid sequent's
 /// derivation of LJ from [`ljt::decide`] where LJT gives one within the
-/// limits, whose drawing fits `limits.derivation_bytes`, before the stop,
-/// and otherwise the one read off the search. LJT's derivations are
+/// limits and a bound of its own on the sequents it expands, whose drawing
+/// fits `limits.derivation_bytes`, before the stop, and otherwise the one
+/// read off the search. LJT's derivations are
 /// mostly smaller, and their lambda-terms have fewer redexes; where LJT's
 /// could not be drawn, the one read off often can (ILTP's SYJ201 from
 /// size 6). The verdict is the search's either way. The logic's default
@@ -426,11 +427,18 @@ fn run(
     })
 }
 
+/// The most sequents LJT expands for a derivation the SAT method may
+/// prefer to the one it read off. On ILTP's propositional problems every
+/// derivation the default kept from LJT took at most 3 440 (SYJ206+1.009),
+/// while LJT's search for SYJ202+1.005 expands about a million in 5 s
+/// where the solver decides in 30 ms; this bound costs LJT under 0.1 s.
+const PREFER_SEQUENTS: u64 = 1 << 14;
+
 /// Returns LJT's derivation of a sequent the search proved and whose
 /// `derivation` it read off and checked, with LJT's statistics in
 /// `statistics`, or that derivation where LJT gives none within the
-/// limits, with a drawing within `limits.derivation_bytes`, and before
-/// the stop.
+/// limits and [`PREFER_SEQUENTS`] sequents, with a drawing within
+/// `limits.derivation_bytes`, and before the stop.
 fn prefer_ljt(
     sequent: &Sequent,
     logic: Logic,
@@ -439,10 +447,14 @@ fn prefer_ljt(
     derivation: Derivation,
     statistics: &mut Statistics,
 ) -> Result<Derivation, Error> {
-    let decided = match limits.derivation_bytes {
-        Some(most) => ljt::decide_drawable(sequent, logic, limits, most, &mut *stop),
-        None => ljt::decide(sequent, logic, limits, &mut *stop),
-    };
+    let decided = ljt::decide_preferred(
+        sequent,
+        logic,
+        limits,
+        PREFER_SEQUENTS,
+        limits.derivation_bytes,
+        &mut *stop,
+    );
     let Ok(outcome) = decided else {
         return Ok(derivation);
     };
@@ -1303,6 +1315,63 @@ mod tests {
             &mut |_| true,
         );
         assert!(matches!(stopped, Err(Reason::Stopped)));
+    }
+
+    /// Returns ILTP's SYJ202+1.`n` as its file writes it: `n + 1` pigeons
+    /// in `n` holes, each pigeon in some hole, so some hole holds two;
+    /// every disjunction nested to the right, as the file brackets it (the
+    /// reader nests a flat one to the left, a sequent LJT searches longer).
+    fn pigeons_tptp(n: usize) -> String {
+        /// The disjunction of `terms`, nested to the right.
+        fn right(terms: &[String]) -> String {
+            match terms {
+                [last] => last.clone(),
+                [first, rest @ ..] => format!("( {first} | {} )", right(rest)),
+                [] => unreachable!("a hole and a pigeon at least"),
+            }
+        }
+        let mut text = String::new();
+        for i in 1..=n + 1 {
+            let holes: Vec<String> = (1..=n).map(|h| format!("o{i}{h}")).collect();
+            text.push_str(&format!("fof(axiom{i},axiom,( {} )).\n", right(&holes)));
+        }
+        let mut pairs = Vec::new();
+        for h in 1..=n {
+            for i in 1..=n + 1 {
+                for j in i + 1..=n + 1 {
+                    pairs.push(format!("( o{i}{h} & o{j}{h} )"));
+                }
+            }
+        }
+        text.push_str(&format!("fof(con,conjecture,( {} )).\n", right(&pairs)));
+        text
+    }
+
+    /// Where the solver decides at once and LJT's search would run long,
+    /// the default gives LJT up after `PREFER_SEQUENTS` and keeps the
+    /// derivation read off: ILTP's SYJ202+1.005, which LJT takes about a
+    /// million sequents for. The stop's polls count the work done.
+    #[test]
+    fn ljt_is_given_up_where_its_search_runs_long() {
+        let problem = crate::ordinary::read_tptp(&pigeons_tptp(5), &Limits::default()).unwrap();
+        // The searches' polls: the solver's and LJT's, which asks every
+        // `ljt::POLL` sequents and every `ljt::POLL` hypotheses, so its
+        // million sequents would be tens of thousands (the read-back and
+        // the check ask once per inference).
+        let mut searched = 0_u64;
+        let outcome = decide_preferring_ljt(
+            &problem.sequent,
+            Logic::Intuitionistic,
+            &Limits::default(),
+            |p| {
+                searched += u64::from(p.phase == crate::limits::Phase::Search);
+                false
+            },
+        )
+        .unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{outcome:?}");
+        assert_eq!(outcome.statistics.ljt, None);
+        assert!(searched < 2_000, "{searched} polls of the searches");
     }
 
     /// The default prefers LJT's derivation only where its drawing fits

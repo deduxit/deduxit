@@ -85,8 +85,10 @@ sequent with nothing on the left.
   Kripke model in intuitionistic and minimal logic, an assignment of the
   atoms in classical logic. A valid sequent comes with a derivation of
   LJ in intuitionistic and minimal logic. By default that derivation is
-  LJT's, which is smaller, and where LJT gives none, the one read off
-  the solver's search; `--method sat` always reads it off the search.
+  LJT's, which is mostly smaller, where LJT finds it within 16 384
+  sequents and its drawing fits `--derivation-limit`, and otherwise the
+  one read off the solver's search; `--method sat` always reads it off
+  the search.
   In classical logic a valid sequent comes with the solver's clausal
   proof: every step follows from the clauses of the sequent's negation
   and the steps before it by unit propagation, and the last step is the

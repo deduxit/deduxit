@@ -115,34 +115,49 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, limits, &mut stop, None, None)
+    run(sequent, logic, limits, &mut stop, Bounds::default(), None)
 }
 
-/// Decides a sequent as [`decide`] does, but refuses a derivation whose
-/// drawing is estimated past `most_drawn` bytes with
-/// [`Refusal::Output`], building no more of it: the SAT method prefers
-/// LJT's derivation only where it can be drawn.
+/// Decides a sequent as [`decide`] does within two bounds of its own: the
+/// search ends unknown past `most_sequents` sequents expanded
+/// ([`Reason::WorkLimit`]), and a derivation whose drawing is estimated
+/// past `most_drawn` bytes is refused with [`Refusal::Output`], built no
+/// further. The SAT method prefers LJT's derivation only where LJT finds
+/// it soon and it can be drawn.
 #[cfg(feature = "sat")]
-pub(super) fn decide_drawable(
+pub(super) fn decide_preferred(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    most_drawn: u64,
+    most_sequents: u64,
+    most_drawn: Option<u64>,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, limits, stop, Some(most_drawn), None)
+    let bounds = Bounds {
+        most_sequents: Some(most_sequents),
+        most_drawn,
+    };
+    run(sequent, logic, limits, stop, bounds, None)
 }
 
-/// [`decide`], with the drawing's bound `most_drawn` if any, and the fault
-/// `plant` names planted in the translation (only tests plant one). The
-/// stop is a trait object, so that the search is compiled once, not once
-/// per caller's closure.
+/// What a caller bounds beside the limits.
+#[derive(Clone, Copy, Default)]
+struct Bounds {
+    /// The most sequents the search expands, below `limits.work`.
+    most_sequents: Option<u64>,
+    /// The most bytes the derivation's drawing may be estimated at.
+    most_drawn: Option<u64>,
+}
+
+/// [`decide`] within `bounds` too, with the fault `plant` names planted
+/// in the translation (only tests plant one). The stop is a trait object,
+/// so that the search is compiled once, not once per caller's closure.
 fn run(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
-    most_drawn: Option<u64>,
+    bounds: Bounds,
     plant: Option<Plant>,
 ) -> Result<Outcome, Error> {
     sequent
@@ -171,7 +186,10 @@ fn run(
         failed: HashMap::default(),
         steps: Vec::new(),
         statistics: Statistics::default(),
-        work: limits.work.unwrap_or(u64::MAX),
+        work: limits
+            .work
+            .unwrap_or(u64::MAX)
+            .min(bounds.most_sequents.unwrap_or(u64::MAX)),
         unpolled: 0,
         asked: 0,
     };
@@ -182,7 +200,7 @@ fn run(
         Err(reason) => Verdict::Unknown(reason),
         Ok(Known::Failed) => Verdict::NotValid,
         Ok(Known::Proved(root)) => {
-            let mut lj = Lj::new(&search, limits, most_drawn, &mut stop);
+            let mut lj = Lj::new(&search, limits, bounds.most_drawn, &mut stop);
             lj.plant = plant;
             let derivation = lj.translate(root, sequent.left(), goal)?;
             derivation.check(limits, &mut stop)?;
@@ -1552,7 +1570,7 @@ mod tests {
                 Logic::Intuitionistic,
                 &Limits::default(),
                 &mut |_| false,
-                None,
+                Bounds::default(),
                 None,
             );
             assert!(
@@ -1564,7 +1582,7 @@ mod tests {
                 Logic::Intuitionistic,
                 &Limits::default(),
                 &mut |_| false,
-                None,
+                Bounds::default(),
                 Some(plant),
             );
             assert!(

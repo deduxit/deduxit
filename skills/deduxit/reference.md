@@ -1117,8 +1117,8 @@ before it is shown.
 
 The default is `sat`, the SAT solver below, for every logic. In
 intuitionistic and minimal logic it takes LJT's derivation where LJT
-gives one (`--stats` then ends with `derivation by LJT: N sequents
-expanded`). In classical logic the embedding then searches for at most
+finds one within 16 384 sequents whose drawing fits `--derivation-limit`
+(`--stats` then ends with `derivation by LJT: N sequents expanded`). In classical logic the embedding then searches for at most
 2²⁰ units of work on an image of at most 2²⁰ occurrences (a median of
 16 ms on ILTP, at most 0.1 s; a lower `--work-limit` or
 `--occurrence-limit` lowers the bound it names): where it

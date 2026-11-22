@@ -156,6 +156,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   `limits.derivation_bytes`, and `ordinary::Derivation::drawn_bytes`
   estimates a drawing by the measure that bound takes, for a caller that
   draws a decided derivation itself.
+- The default of intuitionistic and minimal logic gives LJT at most
+  16 384 sequents to find the derivation it prefers to the SAT solver's,
+  so a sequent the solver decides at once is answered at once: ILTP's
+  SYJ202+1.005 in 0.05 s, where LJT's search took the whole time limit.
 - Where the default of intuitionistic or minimal logic stops at a bound
   and the embedding decides, `prove`'s verdict line says which bound
   stopped it.

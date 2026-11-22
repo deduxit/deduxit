@@ -1904,15 +1904,15 @@ Left by step 54s (`plan/reports/54s-sat-engines.md`):
   each once (the DAG read-back above), which changes the checker, so
   the panel's; intuit and intuitR, which give no derivation, solve sizes
   4 to 9 within 10 s.
-- **The intuitionistic default's preference for LJT can spend the
-  time limit** (found by fixup-19's review, older than it): where the
-  SAT solver decides at once, `decide_preferring_ljt` still runs LJT's
-  search for a derivation it may prefer, and that search has no bound
-  of its own. SYJ202+1.005: the solver 28 ms, LJT 1 019 980 sequents in
-  5 s, so `prove -q` answers at the 2 s limit (valid since fixup-19,
-  unknown before). Bound LJT's search there by work, as the classical
-  default bounds the embedding's evidence (`EVIDENCE_WORK`), measured on
-  ILTP so that no derivation LJT gives today within 2 s is lost.
+- **`prove --format json` writes nothing for an unknown stopped in the
+  check** (found by fixup-20, older than it): where the time limit ends
+  LJT's or the SAT solver's read-back or check after the search
+  decided, `cli/src/ordinary.rs` prints "unknown (… by the SAT solver):
+  the search ended, but the time limit … before its answer was checked"
+  on standard error and nothing on standard output, so a JSON reader
+  gets no outcome (ILTP's SYJ202+1.007 and .008 at 2 s, exit 3). The
+  outcome `{"verdict": "unknown", "reason": {"kind": "stopped"}, …}`
+  belongs on standard output, as for every other unknown.
 
 ## The web front end: a two-sided presentation of classical derivations
 
