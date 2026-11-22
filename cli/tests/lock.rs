@@ -57,11 +57,11 @@ const PROOF: &str = r#"{"version":1,"linlog":"0.1.0","verdict":"proved","checked
 
 /// An outcome of `∃x. p(x), q ⊢ ∀x. p(x)` found not valid by grounding, as
 /// `prove --logic classical --format json` writes it.
-const STRUCTURE: &str = r#"{"version":25,"deduxit":"0.7.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["p",[[0]]],["q",[[]]]]}}}"#;
+const STRUCTURE: &str = r#"{"version":25,"deduxit":"0.8.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["p",[[0]]],["q",[[]]]]}}}"#;
 
 /// The same outcome with `p` holding of nothing, which makes the first
 /// hypothesis false: no refutation.
-const WRONG_STRUCTURE: &str = r#"{"version":25,"deduxit":"0.7.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["q",[[]]]]}}}"#;
+const WRONG_STRUCTURE: &str = r#"{"version":25,"deduxit":"0.8.0","verdict":"not_valid","logic":"classical","search":{"method":"grounding","statistics":{"domain":2,"atoms":3,"nodes":7,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":7,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"∃":0},{"V":1},{"∀":0}],"atoms":[{"P":[0,[0]]},{"P":[1,[]]}],"symbols":[["p",1],["q",0]],"fo":[{"B":0}],"binders":["x","x"],"left":[1,2],"right":[3]},"structure":{"size":2,"constants":[],"predicates":[["q",[[]]]]}}}"#;
 
 /// The same proof with its axioms crossed: no proof of the sequent.
 const WRONG_PROOF: &str = r#"{"version":1,"sequent":{"terms":[{"D":0},{"D":1},{"⅋":[0,1]},{"V":1},{"V":0},{"⊗":[3,4]}],"roots":[2,5],"atoms":["A","B"]},"nodes":[{"ax":[1,4]},{"ax":[2,5]},{"⊗":[3,0,1]},{"⅋":[0,2]}]}"#;
@@ -90,7 +90,7 @@ const MODEL: &str = r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}"#;
 
 /// A modal outcome at level 20: `□p ⊢ □□p` not valid in K, with its
 /// countermodel.
-const MODAL_OUTCOME: &str = r#"{"version":20,"deduxit":"0.7.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}"#;
+const MODAL_OUTCOME: &str = r#"{"version":20,"deduxit":"0.8.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}"#;
 
 /// A Kripke model of three worlds in a row, `p` at the middle one: it
 /// refutes `□p ⊢ □□p` at world 0, and no world sees itself.

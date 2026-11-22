@@ -40,7 +40,7 @@ The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 
 ```toml
 [dependencies]
-deduxit = "0.7"
+deduxit = "0.8"
 ```
 
 The manual's

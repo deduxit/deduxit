@@ -5,7 +5,7 @@ JSON forms:
 
 ```toml
 [dependencies]
-deduxit = "0.7"
+deduxit = "0.8"
 serde_json = "1"
 ```
 

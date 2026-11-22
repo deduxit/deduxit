@@ -231,7 +231,7 @@ and its `judgement` as printed, or `{"error": …}` where there is none:
 
 ```console
 $ deduxit prove -i --format json --lambda 'a |- a'
-{"checked":true,"deduxit":"0.7.0","engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"name":"x","type":0}],"version":23},"mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
+{"checked":true,"deduxit":"0.8.0","engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"name":"x","type":0}],"version":23},"mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
 ```
 
 A term repeats a left rule's term wherever its hypothesis goes, in both

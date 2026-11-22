@@ -795,7 +795,7 @@ impl Display for Bound {
 /// # JSON
 ///
 /// With the feature `serialize` it is the document `{"version": 22,
-/// "deduxit": "0.7.0", "method": "dpll", "verdict": "unsatisfiable",
+/// "deduxit": "0.8.0", "method": "dpll", "verdict": "unsatisfiable",
 /// "atoms": […], "clauses": […], "resolvents": […], "true_atoms": […],
 /// "bound": {…}, "trace": […], "statistics": {…}}` ([`wire`](crate::wire)),
 /// written only: `verdict` is `unsatisfiable` with the refutation's
