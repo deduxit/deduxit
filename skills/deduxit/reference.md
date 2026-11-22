@@ -1127,8 +1127,9 @@ embedding's, with its derivation of LK, refutation and certificate;
 otherwise the solver's answer stands. Where another bound
 than the time limit stops it (a derivation past `--derivation-limit`,
 the memory), the default hands the sequent to the embedding, and the
-verdict line names the translation. A method named reports that bound
-instead (exit status 2 for a derivation it could not check).
+verdict line names the translation, then adds `; the SAT solver gave no
+verdict: REASON, and the embedding took over`. A method named reports
+that bound instead (exit status 2 for a derivation it could not check).
 
 `ljt` is Dyckhoff's calculus LJT:
 

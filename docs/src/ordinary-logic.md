@@ -145,7 +145,15 @@ does not raise these bounds, and a smaller one lowers them;
 
 Where the SAT solver stops at a bound other than the time limit, such
 as a derivation past `--derivation-limit`, the default hands the
-sequent to the embedding, and the verdict line names the translation.
+sequent to the embedding. The verdict line names the translation, then
+says which bound stopped the SAT solver, so you know which one to
+raise:
+
+```console
+$ deduxit prove --logic intuitionistic --derivation-limit 1KiB -q 'a -> b, b -> c |- a -> c'
+valid (intuitionistic logic by the cbn translation into ILL, two-sided engine); the SAT solver gave no verdict: its derivation passes the --derivation-limit of 1.0 KiB, and the embedding took over
+```
+
 `--method sat` reports the bound instead. `--translation` and `--linear`
 name the embedding, so either of them alone chooses it. Through the
 embedding, a `not valid` says that the translated sequent is

@@ -429,13 +429,21 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         // The verdict first, then the derivation as it is made.
         let ended = Ended { stop, elapsed };
         let line = show.verdict.then(|| match &image {
-            Some(image) => crate::ordinary::verdict_line(
-                &outcome,
-                image.logic(),
-                image.translation(),
-                crate::ordinary::incomplete(&outcome, image),
-                &ended,
-            ),
+            Some(image) => {
+                let line = crate::ordinary::verdict_line(
+                    &outcome,
+                    image.logic(),
+                    image.translation(),
+                    crate::ordinary::incomplete(&outcome, image),
+                    &ended,
+                );
+                // The logic's default gave way: say why, so that the user
+                // sees what a bound buys.
+                match gave_way.as_deref() {
+                    Some(why) => format!("{line}; {why}, and the embedding took over"),
+                    None => line,
+                }
+            }
             None => verdict_line(&outcome, options.fragment.is_some(), &ended),
         });
         let prefix = show.open(&mut out, line.as_deref())?;

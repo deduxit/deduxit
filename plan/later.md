@@ -1895,10 +1895,6 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
   checked (54b's counterexamples panel). Reading an ordinary outcome or
   derivation and running `Derivation::check` is a new feature of the
   command, the author's to ask for.
-- **The verdict line does not say that LJT gave way**: where the
-  default hands a sequent to the embedding, the line names the
-  translation as `--method embedding` would. A note on why (the
-  derivation limit) would tell the user what `--derivation-limit` buys.
 
 Left by step 54s (`plan/reports/54s-sat-engines.md`):
 

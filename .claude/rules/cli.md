@@ -249,7 +249,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `Native::GivesWay` where `ordinary::gives_way` says so, writing
   nothing, and the image path runs with the time left
   (`ordinary::translated`, the sequent read once, since standard input
-  cannot be read twice). **The classical default** (`keeps_evidence`):
+  cannot be read twice). `prove`'s verdict line then ends `; METHOD gave
+  no verdict: REASON, and the embedding took over` (`gave_way`: the
+  reason, "its derivation passes the --derivation-limit of L" without
+  the refusal's estimate, which is where the read-back stopped and not
+  the whole derivation's (raising the limit past it was refused again,
+  the review's finding), or the
+  first-order share; nothing for `Incomplete`, which grounding answers
+  outside its classes on every such sequent), so the user sees what a
+  bound buys; the batch's lines and JSON say nothing of it.
+  **The classical default** (`keeps_evidence`):
   `by_native` returns `Native::Solved` with the solver's decided
   outcome, unwritten; `prove` (and the batch's `decide`) then run the
   image path as before, translating and searching within `bounded`

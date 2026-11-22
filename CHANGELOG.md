@@ -140,6 +140,9 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- Where the default of intuitionistic or minimal logic stops at a bound
+  and the embedding decides, `prove`'s verdict line says which bound
+  stopped it, a derivation past `--derivation-limit` among them.
 - The modal search in K4, KD4 and S4 makes its worlds in depth and keeps
   what it learns about a world across branches: a world made again under
   the same conditions reuses the earlier world's part of the model, or

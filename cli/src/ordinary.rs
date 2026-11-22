@@ -15,7 +15,7 @@ use crate::show::{Show, Shown, every_steps, lambda_json, lambda_line, not_built}
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, anyhow, bail};
 use deduxit::linear::proofs::{Sides, Structural};
-use deduxit::linear::search::{Outcome, Verdict};
+use deduxit::linear::search::{Outcome, Reason, Verdict};
 use deduxit::ordinary::{self, Derivation, Image, Logic, Method, Translation, ljt, sat};
 use deduxit::{
     Error, ErrorKind, Limits, Refusal, Settings,
@@ -336,9 +336,19 @@ pub(crate) fn evidence(
 fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveWay {
     let why = match decided {
         Ok(outcome) => match &outcome.verdict {
+            // A method that passes a sequent outside its reach on (grounding
+            // outside its classes) says nothing a user can act on.
+            ordinary::Verdict::Unknown(Reason::Incomplete) => return None,
             ordinary::Verdict::Unknown(reason) => reason.to_string(),
             _ => return None,
         },
+        // The derivation of a proof it found passed the bound: say which
+        // flag buys it. The refusal's estimate is where the read-back
+        // stopped, not the whole derivation's, so no number is given.
+        Err(Error::Refused(Refusal::Output { limit_bytes, .. })) => format!(
+            "its derivation passes the --derivation-limit of {}",
+            crate::show::bytes_text(*limit_bytes)
+        ),
         Err(error) => error.to_string(),
     };
     Some(format!("{} gave no verdict: {why}", by(method)))
