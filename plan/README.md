@@ -8228,3 +8228,14 @@ move (D26).
   worker: **78c**, the comparison with leanCoP, nanoCoP and iLeanCoP on the equality problems deciding
   any native rule (paramodulation in resolution the candidate), 78a's follow-ups, D19 for `=` after
   fixup-23, the docs; step 78 complete with it.
+- 2026-11-22, about 21:35: **fixup-23 reviewed.** (Opus, high; the reviewer on Fable.) The library's
+  default connection prover at first order is bounded by work (2²⁶ steps, 1.57 times the most any
+  ILTP theorem takes with the equality axioms), so the embedding and the model search are reached
+  where the library runs without a clock; on one thread `prove` and every batch entry ask the model
+  search first (5 % of the time) for a first-order intuitionistic or minimal sequent, the race kept
+  with more threads. ILTP's 2 670 first-order problems at 2 s: no verdict lost, 1 006 proved against
+  1 003. The reviewer's findings (Ctrl-C during the grace, the notice, a test that passed without the
+  change) fixed. **Left open:** the brief's irreflexive transitive serial relation still takes 102 s to
+  give way, since a step there costs ten times more; a bound counting the unifier's work is a change of
+  the prover's measure. Full check passed on `luxmwxss`. The push (`rtsztskz`) waits for the keys,
+  which locked; 78c rebases onto it meanwhile.

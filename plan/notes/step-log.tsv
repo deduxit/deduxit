@@ -126,7 +126,7 @@ fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25	20
 78b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_fe155f72	2026-11-22 16:00	2026-11-22 19:00	first-order resolution
 76	step	-	-	-	-	-	2026-11-22 17:45	complete: first-order countermodels, classical and Kripke, certified in Rocq
 77c	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-22 17:45	2026-11-22 19:25	Glivenko's failure shown
-fixup-23	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 19:05		first-order defaults' open items
+fixup-23	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 19:05	2026-11-22 21:30	first-order defaults' open items
 77	step	-	-	-	-	-	2026-11-22 19:30	complete: first-order transformations, Herbrand, translations, interpolants, Glivenko's failure
 fixup-24	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-22 19:30		shift spelling, Herbrand bounds
-78c	small	opus-5-5	high	reviewer (fable), panel if paramodulation lands	local_f223ef15	2026-11-22 19:55		equality measured against the provers, follow-ups, step 78 complete
+78c	small	opus-5-5	high	reviewer (fable), panel if paramodulation lands	local_f223ef15	2026-11-22 19:50		equality measured against the provers, follow-ups, step 78 complete
