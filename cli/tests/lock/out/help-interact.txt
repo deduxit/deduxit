@@ -308,6 +308,13 @@ Limits:
           
           [default: none]
 
+      --model-size <N>
+          The most elements of a finite structure the model search tries, or `none` for no bound (search.model_size)
+          
+          The model search (--method models) tries structures of 1, 2, … elements in turn. By default it goes on until it finds one or the time limit passes; with a bound, a sequent no structure within it refutes is unknown (exit status 3).
+          
+          [default: none]
+
       --memory-limit <SIZE>
           The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
           

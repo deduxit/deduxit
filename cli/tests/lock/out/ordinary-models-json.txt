@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method models --format json 'p(a) |- p(f(a))'
+--- status 1
+--- stdout
+{"version":26,"deduxit":"…","verdict":"not_valid","logic":"classical","search":{"method":"models","statistics":{"size":2,"atoms":8,"nodes":34,"sat":{"calls":1,"conflicts":0,"lemmas":0,"worlds":0,"facts":0,"clauses":40,"proof_steps":0,"ljt":null}}},"structure":{"sequent":{"formulas":[{"V":0},{"V":1}],"atoms":[{"P":[1,[0]]},{"P":[1,[1]]}],"symbols":[["a",0],["p",1],["f",1]],"fo":[{"F":[0,[]]},{"F":[2,[0]]}],"left":[0],"right":[1]},"structure":{"size":2,"constants":[["a",0]],"functions":[["f",[1,1]]],"predicates":[["p",[[0]]]]}}}
+--- stderr

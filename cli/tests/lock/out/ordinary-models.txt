@@ -1,0 +1,15 @@
+$ deduxit prove --logic classical --method models --stats 'p(a) |- p(f(a))'
+--- status 1
+--- stdout
+not valid (classical logic by the model search): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+a = 0
+f: always 1
+p: {0}
+largest structure tried, elements: 2
+atoms: 8
+formulas: 34
+solver calls: 1
+conflicts: 0
+time: …
+--- stderr

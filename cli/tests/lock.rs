@@ -854,6 +854,56 @@ const CASES: &[Case] = &[
             "|- exists x. (p(x) -> forall y. p(y))",
         ],
     ),
+    // The model search: a structure with a function's table and its
+    // JSON, the default of a classical sequent the prover cannot refute,
+    // and the unknown at its bound.
+    call(
+        "ordinary-models",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "models",
+            "--stats",
+            "p(a) |- p(f(a))",
+        ],
+    ),
+    call(
+        "ordinary-models-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "models",
+            "--format",
+            "json",
+            "p(a) |- p(f(a))",
+        ],
+    ),
+    call(
+        "ordinary-models-default",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "forall x. (p(x) -> p(f(x))), p(a) |- p(b)",
+        ],
+    ),
+    call(
+        "ordinary-models-bound",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--method",
+            "models",
+            "--model-size",
+            "2",
+            "forall x. p(x) |- p(f(a))",
+        ],
+    ),
     // Modal logic.
     call("modal-valid", &["prove", "--system", "S4", "[]p -> [][]p"]),
     call(

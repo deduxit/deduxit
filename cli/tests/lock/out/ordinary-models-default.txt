@@ -1,0 +1,10 @@
+$ deduxit prove --logic classical 'forall x. (p(x) -> p(f(x))), p(a) |- p(b)'
+--- status 1
+--- stdout
+not valid (classical logic by the model search): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+a = 0
+b = 1
+f: 0 ↦ 0, 1 ↦ 1
+p: {0}
+--- stderr
