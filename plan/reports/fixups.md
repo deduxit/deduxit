@@ -757,3 +757,115 @@ Its two findings, answered in `qsvuwtsx`:
   in the session's last message.
 - The budget check alone (`nix build .#checks.x86_64-linux.budget`)
   after `ukmypmlo`: 2 502 108 bytes.
+
+## Session fixup-15: shared terms walked once
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(75a's and 75c's conversation), cores 10 to 12, from 75c's report
+("Left"): R2's input, `p0(a), ∀x. (p_k(x) → p_{k+1}(f(x, x))) ⊢ ∃y.
+p_n(y)`, exponential in the connection provers' shared term code.
+Nothing was pushed.
+
+### What landed
+
+- `pwnxvtom`: every walk of a shared term visits each part once.
+  - `connection/terms.rs`: `occurs`, `unify`, `equal` and `ground` keep
+    a set of the parts (or pairs) visited once a walk passes 64 visits
+    (`Seen`), so a small term costs no set.
+  - The classical read-back's `available` and `skolem_eigens` do the
+    same; its `convert` already had a memo, and the intuitionistic
+    read-back's walks were made graph walks in 75c.
+  - Both read-backs build each instance once (`instances`). An atom is
+    keyed by its text, so every build writes its arguments out in full,
+    and 75c's binder children had lost the intuitionistic memo (R2 at
+    n = 16: 2.6 s at the base, 0.04 s now).
+  - `connection/sizes.rs`, `TermBudget`: an instance is held to
+    `limits.terms` before it is built, by the measure a document's
+    reader takes (the atoms' arguments unfolded, summed). Past it the
+    read-back is `Refusal::Terms`, before an atom of gigabytes is
+    written.
+- `kyvlvztt`: the fresh review's two faults, fixed (below).
+- No changelog line: the connection provers are new since 0.7.0.
+
+### Timings
+
+R2 at `--timeout 2s`, `--method connection`, one thread, release
+builds of the base (`pupmmwkr`) and of `kyvlvztt`, cores 10 to 12,
+under an 8 GiB scope; wall time and peak memory:
+
+| n | classical before | classical after | intuitionistic before | intuitionistic after |
+|--:|---|---|---|---|
+| 16 | derivation bound, 0.03 s | derivation bound, 0.04 s | time limit, 2.04 s | unknown, 0.04 s |
+| 20 | derivation bound, 0.14 s | derivation bound, 0.09 s | time limit, 3.02 s | unknown, 0.13 s |
+| 22 | derivation bound, 0.55 s | derivation bound, 0.35 s | time limit, 3.85 s | unknown, 0.39 s |
+| 24 | derivation bound, 2.01 s, 0.5 GB | terms bound, 0.53 s | time limit, 14.9 s | terms bound, 0.51 s |
+| 26 | unknown, 7.66 s, 2.0 GB | terms bound, 0.54 s | time limit, 55.9 s, 2.0 GB | terms bound, 0.00 s |
+| 30 | killed at 8 GiB, 50 s | terms bound, 0.56 s | killed at 8 GiB, 21 s | terms bound, 0.00 s |
+
+- "Derivation bound" and "terms bound" are the refusals of the default
+  `--derivation-limit` (64 MiB) and `--term-limit` (50 million): from
+  n = 16 the derivation's atoms, written out, pass 64 MiB, and from
+  n = 24 they unfold past 50 million terms, which any reader of the
+  derivation would refuse. So no default bound lets R2 at n = 26 be
+  proved: the answer within the time limit is the refusal, given before
+  the long atoms are built. With both bounds lifted the classical
+  prover proves n = 23 in 0.76 s; at n = 26 it stops at the time limit
+  inside one instance's build (5.5 s at a 5 s limit), which no poll
+  reaches.
+- The intuitionistic search finds no proof of R2 at any n (unknown, as
+  at the base): its read-back or prefixes reject what the classical
+  search finds; not looked into further.
+- The reviewer measured n = 100 and 400 at 0.5 to 0.6 s classically and
+  at most 0.16 s intuitionistically, n = 1000 within 1.6 s.
+
+### Verdicts
+
+ILTP's first-order problems at 2 s, `--engines connection`, three
+shards on cores 10 to 12: classical with the base build and with
+`kyvlvztt`, intuitionistic with `kyvlvztt` beside 75c's last run
+(`iltpfo75c5`, the base's code). Both logics decide the same problems
+(600 classical, 1 of them not valid; 155 intuitionistic), with no
+verdict against a status, no error but the TPTP reader's four (GEJ056,
+GEJ057), and no row past 2.4 s. A run at `pwnxvtom` had two
+intuitionistic rows at 4.4 s (GEJ054+2, GEJ055+1), which both builds
+end at 2.0 s run alone and the run at `kyvlvztt` did not repeat: load.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`) at `pwnxvtom`. Point 3 (R2
+answered within 2 s at n = 26 and beyond) held: n = 26 to 400 refused
+by the terms bound in 0.5 to 0.6 s classically and at most 0.16 s
+intuitionistically, n = 1000 and 3000 within the limit. Three faults,
+all fixed in `kyvlvztt`:
+- **`unify` and `equal` skipped a pair never visited.** The pair's key
+  was where each side's arguments start, and a constant's empty list
+  starts where the next pattern's arguments do, so `(a, a)` stood for
+  `(f(x), f(x))`. Past the first 64 visits unification then skipped
+  `f`'s arguments: a valid sequent (`r(a), ∀x. t(g(f(x), a, k⁷⁰(e)), x),
+  …`) read back an open branch (`Error::ReadBack`), and its not-valid
+  form went from 0.07 ms to 891 ms intuitionistically. The key is now
+  the symbol, the start, the length and the copy; the test
+  `a_shared_part_is_named_whole_and_the_terms_bound_is_exact` fails on
+  the old key.
+- **The terms bound refused instances that fit.** `check` counted every
+  atom of the body with a bound variable, also those the arena held:
+  `p(f⁴(c)), ∀x. (p(x) → q) ⊢ q` was refused at a limit of 6 to 9 (its
+  measure is 6), and R2 at n = 23 at 50.3 million terms where its
+  measure is 33.6. Now each instance atom is found by the terms' ids
+  and the atoms' symbols and arguments (never by its text), and counts
+  only where the arena lacks it; both answer valid. The reviewer's
+  question (an atom shared at two binder depths under a frame of two
+  terms) is met by walking the body by node and depth.
+- **The test's doc comment** claimed a proof in both logics; it now
+  says what the test checks.
+
+### Checks
+
+- `cargo test --workspace` and `cargo clippy --workspace --all-targets
+  -- --deny warnings` at both commits.
+- The gate passed on the chain rebased onto `main@origin` (`mqxtzrzn`,
+  75d landed): `ordinary-pigeons` at +1.88 % of its ceiling, within the
+  tolerance (+1.83 % before the rebase; the journey is propositional,
+  which this change does not reach).
+- `nix flake check` under the machine lock at the report's commit
+  (02:15 to 02:33): every check passed. Only this line changed after.
