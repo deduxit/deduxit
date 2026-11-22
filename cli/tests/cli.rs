@@ -878,6 +878,26 @@ fn tptp_comments_need_not_be_utf8() {
     );
 }
 
+/// A search ended by the memory bound names the bound given, whatever
+/// share of it the engine's own account had: the Horn engine's account in
+/// a race leaves out the input, and its message once said "0 B".
+#[test]
+fn the_memory_limit_named_is_the_one_given() {
+    let clauses: Vec<String> = (0..20_000)
+        .map(|i| format!("!(a{i} -o a{})", i + 1))
+        .collect();
+    let sequent = format!("{}, a0 |- a20000", clauses.join(", "));
+    let (status, out, _) = deduxit(
+        &["prove", "-i", "--memory-limit", "1MiB", "--quiet"],
+        &sequent,
+    );
+    assert_eq!(status, 3, "{out}");
+    assert!(
+        out.contains("the memory limit of 1 MiB was reached"),
+        "{out}"
+    );
+}
+
 /// A first-order session of LJ takes a witness after `∃R`'s name, names
 /// a fresh eigenvariable for `∃L`, and refuses a witness that names
 /// neither a symbol nor an eigenvariable made.

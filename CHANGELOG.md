@@ -158,6 +158,8 @@ second number (0.1.x to 0.2.0), anything else the third.
 - `ordinary::Derivation::term` answers `Error::ReadBack` for a derivation
   its read-back cannot read, where it panicked; the crate makes no such
   derivation, and the checker refuses one read from JSON.
+- An unknown verdict at the memory bound names the bound given: the Horn
+  engine's said "the memory limit of 0 B" under `--memory-limit 1MiB`.
 - `prove --logic` reads a TPTP problem whose comments hold bytes that
   are not UTF-8: 107 of ILTP's first-order problems write an author's
   name in Latin-1, and the command refused them as not UTF-8 text. Such

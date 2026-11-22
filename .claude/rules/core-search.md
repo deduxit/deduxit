@@ -842,7 +842,10 @@ not by what is in use. `prove_goal` makes one per search.
   what is left, the branch's own buffers and proofs as allocated, is
   still over, or when an empty memo cannot have its first chunk. The
   value in the reason is the option's, whatever share a search had
-  (`Reason::as_set`). `relieve` does not squeeze the arena to fit: the
+  (`Reason::as_set`, which `conclude` applies to every engine's unknown:
+  the Horn engine named its race part's account, the bound less the
+  input, and said "the memory limit of 0 B" under `--memory-limit 1MiB`;
+  `the_memory_limit_named_is_the_one_given` in `cli/tests/cli.rs`). `relieve` does not squeeze the arena to fit: the
   next `keep` would double it again, and a search at its bound would
   copy its arena at every node (seen: 170 stable sequents a second
   where there were 400 000).

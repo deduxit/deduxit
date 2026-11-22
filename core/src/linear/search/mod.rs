@@ -1130,7 +1130,11 @@ fn conclude(
                 &goal,
                 members,
             ),
-            None => Verdict::Unknown(reason),
+            // The option's bound, whatever share of it the engine's
+            // account had (a race's part leaves out the input, and a
+            // share of nothing is zero): every engine, the Horn engine's
+            // too, which named its account's.
+            None => Verdict::Unknown(reason.as_set(options, limits)),
         },
     };
     let Verdict::Proved(proof) = &verdict else {

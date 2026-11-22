@@ -1899,9 +1899,6 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
   default hands a sequent to the embedding, the line names the
   translation as `--method embedding` would. A note on why (the
   derivation limit) would tell the user what `--derivation-limit` buys.
-- **The embedding's memory message under `--memory-limit 1MiB`** said
-  "limit of 0 B" (seen by 54b's integers panel on a large ordinary
-  sequent, through the embedding; not traced, and not LJT's).
 
 Left by step 54s (`plan/reports/54s-sat-engines.md`):
 
