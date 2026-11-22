@@ -8030,3 +8030,16 @@ move (D26).
   checked verdict for SYJ202; the second (shared subderivations, a checker change) stays for a user
   who asks. That and `comparison.sh`'s ILTP pass are **fixup-19**, in the same worker. 76a still
   held by the author's prompt from 01:59.
+- 2026-11-22, about 07:00: **fixup-19 reviewed and pushed; fixup-20 started.** fixup-19 (Opus,
+  high; the reviewer on Fable): every read-back of LK and LJ charges its inferences to the memory
+  bound, and `--derivation-limit` bounds only the drawing (left out with its verdict and exit status
+  kept; JSON at any size); the intuitionistic default prefers LJT's derivation only where its
+  drawing fits; the protocol's draw, export and certificate refuse a drawing past the bound.
+  SYJ202 in intuitionistic logic at the default bounds: sizes 4 to 6 valid with a checked derivation
+  in `-q` and JSON (unknown before). ILTP's 274 propositional problems in three logics: six gained,
+  two edge rows flipping either way at the limit, the decided rows' time 18.8 s → 8.8 s.
+  `comparison.sh` runs ILTP as its third pass (intuit and intuitR refused first-order problems).
+  The reviewer's regression (LJT's unbounded derivation displacing the smaller SAT one on 19
+  drawings) fixed. Full check passed on `main`'s head; pushed (`tutwkxpq`). In the same worker:
+  **fixup-20**, a bound for the default's LJT preference search (SYJ202+1.005 spent the 2 s limit
+  where the solver needs 28 ms). 76a still held by the author's prompt from 01:59.
