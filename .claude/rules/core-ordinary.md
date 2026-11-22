@@ -542,9 +542,13 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   `structure_of` divides the domain by it (`identified`: union-find over
   the true `=` atoms, classes numbered by their least element, tuples
   mapped and deduplicated); the check of the quotient is the verdict's
-  check. Grounding answers `Unknown(Incomplete)` with `=` where the
-  structure's check or the solver's model is refused at a bound (without
-  `=` it keeps "not valid" there), and `within` turns any other
+  check. Grounding answers unknown with `=` where the structure's check
+  is refused at a bound, with that bound's reason (`decide::ended`; ILTP's
+  NLP005, 006, 008, 012 and 013 meet the check's default of 2²⁶
+  evaluations, "the work limit … was reached", where `Incomplete` made
+  the command say "valid in classical logic"), and `Unknown(Incomplete)`
+  where the solver's model is too large to read (without `=` it keeps
+  "not valid" in both), and `within` turns any other
   `NotValid` without a structure of a sequent with `=` into
   `Unknown(Incomplete)`, keyed on `has_equality`, not on whether it
   augmented: the command augments as it reads, so `within` gets the
