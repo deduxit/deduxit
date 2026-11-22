@@ -8123,3 +8123,16 @@ move (D26).
   step 77's Glivenko item becomes a lemma of rocq-deduxit, proved by 76c on its first-order Kripke
   semantics, that the infinite model refutes the formula; 76b pins that its bounded search answers
   unknown there. The prompts of 76 and 77 say so.
+- 2026-11-22, about 12:45: **77a reviewed and pushed; 77b started.** 77a (Opus, high; the reviewer
+  on Fable at medium) wrote the design (`plan/notes/first-order-transformations-design.md`: one
+  engine, `normal.rs`'s forms under binders by de Bruijn indices; van Dalen's prenex lemmas with
+  their LJ status; a derivation per equivalence step; grounding's Skolem rule; `sk1`, … names) and
+  the code: prenex, miniscope, Skolem, Herbrand and clausal forms with each law's step checked
+  (`bruijn.rs`, seventeen rules), `seq normalize --to …`, five protocol operations
+  (`EQUIVALID` beside the others), the manual's "At first order". The reviewer's finding (a result
+  set by hand was not held to the steps) fixed by replaying them; about 450 generated sequents
+  through six forms: no failed claim. **Accepted departures:** a law's claim with free variables as
+  fresh constants (valid exactly when the closure is), LJ's attempt bounded by `LAW_WORK` with LK
+  after it. Full check passed on `main`; pushed (`wssxzotu`). In its worker: **77b**, Herbrand's
+  theorem with a deskolemized LK certificate, the negative translations at first order, Craig
+  interpolants at first order, the docs.
