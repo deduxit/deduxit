@@ -10,6 +10,24 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-23
+
+First-order ordinary logic. deduxit reads first-order sequents of
+classical, intuitionistic and minimal logic, with equality, in its own
+syntax and in TPTP's `fof` and `cnf`, and proves them step by step in
+LK, LJ and LM, with the quantifier rules and witnesses an axiom can
+fill. It decides them by a connection prover, by grounding for the
+Bernays–Schönfinkel and monadic classes, and through the embedding into
+first-order linear logic, each "valid" with a checked derivation (or,
+from grounding, a checked clausal proof), and
+refutes them by finite structures and Kripke models with growing
+domains, each checked, drawn and certified in Rocq. It rewrites a
+sequent into prenex, miniscope, Skolem, Herbrand and clausal form, each
+step checked, proves it by Herbrand's theorem, resolves its clauses with
+unification and paramodulation, translates it into intuitionistic logic
+and finds its interpolants; `prove --szs` speaks the TPTP World's
+status line. The web page takes first-order logic after this release.
+
 ### What breaks, and what to do instead
 
 - **`ordinary::Node` has two variants more**, `Forall` and `Exists`, for
@@ -19,12 +37,22 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`ordinary::Rule` has four variants more**, `ForallLeft`,
   `ForallRight`, `ExistsLeft` and `ExistsRight`, after `Open`.
 
-- **`ordinary::Outcome` has the field `structure`**, a finite structure
-  that refutes a first-order sequent. Struct expressions of `Outcome`
-  were refused already (`#[non_exhaustive]`); a pattern that names every
-  field needs `..`.
+Nothing else that 0.7.0 offers was removed or changed: its other calls,
+types, command lines, error codes and JSON forms are as they were. The
+term types `Symbol`, `FoTerm`, `FoTermId`, `Args`, `Eigen` and
+`SymbolFault` are defined in one place for every suite now, and keep
+every path they had (`linear::sequents::fo::FoTerm` among them). Every
+other new variant or field belongs to a `#[non_exhaustive]` type
+(`ordinary::Outcome`'s `structure` and `kripke` among them), so a
+program's patterns go on compiling. What a program may notice is under
+"Changed".
 
 ### Added
+
+- **First-order formulas in ordinary logic**: predicates applied to
+  terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
+  the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
+  equal up to the names of their bound variables are one formula.
 
 - **Equality in ordinary logic.** `s = t` and `s != t` (natively also
   `s ≠ t`) are read in the ordinary syntax and in TPTP, and printed
@@ -45,74 +73,32 @@ second number (0.1.x to 0.2.0), anything else the third.
   CLAUSE).`, each clause the universal closure of its disjunction, the
   role `negated_conjecture` a hypothesis.
 
-- **`prove --szs`** ends the text output of `--logic` with an SZS status
-  line, `% SZS status STATUS for NAME`, for the tools of the TPTP World.
+- **`include` in the command's TPTP problems**: `include('NAME').` is
+  read from `$TPTP`, else the problem's directory or one above it; a
+  missing file and an include of itself are refused by name.
 
-- **Paramodulation in first-order resolution.** A sequent with `=` is
-  resolved with paramodulation by default (`resolution::Equality`,
-  `Options::equality`, `resolve --equality paramodulation|axioms`): an
-  equation rewrites a subterm of another clause's literal as a step of
-  its own (`first_order::Step::Paramodulation`), which the checker
-  computes again, with reflexivity as a clause
-  (`equality::with_reflexivity`). `axioms` resolves with every equality
-  axiom instead.
-
-- **Linear sequents with `=`**, an ordinary sequent's image, print `s = t`
-  and read back: the linear parser reads `=`, `!=` and `≠` between terms.
+- **TPTP names renamed on reading**: a name this syntax keeps for itself
+  (`par`, `true`) gets `_` after it, and a function symbol named like a
+  predicate `_f`, so that the sequent reads back.
 
 - **`ordinary::tptp_text`** gives a TPTP file's text from its bytes for
   `read_tptp`: a byte that is not UTF-8 in a `%` comment, where some of
   ILTP's problems write an author's name in Latin-1, is read, and one
   anywhere else is `Error::Tptp` naming its line.
-- **Normal forms at first order**: `seq normalize --to prenex`,
-  `miniscope`, `skolem`, `herbrand` and `clausal`, and `--to nnf` at first
-  order, every step shown; the protocol's `ordinary.prenex`,
-  `ordinary.miniscope`, `ordinary.skolem`, `ordinary.herbrand` and
-  `ordinary.clausal`. Each equivalence step's law is checked by its own
-  derivation, of LJ where the law holds in intuitionistic logic
-  (`normal::Rule::intuitionistic`, `normal::Claim::Law`); each Skolem or
-  Herbrand step's symbol is checked new and applied to exactly the
-  variables free in its quantifier (`normal::Step::term`), and the
-  result is checked to imply the input's negation (Skolem, clausal) or
-  to follow from the input (Herbrand, `normal::Promise::Equivalid`).
-- **Resolution at first order**: `deduxit resolve` takes first-order
-  sequents: binary resolution with the most general unifier and
-  factoring on the clausal form, each step with its unifier, the clauses
-  of the negated goals the set of support. Every refutation is checked
-  step by step and read back as a checked derivation of LK where it
-  reaches. The library's `ordinary::resolution::first_order`, the
-  protocol's `ordinary.resolve` at first order, the wire form at level
-  29.
-- **Herbrand's theorem**: `deduxit herbrand SEQUENT` makes the clausal
-  form of a first-order sequent, puts closed terms for its variables up
-  to `--depth`, and has the SAT solver refute the ground instances; the
-  instances it needs are the certificate, and a derivation of LK of the
-  sequent as written, each Skolem term an eigenvariable again, is built
-  from them and checked. The library's `ordinary::herbrand`, the
-  protocol's `ordinary.instances` and the wire form at level 28.
-- **Interpolants at first order**: `interpolate` takes first-order
-  sequents in all three logics. A term of one half alone is bound in the
-  interpolant by `∃` (the first half's) or `∀` (the second's), and the
-  check holds the interpolant's predicates, functions and constants to
-  both halves.
-- **The negative translations at first order**: `seq translate --by
-  kolmogorov`, `godel-gentzen` and `kuroda` take first-order sequents
-  (Kuroda's puts `¬¬` after every `∀`, Gödel and Gentzen's writes
-  `∃x. A` as `¬∀x. ¬A`), and `compare` checks the verdict kept as in
-  propositional logic. Glivenko's translation refuses them with the
-  new error `Error::GlivenkoFirstOrder` (code `glivenko_first_order`),
-  whose message says why: its theorem fails at first order, on
-  `¬¬∀x. (p(x) ∨ ¬p(x))` and the double-negation shift, which no finite
-  Kripke model refutes; rocq-deduxit's `chain_excluded_middle` and
-  `chain_double_negation_shift` prove that an infinite one does.
+
+- **Linear sequents with `=`**, an ordinary sequent's image, print `s = t`
+  and read back: the linear parser reads `=`, `!=` and `≠` between terms.
+
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
   `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
   recording its witness or eigenvariable (`Inference::term`).
+
 - **First-order proofs step by step** in `ordinary::Interactive` and
   `deduxit interact --logic`: `∀R` and `∃L` name a fresh eigenvariable,
   `∀L` and `∃R` take a witness term read by `Interactive::witness`
   (`apply 0 R0 existsR c`); `Step::with_witness`, `Needs::Witness`,
   `StepError::NoWitness` and `StepError::Witness` are new.
+
 - **Open witnesses in the ordinary session**: `∀L` and `∃R` with no
   witness leave it open (`$1`, `$2`, …), an axiom fills it by
   unification, `undo` takes the filling back, and a session document
@@ -124,25 +110,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   step whose instance or filling would make the proof's terms pass
   `limits.terms` is refused, so a session writes no document its reader
   refuses.
+
 - **First-order derivations drawn and read**: LaTeX, Typst and SVG draw
   them, the web bindings' ordinary step takes `"witness"`, and a TPTP
   problem without a conjecture reads as its hypotheses' refutation, a
   `lemma` or a `theorem` as a hypothesis. The flake's package
   `iltp-first-order` fetches ILTP's 2 670 first-order problems, which
   `deduxit-bench run --tptp` reads, includes inlined.
-- **`check --tree never` writes no tree of an ordinary derivation**, as
-  `prove` already did; a deep derivation's check no longer spends its
-  time writing a tree nobody sees.
-- **`include` in the command's TPTP problems**: `include('NAME').` is
-  read from `$TPTP`, else the problem's directory or one above it; a
-  missing file and an include of itself are refused by name.
-- **TPTP names renamed on reading**: a name this syntax keeps for itself
-  (`par`, `true`) gets `_` after it, and a function symbol named like a
-  predicate `_f`, so that the sequent reads back.
-- **First-order formulas in ordinary logic**: predicates applied to
-  terms and the quantifiers, `forall x. p(x) -> q(x), p(a) |- q(a)` in
-  the native syntax and `! [X] : (p(X) => q(X))` in TPTP's. Formulas
-  equal up to the names of their bound variables are one formula.
+
 - **First-order sequents decided through the embedding**:
   `ordinary::decide` and `prove --logic` take the embedding, the default
   method at first order (`Options::method_for`). A valid sequent gets a
@@ -151,13 +126,15 @@ second number (0.1.x to 0.2.0), anything else the third.
   unknown with the new reason `Reason::Incomplete` (exit 3), since the
   translation may lose first-order proofs. `Formulas::is_first_order` is
   public.
+
 - **A connection prover of classical logic** (`ordinary::connection`,
   `Method::Connection`, `prove --logic classical --method connection`):
   Otten's non-clausal connection calculus, nanoCoP's, on the formulas'
   own structure, with regularity, lemmata and a bound on the active path
   that it deepens. It decides classical sequents, first-order ones
   included, and is the default for a first-order classical sequent, the
-  embedding deciding where it gives up at a bound. A valid sequent gets
+  embedding deciding where it gives up at a bound; with no clock, the
+  library's default gives it 2²⁶ of its steps. A valid sequent gets
   a derivation of LK built from the proof's substitution and checked;
   one where no quantifier needs a witness term (every `∀` one to prove,
   every `∃` one to assume, negations and implications taken into
@@ -169,6 +146,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   (`--restricted-backtracking`) keeps each literal's first solution,
   never answering "not valid". `deduxit-bench run --engines connection`
   runs it.
+
 - **The connection prover decides intuitionistic logic** (`prove --logic
   intuitionistic --method connection`): nanoCoP-i's prefixed calculus,
   in which a classical connection proof is an intuitionistic one when its
@@ -178,6 +156,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   even without quantifiers: the search can miss a proof and never shows
   that none exists. The default
   of intuitionistic logic does not change.
+
 - **Grounding** (`ordinary::grounding`, `Method::Grounding`, `prove
   --logic … --method grounding`, behind the feature `sat`): the
   Bernays–Schönfinkel class (no function symbols, no `∀` under an `∃`
@@ -196,9 +175,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   structure again, and the new `Error::Structure` (code
   `invalid_structure`, kind invalid) says what a wrong one gets wrong.
   `deduxit-bench run --engines grounding` runs it.
+
 - **The command shares its time limit at first order**: where the
   default of a first-order sequent is grounding or the connection
   prover, it gets 90% of the time limit and the embedding the rest.
+
 - **A search for finite models** (`ordinary::models`, `Method::Models`,
   `prove --logic … --method models`, behind the feature `sat`): for 1,
   2, … elements in turn, it writes the sequent's falsity in a structure
@@ -219,6 +200,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   ILTP's first-order problems it refutes 210 classically at 2 s, among
   them all of grounding's 77 and nanoCoP's 84. `deduxit-bench run
   --engines models` runs it.
+
 - **Kripke models with growing domains** (`ordinary::KripkeStructure`,
   `KripkeWorld`, `KripkeCountermodel`, `Outcome::kripke`): in
   intuitionistic and minimal logic the model search also tries Kripke
@@ -231,9 +213,18 @@ second number (0.1.x to 0.2.0), anything else the third.
   `--model-worlds N|none`, by default 4 in the library and none in the
   command). The library's default asks it after the embedding, the
   command beside it on a thread of its own, which takes one of the
-  command's threads. In intuitionistic logic a finite model never
+  command's threads; on one thread (`--jobs 1`, `--deterministic`, an
+  entry of a batch) the command asks it first, for 5% of the time limit,
+  and the embedding takes the rest. In intuitionistic logic a finite model never
   refutes `¬¬A` for a classically valid `A`, so Glivenko's failure at
   first order stays unknown.
+
+- **Finite structures interpret function symbols**
+  (`Structure::functions`, `Structure::with_functions`): each function
+  symbol of one argument or more with its table, the values of its
+  argument tuples in lexicographic order, printed after the constants
+  (`f: 0 ↦ 1, 1 ↦ 0`).
+
 - **First-order countermodels drawn and certified**: `svg::structure`
   and `svg::kripke_structure` draw a finite structure or a Kripke model
   with growing domains as the propositional models are drawn, each
@@ -246,24 +237,83 @@ second number (0.1.x to 0.2.0), anything else the third.
   `rocq::DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`. `prove` and `check` write
   them for `--format svg|png|pdf|latex|typst|rocq`, and the protocol's
   `ordinary.draw`, `ordinary.export` (which takes an outcome now) and
-  `ordinary.certificate` give them. The certificates need rocq-deduxit's
-  next release, and state the calculi with cut. A model too large for
+  `ordinary.certificate` give them. The certificates need rocq-deduxit
+  0.8.0, and state the calculi with cut. A model too large for
   Rocq, which counts every number one by one, has no certificate
   (`rocq::Unsupported::LargeModel`, a new variant): a domain of more
   than 4 096 elements (`rocq::MOST_DOMAIN`), a table or a list of more
   than 8 192 entries (`rocq::MOST_ENTRIES`), or numbers that add up to
   more than 1 048 576.
-- **Finite structures interpret function symbols**
-  (`Structure::functions`, `Structure::with_functions`): each function
-  symbol of one argument or more with its table, the values of its
-  argument tuples in lexicographic order, printed after the constants
-  (`f: 0 ↦ 1, 1 ↦ 0`).
+
+- **`prove --szs`** ends the text output of `--logic` with an SZS status
+  line, `% SZS status STATUS for NAME`, for the tools of the TPTP World.
+
 - **Otten's connection provers in the comparison**: the flake fetches
   leanCoP 2.1, nanoCoP 2.0, nanoCoP-i 2.0 and iLeanCoP 1.2 at their
   released archives and runs them on SWI-Prolog (`prover-leancop`,
   `prover-nanocop`, `prover-nanocopi`, `prover-ileancop`);
   `deduxit-bench run --tools leancop,nanocop,nanocopi,ileancop` runs
   them on TPTP problems.
+
+- **Normal forms at first order**: `seq normalize --to prenex`,
+  `miniscope`, `skolem`, `herbrand` and `clausal`, and `--to nnf` at first
+  order, every step shown; the protocol's `ordinary.prenex`,
+  `ordinary.miniscope`, `ordinary.skolem`, `ordinary.herbrand` and
+  `ordinary.clausal`. Each equivalence step's law is checked by its own
+  derivation, of LJ where the law holds in intuitionistic logic
+  (`normal::Rule::intuitionistic`, `normal::Claim::Law`); each Skolem or
+  Herbrand step's symbol is checked new and applied to exactly the
+  variables free in its quantifier (`normal::Step::term`), and the
+  result is checked to imply the input's negation (Skolem, clausal) or
+  to follow from the input (Herbrand, `normal::Promise::Equivalid`).
+
+- **Herbrand's theorem**: `deduxit herbrand SEQUENT` makes the clausal
+  form of a first-order sequent, puts closed terms for its variables up
+  to `--depth`, and has the SAT solver refute the ground instances; the
+  instances it needs are the certificate, and a derivation of LK of the
+  sequent as written, each Skolem term an eigenvariable again, is built
+  from them and checked. The library's `ordinary::herbrand`, the
+  protocol's `ordinary.instances` and the wire form at level 28.
+
+- **Resolution at first order**: `deduxit resolve` takes first-order
+  sequents: binary resolution with the most general unifier and
+  factoring on the clausal form, each step with its unifier, the clauses
+  of the negated goals the set of support. Every refutation is checked
+  step by step and read back as a checked derivation of LK where it
+  reaches. The library's `ordinary::resolution::first_order`, the
+  protocol's `ordinary.resolve` at first order, the wire form at level
+  29.
+
+- **Paramodulation in first-order resolution.** A sequent with `=` is
+  resolved with paramodulation by default (`resolution::Equality`,
+  `Options::equality`, `resolve --equality paramodulation|axioms`): an
+  equation rewrites a subterm of another clause's literal as a step of
+  its own (`first_order::Step::Paramodulation`), which the checker
+  computes again, with reflexivity as a clause
+  (`equality::with_reflexivity`). `axioms` resolves with every equality
+  axiom instead.
+
+- **Interpolants at first order**: `interpolate` takes first-order
+  sequents in all three logics. A term of one half alone is bound in the
+  interpolant by `∃` (the first half's) or `∀` (the second's), and the
+  check holds the interpolant's predicates, functions and constants to
+  both halves.
+
+- **The negative translations at first order**: `seq translate --by
+  kolmogorov`, `godel-gentzen` and `kuroda` take first-order sequents
+  (Kuroda's puts `¬¬` after every `∀`, Gödel and Gentzen's writes
+  `∃x. A` as `¬∀x. ¬A`), and `compare` checks the verdict kept as in
+  propositional logic. Glivenko's translation refuses them with the
+  new error `Error::GlivenkoFirstOrder` (code `glivenko_first_order`),
+  whose message says why: its theorem fails at first order, on
+  `¬¬∀x. (p(x) ∨ ¬p(x))` and the double-negation shift, which no finite
+  Kripke model refutes; rocq-deduxit's `chain_excluded_middle` and
+  `chain_double_negation_shift` prove that an infinite one does.
+
+- **`check --tree never` writes no tree of an ordinary derivation**, as
+  `prove` already did; a deep derivation's check no longer spends its
+  time writing a tree nobody sees.
+
 - **`Error::FirstOrder`** (code `first_order`, kind unsupported): a
   method that decides or transforms propositional sequents (the SAT
   solver, LJT, the truth table, the tableau, the normal
@@ -318,7 +368,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   `deduxit_web_render_bg.wasm` (the crate `deduxit-web-render`), with
   the one call `render`, which left the bindings' module. The page
   loads it on a visitor's first PNG or PDF export, so the module every
-  visitor loads is 2.4 MB at gzip, down from 3.9 MB.
+  visitor loads is 2.8 MB at gzip, with first-order logic in it, where
+  0.7.0's was 3.8 MB.
+- The help of `prove` names the methods `connection`, `grounding` and
+  `models` and the flag `--szs`; that of `prove` and `interact` the
+  connection prover's and the model search's bounds; that of `seq print`
+  and the syntax summary equality; the list of commands names
+  `herbrand`; `workspace operations` lists the first-order operations.
 
 ### Fixed
 
@@ -338,10 +394,6 @@ second number (0.1.x to 0.2.0), anything else the third.
 - The Rocq certificate of an LJ derivation read from JSON that uses
   LK's one-premise `¬L` (`Γ, ¬A ⊢` from `Γ ⊢ A`, which the checker
   takes) was a term Rocq refused. No search makes that form.
-- Grounding and the finite model search stop at the time limit on a
-  nest of thousands of quantifiers: a congruence axiom of 4 000
-  arguments overran a limit of 2 s by 100 s, in the default's test of
-  whether grounding applies, which now ends at a bound of its own.
 
 ### Wire forms
 
@@ -373,6 +425,17 @@ second number (0.1.x to 0.2.0), anything else the third.
   bounds (`{"kind": "kripke_size", "worlds": 4, "size": 6}`); the model
   search's statistics have `worlds` where it tried a Kripke model. The
   search options have the key `model_worlds`.
+- **Level 28**: Herbrand's theorem applied (`herbrand --format json`):
+  the clausal form with its steps, the ground instances, the SAT
+  solver's outcome on them and the derivation built from them. Written
+  only.
+- **Level 29**: first-order resolution (`resolve --format json` on a
+  first-order sequent): the clausal form with its steps, the clauses,
+  and each inference (resolution, factor or paramodulation) with its
+  parents, literals, unifier and clause, and the derivation of LK read
+  back. Written only.
+- `wire::LEVEL` is 29. Every document of levels 1 to 24 reads and is
+  written as before; 0.7.0 refuses levels 25 to 29 by name.
 
 ## [0.7.0] - 2026-11-20
 
@@ -2418,6 +2481,7 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.8.0]: https://github.com/deduxit/deduxit/releases/tag/v0.8.0
 [0.7.0]: https://github.com/deduxit/deduxit/releases/tag/v0.7.0
 [0.6.0]: https://github.com/deduxit/deduxit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/deduxit/deduxit/releases/tag/v0.5.0
