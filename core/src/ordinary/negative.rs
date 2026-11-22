@@ -10,8 +10,8 @@
 //! | translation | what it does | into |
 //! |---|---|---|
 //! | [`Kolmogorov`](Translation::Kolmogorov) | `¬¬` before every subformula | minimal logic |
-//! | [`GodelGentzen`](Translation::GodelGentzen) | `¬¬` before every atom, `A ∨ B` as `¬(¬A ∧ ¬B)` | minimal logic |
-//! | [`Kuroda`](Translation::Kuroda) | `¬¬` before every formula of the sequent | intuitionistic logic |
+//! | [`GodelGentzen`](Translation::GodelGentzen) | `¬¬` before every atom, `A ∨ B` as `¬(¬A ∧ ¬B)`, `∃x. A` as `¬∀x. ¬A` | minimal logic |
+//! | [`Kuroda`](Translation::Kuroda) | `¬¬` before every formula of the sequent and after every `∀` | intuitionistic logic |
 //! | [`Glivenko`](Translation::Glivenko) | `¬¬` before the formula right of `⊢` | intuitionistic logic |
 //!
 //! In propositional logic Kuroda's translation puts `¬¬` before each
@@ -19,6 +19,10 @@
 //! that `Γ ⊢ A` is classically valid exactly when `Γ ⊢ ¬¬A` is
 //! intuitionistically valid. Several formulas right of `⊢` are read as
 //! their disjunction, which is translated.
+//!
+//! The first three translate first-order sequents too. Glivenko's
+//! refuses them: its theorem fails at first order, where
+//! `⊢ ¬¬∀x. (p(x) ∨ ¬p(x))` is not intuitionistically valid.
 //!
 //! [`translate`] returns the translated sequent. [`compare`] decides the
 //! sequent classically and its translation in the target logic, and
@@ -54,14 +58,15 @@ pub enum Translation {
     /// Kolmogorov's: `¬¬` before every subformula. Into minimal logic.
     #[default]
     Kolmogorov,
-    /// Gödel and Gentzen's: `¬¬` before every atom, and `A ∨ B` as
-    /// `¬(¬A ∧ ¬B)`. Into minimal logic.
+    /// Gödel and Gentzen's: `¬¬` before every atom, `A ∨ B` as
+    /// `¬(¬A ∧ ¬B)` and `∃x. A` as `¬∀x. ¬A`. Into minimal logic.
     GodelGentzen,
-    /// Kuroda's: `¬¬` before every formula of the sequent. Into
-    /// intuitionistic logic.
+    /// Kuroda's: `¬¬` before every formula of the sequent and after
+    /// every `∀`. Into intuitionistic logic.
     Kuroda,
     /// Glivenko's theorem: `¬¬` before the formula right of `⊢`, the
-    /// hypotheses as they are. Into intuitionistic logic.
+    /// hypotheses as they are. Into intuitionistic logic, in
+    /// propositional logic only.
     Glivenko,
 }
 
@@ -204,6 +209,10 @@ enum Shape {
     Same,
     /// `A ∨ B` as `¬(¬A ∧ ¬B)` over the translated operands.
     DeMorgan,
+    /// `∃x. A` as `¬∀x. ¬A` over the translated operand.
+    ExistsAsForall,
+    /// `∀x. A` as `∀x. ¬¬A` over the translated operand.
+    ForallDoubled,
 }
 
 /// Returns the row of `node` in the table of `translation`. Quantifiers
@@ -221,12 +230,16 @@ const fn row(translation: Translation, node: Node) -> Row {
     match (translation, node) {
         (Translation::Kolmogorov, _) => DOUBLE,
         (Translation::GodelGentzen, Node::Atom(_)) => DOUBLE,
-        // `translate` refuses a first-order sequent at its door.
-        (Translation::GodelGentzen, Node::Forall(_) | Node::Exists(_)) => {
-            panic!("a negative translation takes propositional sequents only")
-        }
         (Translation::GodelGentzen, Node::Or(..)) => Row {
             shape: Shape::DeMorgan,
+            negations: 0,
+        },
+        (Translation::GodelGentzen, Node::Exists(_)) => Row {
+            shape: Shape::ExistsAsForall,
+            negations: 0,
+        },
+        (Translation::Kuroda, Node::Forall(_)) => Row {
+            shape: Shape::ForallDoubled,
             negations: 0,
         },
         (
@@ -236,9 +249,22 @@ const fn row(translation: Translation, node: Node) -> Row {
             | Node::Not(_)
             | Node::And(..)
             | Node::Implies(..)
-            | Node::Iff(..),
+            | Node::Iff(..)
+            | Node::Forall(_),
         )
-        | (Translation::Kuroda | Translation::Glivenko, _) => KEEP,
+        | (
+            Translation::Kuroda,
+            Node::Atom(_)
+            | Node::True
+            | Node::False
+            | Node::Not(_)
+            | Node::And(..)
+            | Node::Or(..)
+            | Node::Implies(..)
+            | Node::Iff(..)
+            | Node::Exists(_),
+        )
+        | (Translation::Glivenko, _) => KEEP,
     }
 }
 
@@ -265,8 +291,14 @@ const fn sides(translation: Translation) -> (u8, u8) {
 /// translation that unfolds past `limits.occurrences`;
 /// [`Refusal::Index`](crate::Refusal) when the arena is full.
 pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Result<Sequent, Error> {
-    sequent.formulas().propositional("a negative translation")?;
     let translation = options.translation;
+    // Glivenko's theorem fails at first order: `¬¬∀x. (p(x) ∨ ¬p(x))` is
+    // the double negation of a classical theorem that intuitionistic logic
+    // does not prove.
+    let first_order = sequent.formulas().is_first_order();
+    if first_order && translation == Translation::Glivenko {
+        sequent.formulas().propositional("Glivenko's translation")?;
+    }
     let target = options.target();
     if !translation.reaches(target) {
         return Err(Error::NegativeTarget {
@@ -296,7 +328,14 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
             }
         }
     }
-    let mut out = Formulas::default();
+    // A propositional sequent is translated into an arena of its own, its
+    // atoms by name; a first-order one in a copy of its arena, where its
+    // atoms and their terms stand as they are.
+    let mut out = if first_order {
+        source.clone()
+    } else {
+        Formulas::default()
+    };
     // A node the sequent does not reach keeps a translation it never reads.
     let mut image: Vec<NodeId> = vec![NodeId(0); source.len()];
     for (k, &node) in source.nodes.iter().enumerate() {
@@ -306,6 +345,7 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
         // An operand is reached when its formula is, and precedes it.
         let of = |id: NodeId| image[id.index()];
         let Row { shape, negations } = row(translation, node);
+        let here = NodeId(k as u32);
         let mut id = match (shape, node) {
             (Shape::DeMorgan, Node::Or(a, b)) => {
                 let na = out.add(Node::Not(of(a)))?;
@@ -313,6 +353,16 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
                 let both = out.add(Node::And(na, nb))?;
                 out.add(Node::Not(both))?
             }
+            (Shape::ExistsAsForall, Node::Exists(a)) => {
+                let na = out.add(Node::Not(of(a)))?;
+                let all = out.add_like(Node::Forall(na), here)?;
+                out.add(Node::Not(all))?
+            }
+            (Shape::ForallDoubled, Node::Forall(a)) => {
+                let nna = negated(&mut out, of(a), 2)?;
+                out.add_like(Node::Forall(nna), here)?
+            }
+            (_, Node::Atom(_)) if first_order => here,
             (_, Node::Atom(a)) => out.atom(source.atom_name(a))?,
             (_, Node::True) => out.add(Node::True)?,
             (_, Node::False) => out.add(Node::False)?,
@@ -321,7 +371,8 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
             (_, Node::Or(a, b)) => out.add(Node::Or(of(a), of(b)))?,
             (_, Node::Implies(a, b)) => out.add(Node::Implies(of(a), of(b)))?,
             (_, Node::Iff(a, b)) => out.add(Node::Iff(of(a), of(b)))?,
-            (_, Node::Forall(_) | Node::Exists(_)) => unreachable!("{}", super::REFUSED),
+            (_, Node::Forall(a)) => out.add_like(Node::Forall(of(a)), here)?,
+            (_, Node::Exists(a)) => out.add_like(Node::Exists(of(a)), here)?,
         };
         id = negated(&mut out, id, negations)?;
         image[k] = id;
@@ -493,6 +544,60 @@ mod tests {
                 "a, a → b ⊢ ¬¬(b ∨ c)",
             ]
         );
+    }
+
+    /// At first order Kuroda's translation puts `¬¬` after each `∀`, Gödel
+    /// and Gentzen's writes `∃x. A` as `¬∀x. ¬A`, Kolmogorov's puts `¬¬`
+    /// before every subformula, and each keeps the classical verdict;
+    /// Glivenko's, whose theorem fails there, refuses.
+    #[test]
+    fn the_translations_at_first_order() {
+        let sequent: Sequent = "forall x. p(x) |- exists y. p(y)".parse().unwrap();
+        let limits = Limits::default();
+        let written = |t: Translation| {
+            let options = Options::default().with_translation(t);
+            translate(&sequent, &options, &limits).map(|s| s.to_string())
+        };
+        assert_eq!(
+            written(Translation::Kolmogorov).unwrap(),
+            "¬¬(∀x. ¬¬p(x)) ⊢ ¬¬(∃y. ¬¬p(y))"
+        );
+        assert_eq!(
+            written(Translation::GodelGentzen).unwrap(),
+            "∀x. ¬¬p(x) ⊢ ¬(∀y. ¬¬¬p(y))"
+        );
+        assert_eq!(
+            written(Translation::Kuroda).unwrap(),
+            "¬¬(∀x. ¬¬p(x)) ⊢ ¬¬(∃y. p(y))"
+        );
+        assert!(matches!(
+            written(Translation::Glivenko),
+            Err(Error::FirstOrder { .. })
+        ));
+        // The intuitionistic search needs more than the default three
+        // copies of a quantified hypothesis under the double negations.
+        let lifted = search::Options::default().with_copies(None);
+        for (text, valid) in [
+            ("forall x. p(x) |- exists y. p(y)", true),
+            ("|- exists x. (p(x) -> forall y. p(y))", true),
+            ("exists x. p(x) |- forall y. p(y)", false),
+        ] {
+            let sequent: Sequent = text.parse().unwrap();
+            for t in [
+                Translation::Kolmogorov,
+                Translation::GodelGentzen,
+                Translation::Kuroda,
+            ] {
+                let options = Options::default().with_translation(t);
+                let compared = compare(&sequent, &options, &lifted, &limits, |_| false).unwrap();
+                let wanted = if valid {
+                    Agreement::Valid
+                } else {
+                    Agreement::NotValid
+                };
+                assert_eq!(compared.agreement, wanted, "{text} by {t}");
+            }
+        }
     }
 
     /// Every translation keeps the classical verdict of sequents that

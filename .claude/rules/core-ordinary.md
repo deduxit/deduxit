@@ -1938,8 +1938,15 @@ what fails it is `Error::ClaimFails` (kind defect, code `claim_fails`).
   the first leftmost, built in a copy of the source arena; none stays
   none (`Γ ⊢ ⊥` in the target). Kuroda's translation is propositionally
   `¬¬` before every formula of the sequent, Glivenko's before the right
-  side alone; the rows for `∀` and `∃` (Kuroda's `¬¬` after every `∀`,
-  Gödel and Gentzen's `∃x A` as `¬∀x ¬A`) go into `row` at first order.
+  side alone. At first order `row` has the quantifier rows (Kuroda's
+  `¬¬` after every `∀`, Gödel and Gentzen's `∃x. A` as `¬∀x. ¬A`,
+  Kolmogorov's `¬¬` before each binder as before every node); the
+  result is built in a copy of the source arena, so atoms and binder
+  names stay as they are and an open subformula is one node at every
+  depth. Glivenko's translation refuses a first-order sequent: its
+  theorem fails there, and no finite Kripke model shows it. The
+  intuitionistic side of a first-order comparison often needs more than
+  the library's default three copies (the command lifts the bound).
   The result is bounded by `limits.occurrences` (`bound`, now in every
   build).
 - **The targets** (`Translation::reaches`): Kolmogorov's and Gödel and

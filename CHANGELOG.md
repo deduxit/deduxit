@@ -41,6 +41,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   variables free in its quantifier (`normal::Step::term`), and the
   result is checked to imply the input's negation (Skolem, clausal) or
   to follow from the input (Herbrand, `normal::Promise::Equivalid`).
+- **The negative translations at first order**: `seq translate --by
+  kolmogorov`, `godel-gentzen` and `kuroda` take first-order sequents
+  (Kuroda's puts `¬¬` after every `∀`, Gödel and Gentzen's writes
+  `∃x. A` as `¬∀x. ¬A`), and `compare` checks the verdict kept as in
+  propositional logic. Glivenko's translation refuses them, since its
+  theorem fails at first order.
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
   `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
   recording its witness or eigenvariable (`Inference::term`).

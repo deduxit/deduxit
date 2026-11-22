@@ -1570,11 +1570,13 @@ pub(crate) enum SeqCommand {
     /// A negative translation turns a sequent of classical logic into one
     /// that a weaker logic proves exactly when classical logic proves the
     /// first. kolmogorov puts ¬¬ before every subformula; godel-gentzen
-    /// before every atom, and writes A ∨ B as ¬(¬A ∧ ¬B); both reach
-    /// minimal logic. kuroda puts ¬¬ before every formula of the sequent,
-    /// and glivenko before the formula right of ⊢ alone; both reach
-    /// intuitionistic logic. Several formulas right of ⊢ are translated as
-    /// their disjunction.
+    /// before every atom, and writes A ∨ B as ¬(¬A ∧ ¬B) and ∃x. A as
+    /// ¬∀x. ¬A; both reach minimal logic. kuroda puts ¬¬ before every
+    /// formula of the sequent and after every ∀, and glivenko before the
+    /// formula right of ⊢ alone; both reach intuitionistic logic. Several
+    /// formulas right of ⊢ are translated as their disjunction. glivenko
+    /// takes propositional sequents only: its theorem fails at first
+    /// order.
     ///
     /// The command prints the translation, then decides the sequent in
     /// classical logic and its translation in the target logic, and prints
@@ -1988,14 +1990,14 @@ pub(crate) enum ProofFormatArg {
 pub(crate) enum NegativeArg {
     /// Kolmogorov's: ¬¬ before every subformula, into minimal logic
     Kolmogorov,
-    /// Gödel and Gentzen's: ¬¬ before every atom and A ∨ B as ¬(¬A ∧ ¬B),
-    /// into minimal logic
+    /// Gödel and Gentzen's: ¬¬ before every atom, A ∨ B as ¬(¬A ∧ ¬B)
+    /// and ∃x. A as ¬∀x. ¬A, into minimal logic
     GodelGentzen,
-    /// Kuroda's: ¬¬ before every formula of the sequent, into
-    /// intuitionistic logic
+    /// Kuroda's: ¬¬ before every formula of the sequent and after every
+    /// ∀, into intuitionistic logic
     Kuroda,
     /// Glivenko's: ¬¬ before the formula right of ⊢, into intuitionistic
-    /// logic
+    /// logic, propositional sequents only
     Glivenko,
 }
 
