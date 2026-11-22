@@ -658,7 +658,12 @@ the search, `read_back.rs` the derivation of LK.
   again and again is exponential as a tree. `occurs`, `unify`, `equal`
   and `ground` keep a set of the parts visited once a walk passes
   `Seen::SMALL` (a small term costs no set; skipping a part or pair seen
-  before only skips a constraint the first visit handles), as do the
+  before only skips a constraint the first visit handles), a part keyed
+  by its symbol, where its arguments start, how many and its copy: a
+  constant's empty list starts where the next pattern's arguments do,
+  and keyed by the start alone `(a, a)` stood for `(f(x), f(x))`, which
+  unification skipped (the review's witness read back an open branch,
+  `a_shared_part_is_named_whole_and_the_terms_bound_is_exact`), as do the
   read-backs' walks (`available`, `skolem_eigens`, `convert`'s memo, the
   intuitionistic `tm_of`, `term`, `ready`, `constants` and the domain
   equations). Without them `p0(a), ∀x. (p_k(x) → p_{k+1}(f(x, x))) ⊢
@@ -666,10 +671,14 @@ the search, `read_back.rs` the derivation of LK.
 - **An instance is held to `limits.terms` before it is built**
   (`sizes::TermBudget`, both read-backs): an atom is keyed by its text,
   so building an instance writes every argument out in full; `check`
-  bounds what the instance's atoms can add (each atom with a bound
-  variable one atom more, the variable written as the widest witness)
-  against the arena's measure, the one a document's reader holds to
-  the bound, and `count` adds what was added. Past it the read-back is
+  computes what the instance's atoms add against the arena's measure,
+  the one a document's reader holds to the bound: each atom of the body
+  with a variable of the frame, under its binders, its arguments found
+  by the terms' ids (`find_term`, `find_list`) and the atom by symbol and
+  arguments (`known`), never by its text; one the arena holds adds
+  nothing (counting every atom refused instances that fit: R2 at n = 23
+  at 50.3 million where its measure was 33.6), and `count` adds what was
+  added. Past it the read-back is
   `Refusal::Terms`, as any reader of its derivation would refuse it;
   each instance is built once (`instances`), since its keys are written
   again at each build. With the bound lifted the build of one instance

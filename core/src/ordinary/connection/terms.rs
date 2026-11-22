@@ -17,7 +17,10 @@ use crate::hash::HashSet;
 
 /// The parts a walk has visited, kept once it has visited more than
 /// [`Seen::SMALL`]: a small term costs no set, a shared one is walked as
-/// the graph it is.
+/// the graph it is. A part is keyed by its symbol, where its arguments
+/// start, how many there are and its copy: the start alone does not name
+/// it, since a constant's empty list starts where the next pattern's
+/// arguments do.
 pub(super) struct Seen<K> {
     /// The parts visited so far.
     visits: usize,
@@ -245,7 +248,7 @@ impl Terms {
                     if matrix.opaque[f as usize] {
                         return true;
                     }
-                    if !seen.first((f, s, c)) {
+                    if !seen.first((f, s, len, c)) {
                         continue;
                     }
                     for &a in &matrix.pat_args[s as usize..(s + len) as usize] {
@@ -295,7 +298,7 @@ impl Terms {
                     if f != g || len != len2 {
                         return false;
                     }
-                    if !seen.first(((s, c), (t, d))) {
+                    if !seen.first((f, s, len, c, t, d)) {
                         continue;
                     }
                     for k in 0..len {
@@ -339,7 +342,7 @@ impl Terms {
                     if f != g || len != len2 {
                         return false;
                     }
-                    if !seen.first(((s, c), (t, d))) {
+                    if !seen.first((f, s, len, c, t, d)) {
                         continue;
                     }
                     for k in 0..len {
@@ -366,8 +369,8 @@ impl Terms {
         while let Some(t) = stack.pop() {
             match self.head(matrix, t) {
                 Head::Var(_) => return false,
-                Head::App(_, (s, len), c) => {
-                    if !seen.first((s, len, c)) {
+                Head::App(f, (s, len), c) => {
+                    if !seen.first((f, s, len, c)) {
                         continue;
                     }
                     for &a in &matrix.pat_args[s as usize..(s + len) as usize] {

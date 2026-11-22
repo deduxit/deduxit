@@ -329,8 +329,8 @@ fn the_bounds_hold_where_steps_are_dear() {
 
 /// A chain of witnesses `f(x, x)`, each bound to the one before, shares
 /// its parts: walked as trees, its terms are exponential in its length.
-/// Both logics answer at once, by a proof where the derivation's atoms fit
-/// the bound on terms, else by the bound's refusal before any is built.
+/// A short chain is proved classically; a long one is refused in both
+/// logics by the bound on terms, before an atom past it is built.
 #[test]
 fn shared_witnesses_are_walked_once_and_held_to_the_terms_bound() {
     let chain = |n: usize| -> Sequent {
@@ -359,4 +359,47 @@ fn shared_witnesses_are_walked_once_and_held_to_the_terms_bound() {
             "{logic:?}: {refused:?}"
         );
     }
+}
+
+/// A part of a shared term is its symbol, its arguments and its copy: a
+/// constant's empty list starts where the next pattern's arguments do,
+/// and keyed by that start alone the pair `(a, a)` stood for `(f(x),
+/// f(x))`, which unification then skipped. Past the walk's first visits
+/// it unified `t(g(f(b), …))` with `t(g(f(c), …))` and read back an open
+/// branch (`Error::ReadBack`). The not-valid sequent stays unknown; and
+/// the bound on terms takes an instance whose atom the arena holds as no
+/// growth.
+#[test]
+fn a_shared_part_is_named_whole_and_the_terms_bound_is_exact() {
+    let deep = format!("{}e{}", "k(".repeat(70), ")".repeat(70));
+    let sequent: Sequent = format!(
+        "r(a), forall x. t(g(f(x), a, {deep}), x), \
+         forall y. forall z. (t(y, b) /\\ t(z, c) -> u(y, z)), \
+         forall w. (u(w, w) -> goal) |- goal"
+    )
+    .parse()
+    .unwrap();
+    let outcome = connection(&sequent);
+    assert!(
+        matches!(outcome.verdict, Verdict::Unknown(_)),
+        "{:?}",
+        outcome.verdict
+    );
+    let held: Sequent = "p(f(f(f(f(c))))), forall x. (p(x) -> q) |- q"
+        .parse()
+        .unwrap();
+    let limits = Limits::default().with_terms(Some(6));
+    let outcome = decide(
+        &held,
+        Logic::Classical,
+        &search::Options::default(),
+        &limits,
+        |_| false,
+    )
+    .unwrap();
+    assert!(
+        matches!(outcome.verdict, Verdict::Valid(_)),
+        "{:?}",
+        outcome.verdict
+    );
 }
