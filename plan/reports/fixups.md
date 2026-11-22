@@ -1503,3 +1503,103 @@ fixed in `mrnxrxny`:
   (10:15 to 10:32), on `main@origin` (`uzkwvksz`): every check passed,
   `features-tests` among them. Only this line changed after, and the
   chain was rebased onto `zuwuvsum`, which adds plan files alone.
+
+## Session fixup-23: the first-order defaults' open items
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c, fixups 15 to 22, 77a, 77b and 78b),
+cores 10 to 12, from the brief `/tmp/linlog-handoff/start-fixup-23.md`,
+the open items of 76a and 76b. Nothing was pushed.
+
+### What landed
+
+- `uzlvorpo`: **the library's default connection prover is bounded by
+  work.** On a first-order classical sequent with no method given
+  (`within`, and `by_grounding`'s fallback where grounding gives way) the
+  prover searches within `CONNECTION_WORK`, 2²⁶ of its steps, or the
+  caller's lower bound (`connected_by_default`, `connection_limits`),
+  and past it gives way to the embedding and the model search, as at any
+  other bound. The command calls the prover directly under its time
+  share and is unchanged.
+- `orltvzsn`: **on one thread the model search goes first** for a
+  first-order intuitionistic or minimal sequent with no method given
+  (`models_beside`, `model_first` in `cli/src/ordinary.rs`), within its
+  grace (`model_grace`, 5% of the time limit), and the embedding takes
+  the rest. `prove` calls it where it does not race (`--jobs 1`,
+  `--deterministic`), and the batch for every such entry, so an entry
+  answers as `prove --deterministic` does, which the batch's rules ask;
+  with more threads `prove` keeps its race. Before, both left such a
+  sequent to the embedding alone, which answers unknown on what it
+  cannot prove. The manual's ordinary-logic chapter says so.
+
+### The measurement
+
+The harness's `--engines auto` (the library's whole default call) on
+ILTP's 2 670 first-order problems, classical, 2 s, three shards pinned
+to cores 10, 11 and 12.
+
+- **First, before 78a landed** (the 1 730 equality problems refused),
+  with a bound of 2²⁵: no verdict lost, eight gained by the bound (the
+  embedding proved SYN067+1 and SYN349+1, the model search refuted
+  SYN414+1 and six NLP problems once the prover gave way). The most work
+  a theorem took was 20 539 978 steps (GEJ012+2).
+- **After the rebase onto 78a** (equality decided with its axioms; the
+  `before` rows `main@origin` at `luxmwxss`), 2²⁵ **lost two theorems**:
+  SET024+1 and SET108+1, which the prover proves with the axioms in
+  38 670 474 and 42 723 414 steps (1.2 s and 1.3 s). The bound is now
+  2²⁶, 1.57 times the most.
+- **The committed bound** (`bench/defaults/connection-work-iltp-first-order-{before,after}-{1,2,3}.csv`):
+
+  | | proved | not valid | unknown |
+  |---|--:|--:|--:|
+  | before | 1 003 | 103 | 1 560 |
+  | after | 1 006 | 103 | 1 557 |
+
+  No verdict lost and none against a status. The three gained (GEJ019+2,
+  GEJ048+1, SET616+3) are the prover finishing just under 2 s where it
+  timed out just over before: timing. At 2 s the bound changes no
+  verdict, since no row reaches 2²⁶ steps within the limit; it acts
+  where the library runs without a clock. On the 1 106 rows decided
+  alike the time is 67.8 s before and 66.0 s after in all, the median
+  ratio 0.98 (the machine ran other sessions' checks meanwhile).
+- **The brief's sequent** (irreflexive, transitive, serial): before, the
+  default was still in the prover at 90 s and had no end in sight; after,
+  it gives way at the bound and ends unknown (the embedding's
+  `incomplete`) in 102 s on core 10. A step there costs ten times what it
+  costs on GEJ012+2, so a bound in steps that keeps every theorem is
+  minutes there; a bound that counted the unifier's work, closer to
+  time, would cut it, and is a change of the prover's measure (left
+  open).
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `medium`). No wrong verdict and no lost
+theorem (the CSVs checked row by row; the caller's work bound kept; the
+bound also caps the derivation's check, which could refuse only a
+derivation of more inferences than the bound, an unknown that gives way, never
+a wrong verdict; the batch's lines and JSON equal `prove --deterministic`'s
+on three sequents; `prove` with more threads still races). Three
+findings, all fixed:
+- **`prove` on one thread ignored the first Ctrl-C during the model
+  search's grace**, which ran before the handler was installed: the
+  process died with no verdict line. It installs the handler first now
+  (the first Ctrl-C gives "unknown … interrupted", exit 3).
+- **The grace ran without the terminal notice**: it starts one now.
+- **The library test passed without the change**: it ran under a
+  caller's bound that the old code already passed on. It now also holds
+  `connection_limits` to the default's own bound where the caller sets
+  none.
+- The report's "eleven gained" counted three timing rows; the first run
+  is described as eight gained by the bound. (The review read the chain
+  before the rebase onto 78a and the bound's raise to 2²⁶.)
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` (39 binaries) after each commit and the
+  review's fixes; the behaviour lock unchanged.
+- The gate's first run was stopped: the rebase onto 78a changed the
+  tree under it. The full check holds its parts.
+- `nix flake check` under the machine lock at the report's commit
+  (21:07 to 21:29), on `main@origin` (`luxmwxss`, 78a's code with it):
+  every check passed. Only this line changed after.
