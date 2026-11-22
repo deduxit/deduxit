@@ -20,7 +20,10 @@
 
       # The modules the web page loads, in bytes at `gzip -9', what a
       # browser downloads. The bindings' module, which every visitor's
-      # worker loads: 2 708 195 on 2026-11-22 with Kripke models with
+      # worker loads: 2 767 129 on 2026-11-22 with Herbrand's theorem
+      # (the ground instances, the derivation built from them, the
+      # protocol's operation), first-order interpolants and negative
+      # translations; 2 708 195 that day with Kripke models with
       # growing domains (their check, their search's sequent, the race's
       # dispatch); 2 661 758 that day with the finite model search
       # (the expansion over a domain, the function tables read off and
@@ -50,7 +53,7 @@
       # whose runs and checks link every suite's operations; 3 166 704
       # before that; 3 111 006 on 2026-11-15, with calculi given as data;
       # 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
-      mostModuleBytes = 2750000;
+      mostModuleBytes = 2800000;
       # The renderers' module, loaded on a visitor's first PNG or PDF
       # export: 1 639 598 on 2026-11-21 (resvg and krilla with their
       # fonts', images' and filters' code, and the reader of every key of
