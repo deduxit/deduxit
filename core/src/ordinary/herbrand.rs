@@ -722,12 +722,15 @@ pub(super) fn deskolemized(
     {
         witnesses.insert(0, plain);
     }
+    let clauses = ground_atoms(&formulas, ground.left());
     let mut build = Build {
         charged: ArenaSize::default(),
         formulas,
         skolems,
         symbols,
         witnesses,
+        clauses,
+        given: HashMap::default(),
         keys: HashMap::default(),
         instances: HashMap::default(),
         made: Vec::new(),
@@ -789,6 +792,112 @@ fn witnesses_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<FoTermId> {
     let depth = term_depths(formulas, &found);
     found.sort_unstable_by_key(|t| (depth[t], *t));
     found
+}
+
+/// Returns the atoms of each of the ground instances `roots`: its
+/// predicate and its arguments.
+fn ground_atoms(formulas: &Formulas, roots: &[NodeId]) -> Vec<Vec<(Symbol, Vec<FoTermId>)>> {
+    let tables = formulas.first_order();
+    roots
+        .iter()
+        .map(|&root| {
+            let mut atoms = Vec::new();
+            let mut nodes = vec![root];
+            while let Some(n) = nodes.pop() {
+                match formulas.node(n) {
+                    Node::Atom(a) => {
+                        if let Some(&(symbol, args)) = tables.atoms.get(a as usize) {
+                            atoms.push((symbol, tables.list(args).to_vec()));
+                        }
+                    }
+                    Node::True | Node::False => {}
+                    Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
+                    Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                        nodes.extend([a, b]);
+                    }
+                }
+            }
+            atoms
+        })
+        .collect()
+}
+
+/// Returns the atoms of the body `body` of a quantifier, each with its
+/// predicate, its arguments and how many binders inside the body stand
+/// above it: there the quantifier's variable is that bound index.
+fn body_atoms(formulas: &Formulas, body: NodeId) -> Vec<(Symbol, Vec<FoTermId>, u32)> {
+    let tables = formulas.first_order();
+    let mut seen: HashSet<(NodeId, u32)> = HashSet::default();
+    let mut atoms = Vec::new();
+    let mut nodes = vec![(body, 0u32)];
+    while let Some((n, depth)) = nodes.pop() {
+        if !seen.insert((n, depth)) {
+            continue;
+        }
+        match formulas.node(n) {
+            Node::Atom(a) => {
+                if let Some(&(symbol, args)) = tables.atoms.get(a as usize) {
+                    atoms.push((symbol, tables.list(args).to_vec(), depth));
+                }
+            }
+            Node::True | Node::False => {}
+            Node::Not(a) => nodes.push((a, depth)),
+            Node::Forall(a) | Node::Exists(a) => nodes.push((a, depth + 1)),
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                nodes.extend([(a, depth), (b, depth)]);
+            }
+        }
+    }
+    atoms
+}
+
+/// How a body's atom matches a ground atom.
+enum Match {
+    /// They do not match.
+    No,
+    /// They match whatever the quantifier's variable is: it does not occur.
+    Free,
+    /// They match where the variable is this term.
+    At(FoTermId),
+}
+
+/// Matches the arguments `pattern` of a body's atom, where the
+/// quantifier's variable is the bound index `depth` and a lower index is a
+/// variable bound inside the body (any term), against the ground arguments
+/// `ground`.
+fn match_terms(
+    tables: &crate::first_order::FirstOrder<NodeId>,
+    pattern: &[FoTermId],
+    ground: &[FoTermId],
+    depth: u32,
+) -> Match {
+    let mut value: Option<FoTermId> = None;
+    let mut pairs: Vec<(FoTermId, FoTermId)> = pattern
+        .iter()
+        .copied()
+        .zip(ground.iter().copied())
+        .collect();
+    while let Some((p, g)) = pairs.pop() {
+        if p == g {
+            continue;
+        }
+        match (tables.terms[p.index()], tables.terms[g.index()]) {
+            (FoTerm::Bound(k), _) if k == depth => match value {
+                Some(v) if v != g => return Match::No,
+                _ => value = Some(g),
+            },
+            (FoTerm::Bound(_), _) => {}
+            (FoTerm::App(f, pa), FoTerm::App(h, ga)) if f == h => {
+                let (pa, ga) = (tables.list(pa), tables.list(ga));
+                if pa.len() != ga.len() {
+                    return Match::No;
+                }
+                pairs.extend(pa.iter().copied().zip(ga.iter().copied()));
+            }
+            (FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_), _) => return Match::No,
+        }
+    }
+    value.map_or(Match::Free, Match::At)
 }
 
 /// Returns the depth of each of `terms` and of every term inside them, a
@@ -1022,6 +1131,13 @@ struct Build<'l> {
     symbols: HashSet<Symbol>,
     /// The witnesses, the shallowest first.
     witnesses: Vec<FoTermId>,
+    /// The kept ground instances, each as its atoms: a predicate and its
+    /// arguments.
+    clauses: Vec<Vec<(Symbol, Vec<FoTermId>)>>,
+    /// The witnesses the instances give each `∀` hypothesis or `∃` goal,
+    /// in the witnesses' order, by the quantifier's formula; `None` where
+    /// they give none.
+    given: HashMap<NodeId, Option<Vec<FoTermId>>>,
     /// The Skolem term of each strong quantifier met, by its formula and
     /// side.
     keys: HashMap<(NodeId, bool), FoTermId>,
@@ -1297,9 +1413,10 @@ impl Build<'_> {
 
     /// Returns the first rule the order gives on the branch, if any: one
     /// premise and no term; `∀R` and `∃L`; `∀L` and `∃R` with a witness
-    /// the branch has every Skolem term of; two premises, one closing at
-    /// once first; a witness with a Skolem term of another branch, the
-    /// least nested first.
+    /// the formula's instances give; two premises, one closing at once;
+    /// `∀L` and `∃R` with any witness the branch has every Skolem term
+    /// of; any rule of two premises; a witness with a Skolem term of
+    /// another branch, the least nested first.
     fn step(&mut self, branch: &mut Branch) -> Result<Option<Step>, Error> {
         // A formula that can no longer help is weakened away.
         for at in 0..branch.items.len() {
@@ -1340,6 +1457,36 @@ impl Build<'_> {
             }
             return self.instance(branch, at, s, false).map(Some);
         }
+        // The witnesses the kept instances give each quantifier first (all
+        // of them where they give none), then a rule of two premises that
+        // closes one at once, and only then every other witness: where the
+        // instances say which terms a quantifier takes, nested quantifiers
+        // over many constants no longer take every witness each before a
+        // branch can close. The other rules of two premises still wait for
+        // every witness, so that no branch repeats them after a split.
+        for at in 0..branch.items.len() {
+            if !self.weak(&branch.items[at]) {
+                continue;
+            }
+            let given = self.given(branch.items[at].node);
+            let item = &branch.items[at];
+            let next = given
+                .as_deref()
+                .unwrap_or(&self.witnesses)
+                .iter()
+                .copied()
+                .find(|&t| !item.done.contains(&t) && self.available(t, branch));
+            if let Some(t) = next {
+                branch.items[at].done.push(t);
+                return self.instance(branch, at, t, true).map(Some);
+            }
+        }
+        let closing = (0..branch.items.len()).find(|&at| self.closes_a_premise(branch, at));
+        if let Some(at) = closing
+            && let Some(step) = self.binary(branch, at)?
+        {
+            return Ok(Some(step));
+        }
         for at in 0..branch.items.len() {
             if !self.weak(&branch.items[at]) {
                 continue;
@@ -1354,12 +1501,6 @@ impl Build<'_> {
                 branch.items[at].done.push(t);
                 return self.instance(branch, at, t, true).map(Some);
             }
-        }
-        let closing = (0..branch.items.len()).find(|&at| self.closes_a_premise(branch, at));
-        if let Some(at) = closing
-            && let Some(step) = self.binary(branch, at)?
-        {
-            return Ok(Some(step));
         }
         for at in 0..branch.items.len() {
             if let Some(step) = self.binary(branch, at)? {
@@ -1397,6 +1538,73 @@ impl Build<'_> {
             return Ok(Some(step));
         }
         Ok(None)
+    }
+
+    /// Returns the witnesses the kept instances give the quantifier
+    /// `node`, a `∀x. B` or `∃x. B`, in the witnesses' order, or `None`
+    /// where they give none. A ground instance gives the values of `x`
+    /// that all its atoms agree on: each atom matches some atom of `B`,
+    /// with `x` at that value or absent; an instance with an atom no atom
+    /// of `B` matches comes from another formula, and one whose atoms all
+    /// leave `x` free says nothing.
+    fn given(&mut self, node: NodeId) -> Option<Vec<FoTermId>> {
+        if let Some(given) = self.given.get(&node) {
+            return given.clone();
+        }
+        let (Node::Forall(body) | Node::Exists(body)) = self.formulas.node(node) else {
+            return None;
+        };
+        let tables = self.formulas.first_order();
+        let patterns = body_atoms(&self.formulas, body);
+        let mut values: HashSet<FoTermId> = HashSet::default();
+        for clause in &self.clauses {
+            // `None`: every value so far; `Some(set)`: those values.
+            let mut agreed: Option<HashSet<FoTermId>> = None;
+            let mut from_here = true;
+            for (symbol, args) in clause {
+                let mut any = false;
+                let mut these: HashSet<FoTermId> = HashSet::default();
+                let mut matched_one = false;
+                for (pattern_symbol, pattern, depth) in &patterns {
+                    if pattern_symbol != symbol || pattern.len() != args.len() {
+                        continue;
+                    }
+                    match match_terms(tables, pattern, args, *depth) {
+                        Match::No => {}
+                        Match::Free => {
+                            matched_one = true;
+                            any = true;
+                        }
+                        Match::At(v) => {
+                            matched_one = true;
+                            these.insert(v);
+                        }
+                    }
+                }
+                if !matched_one {
+                    from_here = false;
+                    break;
+                }
+                if !any {
+                    agreed = Some(match agreed {
+                        None => these,
+                        Some(set) => set.intersection(&these).copied().collect(),
+                    });
+                }
+            }
+            if from_here && let Some(set) = agreed {
+                values.extend(set);
+            }
+        }
+        let given = (!values.is_empty()).then(|| {
+            self.witnesses
+                .iter()
+                .copied()
+                .filter(|t| values.contains(t))
+                .collect()
+        });
+        self.given.insert(node, given.clone());
+        given
     }
 
     /// Returns whether `item` is a `∀` hypothesis or an `∃` goal.
@@ -1990,6 +2198,25 @@ mod tests {
             Verdict::NotValid => "not valid",
         };
         assert_eq!(kind, "clausal proof");
+    }
+
+    /// Each quantifier takes first the witnesses its kept instances give:
+    /// three nested `∀` over three constants take one each, where every
+    /// witness in every `∀` made a derivation of 175 inferences.
+    #[test]
+    fn each_quantifier_takes_the_witnesses_its_instances_give() {
+        let found = found(
+            "p(c1), p(c2), p(c3), forall x1 x2 x3. (p(x1) /\\ p(x2) /\\ p(x3) -> q(x1, x2, x3)) \
+             |- q(c3, c2, c1)",
+        );
+        let Verdict::Valid(Evidence::Derivation(derivation)) = &found.verdict else {
+            panic!("a derivation");
+        };
+        assert!(
+            derivation.inferences().len() <= 40,
+            "{}",
+            derivation.inferences().len()
+        );
     }
 
     /// Generated first-order sequents: a valid verdict always has its

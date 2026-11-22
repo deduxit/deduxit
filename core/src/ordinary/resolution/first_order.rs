@@ -2011,8 +2011,9 @@ mod tests {
             "forall x0 x1 x2 x3 x4 x5. r(x0, x1, x2, x3, x4, x5) |- r(c0, c1, c2, c3, c4, c5)"
                 .parse()
                 .unwrap();
+        // Its six instances take six steps before an inference closes.
         let found = resolve(&sequent, &Options::default(), &Limits::default(), |p| {
-            p.phase == Phase::ReadBack && p.done > 500
+            p.phase == Phase::ReadBack && p.done > 2
         })
         .unwrap();
         let Answer::Refuted {

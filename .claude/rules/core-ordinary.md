@@ -2338,8 +2338,23 @@ Public as `ordinary::herbrand` (feature `sat`); the command's
   inference is pushed (`Build::expand`, `expanded`, also against
   `limits.work`): every witness goes into every `∀` hypothesis, so six
   nested `∀` over six constants make about 6⁶ instances on one branch
-  before any closes, and the time limit was ignored. That uniform set is
-  the read-back's known cost; a witness set per quantifier would cut it.
+  before any closes, and the time limit was ignored.
+- **Each quantifier takes first the witnesses its instances give**
+  (`Build::given`, cached per formula): a kept ground instance gives the
+  values of a `∀` hypothesis's or `∃` goal's variable that all its atoms
+  agree on (each atom matching an atom of the body with the variable at
+  that value or absent, `match_terms`; an instance with an atom the body
+  cannot match comes from another formula). Those come first, then a
+  rule of two premises that closes a premise at once, then every other
+  witness, then the other rules of two premises, so no read-back is lost
+  (the uniform set stays the last resort). Taking those other rules
+  before the uniform witnesses split branches early and made every
+  branch repeat the instances: ILTP's SYN549+1 went from 4 872
+  inferences to a refusal at 598 MB. Resolution's
+  read-back, which gets the clauses its refutation used, gains most (six
+  nested `∀` over six constants: 60 s to 10 ms); `herbrand` gains where
+  its kept set was cut (`MOST_CUT`): a set kept whole holds every value
+  of every variable, and its order is the uniform one.
 - **The read-back charges the arena it grows** (`Build::charge_arena`,
   `ArenaSize`): after each instance it builds and after each inference's
   Skolem terms are replaced, the arena's new formulas (`NODE`, 192

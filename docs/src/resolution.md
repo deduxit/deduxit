@@ -64,7 +64,7 @@ resolvent is the rest of both under it:
 
 ```console
 $ deduxit resolve 'forall x. (p(x) -> q(f(x))), p(a) |- exists y. q(y)'
-valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 2 inferences, read back as a checked derivation of LK (15 inferences)
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 2 inferences, read back as a checked derivation of LK (11 inferences)
 clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
 1. ¬p(X1) ∨ q(f(X1))
 2. p(a)

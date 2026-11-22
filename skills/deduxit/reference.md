@@ -1518,7 +1518,7 @@ Instances of terms up to depth 1 (2 terms), 2 of 3 kept:
   p(f(a))   clause 1, x := f(a)
   ¬p(f(a))  clause 2
 They have no model: the SAT solver's clausal proof is checked.
-valid (classical logic by Herbrand's theorem): a checked derivation of LK (5 inferences) built from the instances
+valid (classical logic by Herbrand's theorem): a checked derivation of LK (3 inferences) built from the instances
 ```
 
 `--format json` writes a document at wire level 28: `{"version",
