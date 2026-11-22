@@ -280,6 +280,39 @@ fn a_kripke_model_is_checked_again() {
     );
 }
 
+/// Herbrand's theorem gives a valid sequent its instances and a derivation,
+/// which the check holds to the input and passes; an unknown at the depth
+/// leaves nothing to check.
+#[cfg(feature = "sat")]
+#[test]
+fn herbrand_s_instances_are_checked() {
+    let classical = crate::ordinary::Logic::Classical;
+    let limits = settings().limits;
+    let valid = ordinary("|- exists x. (p(x) -> forall y. p(y))", classical);
+    let output = ran("ordinary.instances", &[&valid], "");
+    assert_eq!(
+        summary("ordinary.instances", &output, &limits).unwrap(),
+        "Valid by Herbrand's theorem"
+    );
+    let check = checked("ordinary.instances", &[&valid], "", &output);
+    assert_eq!(check.status, Status::Held);
+    let other = ordinary("|- exists x. (q(x) -> forall y. q(y))", classical);
+    let check = checked("ordinary.instances", &[&other], "", &output);
+    assert_eq!(check.status, Status::Failed);
+    let open = ordinary("forall x. (p(x) -> p(f(x))) |- p(a)", classical);
+    let produced = run(
+        "ordinary.instances",
+        &[&open],
+        r#"{"depth": 1}"#,
+        &settings(),
+        |_| false,
+    )
+    .unwrap();
+    assert!(produced.limit.is_some());
+    let check = checked("ordinary.instances", &[&open], "", &produced.value);
+    assert_eq!(check.status, Status::None);
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);

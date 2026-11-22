@@ -43,6 +43,7 @@
 //! | 25 | the first-order forms of ordinary logic: the formulas `{"∀": a}` and `{"∃": a}`, the names of their variables as `binders`, and the first-order sequent's `symbols`, `fo` and predicate atoms `{"P": [symbol, [terms]]}` | a sequent or derivation of [`ordinary`](crate::ordinary) whose formulas have a binder or a predicate with arguments |
 //! | 26 | the finite model search: its search `{"method": "models", "statistics": {…}}`, its reason `{"kind": "model_size", "size": 6}`, and a finite structure's function tables, `"functions": [["f", [1, 0]]]`, each function symbol with arguments by name with the values of its argument tuples in lexicographic order | an ordinary outcome of that search, one unknown for that reason, and one whose structure interprets a function symbol with arguments |
 //! | 27 | a Kripke model with growing domains, `"kripke_structure": {"sequent": {…}, "model": {"worlds": [{"size": 1, "functions": […], "predicates": […], "falsity": true, "arrows": [1]}], "constants": […], "world": 0}}`, and the reason `{"kind": "kripke_size", "worlds": 4, "size": 6}` | an ordinary outcome refuted by one, or unknown for that reason |
+//! | 28 | Herbrand's theorem applied: the clausal form with its steps, the ground instances, the SAT solver's outcome on them and the derivation built from them, each outcome nested without `version` and `deduxit`; written only | [`ordinary::herbrand::Herbrand`](crate::ordinary::herbrand::Herbrand) (feature `sat`) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -256,6 +257,17 @@
 //!   "outcome"}, …]}`, the steps' numbers indices of the result's
 //!   `formulas`; see
 //!   [`ordinary::normal::NormalForm`](crate::ordinary::normal::NormalForm).
+//! - **Herbrand's theorem** (written only, feature `sat`): `{"version":
+//!   28, "deduxit": "0.7.0", "verdict": "valid", "sequent": {…},
+//!   "clausal": {"result": {…}, "steps": […]}, "depth": 1, "ground": {…},
+//!   "instances": [{"clause": 0, "terms": [3], "formula": 12}, …],
+//!   "refutation": {…}, "derivation": {…}, "statistics": {…}}`: the input,
+//!   its clausal form (the steps as in a normal form), the depth of the
+//!   last terms tried, the instances as a sequent with each instance's
+//!   clause, terms (indices of `ground`'s `fo.terms`) and formula, the SAT
+//!   solver's outcome on them, and for `valid` the derivation of LK built
+//!   from them, or for `unknown` its `reason`; see
+//!   [`ordinary::herbrand::Herbrand`](crate::ordinary::herbrand::Herbrand).
 //! - **Refutation**: `{"version": 22, "atoms": ["a", "b"], "clauses":
 //!   [[1, 2], [-1], [-2]], "resolvents": [{"first": 0, "second": 1,
 //!   "atom": 1, "clause": [2]}, …]}`, the literals as DIMACS writes them;
@@ -300,7 +312,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 27;
+pub const LEVEL: u32 = 28;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
@@ -519,6 +531,10 @@ pub(crate) const FORMS: u32 = 21;
 
 /// The level of a refutation by resolution and of a clause set decided.
 pub(crate) const CLAUSES: u32 = 22;
+
+/// The level of Herbrand's theorem applied, which is written only.
+#[cfg(feature = "sat")]
+pub(crate) const HERBRAND: u32 = 28;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

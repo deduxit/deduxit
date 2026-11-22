@@ -128,6 +128,15 @@ workspace graph builds on it.
   makes the clauses again from the input without the normal form's
   check (`normal::rewrite`), compares them (part `clauses`), then checks
   the refutation (read through the level-22 reader) or the model.
+- **`ordinary.instances`** (feature `sat`; a classical statement to
+  `ordinary.instances`, the `herbrand --format json` document, form
+  `herbrand`): parameter `depth` (`null` for none); its `Limit` is the
+  reason's name and setting, as `limit_of` gives them (`witness_depth`
+  at the depth, `incomplete` over a finite universe). The check of `decides` reads
+  the document's `derivation` (with `version` added) through the
+  derivation's reader, holds its sequent to the input's (part
+  `sequent`, formulas' texts as multisets) and checks it; an unknown is
+  `None`, a valid one without a derivation `Recorded`.
 - **The lambda suite** (`lambda.rs`): a `lambda.term` is a statement,
   the term's document (form `typed_term`) with `text`, which
   `protocol::statement("lambda", text, calculus, …)` makes; a type is an

@@ -28,7 +28,7 @@ pub(super) static ORDINARY: Ordinary = Ordinary;
 pub(super) struct Ordinary;
 
 /// Its kinds.
-static KINDS: [Kind; 6] = [
+static KINDS: &[Kind] = &[
     Kind {
         name: "ordinary.sequent",
         role: Role::Statement,
@@ -76,6 +76,15 @@ static KINDS: [Kind; 6] = [
         level: Some(22),
         stored: true,
         label: "The clauses of a sequent's negation decided: a refutation by resolution or a model",
+    },
+    #[cfg(feature = "sat")]
+    Kind {
+        name: "ordinary.instances",
+        role: Role::Evidence,
+        form: "herbrand",
+        level: Some(28),
+        stored: true,
+        label: "Ground instances of a sequent's clauses that have no model, with the derivation they give",
     },
 ];
 
@@ -251,6 +260,17 @@ static RESOLVE_READS: [&str; 8] = [
     "search",
 ];
 
+/// The settings keys Herbrand's theorem reads: the clausal form's, the
+/// instances' and the derivation's bounds.
+#[cfg(feature = "sat")]
+static INSTANCES_READS: [&str; 5] = [
+    "limits.memory_bytes",
+    "limits.occurrences",
+    "limits.terms",
+    "limits.work",
+    "limits.form_occurrences",
+];
+
 /// The settings keys a session's derivation reads.
 static FINISH_READS: [&str; 5] = [
     "limits.memory_bytes",
@@ -415,6 +435,23 @@ static OPERATIONS: &[Operation] = &[
         reads: &RESOLVE_READS,
         promise: &DECIDES,
         label: "A refutation by resolution",
+    },
+    #[cfg(feature = "sat")]
+    Operation {
+        name: "ordinary.instances",
+        from: &[&["ordinary.sequent"]],
+        to: "ordinary.instances",
+        class: Class::Derived,
+        cost: Cost::Search,
+        parameters: &[Parameter {
+            name: "depth",
+            values: &[],
+            default: Some("3"),
+            description: "The deepest term put for a variable, a constant being of depth 0, or null",
+        }],
+        reads: &INSTANCES_READS,
+        promise: &DECIDES,
+        label: "Herbrand's theorem: ground instances",
     },
     Operation {
         name: "ordinary.term",
@@ -835,7 +872,7 @@ impl Suite for Ordinary {
     }
 
     fn kinds(&self) -> &'static [Kind] {
-        &KINDS
+        KINDS
     }
 
     fn operations(&self) -> &'static [Operation] {
@@ -880,6 +917,14 @@ impl Suite for Ordinary {
                 match keys.verdict.as_str() {
                     "unsatisfiable" => "Unsatisfiable".to_owned(),
                     "satisfiable" => "Satisfiable".to_owned(),
+                    _ => "Not decided".to_owned(),
+                }
+            }
+            #[cfg(feature = "sat")]
+            "ordinary.instances" => {
+                let keys: InstancesKeys = object(value, "herbrand")?;
+                match keys.verdict.as_str() {
+                    "valid" => "Valid by Herbrand's theorem".to_owned(),
                     _ => "Not decided".to_owned(),
                 }
             }
@@ -1026,6 +1071,23 @@ impl Suite for Ordinary {
                     limit,
                 });
             }
+            #[cfg(feature = "sat")]
+            "ordinary.instances" => {
+                let sequent = classical(call.input(0), limits)?;
+                let options: crate::ordinary::herbrand::Options = parameters(call)?;
+                let found = crate::ordinary::herbrand::herbrand(&sequent, &options, limits, stop)?;
+                let limit = match &found.verdict {
+                    ordinary::Verdict::Unknown(reason) => Some(Limit {
+                        reason: reason.name(),
+                        setting: reason.setting(),
+                    }),
+                    _ => None,
+                };
+                return Ok(Produced {
+                    value: written(&found)?,
+                    limit,
+                });
+            }
             name if form_of(name).is_some() => {
                 let sequent = classical(call.input(0), limits)?;
                 let options =
@@ -1159,6 +1221,10 @@ impl Suite for Ordinary {
         match promise.name {
             "decides" if call.operation.name == "ordinary.resolve" => {
                 resolved(call, output, limits, stop)
+            }
+            #[cfg(feature = "sat")]
+            "decides" if call.operation.name == "ordinary.instances" => {
+                instanced(call, output, limits, stop)
             }
             "decides" => decides(output, limits, stop),
             "proves" => {
@@ -1375,6 +1441,62 @@ impl Resolve {
             .with_clauses(self.clauses)
             .with_steps(self.steps)
     }
+}
+
+/// The keys of Herbrand's theorem applied that its check reads.
+#[cfg(feature = "sat")]
+#[derive(Deserialize)]
+struct InstancesKeys {
+    /// `valid` or `unknown`.
+    verdict: String,
+    /// The derivation built from the instances, for `valid` by one.
+    derivation: Option<serde_json::Value>,
+}
+
+/// Checks Herbrand's evidence: the derivation it built derives the input
+/// and passes the checker.
+#[cfg(feature = "sat")]
+fn instanced(
+    call: &Call<'_>,
+    output: &str,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Check, Error> {
+    let promise = call.operation.promise;
+    let keys: InstancesKeys = object(output, "herbrand")?;
+    if keys.verdict != "valid" {
+        return Ok(Check::whole(promise, Status::None));
+    }
+    // A valid verdict without a derivation rests on the instances' clausal
+    // proof, which has no reader.
+    let Some(mut derivation) = keys.derivation else {
+        return Ok(Check::whole(promise, Status::Recorded));
+    };
+    if let Some(fields) = derivation.as_object_mut() {
+        fields.insert("version".to_owned(), crate::wire::LEVEL.into());
+    }
+    let derivation: Derivation = document(&derivation.to_string(), limits)?;
+    let input = classical(call.input(0), limits)?;
+    let texts = |formulas: &ordinary::Formulas, ids: &[ordinary::NodeId]| {
+        let mut texts: Vec<String> = ids
+            .iter()
+            .map(|&k| formulas.formula(k).to_string())
+            .collect();
+        texts.sort_unstable();
+        texts
+    };
+    let (left, right) = derivation.sequent();
+    let same = texts(derivation.formulas(), left) == texts(input.formulas(), input.left())
+        && texts(derivation.formulas(), right) == texts(input.formulas(), input.right());
+    let parts = vec![
+        Part {
+            name: "sequent".to_owned(),
+            status: if same { Status::Held } else { Status::Failed },
+            verdict: None,
+        },
+        checked("derivation", derivation.check(limits, &mut *stop))?,
+    ];
+    Ok(Check::of(promise, parts))
 }
 
 /// The keys of a clause set decided that its check reads.

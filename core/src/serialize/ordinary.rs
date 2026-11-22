@@ -1812,12 +1812,125 @@ struct CheckedForm<'a> {
     outcome: NestedOutcome<'a>,
 }
 
+/// Returns the written form of a normal form's step.
+fn step_form(step: &crate::ordinary::normal::Step) -> StepForm {
+    let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
+    StepForm {
+        rule: step.rule,
+        law: step.rule.law(),
+        before: step.before.index() as u32,
+        after: step.after.index() as u32,
+        left: ids(&step.left),
+        right: ids(&step.right),
+        added: ids(&step.added),
+        term: step.term.map(|t| t.index() as u32),
+    }
+}
+
+/// The written form of Herbrand's theorem applied.
+#[cfg(feature = "sat")]
+#[derive(Serialize)]
+struct HerbrandForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// `valid` or `unknown`.
+    verdict: &'static str,
+    /// Why the search could not decide, for `unknown`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<Why>,
+    /// The sequent decided.
+    sequent: SequentForm,
+    /// Its clausal form and the steps that made it.
+    clausal: ClausalForm,
+    /// The depth of the last terms tried.
+    depth: u32,
+    /// The instances as a sequent.
+    ground: SequentForm,
+    /// Each instance's clause, terms and formula.
+    instances: Vec<InstanceForm>,
+    /// The SAT solver's outcome on the instances.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refutation: Option<NestedOutcome<'a>>,
+    /// The derivation built from the instances, for `valid` by one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    derivation: Option<DerivationForm>,
+    /// What the search cost.
+    statistics: crate::ordinary::herbrand::Statistics,
+}
+
+/// The written form of a clausal form within Herbrand's theorem: the
+/// result and the steps.
+#[cfg(feature = "sat")]
+#[derive(Serialize)]
+struct ClausalForm {
+    /// The clausal form, whose formulas the steps index.
+    result: SequentForm,
+    /// The steps.
+    steps: Vec<StepForm>,
+}
+
+/// The written form of a ground instance.
+#[cfg(feature = "sat")]
+#[derive(Serialize)]
+struct InstanceForm {
+    /// The clause, by its position among the clausal form's hypotheses.
+    clause: usize,
+    /// The terms put for its variables, the outermost's first, indices of
+    /// the ground sequent's terms.
+    terms: Vec<u32>,
+    /// The instance, an index of the ground sequent's formulas.
+    formula: u32,
+}
+
+#[cfg(feature = "sat")]
+impl Serialize for crate::ordinary::herbrand::Herbrand {
+    /// Serializes Herbrand's theorem applied as a document at level 28.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
+        let (verdict, reason, derivation) = match &self.verdict {
+            Verdict::Valid(Evidence::Derivation(d)) => {
+                ("valid", None, Some(DerivationForm::from(&**d)))
+            }
+            Verdict::Valid(_) => ("valid", None, None),
+            Verdict::NotValid => ("not_valid", None, None),
+            Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
+        };
+        HerbrandForm {
+            version: wire::HERBRAND,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            verdict,
+            reason,
+            sequent: form(&self.sequent),
+            clausal: ClausalForm {
+                result: form(&self.clausal.result),
+                steps: self.clausal.steps.iter().map(step_form).collect(),
+            },
+            depth: self.depth,
+            ground: form(&self.ground),
+            instances: self
+                .instances
+                .iter()
+                .map(|i| InstanceForm {
+                    clause: i.clause,
+                    terms: i.terms.iter().map(|t| t.index() as u32).collect(),
+                    formula: i.formula.index() as u32,
+                })
+                .collect(),
+            refutation: self.refutation.as_ref().map(NestedOutcome),
+            derivation,
+            statistics: self.statistics,
+        }
+        .serialize(serializer)
+    }
+}
+
 impl Serialize for crate::ordinary::normal::NormalForm {
     /// Serializes the normal form as a document at level 21, at 25 where
     /// its sequents are first-order.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
-        let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
         let version = if self.result.formulas().is_first_order() {
             wire::FORMS.max(wire::ORDINARY_TERMS)
         } else {
@@ -1831,20 +1944,7 @@ impl Serialize for crate::ordinary::normal::NormalForm {
             checked: self.is_checked(),
             sequent: form(&self.sequent),
             result: form(&self.result),
-            steps: self
-                .steps
-                .iter()
-                .map(|step| StepForm {
-                    rule: step.rule,
-                    law: step.rule.law(),
-                    before: step.before.index() as u32,
-                    after: step.after.index() as u32,
-                    left: ids(&step.left),
-                    right: ids(&step.right),
-                    added: ids(&step.added),
-                    term: step.term.map(|t| t.index() as u32),
-                })
-                .collect(),
+            steps: self.steps.iter().map(step_form).collect(),
             checks: self
                 .checks
                 .iter()

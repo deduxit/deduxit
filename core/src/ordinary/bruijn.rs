@@ -20,7 +20,7 @@ use crate::hash::{HashMap, HashSet};
 
 /// What a walk does with a variable free in the formula it walks.
 #[derive(Clone, Copy, Debug)]
-enum Map {
+enum Map<'m> {
     /// The variable's outside index moves `by`: out past more binders where
     /// positive, in where negative. The walks that lower a formula check
     /// first that no index would fall below zero.
@@ -29,6 +29,20 @@ enum Map {
     /// open term whose variables are read outside that binder; every other
     /// moves one binder in.
     Substitute(FoTermId),
+    /// Each closed term the table holds is its image there; variables stay.
+    #[cfg(feature = "sat")]
+    Replace(&'m HashMap<FoTermId, FoTermId>),
+}
+
+/// What a walk of [`Map::Replace`] has made so far, kept across the
+/// formulas it maps: each node and term by its depth.
+#[cfg(feature = "sat")]
+#[derive(Debug, Default)]
+pub(super) struct Replaced {
+    /// The image of each node walked, by the binders around it.
+    nodes: HashMap<(NodeId, u32), NodeId>,
+    /// The image of each term walked, by the binders around it.
+    terms: HashMap<(FoTermId, u32), FoTermId>,
 }
 
 impl Formulas {
@@ -158,11 +172,53 @@ impl Formulas {
         Ok(id)
     }
 
+    /// Returns `root` with each closed term that `image` holds replaced
+    /// by its image there, `made` keeping what earlier calls with the same
+    /// `image` made: a Skolem term turned back into its eigenvariable.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::IndexOutOfBounds`] for a node of no arena,
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
+    #[cfg(feature = "sat")]
+    pub(super) fn replaced(
+        &mut self,
+        root: NodeId,
+        image: &HashMap<FoTermId, FoTermId>,
+        made: &mut Replaced,
+    ) -> Result<NodeId, Error> {
+        self.mapped_in(root, Map::Replace(image), &mut made.nodes, &mut made.terms)
+    }
+
+    /// Returns the closed term `t` with each term that `image` holds
+    /// replaced by its image there, as [`replaced`](Self::replaced) does.
+    #[cfg(feature = "sat")]
+    pub(super) fn replaced_term(
+        &mut self,
+        t: FoTermId,
+        image: &HashMap<FoTermId, FoTermId>,
+        made: &mut Replaced,
+    ) -> FoTermId {
+        self.mapped_term(t, 0, Map::Replace(image), &mut made.terms)
+    }
+
     /// Returns `root` with every variable free in it mapped by `map`.
-    fn mapped(&mut self, root: NodeId, map: Map) -> Result<NodeId, Error> {
-        self.holds(root)?;
+    fn mapped(&mut self, root: NodeId, map: Map<'_>) -> Result<NodeId, Error> {
         let mut nodes: HashMap<(NodeId, u32), NodeId> = HashMap::default();
         let mut terms: HashMap<(FoTermId, u32), FoTermId> = HashMap::default();
+        self.mapped_in(root, map, &mut nodes, &mut terms)
+    }
+
+    /// [`mapped`](Self::mapped), with what is made kept in `nodes` and
+    /// `terms`.
+    fn mapped_in(
+        &mut self,
+        root: NodeId,
+        map: Map<'_>,
+        nodes: &mut HashMap<(NodeId, u32), NodeId>,
+        terms: &mut HashMap<(FoTermId, u32), FoTermId>,
+    ) -> Result<NodeId, Error> {
+        self.holds(root)?;
         // Each node is visited, then made once its operands are.
         let mut stack = vec![(root, 0u32, false)];
         while let Some((n, depth, ready)) = stack.pop() {
@@ -197,7 +253,7 @@ impl Formulas {
                     let items = self.tables().list(args).to_vec();
                     let mut changed = Vec::with_capacity(items.len());
                     for t in items {
-                        changed.push(self.mapped_term(t, depth, map, &mut terms));
+                        changed.push(self.mapped_term(t, depth, map, terms));
                     }
                     let args = self.interner().list(&changed);
                     self.predicate_atom(symbol, args)?
@@ -224,7 +280,7 @@ impl Formulas {
         &mut self,
         t: FoTermId,
         depth: u32,
-        map: Map,
+        map: Map<'_>,
         made: &mut HashMap<(FoTermId, u32), FoTermId>,
     ) -> FoTermId {
         let mut stack = vec![(t, false)];
@@ -239,6 +295,13 @@ impl Formulas {
                     let items = self.tables().list(args).to_vec();
                     stack.extend(items.into_iter().map(|v| (v, false)));
                 }
+                continue;
+            }
+            #[cfg(feature = "sat")]
+            if let Map::Replace(image) = map
+                && let Some(&to) = image.get(&u)
+            {
+                made.insert((u, depth), to);
                 continue;
             }
             let image = match term {
@@ -258,6 +321,8 @@ impl Formulas {
                             self.lifted_term(term, depth)
                         }
                         Map::Substitute(_) => self.interner().term(FoTerm::Bound(i - 1)),
+                        #[cfg(feature = "sat")]
+                        Map::Replace(_) => u,
                     }
                 }
                 FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => u,

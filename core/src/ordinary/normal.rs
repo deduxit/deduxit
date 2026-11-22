@@ -2350,10 +2350,46 @@ fn skolem_term(formulas: &mut Formulas, name: &str, free: &[u32]) -> Result<FoTe
     Ok(formulas.interner().term(FoTerm::App(symbol, list)))
 }
 
+/// Returns `node`, a formula left of `⊢`, in negation normal form as
+/// Skolem's and the clausal form make it before their strong quantifiers
+/// go: the same laws in the same order, so that a closed instance of a
+/// formula they rewrote meets their step's quantifier again.
+///
+/// # Errors
+///
+/// [`Refusal::Form`], [`Refusal::Work`] and [`Refusal::Memory`] past the
+/// bounds of `limits`; [`Refusal::Index`] when the arena is full.
+#[cfg(feature = "sat")]
+pub(super) fn negation_normal(
+    formulas: &mut Formulas,
+    node: NodeId,
+    limits: &Limits,
+) -> Result<NodeId, Error> {
+    let mut never = |_: Progress| false;
+    let mut budget = Budget {
+        limits,
+        work: 0,
+        held: 0,
+        stop: &mut never,
+    };
+    let mut roots = vec![node];
+    let (mut steps, mut passes) = (Vec::new(), Passes::default());
+    let mut run = Run {
+        formulas,
+        roots: &mut roots,
+        split: 1,
+        steps: &mut steps,
+        passes: &mut passes,
+        budget: &mut budget,
+    };
+    run.stages(&[Stage::Arrows { cases: false }, Stage::Negations])?;
+    Ok(roots[0])
+}
+
 /// Returns the prefix of the new function symbols' names: `base`, or
 /// `base` with as many `_` after it as make no symbol or atom of the arena
 /// the prefix and digits.
-fn fresh_prefix(formulas: &Formulas, base: &str) -> String {
+pub(super) fn fresh_prefix(formulas: &Formulas, base: &str) -> String {
     let mut prefix = String::from(base);
     let taken = |prefix: &str| {
         let numbered = |name: &str| {
@@ -3147,7 +3183,7 @@ mod tests {
 }
 
 #[cfg(all(test, feature = "parse"))]
-mod first_order_tests {
+pub(super) mod first_order_tests {
     use super::*;
 
     /// Returns the steps' rule names, the result's text and whether every
@@ -3242,7 +3278,7 @@ mod first_order_tests {
     /// Returns a random first-order formula of at most `depth` levels over
     /// the variables of `scope`, a constant `a`, a unary `p`, a binary `q`
     /// and an atom `r`.
-    fn formula(
+    pub(in crate::ordinary) fn formula(
         rng: &mut crate::linear::search::generate::Rng,
         depth: usize,
         scope: &mut Vec<String>,

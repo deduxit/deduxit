@@ -157,6 +157,40 @@ impl Formulas {
         false
     }
 
+    /// Returns the closed term `t` as text: `f(t, …)`, an eigenvariable by
+    /// the name the proof prints it with, an open witness as `$1`, `$2`, ….
+    pub(crate) fn term_text(&self, t: FoTermId) -> String {
+        let eigens = self.eigen_names();
+        let mut text = String::new();
+        let written = self.tables().write_with(
+            &mut text,
+            t,
+            &mut |o: &mut String, name: &str| {
+                o.push_str(name);
+                Ok(())
+            },
+            &mut |o: &mut String, index| {
+                use std::fmt::Write as _;
+                write!(o, "#{index}")
+            },
+            &mut |o: &mut String, other| {
+                match other {
+                    FoTerm::Eigen(e) => match eigens.binary_search_by_key(&e.get(), |&(k, _)| k) {
+                        Ok(at) => o.push_str(&eigens[at].1),
+                        Err(_) => o.push('?'),
+                    },
+                    FoTerm::Meta(k) => {
+                        o.push_str(&crate::linear::occurrences::instances::meta_name(k));
+                    }
+                    FoTerm::Bound(_) | FoTerm::App(..) => {}
+                }
+                Ok(())
+            },
+        );
+        debug_assert!(written.is_ok(), "a string takes every write");
+        text
+    }
+
     /// Returns the eigenvariables of the arena with the names they are
     /// written with, by ascending number: `a`, `b`, … `z`, then `a_1`,
     /// `b_1`, …, skipping the names of the arena's symbols, so that a
@@ -308,40 +342,6 @@ impl Formulas {
             self.names.insert(key.clone(), i as u32);
             self.atoms[i] = key;
         }
-    }
-
-    /// Returns the closed term `t` as text: `f(t, …)`, an eigenvariable by
-    /// the name the proof prints it with, an open witness as `$1`, `$2`, ….
-    pub(crate) fn term_text(&self, t: FoTermId) -> String {
-        let eigens = self.eigen_names();
-        let mut text = String::new();
-        let written = self.tables().write_with(
-            &mut text,
-            t,
-            &mut |o: &mut String, name: &str| {
-                o.push_str(name);
-                Ok(())
-            },
-            &mut |o: &mut String, index| {
-                use std::fmt::Write as _;
-                write!(o, "#{index}")
-            },
-            &mut |o: &mut String, other| {
-                match other {
-                    FoTerm::Eigen(e) => match eigens.binary_search_by_key(&e.get(), |&(k, _)| k) {
-                        Ok(at) => o.push_str(&eigens[at].1),
-                        Err(_) => o.push('?'),
-                    },
-                    FoTerm::Meta(k) => {
-                        o.push_str(&crate::linear::occurrences::instances::meta_name(k));
-                    }
-                    FoTerm::Bound(_) | FoTerm::App(..) => {}
-                }
-                Ok(())
-            },
-        );
-        debug_assert!(written.is_ok(), "a string takes every write");
-        text
     }
 
     /// Returns the numbers of the open witnesses that occur in one of the

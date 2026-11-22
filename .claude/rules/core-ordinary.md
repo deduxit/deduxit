@@ -2133,6 +2133,59 @@ decided not valid is `Error::ClaimFails` (kind defect).
     too. `transfer` rebuilds the input by symbol names, terms first, so
     a result read from JSON is judged as it is.
 
+## Herbrand's theorem (`herbrand.rs`)
+
+Public as `ordinary::herbrand` (feature `sat`); the command's
+`herbrand`, the protocol's `ordinary.instances` (kind
+`ordinary.instances`, form `herbrand`, level 28).
+
+- **The search** is `normal::rewrite` to the clausal form (unchecked:
+  the verdict rests on the derivation, not on the form), then ground
+  instances level by level: level 0 the clauses' constants (a fresh
+  `c1` where none), level k each function symbol over the terms below
+  with one argument of level k−1 (`Universe::deepen`, within
+  `limits.terms`); every instance of every clause over all levels so far
+  (`limits.occurrences` bounds their number), decided by `sat::decide`
+  with each ground atom a numbered propositional atom (`g1`, …: the
+  propositional parser takes no parentheses). A refuted set is cut one
+  instance at a time while the solver still refutes it (`cut`, up to
+  `MOST_CUT` instances), which keeps the derivation small.
+- **Unknown, never not valid**: a satisfiable set at `Options::depth`
+  is `WitnessDepth`, and one over a finite universe (no function symbol)
+  `Incomplete`, though the sequent is then not valid: no checked
+  countermodel is built here, and `prove` gives one.
+- **The derivation** (`Build`) follows the connection read-back's
+  construction (rule order, weakening of what is used up, the rule that a
+  witness whose Skolem term lies on another branch is a constant there),
+  with its own oracle: every γ-formula takes every witness (the terms of
+  the kept instances, and a constant that is no Skolem term, for the first
+  `∀L`/`∃R` before any eigenvariable exists, as in the drinker), and a
+  strong quantifier's Skolem term is found by matching
+  (`matched`) its negation normal form, moved left of `⊢`
+  (`normal::negation_normal`, the stages Skolem's flow runs before its
+  strong stage), against each Skolem step's `before`. The search runs
+  with Skolem terms in place of eigenvariables; `deskolemized` then
+  replaces each by a fresh eigenvariable (`bruijn::Replaced`,
+  `Formulas::replaced`), least nested first, and the derivation is
+  checked. A branch left open is `Error::ReadBack`, a defect.
+- **Two quantifiers whose instances coincide**: an instance of one strong
+  quantifier can be another quantifier of the sequent (`∀y. ∃x. p(x, y)`
+  at `a` and `∃x. p(x, a)`), which meets two Skolem steps; `skolem` takes
+  the step whose term the kept instances use, else the first, and keeps
+  one term per formula (`keys`). The kept set being irreducible, a proof
+  that needs both terms of one formula is not known; the check would
+  refuse it, a defect (the review's witness was the first case).
+- **Unknown for its reason**: an unknown from the solver (a bound, the
+  stop) ends the search with that reason; only a set it finds
+  satisfiable goes on to the next depth. The universe's terms and the
+  instances ask the stop once in 1 024 (`asked`).
+- **A propositional sequent stays propositional**: no fresh constant is
+  made where no clause has a variable, since one would give the arena
+  first-order tables without its atoms' entries, which the readers
+  refuse.
+  A bound that refuses the derivation leaves the verdict valid with the
+  instances' clausal proof (`Evidence::Clausal` of the ground sequent).
+
 ## Resolution and DPLL (`resolution/`)
 
 Public as `ordinary::resolution`; the command's `resolve` and `check`

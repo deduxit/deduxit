@@ -4175,6 +4175,127 @@
         }
       }
     },
+    "herbrand": {
+      "description": "Herbrand's theorem applied to a classical first-order sequent (level 28; `herbrand --format json`, written only): the verdict, the input, its clausal form with the steps that made it, the depth of the last terms tried, the ground instances as a sequent, each instance's clause, terms and formula, the SAT solver's outcome on them, for `valid` the derivation of LK built from them, for `unknown` the reason, and the counts.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "verdict",
+        "sequent",
+        "clausal",
+        "depth",
+        "ground",
+        "instances",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 28
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "enum": [
+            "valid",
+            "unknown"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "clausal": {
+          "description": "The clausal form, whose formulas the steps index, and the steps.",
+          "type": "object",
+          "required": [
+            "result",
+            "steps"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "result": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/normal_step"
+              }
+            }
+          }
+        },
+        "depth": {
+          "$ref": "#/$defs/index"
+        },
+        "ground": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "description": "A ground instance: its clause's position among the clausal form's hypotheses, the terms put for its variables (positions in `ground`'s `fo.terms`, the outermost variable's first) and the instance (a position in `ground`'s `formulas`).",
+            "type": "object",
+            "required": [
+              "clause",
+              "terms",
+              "formula"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "clause": {
+                "$ref": "#/$defs/index"
+              },
+              "terms": {
+                "$ref": "#/$defs/indices"
+              },
+              "formula": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        },
+        "refutation": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        },
+        "derivation": {
+          "$ref": "#/$defs/ordinary_derivation_keys"
+        },
+        "statistics": {
+          "type": "object",
+          "required": [
+            "terms",
+            "instances",
+            "kept",
+            "calls",
+            "inferences"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "terms": {
+              "$ref": "#/$defs/index"
+            },
+            "instances": {
+              "$ref": "#/$defs/index"
+            },
+            "kept": {
+              "$ref": "#/$defs/index"
+            },
+            "calls": {
+              "$ref": "#/$defs/index"
+            },
+            "inferences": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        }
+      }
+    },
     "half": {
       "description": "A half of an interpolation: the sequent and its outcome.",
       "type": "object",

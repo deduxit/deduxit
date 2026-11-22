@@ -71,6 +71,8 @@ mod decide;
 mod derivation;
 #[cfg(feature = "sat")]
 pub mod grounding;
+#[cfg(feature = "sat")]
+pub mod herbrand;
 /// The instances of a quantified formula, built or found.
 mod instance;
 /// Step-by-step proving in LK and LJ.

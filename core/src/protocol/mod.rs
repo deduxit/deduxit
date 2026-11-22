@@ -462,6 +462,8 @@ const OPERATIONS: &[&str] = &[
     "ordinary.herbrand",
     "ordinary.clausal",
     "ordinary.resolve",
+    #[cfg(feature = "sat")]
+    "ordinary.instances",
     "ordinary.term",
     #[cfg(feature = "svg")]
     "ordinary.draw",
@@ -510,6 +512,8 @@ const KINDS: &[&str] = &[
     "ordinary.derivation",
     "ordinary.interpolant",
     "ordinary.resolution",
+    #[cfg(feature = "sat")]
+    "ordinary.instances",
     "rules.calculus",
     "rules.sequent",
     "rules.session",
