@@ -1,0 +1,12 @@
+$ deduxit resolve 'forall x. f(x) = x |- f(f(c)) = c'
+--- status 0
+--- stdout
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 2 inferences; no derivation of LK was read back (the proof read back is not a derivation of LK: a refutation by paramodulation is checked step by step; LK has no rule for the step), so the verdict rests on the refutation and the clausal form's Skolem symbols
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+1. f(X1) = X1
+2. X1 = X1
+3. ¬f(f(c)) = c
+resolution, the first parent's variables X1, …, the second's Y1, …:
+4. ¬f(c) = c  1 rewrites 3 with X1 := f(c)
+5. □  from 4, 1 with Y1 := c
+--- stderr

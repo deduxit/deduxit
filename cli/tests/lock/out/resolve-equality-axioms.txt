@@ -1,0 +1,17 @@
+$ deduxit resolve --equality axioms 'a = b, p(a) |- p(b)'
+--- status 0
+--- stdout
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 inferences, read back as a checked derivation of LK (209 inferences)
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+ 1. a = b
+ 2. p(a)
+ 3. X1 = X1
+ 4. ¬X1 = X2 ∨ X2 = X1
+ 5. ¬X1 = X2 ∨ ¬X2 = X3 ∨ X1 = X3
+ 6. ¬X1 = X2 ∨ ¬p(X1) ∨ p(X2)
+ 7. ¬p(b)
+resolution, the first parent's variables X1, …, the second's Y1, …:
+ 8. ¬X1 = b ∨ ¬p(X1)  from 7, 6 with Y2 := b
+ 9. ¬p(a)  from 8, 1 with X1 := a
+10. □  from 9, 2
+--- stderr

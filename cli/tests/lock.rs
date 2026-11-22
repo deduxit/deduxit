@@ -422,6 +422,18 @@ const CASES: &[Case] = &[
         &["resolve", "exists x. p(x) |- forall y. p(y)"],
     ),
     call(
+        "resolve-paramodulation",
+        &["resolve", "forall x. f(x) = x |- f(f(c)) = c"],
+    ),
+    call(
+        "resolve-paramodulation-json",
+        &["resolve", "--format", "json", "a = b, p(a) |- p(b)"],
+    ),
+    call(
+        "resolve-equality-axioms",
+        &["resolve", "--equality", "axioms", "a = b, p(a) |- p(b)"],
+    ),
+    call(
         "herbrand",
         &["herbrand", "|- exists x. (p(x) -> forall y. p(y))"],
     ),
