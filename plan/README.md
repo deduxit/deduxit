@@ -8008,3 +8008,13 @@ move (D26).
   such ILTP problems read. The reviewer's two false texts fixed. Its check on `ci/fixup-16`, then
   `main`. **Decided unattended** (its API recommendation): a public `ordinary::read_tptp_bytes`,
   shared by the command, the harness and library users; that is **fixup-17**, in the same worker.
+- 2026-11-22, about 04:00: **fixup-17 reviewed and pushed; fixup-18 started.** fixup-17 (Opus,
+  high; the reviewer on Fable): a public `ordinary::tptp_text(&[u8]) -> Result<Cow<str>, Error>`
+  (feature `parse`) decodes a TPTP file's bytes as fixup-16's copies did, shared by the command
+  and the harness; **accepted departure:** the shape (decoding, not a bytes-to-`Problem` reader),
+  since both callers inline `include` files between decoding and parsing; `breaks 0.7.0` shows the
+  one addition. Full check passed on `main`'s head; pushed (`xzopswvn`). The ratchet's
+  `ordinary-pigeons` ceiling raised to 32 394 319 in a commit of its own (step 75's dispatch,
+  +1.88 % at every gate since). In the same worker: **fixup-18**, LJT's leftovers ("limit of 0 B",
+  the verdict line naming LJT's hand-over, `Derivation::term` refusing, the stale `check` entry).
+  76a still held by the author's permission prompt from 01:59.
