@@ -8052,3 +8052,10 @@ move (D26).
   line) fixed. Full check passed on `main`'s head; pushed (`tvzorzto`). In the same worker:
   **fixup-21**, JSON's outcome for an unknown ended in the read-back or check (it wrote nothing),
   and a test-only variant's `cfg`. 76a still held by the author's prompt from 01:59.
+- 2026-11-22, about 08:15: **Decided unattended** (fixup-21's API question): a bound that ends LJT's
+  or the SAT solver's read-back or check after the search decided (the stop, the memory bound, the
+  derivation's) is `Ok(Unknown(reason))` with the search's statistics, as a stop during the search
+  already is, in place of `Err(Refused(…))`; a defect stays an error. So every bounded end has an
+  outcome for JSON and the protocol; the `# Errors` sections of `ljt::decide`, `sat::decide` and
+  `ordinary::decide` change, with a changelog line. The alternative (a command-only outcome with
+  made-up statistics) refused.
