@@ -155,7 +155,7 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
 /// and conflicts; a sequent outside its classes is `unknown`
 /// (`incomplete`). The model search's `nodes` are the last domain's atoms
 /// and `work` the solver's calls and conflicts on it, with no bound on the
-/// domain's size.
+/// domain's size or a Kripke model's worlds.
 fn native(
     args: &OneArgs,
     logic: Logic,
@@ -209,7 +209,9 @@ fn native(
             None => (Verdict::Unknown(Reason::Incomplete), Default::default()),
         })
     } else if method == Method::Models {
-        let search = Options::default().with_model_size(None);
+        let search = Options::default()
+            .with_model_size(None)
+            .with_model_worlds(None);
         ordinary::models::decide(sequent, logic, &search, &limits, stop).map(|outcome| {
             let s = outcome.statistics;
             (
