@@ -325,3 +325,57 @@ nanoCoP's 84); the panel and the reviewer.
 
 76b: section 6 and 7. 76c: section 8, the drawings in SVG, LaTeX and
 Typst, the manual and the guide.
+
+## 10. 76b's decisions (written at its start)
+
+- **The type** `ordinary::KripkeStructure`: `worlds` (each a domain
+  size, its arrows to the worlds directly above as `kripke::Model`'s,
+  each function's table over its own domain, each predicate's tuples,
+  `falsity` for minimal logic), `constants` once for all worlds (each
+  element in every world's domain), and `world`, the world refuted.
+  Domains are prefixes `0 .. size`, so growth along an arrow is
+  `size_v ≤ size_u`; tables agree on the smaller domain's tuples along
+  every arrow; predicates and `falsity` grow. `KripkeCountermodel
+  { sequent, model }` beside `FiniteCountermodel`, on the outcome as
+  `kripke` (JSON `"kripke_structure": {"sequent", "model"}`), wire level
+  27.
+- **The check** is the forcing relation's definition over the original
+  sequent at the refuted world, on a stack of its own, worlds above
+  taken in the reflexive-transitive closure of the arrows (Kahn's order
+  refuses a cycle): `→`, `¬` and `∀` quantify over the worlds above,
+  `∃` over the world's domain, `⊥` is `falsity` in minimal logic and
+  never forced otherwise. It does not rely on persistence, which it
+  checks apart. One world with no falsity agrees with
+  `Structure::refutes` (a test runs both).
+- **The search** writes "a Kripke model of K worlds with domains of at
+  most N elements refutes the sequent" as one propositional sequent per
+  (K, N): an order `le(v, u)` for `v < u` chosen by the solver
+  (reflexive, transitive, world 0 below all: every finite rooted poset
+  has a numbering of this kind, so no frame enumeration), prefix
+  domains `dom(v, d)` growing along `le`, predicate atoms per world
+  growing, value atoms per world and principal term (total and
+  functional on the world's domain, values in it, agreeing along `le`),
+  constants once (in the root's domain, Paradox's symmetry clauses on
+  them, which only permute the root's domain and so keep every prefix),
+  and the forcing formula `Φ(v, A, ē)` per world, node and values,
+  memoised: `→` and `∀` as conjunctions over the worlds `u ≥ v` guarded
+  by `le(v, u)` (and `dom(u, d)`), `∃` over `dom(v, d)`. The root forces
+  `Γ` and not `C`. A model of K worlds and N elements fits every
+  larger pair (a copy of a maximal world, unused elements), so the
+  search tries the diagonal: for L = 1, 2, …: the classical (1, L)
+  first, which is cheap, then (min(L, worlds), min(L, size)).
+- **Bounds**: `search::Options::model_worlds` (library 4, command none)
+  beside `model_size`; an exhausted search is unknown,
+  `Reason::KripkeSize { worlds, size }`.
+- **The dispatch**: `models::decide` in intuitionistic and minimal logic
+  runs this search (with the classical sizes first), so the library's
+  default after the embedding takes it at once; the command races it
+  beside the embedding on a thread of its own, as the classical one
+  beside the connection prover, measured.
+- **Glivenko's failure has no finite countermodel**: in a finite frame
+  every world sees a maximal world, which forces what is classically
+  true in its structure, so every world forces `¬¬A` for a classically
+  valid `A`. The countermodels of `¬¬∀x (p(x) ∨ ¬p(x))` and of
+  `∀x ¬¬p(x) → ¬¬∀x p(x)` are infinite chains (world n with domain
+  `0 .. n`, `p(k)` forced from world k + 1 on); the search answers
+  unknown on them, which a test pins.
