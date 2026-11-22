@@ -253,10 +253,7 @@
         # notice one that breaks alone. The full powerset doubles with every
         # feature, and a breakage needs more than two features rarely.
         # Warnings are denied, so an item or import that one feature set
-        # leaves unused fails the check. Each feature alone also builds the
-        # tests, where an item only some tests use must carry their cfg;
-        # every pair with the tests took eight minutes and found tests that
-        # assume features they do not name, so pairs build no tests.
+        # leaves unused fails the check.
         features = craneLib.mkCargoDerivation (
           workspace.argsOf [ "core" ]
           // {
@@ -266,8 +263,30 @@
             nativeBuildInputs = [ pkgs.cargo-hack ];
             buildPhaseCargoCommand = ''
               cargo hack check --each-feature --locked --package deduxit
-              cargo hack check --each-feature --tests --locked --package deduxit
               cargo hack check --feature-powerset --depth 2 --locked --package deduxit
+            '';
+            doInstallCargoArtifacts = false;
+          }
+        );
+
+        # The core crate's tests in every pair of features, each feature
+        # alone and none among them (`test-core` builds them with all), so
+        # that a test, or an item only some tests use, names the features it
+        # needs. A check of its own, which CI runs beside `features`: the two
+        # in one took twice the longest job. Its source holds the integration
+        # tests (`core-tests`), which `core` alone leaves out.
+        features-tests = craneLib.mkCargoDerivation (
+          workspace.argsOf [
+            "core"
+            "core-tests"
+          ]
+          // {
+            inherit (workspace) cargoArtifacts;
+            pnameSuffix = "-features-tests";
+            env.RUSTFLAGS = "-D warnings";
+            nativeBuildInputs = [ pkgs.cargo-hack ];
+            buildPhaseCargoCommand = ''
+              cargo hack check --feature-powerset --depth 2 --tests --locked --package deduxit
             '';
             doInstallCargoArtifacts = false;
           }

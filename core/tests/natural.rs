@@ -1343,7 +1343,11 @@ fn iltp() {
         for logic in [Logic::Minimal, Logic::Intuitionistic, Logic::Classical] {
             // The tableau method is left out: on the larger pigeonhole
             // problems it holds several times its memory bound.
-            for method in methods(logic).into_iter().filter(|&m| m != Method::Tableau) {
+            for method in methods(logic) {
+                #[cfg(feature = "interactive")]
+                if method == Method::Tableau {
+                    continue;
+                }
                 let options = ordinary::Options::default()
                     .with_logic(logic)
                     .with_method(Some(method));

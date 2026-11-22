@@ -1904,18 +1904,6 @@ Left by step 54s (`plan/reports/54s-sat-engines.md`):
   each once (the DAG read-back above), which changes the checker, so
   the panel's; intuit and intuitR, which give no derivation, solve sizes
   4 to 9 within 10 s.
-- **The tests in pairs of the core crate's features** (found by
-  fixup-21): `cargo hack check --feature-powerset --depth 2 --tests -p
-  deduxit` fails, while each feature alone with its tests passes and is
-  in the `features` check. `interactive,parse`: the linear session's
-  `inferences()` is `serialize`'s while its tests call it, and
-  `tableau.rs`'s tests import `Interactive` and `expand` for tests behind
-  `serialize`; `parse,serialize`: `tests/rules.rs`'s `let mut methods`,
-  `tests/serialize.rs` importing the linear session without
-  `interactive`, `tests/natural.rs` naming `Method::Tableau`; more show
-  as each is fixed. The run takes eight minutes on three cores; once it
-  passes, it can join the check, or the integration tests can name the
-  features they need (`required-features`).
 
 ## The web front end: a two-sided presentation of classical derivations
 

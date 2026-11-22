@@ -8,13 +8,15 @@
 #![cfg(all(feature = "parse", feature = "serialize"))]
 
 use deduxit::linear::search::{Engine, Options, prove, prove_within};
-use deduxit::linear::{CutFormula, InputOptions};
+#[cfg(feature = "interactive")]
+use deduxit::linear::{
+    CutFormula, GoalId, InputOptions, Interactive, Named, Rule, Step, ViewOptions,
+};
 use deduxit::{
     Limits,
     linear::{
-        Branch, Criterion, Forest, Fragment, GoalId, Interactive, MellStructure, Member, Mode,
-        Named, NetError, Node, NodeId, OccId, Order, Placement, Proof, ProofStructure, Rule,
-        Sequent, Step, VertexId, ViewOptions,
+        Branch, Criterion, Forest, Fragment, MellStructure, Member, Mode, NetError, Node, NodeId,
+        OccId, Order, Placement, Proof, ProofStructure, Sequent, VertexId,
     },
 };
 
@@ -523,6 +525,7 @@ fn mell_structure_json_format_and_round_trip() {
 /// `written` (the occurrences on the input side and the implications),
 /// which an older reader ignores, so the level stays 1; it reads back
 /// whole, and a record that cannot be the sequent's is refused.
+#[cfg(feature = "interactive")]
 #[test]
 fn a_session_keeps_how_its_sequent_was_written() {
     let written: deduxit::linear::ClassicalSequent = "A -o B, A |- ~~B".parse().unwrap();
@@ -555,6 +558,7 @@ fn a_session_keeps_how_its_sequent_was_written() {
 /// formulas and the cut's `cut`, the occurrence of its formula; it reads
 /// back as it was, and `undo` on the session read back takes the cut and
 /// its formula away, back to the session as it began.
+#[cfg(feature = "interactive")]
 #[test]
 fn a_session_with_a_cut_json_format_and_round_trip() {
     let limits = Limits::default();
@@ -586,6 +590,7 @@ fn a_session_with_a_cut_json_format_and_round_trip() {
     }
 }
 
+#[cfg(feature = "interactive")]
 #[test]
 fn interactive_json_format_and_round_trip() {
     let s: Sequent = "A, A -o B |- B".parse().unwrap();
@@ -972,11 +977,15 @@ fn wire_levels() {
     )
     .unwrap();
     let net = serde_json::to_string(&net).unwrap();
-    let session = Interactive::new(&s, Mode::INTUITIONISTIC).unwrap();
-    let session = serde_json::to_string(&session).unwrap();
+    #[cfg(feature = "interactive")]
+    let session = {
+        let session = Interactive::new(&s, Mode::INTUITIONISTIC).unwrap();
+        serde_json::to_string(&session).unwrap()
+    };
     assert_eq!(read_alike::<Sequent>(&sequent), sequent);
     assert_eq!(read_alike::<Proof>(&proof), proof);
     assert_eq!(read_alike::<ProofStructure>(&net), net);
+    #[cfg(feature = "interactive")]
     assert_eq!(read_alike::<Interactive>(&session), session);
     assert!(proof.contains(r#""mode":"intuitionistic""#), "{proof}");
 
@@ -1034,6 +1043,7 @@ fn wire_levels() {
     assert!(refused(
         wire::upgrade::<ProofStructure, _>(&mut document(&net), &tiny).map(drop)
     ));
+    #[cfg(feature = "interactive")]
     assert!(refused(
         wire::upgrade::<Interactive, _>(&mut document(&session), &tiny).map(drop)
     ));

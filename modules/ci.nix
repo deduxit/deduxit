@@ -22,6 +22,7 @@
       groups = {
         # The longest checks, alone.
         features = [ "features" ];
+        features-tests = [ "features-tests" ];
         core-tests = [ "test-core" ];
         core-tests-debug-assertions = [ "test-debug-assertions-core" ];
         # The library on WebAssembly: its unit tests on wasm32-wasip1, and

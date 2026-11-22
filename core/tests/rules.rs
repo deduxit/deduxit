@@ -186,11 +186,14 @@ fn terms_print_by_the_calculus() {
 #[test]
 fn the_rule_files_agree_with_the_ordinary_checker() {
     let limits = Limits::default();
-    let mut methods = vec![Method::Embedding, Method::Ljt];
-    #[cfg(feature = "sat")]
-    methods.push(Method::Sat);
-    #[cfg(feature = "interactive")]
-    methods.push(Method::Tableau);
+    let methods = [
+        Method::Embedding,
+        Method::Ljt,
+        #[cfg(feature = "sat")]
+        Method::Sat,
+        #[cfg(feature = "interactive")]
+        Method::Tableau,
+    ];
     let (mut derivations, mut accepted, mut refused, mut cuts) = (0, 0, 0, 0);
     for (logic, file) in [
         (Logic::Classical, LK),

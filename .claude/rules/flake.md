@@ -263,11 +263,13 @@ version, or code that needs a newer compiler, fails it; raising
 rises and how far is the `update-deps` skill's "When" (never to a Rust
 less than six months old; resolver 3 prefers dependency versions that
 build on it, and takes a newer one only where none fits).
-`checks.nix`'s `features` (cargo-hack, each feature and every pair, and
-each feature alone with its tests: `Derive::Ljt` was `#[cfg(test)]`
-where its tests need `parse`, which only a test build without default
-features shows; pairs with tests are left out, eight minutes and tests
-that assume features they do not name, `plan/later.md`) and
+`checks.nix`'s `features` (cargo-hack, each feature and every pair),
+`features-tests` (the core crate's tests in every pair of features, each
+alone and none among them: a test or a test-only item names the
+features it needs, an integration test by a `#![cfg(…)]` at its top and
+a test that needs more by its own `cfg`; `Derive::Ljt` was
+`#[cfg(test)]` where its tests need `parse`, which only such a build
+shows) and
 the gate's two `cargo hack` runs deny warnings (`RUSTFLAGS="-D
 warnings"`; the gate's in `target/hack`, since the flags are part of
 every artifact and would rebuild the tests'): an import that a move left
@@ -431,7 +433,8 @@ and Python with matplotlib; no check builds it.
   `rocq`, `rocq-deduxit`, `wire-schema`, `check-certificate`; the
   harness's `bench` and `ratchet`; the web module's `web-package`,
   `web-features`, `budget`; the site's `doc` and `manual-links`), or one
-  check that fills a runner alone (`features`, `test-core`,
+  check that fills a runner alone (`features`, `features-tests`,
+  `test-core`,
   `test-debug-assertions-core`). Every check no group names goes to the
   group `rest`, and an assertion fails the evaluation when a group names
   a check that does not exist or one twice, so a renamed check cannot

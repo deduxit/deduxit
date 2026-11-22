@@ -936,9 +936,11 @@ pub(super) fn decide(
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::{Evidence, Interactive, Logic, Options, Sequent, Verdict, decide};
-    use super::{End, Tableau, expand};
+    use super::super::{Evidence, Logic, Options, Sequent, Verdict, decide};
+    use super::{End, Tableau};
     use crate::Limits;
+    #[cfg(feature = "serialize")]
+    use {super::super::Interactive, super::expand};
 
     /// A search stopped part way holds only the expansions it made: no
     /// branch is closed before the search ends, so the axiom's weakenings,

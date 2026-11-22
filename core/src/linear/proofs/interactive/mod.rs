@@ -834,7 +834,7 @@ impl Interactive {
 
     /// Returns every inference, the root first and then in the order the
     /// steps opened them. An open goal is an inference with [`Rule::Open`].
-    #[cfg(feature = "serialize")]
+    #[cfg(any(feature = "serialize", all(test, feature = "parse")))]
     pub(crate) fn inferences(&self) -> &[Inference] {
         &self.inferences
     }
