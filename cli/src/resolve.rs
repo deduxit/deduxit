@@ -269,7 +269,8 @@ fn first_order_text(
                 }
                 Step::Factor { clause, .. } => format!("factor of {}", clause + 1),
                 Step::Paramodulation { from, into, .. } => {
-                    format!("{} rewritten by {}", into + 1, from + 1)
+                    // The equation's clause first: its variables are X1, ….
+                    format!("{} rewrites {}", from + 1, into + 1)
                 }
                 _ => String::new(),
             };

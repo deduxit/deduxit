@@ -121,11 +121,12 @@ clauses of its negation by clausal normal form, each clause's variables X1, X2, 
 2. X1 = X1
 3. ¬f(f(c)) = c
 resolution, the first parent's variables X1, …, the second's Y1, …:
-4. ¬f(c) = c  3 rewritten by 1 with X1 := f(c)
+4. ¬f(c) = c  1 rewrites 3 with X1 := f(c)
 5. □  from 4, 1 with Y1 := c
 ```
 
-The checker computes each rewrite again. LK has no rule for it, so such a
+A rewrite names the equation's clause first, as its first parent. The
+checker computes each rewrite again. LK has no rule for it, so such a
 refutation is not read back as a derivation. With few clauses the search
 also ends where nothing new appears: `a = b |- a = c` saturates.
 `--equality axioms` takes the equality axioms as clauses instead
