@@ -373,6 +373,13 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     binder is not, and a binary body is bracketed. `Symbols` has
     `forall`, `exists` and `dot` per target; `Formulas::write` takes a
     `name` writer beside `atom` for symbols and variables.
+  - **The printer keeps no per-formula setup**: a clash is a lookup in
+    the interner's symbol map (`Formulas::has_symbol`), and the
+    eigenvariables' names are kept in the interner (`Interner::eigens`),
+    computed at the first print and dropped by `Formulas::interner`, the
+    one way to change the tables (a new interner starts without them).
+    Recomputed per formula with a set of every symbol, the step listing
+    of 1 500 hypotheses' clausal form was cubic: a minute past `--timeout`.
   - **The parser** (`parse.rs`): `starts_binder` is one byte compare on
     the operand path (white space is skipped by then), `binder`,
     `predicate` and `close_binder` are cold, and the cold paths read names
@@ -460,7 +467,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
       member; term by term, the integers panel's `∀x₀…xₙ. p(x₀,…,xₙ) ⊢
       p(c₀,…,cₙ)` built n atoms of n arguments per member, cubic, 8 GiB at
       n = 700 under every default bound, now 84 MiB), built in
-      a copy of the image's arena that becomes the derivation's; a
+      a copy of the image's arena that becomes the derivation's, whose
+      growth is charged to the memory bound beside the inferences
+      (`ArenaSize`, `derivation.rs`, herbrand's measured estimate:
+      uncharged, the claim of a law over 50 nested binders held 1.9 GB
+      under 1 GiB); a
       quantifier rule's term is the innermost frame term of the one
       member its premise holds beyond the conclusion less the principal
       (`opened`, a multiset difference of the sorted members: the same
@@ -2292,6 +2303,22 @@ decided not valid is `Error::ClaimFails` (kind defect).
     the classical default (the SAT solver refuses them), the protocol's
     too. `transfer` rebuilds the input by symbol names, terms first, so
     a result read from JSON is judged as it is.
+  - **The check keeps to its bounds**: a law's claim is built in an
+    arena of its own holding its two formulas (`law_claim`,
+    `copy_formulas`); a copy of the result's arena per step, which grows
+    with every step, made the check of `n` hypotheses cubic in memory
+    (1 500 reached 54 GB). The stop is asked before each claim, each
+    decision gets the memory the kept checks leave (`left_over`,
+    `checked_bytes` by `ArenaSize`) and the kept checks are refused past
+    the bound (`kept_within`); a refusal or an unknown at the memory
+    bound names the bound the caller gave, the kept checks' bytes added
+    to what the decision needed (`given_refusal`, `given_bound`). A
+    memory or work refusal of the LJ attempt gives way to LK as its
+    unknown does. Each decision gets the caller's work bound whole, as
+    the propositional claims do; the rewriting charges its passes to it.
+    What is left is the claims' search itself (the connection prover's
+    on `n` hypotheses, 99 % of the time), bounded by the time and the
+    stop.
 
 ## Herbrand's theorem (`herbrand.rs`)
 

@@ -62,6 +62,7 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+use super::derivation::ArenaSize;
 use super::{Formulas, Logic, Node, NodeId, Outcome, Sequent, Verdict, decide_within};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
@@ -1079,6 +1080,7 @@ impl NormalForm {
         // The SAT solver decides propositional claims; at first order the
         // logic's default does.
         let first_order = self.sequent.formulas().is_first_order();
+        let given = limits.memory_bytes;
         let method = if first_order { None } else { CLAIMS };
         let options = super::Options::default()
             .with_logic(Logic::Classical)
@@ -1086,11 +1088,20 @@ impl NormalForm {
         // A value checked before and changed since keeps no old check.
         self.checks.clear();
         let mut checks = Vec::new();
+        // What the checks kept hold: each decision gets the memory left, and
+        // a bound reached is named as the caller gave it.
+        let mut held = 0u64;
         if first_order {
             for (k, step) in self.steps.iter().enumerate() {
                 if !step.rule.is_equivalence() {
                     continue;
                 }
+                if stop(Progress::new(Phase::Check, 1, k as u64)) {
+                    return Err(Error::Refused(Refusal::Stopped {
+                        phase: Phase::Check,
+                    }));
+                }
+                let limits = &left_over(limits, held);
                 let sequent = law_claim(&self.result, step)?;
                 // The claim is valid in its logic by the law's table, so a
                 // search that deepens without a copy bound ends; the
@@ -1106,16 +1117,28 @@ impl NormalForm {
                     let bounded =
                         limits.with_work(Some(limits.work.map_or(LAW_WORK, |w| w.min(LAW_WORK))));
                     let options = super::Options::default().with_logic(Logic::Intuitionistic);
-                    let tried = decide_within(&sequent, &options, &lifted, &bounded, &mut stop)?;
-                    if let Verdict::Unknown(reason) = tried.verdict
-                        && reason != search::Reason::Stopped
-                    {
-                        decide_within(&sequent, &classical, &lifted, limits, &mut stop)?
-                    } else {
-                        tried
+                    // A bound that refuses LJ's derivation (its read-back of
+                    // a deep nest of binders grows with the square of the
+                    // nest) gives way to LK as an unknown does.
+                    match decide_within(&sequent, &options, &lifted, &bounded, &mut stop) {
+                        Ok(tried)
+                            if !matches!(
+                                tried.verdict,
+                                Verdict::Unknown(ref reason) if *reason != search::Reason::Stopped
+                            ) =>
+                        {
+                            tried
+                        }
+                        Ok(_)
+                        | Err(Error::Refused(Refusal::Memory { .. } | Refusal::Work { .. })) => {
+                            decide_within(&sequent, &classical, &lifted, limits, &mut stop)
+                                .map_err(|e| given_refusal(e, given, held))?
+                        }
+                        Err(error) => return Err(given_refusal(error, given, held)),
                     }
                 } else {
-                    decide_within(&sequent, &classical, &lifted, limits, &mut stop)?
+                    decide_within(&sequent, &classical, &lifted, limits, &mut stop)
+                        .map_err(|e| given_refusal(e, given, held))?
                 };
                 if matches!(outcome.verdict, Verdict::NotValid) {
                     return Err(Error::ClaimFails {
@@ -1123,28 +1146,36 @@ impl NormalForm {
                         reason: format!("the law {} fails at step {}", step.rule.law(), k + 1),
                     });
                 }
-                checks.push(Checked {
+                let checked = Checked {
                     claim: Claim::Law,
                     step: Some(k),
                     sequent,
-                    outcome,
-                });
+                    outcome: given_bound(outcome, given),
+                };
+                held = held.saturating_add(checked_bytes(&checked));
+                kept_within(held, given)?;
+                checks.push(checked);
             }
         }
         for (claim, sequent) in self.claims()? {
-            let outcome = decide_within(&sequent, &options, search, limits, &mut stop)?;
+            let limits = &left_over(limits, held);
+            let outcome = decide_within(&sequent, &options, search, limits, &mut stop);
+            let outcome = given_bound(outcome.map_err(|e| given_refusal(e, given, held))?, given);
             if matches!(outcome.verdict, Verdict::NotValid) {
                 return Err(Error::ClaimFails {
                     claim: self.form.title().to_owned(),
                     reason: format!("it is not so that {}", claim.description()),
                 });
             }
-            checks.push(Checked {
+            let checked = Checked {
                 claim,
                 step: None,
                 sequent,
                 outcome,
-            });
+            };
+            held = held.saturating_add(checked_bytes(&checked));
+            kept_within(held, given)?;
+            checks.push(checked);
         }
         self.checks = checks;
         Ok(())
@@ -1204,22 +1235,92 @@ fn holds_symbol(formulas: &Formulas, roots: &[NodeId], symbol: crate::first_orde
     false
 }
 
-/// Returns the claim of a step's law: `⊢ C ↔ C'` over the result's arena,
-/// `C` the formula the step replaced and `C'` what replaced it, each of
-/// their free variables a new constant (`c1`, `c2`, …, the innermost
-/// binder's first). It is valid exactly when `∀ȳ. (C ↔ C')` is, and the
-/// methods decide it with no quantifier to instantiate for `ȳ`.
+/// Returns `limits` with the memory bound less what the checks kept hold.
+fn left_over(limits: &Limits, held: u64) -> Limits {
+    limits.with_memory_bytes(limits.memory_bytes.map(|m| m.saturating_sub(held)))
+}
+
+/// Refuses checks that together hold more than the memory bound `given`.
+fn kept_within(held: u64, given: Option<u64>) -> Result<(), Error> {
+    match given {
+        Some(limit_bytes) if held > limit_bytes => Err(Error::Refused(Refusal::Memory {
+            phase: Phase::Check,
+            limit_bytes,
+            needed_bytes: Some(held),
+        })),
+        _ => Ok(()),
+    }
+}
+
+/// Returns the bytes a check holds, estimated: its claim's and its
+/// derivation's arenas, and the derivation's inferences.
+fn checked_bytes(checked: &Checked) -> u64 {
+    let arena = |formulas| ArenaSize::of(formulas, &ArenaSize::default()).bytes;
+    let mut bytes = arena(checked.sequent.formulas());
+    if let Verdict::Valid(super::Evidence::Derivation(d)) = &checked.outcome.verdict {
+        bytes = bytes.saturating_add(arena(d.formulas()));
+        for inference in d.inferences() {
+            let ids = inference.left.len() + inference.right.len() + inference.premises.len();
+            bytes =
+                bytes.saturating_add((size_of::<super::derivation::Inference>() + 4 * ids) as u64);
+        }
+    }
+    bytes
+}
+
+/// Returns `outcome` with an unknown at the memory bound naming the bound
+/// the caller gave, not the share a claim's decision had.
+fn given_bound(mut outcome: Outcome, given: Option<u64>) -> Outcome {
+    if let (Verdict::Unknown(search::Reason::MemoryLimit { limit_bytes }), Some(g)) =
+        (&mut outcome.verdict, given)
+    {
+        *limit_bytes = g;
+    }
+    outcome
+}
+
+/// Returns `error` with a refusal at the memory bound naming the bound the
+/// caller gave, and what the decision needed beside the `held` bytes the
+/// checks before it kept.
+fn given_refusal(error: Error, given: Option<u64>, held: u64) -> Error {
+    match (error, given) {
+        (
+            Error::Refused(Refusal::Memory {
+                phase,
+                needed_bytes,
+                ..
+            }),
+            Some(limit_bytes),
+        ) => Error::Refused(Refusal::Memory {
+            phase,
+            limit_bytes,
+            needed_bytes: needed_bytes.map(|n| n.saturating_add(held)),
+        }),
+        (error, _) => error,
+    }
+}
+
+/// Returns the claim of a step's law: `⊢ C ↔ C'`, `C` the formula the
+/// step replaced and `C'` what replaced it, each of their free variables a
+/// new constant (`c1`, `c2`, …, the innermost binder's first). It is valid
+/// exactly when `∀ȳ. (C ↔ C')` is, and the methods decide it with no
+/// quantifier to instantiate for `ȳ`. The claim's arena holds the two
+/// formulas alone: a copy of the result's, which grows with every step,
+/// made the claims of a long rewriting take the square of its size.
 fn law_claim(result: &Sequent, step: &Step) -> Result<Sequent, Error> {
-    let mut formulas = result.formulas().clone();
-    formulas.holds(step.before)?;
-    formulas.holds(step.after)?;
+    let source = result.formulas();
+    source.holds(step.before)?;
+    source.holds(step.after)?;
+    let mut formulas = Formulas::default();
+    let copied = copy_formulas(source, &[step.before, step.after], &mut formulas)?;
+    let (before, after) = (copied[0], copied[1]);
     let needed = formulas
-        .free_variables(step.before)
+        .free_variables(before)
         .into_iter()
-        .chain(formulas.free_variables(step.after))
+        .chain(formulas.free_variables(after))
         .max()
         .map_or(0, |i| i + 1);
-    let mut claim = formulas.add(Node::Iff(step.before, step.after))?;
+    let mut claim = formulas.add(Node::Iff(before, after))?;
     if needed > 0 {
         let prefix = fresh_prefix(&formulas, "c");
         let mut constants = Vec::with_capacity(needed as usize);
@@ -1229,6 +1330,105 @@ fn law_claim(result: &Sequent, step: &Step) -> Result<Sequent, Error> {
         claim = formulas.instantiate_frame(claim, &constants)?;
     }
     Sequent::new(formulas, Vec::new(), vec![claim])
+}
+
+/// Returns `roots`, formulas of `from` (open ones among them), made again in
+/// `to` with every node and term they reach and nothing else: atoms and
+/// symbols by name, a bound variable by its index, a binder by its name.
+fn copy_formulas(
+    from: &Formulas,
+    roots: &[NodeId],
+    to: &mut Formulas,
+) -> Result<Vec<NodeId>, Error> {
+    let tables = from.first_order();
+    let mut symbols: HashMap<crate::first_order::Symbol, crate::first_order::Symbol> =
+        HashMap::new();
+    let mut terms: HashMap<FoTermId, FoTermId> = HashMap::new();
+    let mut nodes: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut symbol_in = |to: &mut Formulas,
+                         s: crate::first_order::Symbol,
+                         predicate: bool|
+     -> Result<crate::first_order::Symbol, Error> {
+        if let Some(&t) = symbols.get(&s) {
+            return Ok(t);
+        }
+        let (name, arity) = &tables.symbols[s.index()];
+        let t = to
+            .interner()
+            .symbol(name, *arity, predicate)
+            .map_err(|fault| Error::Symbol {
+                name: name.clone(),
+                fault,
+            })?;
+        symbols.insert(s, t);
+        Ok(t)
+    };
+    let mut stack: Vec<(NodeId, bool)> = roots.iter().map(|&r| (r, false)).collect();
+    while let Some((n, ready)) = stack.pop() {
+        if nodes.contains_key(&n) {
+            continue;
+        }
+        let node = from.node(n);
+        if !ready {
+            stack.push((n, true));
+            let (a, b) = node.operands();
+            stack.extend([a, b].into_iter().flatten().map(|k| (k, false)));
+            continue;
+        }
+        let image = match node {
+            Node::Atom(a) => match tables.atoms.get(a as usize) {
+                Some(&(p, args)) => {
+                    // The terms after the terms they name.
+                    let mut pending: Vec<(FoTermId, bool)> =
+                        tables.list(args).iter().map(|&t| (t, false)).collect();
+                    while let Some((t, done)) = pending.pop() {
+                        if terms.contains_key(&t) {
+                            continue;
+                        }
+                        let made = match tables.terms[t.index()] {
+                            FoTerm::Bound(i) => to.interner().term(FoTerm::Bound(i)),
+                            FoTerm::App(f, list) => {
+                                let items = tables.list(list);
+                                if !done {
+                                    pending.push((t, true));
+                                    pending.extend(items.iter().map(|&u| (u, false)));
+                                    continue;
+                                }
+                                let items: Vec<FoTermId> = items.iter().map(|u| terms[u]).collect();
+                                let f = symbol_in(to, f, false)?;
+                                let list = to.interner().list(&items);
+                                to.interner().term(FoTerm::App(f, list))
+                            }
+                            // A result's arena holds neither.
+                            FoTerm::Eigen(_) | FoTerm::Meta(_) => {
+                                return Err(Error::ClaimFails {
+                                    claim: "a normal form".to_owned(),
+                                    reason: "a step holds an eigenvariable or an open witness"
+                                        .to_owned(),
+                                });
+                            }
+                        };
+                        terms.insert(t, made);
+                    }
+                    let items: Vec<FoTermId> = tables.list(args).iter().map(|u| terms[u]).collect();
+                    let p = symbol_in(to, p, true)?;
+                    let list = to.interner().list(&items);
+                    to.predicate_atom(p, list)?
+                }
+                None => to.atom(from.atom_name(a))?,
+            },
+            Node::True | Node::False => to.add(node)?,
+            Node::Not(a) => to.add(Node::Not(nodes[&a]))?,
+            Node::And(a, b) => to.add(Node::And(nodes[&a], nodes[&b]))?,
+            Node::Or(a, b) => to.add(Node::Or(nodes[&a], nodes[&b]))?,
+            Node::Implies(a, b) => to.add(Node::Implies(nodes[&a], nodes[&b]))?,
+            Node::Iff(a, b) => to.add(Node::Iff(nodes[&a], nodes[&b]))?,
+            Node::Forall(a) => to.add_named(Node::Forall(nodes[&a]), tables.binder_name(n))?,
+            Node::Exists(a) => to.add_named(Node::Exists(nodes[&a]), tables.binder_name(n))?,
+        };
+        nodes.insert(n, image);
+    }
+    Ok(roots.iter().map(|r| nodes[r]).collect())
 }
 
 /// Returns the formulas of `sequent` added to `formulas`, built again by
@@ -3372,6 +3572,105 @@ pub(super) mod first_order_tests {
         normal.result = Sequent::new(formulas, vec![bottom], Vec::new()).unwrap();
         let check = normal.check(&search::Options::default(), &Limits::default(), |_| false);
         assert!(matches!(check, Err(Error::ClaimFails { .. })), "{check:?}");
+    }
+
+    /// The clausal form of `n` hypotheses `∀x. pᵢ(x)` against the
+    /// conjunction of every `pᵢ(a)`: a step per conjunct, each sequent on
+    /// the way holding every hypothesis.
+    fn many_hypotheses(n: usize) -> Sequent {
+        let left: Vec<String> = (0..n).map(|i| format!("forall x. p{i}(x)")).collect();
+        let right: Vec<String> = (0..n).map(|i| format!("p{i}(a)")).collect();
+        format!("{} |- {}", left.join(", "), right.join(" /\\ "))
+            .parse()
+            .unwrap()
+    }
+
+    /// A law's claim holds its two formulas alone, however large the
+    /// result's arena: a copy of that arena per step made the check of a
+    /// long rewriting cubic in memory.
+    #[test]
+    fn a_law_s_claim_copies_its_formulas_alone() {
+        let options = Options::default().with_form(Form::Clausal);
+        let normal = normalize_default(&many_hypotheses(40), &options).unwrap();
+        assert!(normal.is_checked());
+        assert!(normal.result.formulas().len() > 200);
+        // The nodes the step's two formulas reach in the result's arena.
+        let formulas = normal.result.formulas();
+        let reached = |roots: [NodeId; 2]| {
+            let mut seen = crate::hash::HashSet::default();
+            let mut stack = roots.to_vec();
+            while let Some(k) = stack.pop() {
+                if seen.insert(k) {
+                    let (a, b) = formulas.node(k).operands();
+                    stack.extend([a, b].into_iter().flatten());
+                }
+            }
+            seen.len()
+        };
+        let mut laws = 0;
+        for check in normal.checks.iter().filter(|c| c.claim == Claim::Law) {
+            let step = &normal.steps[check.step.unwrap()];
+            // Those nodes and the claim's `↔`.
+            let most = reached([step.before, step.after]) + 1;
+            assert!(
+                check.sequent.formulas().len() <= most,
+                "step {:?}",
+                check.step
+            );
+            laws += 1;
+        }
+        assert!(laws >= 39, "{laws} laws");
+    }
+
+    /// The clausal form keeps to the work, memory and stop it is given,
+    /// in the rewriting and in the check, and a bound reached names the
+    /// bound the caller gave, not a claim's share of it.
+    #[test]
+    fn the_clausal_form_keeps_to_its_bounds() {
+        let sequent = many_hypotheses(40);
+        let options = Options::default().with_form(Form::Clausal);
+        let search = search::Options::default();
+        let work = Limits::default().with_work(Some(10));
+        assert!(matches!(
+            rewrite(&sequent, &options, &work, |_| false),
+            Err(Error::Refused(Refusal::Work { .. }))
+        ));
+        let tight = Limits::default().with_memory_bytes(Some(4_096));
+        assert!(matches!(
+            rewrite(&sequent, &options, &tight, |_| false),
+            Err(Error::Refused(Refusal::Memory {
+                limit_bytes: 4_096,
+                ..
+            }))
+        ));
+        let made = rewrite(&sequent, &options, &Limits::default(), |_| false).unwrap();
+        // The checks' derivations pass 64 KiB together.
+        let mut normal = made.clone();
+        let small = Limits::default().with_memory_bytes(Some(65_536));
+        match normal.check(&search, &small, |_| false) {
+            Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => {
+                assert_eq!(limit_bytes, 65_536);
+            }
+            Ok(()) => assert!(normal.checks.iter().any(|c| matches!(
+                c.outcome.verdict,
+                Verdict::Unknown(search::Reason::MemoryLimit {
+                    limit_bytes: 65_536
+                })
+            ))),
+            other => panic!("{other:?}"),
+        }
+        // The stop is asked between the claims.
+        let mut normal = made;
+        let stopped = normal.check(&search, &Limits::default(), |p| p.phase == Phase::Check);
+        assert!(
+            matches!(
+                stopped,
+                Err(Error::Refused(Refusal::Stopped {
+                    phase: Phase::Check
+                }))
+            ),
+            "{stopped:?}"
+        );
     }
 
     /// The propositional forms still refuse a first-order sequent.
