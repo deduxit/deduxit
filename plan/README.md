@@ -8201,3 +8201,15 @@ move (D26).
   `plan/reports/78-equality-resolution.md`, which 78a creates too: its rebase merges them, 78a's
   section first. In its worker while 78c waits on 78a: **fixup-23**, the connection prover bounded
   in the library's default (76a's open item) and the batch's race at first order (76b's).
+- 2026-11-22, about 19:30: **77c reviewed; step 77 complete once it lands; fixup-24 started.** 77c
+  (Opus, high; the reviewer on Fable): `Error::GlivenkoFirstOrder` (code `glivenko_first_order`)
+  where deduxit meets Glivenko's translation of a first-order sequent (`translate`, `compare`, `seq
+  translate --by glivenko`, `ordinary.translate`): it names the two formulas, says why no finite
+  Kripke model refutes them, describes the infinite chain and cites 76c's `chain_excluded_middle` and
+  `chain_double_negation_shift`, pointing to Kuroda's translation; the manual's transformations
+  chapter shows it. The reviewer's finding (the shift written `∀x. ¬¬p(x) → ¬¬∀x. p(x)` reads in
+  deduxit's syntax as another, refutable formula) fixed everywhere in deduxit as
+  `(∀x. ¬¬p(x)) → ¬¬(∀x. p(x))`. Rebased onto 78b; its check on `ci/step-77c`, then `main`.
+  **Step 77 complete** with it. In its worker: **fixup-24**, the shift's spelling in rocq-deduxit's
+  comments (before the library's tag) and Herbrand's read-back within the memory bound with a witness
+  set per quantifier (78b's panel's open items).
