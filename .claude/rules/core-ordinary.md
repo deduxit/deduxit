@@ -842,7 +842,16 @@ the search, `read_back.rs` the derivation of LK.
   error read as "no"), else the connection prover the default of a
   first-order classical sequent with no method and no translation
   given; where it gives way (`gives_way`: unknown at a bound other than
-  the stop, `Incomplete` included) the embedding decides. `decide`'s door
+  the stop, `Incomplete` included) the embedding decides. The default's
+  prover searches within `CONNECTION_WORK` (2²⁶ steps, or the caller's
+  lower bound; `connected_by_default`, `connection_limits`, in `within`
+  and `by_grounding`'s fallback): its deepening to path length 8 did not
+  end on a sequent with no proof and no finite model. The bound is 1.57
+  times the most a theorem the default proves on ILTP at 2 s needs, the
+  equality problems with their axioms included (SET108+1, 42.7 M; 2²⁵
+  lost it and SET024+1); a step's cost varies tenfold between sequents,
+  so the bound is minutes on the serial relation. The command calls the
+  prover directly under its time share and is not bounded so. `decide`'s door
   (`takes_first_order`) lets `Embedding`, `Connection` and `Grounding`
   through at first order. The command asks `method_for` in `by_native`,
   `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`). An

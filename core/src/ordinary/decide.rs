@@ -259,8 +259,7 @@ fn by_grounding(
         Err(error) => Err(error),
     };
     if classical && gives_way(&grounded) {
-        return super::connection::decide(sequent, logic, search, limits, &mut *stop)
-            .map(Outcome::from);
+        return connected_by_default(sequent, logic, search, limits, &mut *stop);
     }
     if classical
         && let Ok(Outcome {
@@ -388,6 +387,47 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
         }
         Err(error) => matches!(error, Error::Refused(r) if !matches!(r, Refusal::Stopped { .. })),
     }
+}
+
+/// The most units of work (the prover's steps) the default's connection
+/// prover does on a first-order classical sequent before it gives way to
+/// the embedding and the model search, or the caller's lower bound.
+/// Without it a sequent with no proof and no finite model (an irreflexive,
+/// transitive and serial relation) kept the prover's deepening to its path
+/// length of 8 busy for minutes. On ILTP's 2 670 first-order problems at
+/// 2 s, the equality problems with their axioms, the default's prover
+/// proves 863 theorems, the most work 42 723 414 steps (SET108+1,
+/// 1.3 s); the bound is 1.57 times that. A step's cost varies tenfold
+/// between sequents, so on the serial relation the bound is minutes of
+/// search, where without it the search did not end.
+pub const CONNECTION_WORK: u64 = 1 << 26;
+
+/// Returns the default's connection prover's outcome on a first-order
+/// classical sequent, its search within [`CONNECTION_WORK`] units of work
+/// (or the caller's lower bound), past which it gives way.
+///
+/// # Errors
+///
+/// As [`connection::decide`](super::connection::decide).
+fn connected_by_default(
+    sequent: &Sequent,
+    logic: Logic,
+    search: &search::Options,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    super::connection::decide(sequent, logic, search, &connection_limits(limits), stop)
+        .map(Outcome::from)
+}
+
+/// Returns `limits` with the work bounded by [`CONNECTION_WORK`], or by the
+/// caller's lower bound.
+fn connection_limits(limits: &Limits) -> Limits {
+    limits.with_work(Some(
+        limits
+            .work
+            .map_or(CONNECTION_WORK, |w| w.min(CONNECTION_WORK)),
+    ))
 }
 
 /// The most units of work the embedding's search may do for the evidence
@@ -811,6 +851,9 @@ fn dispatch(
         Method::Table => Some(super::table::decide(sequent, logic, limits, &mut stop)),
         #[cfg(feature = "interactive")]
         Method::Tableau => Some(super::tableau::decide(sequent, logic, limits, &mut stop)),
+        Method::Connection if options.method.is_none() => Some(connected_by_default(
+            sequent, logic, search, limits, &mut stop,
+        )),
         Method::Connection => Some(
             super::connection::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
         ),
@@ -1223,5 +1266,42 @@ mod tests {
         let connected = decide(text, Logic::Classical);
         assert!(matches!(connected.verdict, Verdict::Valid(_)));
         assert_eq!(connected.method(), Method::Connection);
+    }
+
+    /// The default's connection prover searches within its bound, the
+    /// default's own or the caller's lower one, and the default gives way
+    /// past it: on a sequent with no proof and no finite model the outcome
+    /// is the embedding's, not the prover's.
+    #[test]
+    fn the_default_s_prover_gives_way_past_its_bound() {
+        let sequent: Sequent = "forall x. ~r(x, x), forall x y z. (r(x, y) /\\ r(y, z) -> r(x, z)), forall x. exists y. r(x, y) |-"
+            .parse()
+            .unwrap();
+        let limits = Limits::default().with_work(Some(1 << 12));
+        let search = search::Options::default();
+        let connected =
+            super::connected_by_default(&sequent, Logic::Classical, &search, &limits, &mut |_| {
+                false
+            })
+            .unwrap();
+        assert!(matches!(
+            connected.verdict,
+            Verdict::Unknown(crate::linear::search::Reason::WorkLimit { limit: 4096 })
+        ));
+        let options = Options::default().with_logic(Logic::Classical);
+        let decided = decide_within(&sequent, &options, &search, &limits, |_| false).unwrap();
+        assert!(
+            !matches!(decided.search, Search::Connection(_)),
+            "{:?}",
+            decided.search
+        );
+        // Without a bound of the caller's the default's own applies; a
+        // lower one of the caller's stays.
+        let unbounded = Limits::default().with_work(None);
+        assert_eq!(
+            super::connection_limits(&unbounded).work,
+            Some(super::CONNECTION_WORK)
+        );
+        assert_eq!(super::connection_limits(&limits).work, Some(1 << 12));
     }
 }
