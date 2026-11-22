@@ -1018,9 +1018,11 @@ the clausal proof's checker is the trust for "valid".
   (`Error::Structure`), the tables charged to `limits.memory_bytes`
   beside the rest (`ENTRY_BYTES` and 4 bytes a value); the evaluator
   reads a term by its own stack (`Evaluator::term`, no recursion over a
-  term). `Display` prints `f: always v` where every value is one, else
-  each tuple (the arity read from the table's length, base the size or
-  2).
+  term), each application a `tick` (a term of a JSON sequent may share
+  its subterms and is read as its tree). `Display` prints `f: always v`
+  where every value is one, else each tuple (the arity read from the
+  table's length, base the size or 2), the first 64 (`SHOWN`) and a
+  count of the rest, predicates' tuples likewise.
 
 ## The finite model search (`models.rs`, behind `sat`)
 
@@ -1062,9 +1064,7 @@ MACE's and Paradox's method (the design is
 - **Each size is solved afresh** (`sat::falsify`: the classical encoder
   and batsat without recording or checking a clausal proof, since a
   size without a model proves nothing), the solver given the memory
-  bound less the expansion's estimate. A sequent without quantifiers
-  and function symbols stops at the constants' number of elements
-  (`enough`). Past the bound: `Reason::ModelSize { size }`
+  bound less the expansion's estimate. Past the bound: `Reason::ModelSize { size }`
   (`search.model_size`); `None` deepens until the stop.
 - **Bounds**: `Writer::tick` on every step and every tuple of
   `over_tuples` (the stop every `grounding::POLL`, `limits.occurrences`
@@ -1072,8 +1072,21 @@ MACE's and Paradox's method (the design is
   an atom, `MEMO_BYTES` a memo entry, as grounding's); the stop, a work
   or memory refusal are unknown (`unknown_for`), an occurrence refusal
   an error, which the default gives way on. A structure's function
-  tables are refused past `usize` (`IndexLimit`) or the memory bound
-  before they are allocated.
+  tables are refused at the memory bound before they are allocated, and
+  allocated by `try_reserve_exact`, so a table past the address space or
+  the allocator is the memory bound's refusal (`MemoryLimit`), with no
+  bound too (the panel's witness: `g` of 25 to 63 arguments under
+  `--memory-limit none` aborted or panicked).
+- **What the panel found** (all answered): the evaluator read a shared
+  term of a JSON sequent as its tree with no work counted or stop asked
+  (each application is now a `tick`); the normal form's term walk ran
+  again for each entry of a literal (an equivalence enters its operands
+  twice per level) and made quadratic free-variable lists in one step
+  (`Nnf::terms` reads each term once per scope, `free_entries` charged,
+  the bound checked after each application); `Display` of a table of
+  `size^arity` entries took fifty times the charged bytes and no stop
+  (`SHOWN`, 64 entries); `Signature::of` was quadratic in the function
+  symbols (a set now).
 - **The dispatch**: the library's default runs it last, in every logic,
   on a first-order sequent the embedding left unknown (not stopped), and
   takes its outcome only where it refutes (`within` in `decide.rs`):

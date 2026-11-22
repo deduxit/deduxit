@@ -153,15 +153,7 @@ fn run(
         Err(error) => return unknown(unknown_for(error, limits)?, statistics),
     };
     let signature = Signature::of(&nnf, root);
-    // Without a quantifier or a function symbol, a structure that refutes
-    // the sequent has one element per constant or fewer: larger domains
-    // add nothing.
-    let enough = if signature.quantified || !signature.functions.is_empty() {
-        u32::MAX
-    } else {
-        u32::try_from(signature.constants.len().max(1)).unwrap_or(u32::MAX)
-    };
-    let most = bound.unwrap_or(u32::MAX).min(enough);
+    let most = bound.unwrap_or(u32::MAX);
     for size in 1..=most {
         statistics.size = u64::from(size);
         let expansion = match Expansion::new(&nnf, root, &signature, size, limits, &mut *stop) {
@@ -239,8 +231,6 @@ struct Signature {
     /// The function symbols with arguments, each with its arity, by first
     /// use.
     functions: Vec<(u32, u32)>,
-    /// Whether a quantifier is reachable from the root.
-    quantified: bool,
 }
 
 impl Signature {
@@ -249,7 +239,7 @@ impl Signature {
     fn of(nnf: &Nnf, root: u32) -> Self {
         let mut constants = Vec::new();
         let mut functions: Vec<(u32, u32)> = Vec::new();
-        let mut quantified = false;
+        let mut seen_function: crate::hash::HashSet<u32> = crate::hash::HashSet::default();
         let mut seen_node = vec![false; nnf.nodes.len()];
         let mut seen_app = vec![false; nnf.apps.len()];
         let mut seen_constant: crate::hash::HashSet<u32> = crate::hash::HashSet::default();
@@ -264,10 +254,7 @@ impl Signature {
                 G::Lit(_, _, args) => terms.extend(args.iter().rev()),
                 G::True | G::False => {}
                 G::And(k) | G::Or(k) => stack.extend(k.iter().rev()),
-                G::Forall(_, b) | G::Exists(_, b) => {
-                    quantified = true;
-                    stack.push(*b);
-                }
+                G::Forall(_, b) | G::Exists(_, b) => stack.push(*b),
             }
             while let Some(t) = terms.pop() {
                 match t {
@@ -282,7 +269,7 @@ impl Signature {
                             continue;
                         }
                         let app = &nnf.apps[a as usize];
-                        if !functions.iter().any(|&(f, _)| f == app.symbol) {
+                        if seen_function.insert(app.symbol) {
                             functions.push((app.symbol, app.args.len() as u32));
                         }
                         terms.extend(app.args.iter().rev());
@@ -293,7 +280,6 @@ impl Signature {
         Self {
             constants,
             functions,
-            quantified,
         }
     }
 }
@@ -696,25 +682,31 @@ impl Expansion {
         let memory = limits.memory_bytes.unwrap_or(u64::MAX);
         let mut functions: Vec<(String, Vec<u32>)> = Vec::new();
         let mut index_of: HashMap<u32, usize> = HashMap::default();
+        // A table past what the memory bound, the address space or the
+        // allocator holds is the memory bound's refusal, never an abort.
+        let refused = |needed: u64| {
+            Error::Refused(Refusal::Memory {
+                phase: Phase::Search,
+                limit_bytes: memory,
+                needed_bytes: Some(needed),
+            })
+        };
         for &(f, arity) in &signature.functions {
             let count = u64::from(size)
                 .checked_pow(arity)
-                .filter(|&c| c <= usize::MAX as u64)
-                .ok_or(Error::Refused(Refusal::Index {
-                    what: crate::limits::Space::Atom,
-                    count: u64::MAX,
-                    most: usize::MAX as u64,
-                }))?;
+                .filter(|&c| c <= isize::MAX as u64 / 4)
+                .ok_or_else(|| refused(u64::MAX))?;
             cells = cells.saturating_add(count);
             if cells.saturating_mul(4) > memory {
-                return Err(Error::Refused(Refusal::Memory {
-                    phase: Phase::Search,
-                    limit_bytes: memory,
-                    needed_bytes: Some(cells.saturating_mul(4)),
-                }));
+                return Err(refused(cells.saturating_mul(4)));
             }
+            let mut table: Vec<u32> = Vec::new();
+            table
+                .try_reserve_exact(count as usize)
+                .map_err(|_| refused(count.saturating_mul(4)))?;
+            table.resize(count as usize, 0);
             index_of.insert(f, functions.len());
-            functions.push((symbol(f), vec![0; count as usize]));
+            functions.push((symbol(f), table));
         }
         for (p, (s, args, _)) in self.principals.iter().enumerate() {
             if args.is_empty() {
@@ -943,13 +935,26 @@ mod tests {
                 outcome.verdict
             );
         }
-        // Without quantifiers or functions, a domain past the constants
-        // adds nothing.
-        let outcome = search("p(a), p(b) |- q(a) \\/ p(b)", Logic::Classical, 6);
-        assert!(matches!(
-            outcome.verdict,
-            Verdict::Unknown(Reason::ModelSize { size: 2 })
-        ));
+        // A table no allocation holds is the memory bound's refusal, an
+        // unknown, with or without a bound.
+        let wide = format!(
+            "p(a), ~p(b), forall x. r(g({})) |- r(a)",
+            vec!["x"; 70].join(", ")
+        );
+        for memory in [None, Some(1 << 26)] {
+            let sequent: Sequent = wide.parse().unwrap();
+            let limits = Limits::default().with_memory_bytes(memory);
+            let options = search::Options::default().with_model_size(Some(3));
+            let outcome = decide(&sequent, Logic::Classical, &options, &limits, |_| false).unwrap();
+            assert!(
+                matches!(
+                    outcome.verdict,
+                    Verdict::Unknown(Reason::MemoryLimit { .. })
+                ),
+                "{:?}",
+                outcome.verdict
+            );
+        }
     }
 
     /// The default of a first-order sequent the provers and the embedding

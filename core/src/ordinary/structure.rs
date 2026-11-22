@@ -466,7 +466,7 @@ impl Evaluator<'_, '_> {
 
     /// Returns the value of the atom `a` under the bound elements `env`,
     /// the innermost last.
-    fn atom(&self, a: u32, env: &[u32]) -> Result<bool, Error> {
+    fn atom(&mut self, a: u32, env: &[u32]) -> Result<bool, Error> {
         let formulas = self.sequent.formulas();
         let tables = formulas.first_order();
         let (name, args): (&str, &[FoTermId]) = match tables.atoms.get(a as usize) {
@@ -485,9 +485,13 @@ impl Evaluator<'_, '_> {
 
     /// Returns the element the term `t` denotes under `env`, the innermost
     /// binding last. A term is evaluated with a stack of its own: terms
-    /// may nest as deep as a document is long.
-    fn term(&self, t: FoTermId, env: &[u32]) -> Result<u32, Error> {
-        let tables = self.sequent.formulas().first_order();
+    /// may nest as deep as a document is long. Each application of a
+    /// function symbol is an evaluation ([`tick`](Self::tick)): a term
+    /// read from JSON may share its subterms, and is read as the tree it
+    /// stands for.
+    fn term(&mut self, t: FoTermId, env: &[u32]) -> Result<u32, Error> {
+        let sequent = self.sequent;
+        let tables = sequent.formulas().first_order();
         let mut values: Vec<u32> = Vec::new();
         // Each entry: a term, and whether its arguments' values are on
         // `values` already.
@@ -509,6 +513,7 @@ impl Evaluator<'_, '_> {
                         })?;
                         values.push(e);
                     } else if applied {
+                        self.tick()?;
                         let table = self.functions.get(name).ok_or_else(|| {
                             (self.wrong)(format!("has no table for the function {name}"))
                         })?;
@@ -607,13 +612,20 @@ impl FiniteCountermodel {
     }
 }
 
+/// The most entries of a function's table or tuples of a predicate a
+/// structure's text shows, the rest counted: a table holds `size^arity`
+/// values, and its text would be some fifty times its bytes.
+const SHOWN: usize = 64;
+
 impl std::fmt::Display for Structure {
     /// Writes the structure in lines: the domain (`domain: {0, 1}`, past
     /// eight elements `{0, …, 41}`), each constant's element (`a = 0`),
     /// each function's table (`f: 0 ↦ 1, 1 ↦ 0`, `g: (0, 1) ↦ 0, …`, or
     /// `f: always 0` where every value is one element), and each predicate
     /// as the set it holds of (`p: {0}`, `r: {(0, 1)}`; a nullary one `q:
-    /// true`), a predicate that holds of nothing left out.
+    /// true`), a predicate that holds of nothing left out. Past 64 entries
+    /// of a table or tuples of a predicate the rest are counted (`, … (448
+    /// more)`).
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.size {
             0 => write!(f, "domain: {{}}")?,
@@ -642,24 +654,24 @@ impl std::fmt::Display for Structure {
                 cells = cells.saturating_mul(n);
                 arity += 1;
             }
-            let entries: Vec<String> = table
-                .iter()
-                .enumerate()
-                .map(|(i, v)| {
-                    let mut tuple = Vec::with_capacity(arity as usize);
-                    let mut rest = i as u64;
-                    for _ in 0..arity {
-                        tuple.push((rest % n).to_string());
-                        rest /= n;
-                    }
-                    tuple.reverse();
-                    match tuple.len() {
-                        1 => format!("{} ↦ {v}", tuple[0]),
-                        _ => format!("({}) ↦ {v}", tuple.join(", ")),
-                    }
-                })
-                .collect();
-            write!(f, "\n{name}: {}", entries.join(", "))?;
+            write!(f, "\n{name}: ")?;
+            for (i, v) in table.iter().enumerate().take(SHOWN) {
+                let mut tuple = Vec::with_capacity(arity as usize);
+                let mut rest = i as u64;
+                for _ in 0..arity {
+                    tuple.push((rest % n).to_string());
+                    rest /= n;
+                }
+                tuple.reverse();
+                let comma = if i == 0 { "" } else { ", " };
+                match tuple.len() {
+                    1 => write!(f, "{comma}{} ↦ {v}", tuple[0])?,
+                    _ => write!(f, "{comma}({}) ↦ {v}", tuple.join(", "))?,
+                }
+            }
+            if table.len() > SHOWN {
+                write!(f, ", … ({} more)", table.len() - SHOWN)?;
+            }
         }
         for (name, tuples) in &self.predicates {
             if tuples.is_empty() {
@@ -671,6 +683,7 @@ impl std::fmt::Display for Structure {
             }
             let items: Vec<String> = tuples
                 .iter()
+                .take(SHOWN)
                 .map(|tuple| {
                     let elements: Vec<String> = tuple.iter().map(u32::to_string).collect();
                     match elements.len() {
@@ -679,7 +692,11 @@ impl std::fmt::Display for Structure {
                     }
                 })
                 .collect();
-            write!(f, "\n{name}: {{{}}}", items.join(", "))?;
+            let more = match tuples.len().saturating_sub(SHOWN) {
+                0 => String::new(),
+                k => format!(", … ({k} more)"),
+            };
+            write!(f, "\n{name}: {{{}{more}}}", items.join(", "))?;
         }
         Ok(())
     }
@@ -729,6 +746,27 @@ mod tests {
             structure.to_string(),
             "domain: {0, 1}\na = 0\nf: 0 ↦ 1, 1 ↦ 0\ng: (0, 0) ↦ 0, (0, 1) ↦ 0, (1, 0) ↦ 1, (1, 1) ↦ 1\np: {0}"
         );
+    }
+
+    /// A table's text shows its first 64 entries and counts the rest, and
+    /// a term's applications are evaluations the work bound counts.
+    #[test]
+    fn a_large_table_is_shown_in_part_and_its_terms_are_work() {
+        let table: Vec<u32> = (0..128).map(|i| i % 2).collect();
+        let structure = Structure::new(2, vec![("a".to_owned(), 0)], Vec::new())
+            .with_functions(vec![("g".to_owned(), table)]);
+        let text = structure.to_string();
+        assert!(text.ends_with(", … (64 more)"), "{text}");
+        assert_eq!(text.matches('↦').count(), 64);
+        let sequent: Sequent = "|- p(g(a, a, a, a, a, a, a))".parse().unwrap();
+        let limits = Limits {
+            work: Some(1),
+            ..Limits::default()
+        };
+        assert!(matches!(
+            structure.refutes(&sequent, &limits, |_| false),
+            Err(Error::Refused(crate::Refusal::Work { .. }))
+        ));
     }
 
     /// A table of the wrong length, a value past the domain and a missing

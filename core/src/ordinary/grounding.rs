@@ -146,6 +146,14 @@ pub(super) struct Nnf {
     pub(super) apps: Vec<App>,
     /// Each application's index, by its symbol and arguments.
     app_index: HashMap<(u32, Vec<Term>), u32>,
+    /// Each term of the sequent's tables read in a scope, by its index and
+    /// the scope: a literal entered again (an equivalence's operands are
+    /// entered twice) reads its terms once.
+    terms: HashMap<(usize, u32), Term>,
+    /// The entries of every free-variable list, which nested quantifiers
+    /// make quadratic in the nesting: charged to the memory bound beside
+    /// the nodes.
+    free_entries: usize,
 }
 
 impl Nnf {
@@ -186,6 +194,7 @@ impl Nnf {
             G::Lit(..) | G::True | G::False | G::Forall(..) | G::Exists(..) => 1,
         };
         self.size = self.size.saturating_add(1 + operands);
+        self.free_entries = self.free_entries.saturating_add(free.len());
         self.nodes.push(node);
         self.free.push(free);
         (self.nodes.len() - 1) as u32
@@ -209,6 +218,7 @@ impl Nnf {
         free.dedup();
         let a = self.apps.len() as u32;
         self.size = self.size.saturating_add(1 + args.len());
+        self.free_entries = self.free_entries.saturating_add(free.len());
         self.app_index.insert((symbol, args.clone()), a);
         self.apps.push(App { symbol, args, free });
         a
@@ -217,7 +227,11 @@ impl Nnf {
     /// Refuses a normal form past `memory` bytes, at [`NNF_BYTES`] a node
     /// or operand.
     fn within(&self, memory: u64) -> Result<(), Error> {
-        if (self.size as u64).saturating_mul(NNF_BYTES) > memory {
+        let held = (self.size as u64)
+            .saturating_mul(NNF_BYTES)
+            .saturating_add((self.free_entries as u64).saturating_mul(4))
+            .saturating_add((self.terms.len() as u64).saturating_mul(MEMO_BYTES));
+        if held > memory {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Search,
                 limit_bytes: memory,
@@ -564,11 +578,15 @@ fn canonical(nnf: &Nnf) -> Vec<u32> {
         let key: Vec<u32> = match node {
             G::Lit(positive, predicate, args) => {
                 let mut key = vec![0, u32::from(*positive), *predicate];
-                key.extend(args.iter().map(|t| match *t {
-                    Term::Var(x) => x.saturating_mul(3),
-                    Term::Const(c) => c.saturating_mul(3).saturating_add(1),
-                    Term::App(a) => a.saturating_mul(3).saturating_add(2),
-                }));
+                for t in args {
+                    let (kind, value) = match *t {
+                        Term::Var(x) => (0, x),
+                        Term::Const(c) => (1, c),
+                        Term::App(a) => (2, a),
+                    };
+                    key.push(kind);
+                    key.push(value);
+                }
                 key
             }
             G::True => vec![1],
@@ -742,7 +760,8 @@ pub(super) fn normal_form(
                 let mut inner_scope = scope;
                 match node {
                     Node::Atom(a) => {
-                        let Some(lit) = literal(a, scope, &scopes, tables, functions, &mut nnf)
+                        let Some(lit) =
+                            literal(a, scope, &scopes, tables, functions, &mut nnf, memory)?
                         else {
                             return Ok(None);
                         };
@@ -874,7 +893,9 @@ fn junction_of(node: Node, negated: bool) -> Option<(bool, Operand, Operand)> {
 /// and its arguments as terms, or `None` where a term is no constant, no
 /// bound variable and, with `functions`, no function symbol applied to
 /// such terms. Applications go into `nnf`'s table, every argument before
-/// its application; the walk over a term keeps a stack of its own.
+/// its application; the walk over a term keeps a stack of its own and
+/// refuses past `memory` bytes as it goes, since one literal's terms can
+/// hold lists of free variables quadratic in their nesting.
 fn literal(
     a: u32,
     scope: u32,
@@ -882,9 +903,10 @@ fn literal(
     tables: &crate::first_order::FirstOrder<NodeId>,
     functions: bool,
     nnf: &mut Nnf,
-) -> Option<(u32, Vec<Term>)> {
+    memory: u64,
+) -> Result<Option<(u32, Vec<Term>)>, Error> {
     let Some(&(symbol, args)) = tables.atoms.get(a as usize) else {
-        return Some((a, Vec::new()));
+        return Ok(Some((a, Vec::new())));
     };
     let bound = |index: u32| -> Option<Term> {
         // A variable no quantifier binds is outside the class
@@ -898,18 +920,28 @@ fn literal(
     let mut terms = Vec::new();
     for &t in tables.list(args) {
         let term = match tables.terms[t.index()] {
-            FoTerm::Bound(index) => bound(index)?,
+            FoTerm::Bound(index) => match bound(index) {
+                Some(term) => term,
+                None => return Ok(None),
+            },
             FoTerm::App(f, list) if tables.list(list).is_empty() => Term::Const(f.get()),
             FoTerm::App(..) if functions => {
-                // Postorder over the term's subterms, each made once.
-                let mut made: HashMap<usize, Term> = HashMap::default();
+                // Postorder over the term's subterms, each made once in
+                // this scope.
+                if let Some(&term) = nnf.terms.get(&(t.index(), scope)) {
+                    terms.push(term);
+                    continue;
+                }
                 let mut stack = vec![(t, false)];
                 while let Some((u, ready)) = stack.pop() {
-                    if made.contains_key(&u.index()) {
+                    if nnf.terms.contains_key(&(u.index(), scope)) {
                         continue;
                     }
                     let term = match tables.terms[u.index()] {
-                        FoTerm::Bound(index) => bound(index)?,
+                        FoTerm::Bound(index) => match bound(index) {
+                            Some(term) => term,
+                            None => return Ok(None),
+                        },
                         FoTerm::App(f, list) if tables.list(list).is_empty() => {
                             Term::Const(f.get())
                         }
@@ -920,20 +952,25 @@ fn literal(
                                 stack.extend(kids.iter().map(|&k| (k, false)));
                                 continue;
                             }
-                            let args = kids.iter().map(|k| made[&k.index()]).collect();
-                            Term::App(nnf.app(f.get(), args))
+                            let args = kids
+                                .iter()
+                                .map(|k| nnf.terms[&(k.index(), scope)])
+                                .collect();
+                            let app = nnf.app(f.get(), args);
+                            nnf.within(memory)?;
+                            Term::App(app)
                         }
-                        FoTerm::Eigen(_) | FoTerm::Meta(_) => return None,
+                        FoTerm::Eigen(_) | FoTerm::Meta(_) => return Ok(None),
                     };
-                    made.insert(u.index(), term);
+                    nnf.terms.insert((u.index(), scope), term);
                 }
-                made[&t.index()]
+                nnf.terms[&(t.index(), scope)]
             }
-            FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_) => return None,
+            FoTerm::App(..) | FoTerm::Eigen(_) | FoTerm::Meta(_) => return Ok(None),
         };
         terms.push(term);
     }
-    Some((symbol.get(), terms))
+    Ok(Some((symbol.get(), terms)))
 }
 
 /// Returns the root of the formula miniscoped: every node made again
