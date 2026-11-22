@@ -1395,12 +1395,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `native_statistics` prints six counters. `check` of an outcome with a
   structure is `check_structure` (`FiniteCountermodel::check`, exit 0
   valid refutation, 1 invalid, 3 at a limit).
-- **Equality**: `ordinary::sequent_in` appends the equality axioms
+- **Equality**: `ordinary::with_equality` appends the equality axioms
   (`ordinary::equality::with_axioms`, within `--occurrence-limit`) to a
-  sequent with `=` right after reading it, so every path of `prove`, the
-  batch, `interact --logic` and `grade` decides or proves the one
-  sequent with them; `seq print --logic` prints the image of that
-  sequent, the axioms included, which is what the search sees. A valid
+  sequent with `=` right after `prove`, the batch, `interact --logic` and
+  `grade` read it, so every path decides, proves or grades the one
+  sequent with them. `ordinary::sequent_in` itself reads the sequent as
+  written, which `seq print --logic`, the transformations and `resolve`
+  take (when it added the axioms, `seq normalize` and `resolve` worked
+  on them too, and paramodulation was drowned by them). `grade` takes an
+  answer whose hypotheses are the problem's own with any of the axioms
+  (`own_and_some`) and says so when it refuses one. A valid
   verdict line ends `, its last N
   hypotheses the equality axioms` (`axioms_note`: `image_axioms` on the
   image path, `outcome_axioms` from the derivation on the native one,

@@ -129,10 +129,10 @@ sequent's, grounding grounds it. No method changes.
   classical default with the embedding's evidence, the image path, the
   race) decides one sequent and draws one derivation. A session starts
   with the axioms as hypotheses, which a proof by hand needs as well.
-- `seq print --logic` prints the image of the sequent decided, the axioms
-  included (as built: the first draft said the sequent as written, but
-  the image is what the search sees, and the command reads one sequent
-  for both).
+- `seq print --logic`, the transformations and `resolve` take the sequent
+  as written (78c: in 78a the shared reader added the axioms, so they
+  printed and transformed them too; now `prove`, the batch, `interact`
+  and `grade` add them after reading).
 
 ### A5. How a derivation shows them
 
