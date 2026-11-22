@@ -178,8 +178,11 @@ Current contents:
   workspace is empty too). `plan/housekeeping.py` lists them (the app's
   `list_sessions` says which session works in each), and the planning
   session's housekeeping (`plan/handoff.md`) runs both.
-- `settings.json`: allow rules for the build/check commands and jj's read-only
-  ones, `ask` on the forms of `jj git push` that can move `main` (bare,
+- `settings.json`: allow rules for the build/check commands, jj's read-only
+  ones and the plain readers `grep`, `head`, `tail`, `cut` and `wc` (the
+  author, 2026-11-22, after a session waited 6.5 h at night on the
+  classifier's prompt for a read; `sed` and `awk` are left out because
+  they can run commands: `sed`'s `e`, `awk`'s `system()`), `ask` on the forms of `jj git push` that can move `main` (bare,
   naming `main`, `--all`, `--tracked`, `--deleted`, `-r`) and on the
   `gh` calls the author's standing yes of 2026-11-14 leaves out (an API
   call with a method, fields or input, GraphQL, settings, secrets,
