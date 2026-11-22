@@ -339,3 +339,92 @@ Herbrand's part, all fixed in `tzrrwkmz`, each with a test:
 - Herbrand's search answers unknown for a sequent that is not valid; a
   checked Herbrand model over a finite universe would be a small
   addition if 76's structures are wanted there.
+
+## Session 77c: Glivenko's failure
+
+Opus 5.5 at `high`, in the workspace and conversation of 76a to 76c,
+cores 7-9, from the brief `/tmp/linlog-handoff/start-77c.md`, on
+`nwmlkvvt` (76c with rocq-deduxit's lock moved), rebased onto
+`main@origin` (`pnnrklrr`) before the last check. Nothing was pushed.
+
+### What landed
+
+`qmlkwznl` "Say why Glivenko's translation refuses a first-order
+sequent: the infinite countermodel and its Rocq lemmas":
+
+- **`Error::GlivenkoFirstOrder`** (unsupported, code
+  `glivenko_first_order`, a unit variant; `CODES`, the written form's
+  `Details`, the variants' test list, the schema's list of codes).
+  `negative::translate` answers it for Glivenko's translation of a
+  first-order sequent, in place of 77b's generic `Error::FirstOrder`.
+  Its message names `⊢ ¬¬∀x. (p(x) ∨ ¬p(x))` and the double-negation
+  shift `⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x))`, says why no finite Kripke
+  model refutes them (each world of one sees a last world, where every
+  classical theorem holds), describes the chain (world n with the
+  elements 0 to n, `p(k)` true from world k + 1 on), cites
+  `chain_excluded_middle` and `chain_double_negation_shift` in
+  `Deduxit.Intuitionistic.FirstOrderKripke`, and points to Kuroda's
+  translation.
+- Everywhere deduxit meets the translation goes through `translate`:
+  `compare`, `seq translate --by glivenko` (the message, exit 2, in text
+  and JSON alike) and the protocol's `ordinary.translate`.
+- Tests: `glivenko_s_failure_at_first_order_is_said` (the code, the
+  message's formulas, model and lemmas, `compare` refusing alike,
+  Kuroda's translation of the formula valid in intuitionistic logic, a
+  propositional sequent translated as before) and
+  `glivenko_s_translation_refuses_a_first_order_sequent` (the protocol);
+  the first-order door test expects the new error. 76b's test already
+  pins the bounded model search's unknown on both formulas.
+- The manual's transformations chapter (the refusal as a console block,
+  the formulas, the model, why no finite one exists and so why
+  deduxit's searches answer unknown, the lemmas, and Kuroda's
+  translation of the formula as a second block), the guide's sentence,
+  `status.md`, the changelog, `core-ordinary.md`; the shift's text in
+  76c's "Finite models" paragraph corrected (below).
+
+### Fresh review
+
+`fresh-reviewer` on Fable 5.2 at `high`. It found the brief's list
+complete, the error family's tables whole, the manual's blocks equal
+to the binary's output byte for byte, the model's description equal to
+the Rocq definitions, and no caller outside core that matched the old
+error. Three findings, all fixed in `qmlkwznl`:
+
+- **The shift was written so that deduxit reads another formula**:
+  `∀x. ¬¬p(x) → ¬¬∀x. p(x)` (the brief's and the Rocq comment's
+  spelling) is `∀x. (¬¬p(x) → ¬¬∀x. p(x))` in deduxit's syntax, where a
+  quantifier's scope runs right; that formula is classically invalid
+  and a finite structure refutes it. Every text now writes
+  `(∀x. ¬¬p(x)) → ¬¬(∀x. p(x))`, as the printer does, 76c's manual
+  paragraph included; the rule says why.
+- Three sentences could be read as saying the lemmas prove that only
+  an infinite model refutes the formulas; they now say the lemmas prove
+  that the infinite model refutes them, and that no finite one does is
+  the argument beside.
+- The rules' list of methods refusing at the propositional door still
+  named `negative::translate`.
+
+For the planning session: rocq-deduxit's comments write the shift as
+`[∀x. ¬¬p(x) → ¬¬∀x. p(x)]` (the module header of `FirstOrderKripke.v`,
+the `Chain` section, its README and CHANGELOG). The Rocq statement is
+right (`imp (fall …) …`); the comments are ambiguous in deduxit's
+syntax and could take brackets at the library's next change. Not
+changed here: the library's commit is pushed.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` (README's, the manual's and the guide's
+  examples among them) before the commit and after the review's fixes.
+- The gate was started on the commit and stopped when the review's
+  fixes changed its tree; the full check below holds its parts.
+- `nix flake check` at the head rebased onto `main@origin`, under the
+  machine lock: every check passed.
+
+### Step 77 is complete
+
+With this session every item of `plan/77-first-order-transformations.md`
+has landed: the first-order normal forms (77a), Herbrand's theorem, the
+first-order negative translations and interpolants (77b), and
+Glivenko's failure shown with its infinite model and rocq-deduxit's
+lemmas (76c's library, 77c's answer and docs).
