@@ -8151,3 +8151,6 @@ move (D26).
   side in rocq-deduxit (first-order Kripke semantics, LJ/LM soundness, the infinite model refuting
   Glivenko's failure formulas) and the deduxit side (certificates of model refutations, drawings,
   docs); no `Admitted`, a lemma that does not close reported (a Fable switch would need the author).
+- 2026-11-22, about 15:30: **76c switched to Fable 5.2** on the author's word ("Switch it to
+  Fable"), from its next turn on (the row allows Fable for the Rocq lemmas). Its reviewer and the
+  panel's argument member then run on Opus at high, never the writer's model.
