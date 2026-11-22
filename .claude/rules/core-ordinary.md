@@ -400,13 +400,19 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     `lltp::clauses` counts `[`/`]` with the parentheses, or a
     quantifier's `[X, Y]` read as an annotation.
   - **`=` is read by looking ahead** (`equality_follows`, after an
-    atom's identifier and in `predicate` after its arguments): one
-    compare of the next byte on the hot path (`=`, `!`, or `0xE2` for
-    `≠`, which the native Unicode connectives share), the sign itself
-    tested out of line (`equality_sign`: TPTP's `=>` is no equality).
-    The operand read is then a term (`bare_term`, or the application
-    `application` read, made a function), and `equality` reads the sign
-    and the right term; `!=` and `≠` are `¬(s = t)`. A `cnf` clause
+    atom's identifier and in `predicate` after its arguments): an inline
+    scan past white space and one compare of the next byte on the hot
+    path (`=`, `!`, or `0xE2` for `≠`, which the native Unicode
+    connectives share), the sign itself tested out of line
+    (`equality_sign`: TPTP's `=>` is no equality). The first version
+    called `rest` there and inlined `bare_term` into the operand loop:
+    `read-tptp` counted 2.2 % more, past the ratchet; with the scan
+    inline and `equality_after`/`bare_term` cold it is 1.2 % over the
+    base (`read-lltp` 0.3 %, the clause splitter's `cnf` arm;
+    `read-text` unchanged). The operand read is then a term
+    (`bare_term`, or the application `application` read, made a
+    function), and `equality` reads the sign and the right term; `!=`
+    and `≠` are `¬(s = t)`. A `cnf` clause
     (`read_clauses`, `closure`) is parsed as `! [X, …] : (clause)` over
     its upper-case words in order of first occurrence, error places
     mapped back past that prefix.

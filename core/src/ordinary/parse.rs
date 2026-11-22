@@ -341,10 +341,7 @@ impl<'a> Parser<'a> {
             Some("true") if native => self.add(Node::True),
             Some("false") if native => self.add(Node::False),
             Some(name) if self.input.as_bytes().get(self.at) == Some(&b'(') => self.predicate(name),
-            Some(name) if self.equality_follows() => {
-                let left = self.bare_term(name, at)?;
-                self.equality(left)
-            }
+            Some(name) if self.equality_follows() => self.equality_after(name, at),
             Some(name) => {
                 let id = match self.formulas.atom(name) {
                     Ok(id) => id,
@@ -561,10 +558,21 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Returns the atom `name = t` or its negation, `name` the word read at
+    /// `here` and the sign next.
+    #[cold]
+    #[inline(never)]
+    fn equality_after(&mut self, name: &str, here: usize) -> Result<NodeId, Error> {
+        let left = self.bare_term(name, here)?;
+        self.equality(left)
+    }
+
     /// Returns the term a word without arguments is, read at `here`: the
     /// variable of the innermost binder of that name waiting for its body,
     /// else a constant. In TPTP an upper-case word is a variable, and one
     /// that no binder binds is refused.
+    #[cold]
+    #[inline(never)]
     fn bare_term(&mut self, word: &str, here: usize) -> Result<FoTermId, Error> {
         let word = crate::name::normalized(word);
         match self.scope.iter().rposition(|bound| *bound == *word) {
@@ -582,15 +590,22 @@ impl<'a> Parser<'a> {
     /// Returns whether `=`, `!=` or natively `≠` follows, skipping white
     /// space: the operand just read is then a term. A propositional text
     /// pays one compare per atom; TPTP's `=>` is no equality.
-    fn equality_follows(&mut self) -> bool {
-        let rest = self.rest();
-        matches!(rest.as_bytes().first(), Some(b'=' | b'!' | 0xE2)) && self.equality_sign(rest)
+    fn equality_follows(&self) -> bool {
+        // An inline scan, not `rest`: a call per atom cost the `read-tptp`
+        // journey 2 %.
+        let bytes = self.input.as_bytes();
+        let mut at = self.at;
+        while bytes.get(at).is_some_and(u8::is_ascii_whitespace) {
+            at += 1;
+        }
+        matches!(bytes.get(at), Some(b'=' | b'!' | 0xE2)) && self.equality_sign(at)
     }
 
-    /// Returns whether `rest` starts with an equality's sign.
+    /// Returns whether an equality's sign starts at byte `at`.
     #[cold]
     #[inline(never)]
-    fn equality_sign(&self, rest: &str) -> bool {
+    fn equality_sign(&self, at: usize) -> bool {
+        let rest = &self.input[at..];
         (rest.starts_with('=') && !(self.dialect == Dialect::Tptp && rest.starts_with("=>")))
             || rest.starts_with("!=")
             || (self.dialect == Dialect::Native && rest.starts_with('≠'))
