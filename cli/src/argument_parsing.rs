@@ -282,7 +282,8 @@ pub(crate) enum Command {
     /// second, and --first names the first half's formulas instead. An
     /// interpolant I of `Γ₁, Γ₂ ⊢ Δ₁, Δ₂` is a formula with `Γ₁ ⊢ Δ₁, I` and
     /// `I, Γ₂ ⊢ Δ₂` both valid, whose atoms are in both halves. For `A ⊢ B`
-    /// that is `A ⊢ I` and `I ⊢ B`.
+    /// that is `A ⊢ I` and `I ⊢ B`. At first order a term of one half alone
+    /// is bound in I, by ∃ for the first half's and ∀ for the second's.
     ///
     /// The sequent is decided through its translation into linear logic,
     /// and the interpolant read off its derivation by Maehara's method. It

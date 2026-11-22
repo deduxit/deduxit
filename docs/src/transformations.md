@@ -320,9 +320,26 @@ a → b ⊢ a → b: valid, a checked derivation of LJ (1 inference)
 a → b, a ⊢ b: valid, a checked derivation of LJ (5 inferences)
 ```
 
+At first order the interpolant may hold no constant, function or free
+variable of one half alone: each term made of one is bound by a
+quantifier of its own, `∃` for a term of the first half and `∀` for one
+of the second:
+
+```console
+$ deduxit interpolate 'forall x. (p(x) /\ q(x)) |- exists y. (p(y) \/ r(y))'
+interpolant: ∃x. p(x)
+∀x. (p(x) ∧ q(x)) ⊢ ∃x. p(x): valid, a checked derivation of LK (7 inferences)
+∃x. p(x) ⊢ ∃y. (p(y) ∨ r(y)): valid, a checked derivation of LK (6 inferences)
+$ deduxit interpolate --logic intuitionistic 'forall x. r(x, f(x)) |- forall x. exists y. r(x, y)'
+interpolant: ∀x. ∃y. r(x, y)
+∀x. r(x, f(x)) ⊢ ∀x. ∃y. r(x, y): valid, a checked derivation of LJ (4 inferences)
+∀x. ∃y. r(x, y) ⊢ ∀x. ∃y. r(x, y): valid, a checked derivation of LJ (5 inferences)
+```
+
 deduxit reads the interpolant off a derivation without cuts by
 Maehara's method, and checks it before it prints it: it decides both
-halves again and compares the atoms. A sequent that is not valid has no
+halves again and compares the atoms (at first order the predicates,
+functions and constants). A sequent that is not valid has no
 interpolant:
 
 ```console

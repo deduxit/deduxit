@@ -32,6 +32,9 @@ enum Map<'m> {
     /// Each closed term the table holds is its image there; variables stay.
     #[cfg(feature = "sat")]
     Replace(&'m HashMap<FoTermId, FoTermId>),
+    /// Each term the set holds, read outside the formula, is the variable
+    /// of a new binder around it; every other variable moves out past it.
+    Abstract(&'m [FoTermId]),
 }
 
 /// What a walk of [`Map::Replace`] has made so far, kept across the
@@ -202,6 +205,19 @@ impl Formulas {
         self.mapped_term(t, 0, Map::Replace(image), &mut made.terms)
     }
 
+    /// Returns `root` as the operand of a new binder whose variable stands
+    /// for each of `terms`, terms read outside `root`: `A[x/t]` for
+    /// `∃x. A[x/t]` made from `A`, the variables free in `root` moved out
+    /// past the binder.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::IndexOutOfBounds`] for a node of no arena,
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
+    pub(crate) fn abstracted(&mut self, root: NodeId, terms: &[FoTermId]) -> Result<NodeId, Error> {
+        self.mapped(root, Map::Abstract(terms))
+    }
+
     /// Returns `root` with every variable free in it mapped by `map`.
     fn mapped(&mut self, root: NodeId, map: Map<'_>) -> Result<NodeId, Error> {
         let mut nodes: HashMap<(NodeId, u32), NodeId> = HashMap::default();
@@ -304,6 +320,13 @@ impl Formulas {
                 made.insert((u, depth), to);
                 continue;
             }
+            if let Map::Abstract(terms) = map
+                && terms.iter().any(|&t| self.lifted_term(t, depth) == u)
+            {
+                let variable = self.interner().term(FoTerm::Bound(depth));
+                made.insert((u, depth), variable);
+                continue;
+            }
             let image = match term {
                 FoTerm::Bound(i) if i >= depth => {
                     let outside = i - depth;
@@ -323,6 +346,7 @@ impl Formulas {
                         Map::Substitute(_) => self.interner().term(FoTerm::Bound(i - 1)),
                         #[cfg(feature = "sat")]
                         Map::Replace(_) => u,
+                        Map::Abstract(_) => self.interner().term(FoTerm::Bound(i + 1)),
                     }
                 }
                 FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => u,

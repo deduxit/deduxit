@@ -2066,6 +2066,7 @@ mod first_order_tests {
     fn every_propositional_method_refuses_a_first_order_sequent() {
         let (sequent, derivation) = quantified();
         let limits = Limits::default();
+        #[cfg(feature = "interactive")]
         let search = crate::linear::Options::default();
         for &logic in Logic::ALL {
             // The embedding decides it, and is the default there.
@@ -2094,16 +2095,6 @@ mod first_order_tests {
                     false
                 }));
             }
-            let options = Options::default().with_logic(logic);
-            let partition = interpolant::Partition::hypotheses(&sequent);
-            refused(interpolant::interpolate(
-                &sequent,
-                &options,
-                &partition,
-                &search,
-                &limits,
-                |_| false,
-            ));
             refused(
                 crate::kripke::Model::new(vec![crate::kripke::World::default()], 0).forcing(
                     &sequent,
@@ -2122,14 +2113,6 @@ mod first_order_tests {
             }
         }
         refused(truth_table(&sequent, &limits, |_| false));
-        let partition = interpolant::Partition::hypotheses(&sequent);
-        refused(interpolant::interpolant(
-            &derivation,
-            &partition,
-            &search,
-            &limits,
-            |_| false,
-        ));
         refused(normal::rewrite(
             &sequent,
             &normal::Options::default(),

@@ -8,7 +8,9 @@
 //! `Γ₂ ⊢ Δ₂`. An interpolant is a formula `I` with
 //! 1. `Γ₁ ⊢ Δ₁, I` valid,
 //! 2. `I, Γ₂ ⊢ Δ₂` valid, and
-//! 3. every atom of `I` in both halves (`⊤` and `⊥` are no atoms).
+//! 3. every atom of `I` in both halves (`⊤` and `⊥` are no atoms); at
+//!    first order, every predicate, function and constant of `I`, and `I`
+//!    closed.
 //!
 //! For `A ⊢ B`, with `A` the first half, that is Craig's `A ⊢ I` and
 //! `I ⊢ B`. In intuitionistic and minimal logic the formula right of `⊢`
@@ -22,6 +24,12 @@
 //! a defect. [`interpolate`] decides the sequent through the embedding,
 //! whose derivations have no cut, and reads the interpolant off its
 //! derivation.
+//!
+//! At first order a term of the interpolant whose head symbol or
+//! eigenvariable is not in both halves is bound by a quantifier of its own
+//! after each inference: `∃` for a term of the first half, `∀` for one of
+//! the second, which keeps the eigenvariable conditions of both halves'
+//! derivations.
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -41,6 +49,8 @@ use super::{
     Side, Verdict, decide_within,
 };
 use crate::Error;
+use crate::first_order::{FoTerm, FoTermId, Symbol};
+use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::search;
 
@@ -244,7 +254,6 @@ pub fn interpolate(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolation, Error> {
-    sequent.formulas().propositional("an interpolant")?;
     let logic = options.logic;
     partition.halves(logic, sequent.left().len(), sequent.right().len())?;
     let decided = decide_within(sequent, options, search, limits, &mut stop)?;
@@ -345,7 +354,6 @@ pub fn interpolant(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolant, Error> {
-    derivation.propositional("an interpolant")?;
     let logic = derivation.logic();
     if derivation.inferences().iter().any(|i| i.rule == Rule::Cut) {
         return Err(Error::NotCutFree);
@@ -397,20 +405,43 @@ fn checked(
     }
     first_right.push(id);
     let claim = || "Maehara's interpolant".to_owned();
-    // The interpolant's atoms must be atoms of both halves.
-    let atoms = |roots: &[NodeId]| atoms_of(&out, roots);
-    let first_atoms = atoms(&[&first_left[..], &first_right[..first_right.len() - 1]].concat());
-    let second_atoms = atoms(&[&second_left[1..], &second_right[..]].concat());
-    if let Some(a) = atoms(&[id])
-        .iter()
-        .enumerate()
-        .find(|&(a, &used)| used && !(first_atoms[a] && second_atoms[a]))
-        .map(|(a, _)| a)
-    {
-        return Err(Error::ClaimFails {
-            claim: claim(),
-            reason: format!("its atom {} is not in both halves", out.atom_name(a as u32)),
-        });
+    let first_roots = [&first_left[..], &first_right[..first_right.len() - 1]].concat();
+    let second_roots = [&second_left[1..], &second_right[..]].concat();
+    if out.is_first_order() {
+        // Its predicates, functions and constants must be those of both
+        // halves, and it must be closed, as the sequent is.
+        let (first, second) = (names_of(&out, &first_roots), names_of(&out, &second_roots));
+        let mut own: Vec<Name> = names_of(&out, &[id]).into_iter().collect();
+        own.sort_unstable();
+        if let Some(name) = own
+            .into_iter()
+            .find(|n| matches!(n, Name::Eigen(_)) || !(first.contains(n) && second.contains(n)))
+        {
+            let what = match name {
+                Name::Atom(a) => format!("its atom {}", out.atom_name(a)),
+                Name::Symbol(f) => format!("its symbol {}", out.first_order().symbols[f.index()].0),
+                Name::Eigen(t) => format!("its free variable {}", out.term_text(t)),
+            };
+            return Err(Error::ClaimFails {
+                claim: claim(),
+                reason: format!("{what} is not in both halves"),
+            });
+        }
+    } else {
+        // The interpolant's atoms must be atoms of both halves.
+        let atoms = |roots: &[NodeId]| atoms_of(&out, roots);
+        let (first_atoms, second_atoms) = (atoms(&first_roots), atoms(&second_roots));
+        if let Some(a) = atoms(&[id])
+            .iter()
+            .enumerate()
+            .find(|&(a, &used)| used && !(first_atoms[a] && second_atoms[a]))
+            .map(|(a, _)| a)
+        {
+            return Err(Error::ClaimFails {
+                claim: claim(),
+                reason: format!("its atom {} is not in both halves", out.atom_name(a as u32)),
+            });
+        }
     }
     super::bound(&out, &first_left, &first_right, limits)?;
     super::bound(&out, &second_left, &second_right, limits)?;
@@ -464,6 +495,274 @@ pub(crate) fn atoms_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<bool> {
     atoms
 }
 
+/// A name a formula uses: a propositional atom, a predicate or function
+/// symbol, or an eigenvariable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Name {
+    /// An atom without arguments, by its index.
+    Atom(u32),
+    /// A predicate or function symbol, a constant among them.
+    Symbol(Symbol),
+    /// An eigenvariable, by its term.
+    Eigen(FoTermId),
+}
+
+/// Returns the names the formulas at `roots` use.
+fn names_of(formulas: &Formulas, roots: &[NodeId]) -> HashSet<Name> {
+    let tables = formulas.first_order();
+    let mut names: HashSet<Name> = HashSet::default();
+    let mut seen: HashSet<NodeId> = HashSet::default();
+    let mut nodes = roots.to_vec();
+    let mut terms: Vec<FoTermId> = Vec::new();
+    while let Some(n) = nodes.pop() {
+        if !seen.insert(n) {
+            continue;
+        }
+        let node = formulas.node(n);
+        if let Node::Atom(a) = node {
+            match tables.atoms.get(a as usize) {
+                Some(&(p, args)) => {
+                    names.insert(Name::Symbol(p));
+                    terms.extend_from_slice(tables.list(args));
+                }
+                None => {
+                    names.insert(Name::Atom(a));
+                }
+            }
+        }
+        let (a, b) = node.operands();
+        nodes.extend([a, b].into_iter().flatten());
+    }
+    while let Some(t) = terms.pop() {
+        match tables.terms[t.index()] {
+            FoTerm::App(f, args) => {
+                names.insert(Name::Symbol(f));
+                terms.extend_from_slice(tables.list(args));
+            }
+            FoTerm::Eigen(_) => {
+                names.insert(Name::Eigen(t));
+            }
+            FoTerm::Bound(_) | FoTerm::Meta(_) => {}
+        }
+    }
+    names
+}
+
+/// Returns the interpolant `id` of an inference whose conclusion has the
+/// halves `halves`, each term whose head is not a name of both halves
+/// bound by a quantifier of its own: `∃` where the name is not in the
+/// second half, or is in neither and the principal formula is in the
+/// first; `∀` otherwise. So the first half proves the result by `∃R` or
+/// `∀R` and the second half uses it by `∃L` or `∀L`, the eigenvariable
+/// conditions holding because the name is absent from the half that
+/// needs it fresh. A closed term is bound around the whole interpolant;
+/// one that holds the variable of a binder inside it (a term of an
+/// earlier inference's quantifier) right inside the innermost binder it
+/// holds the variable of.
+///
+/// # Errors
+///
+/// [`Refusal::Index`] when the arena is full.
+fn abstracted(
+    out: &mut Formulas,
+    inference: &super::Inference,
+    halves: &Parts,
+    id: NodeId,
+) -> Result<NodeId, Error> {
+    let mut first_roots = Vec::new();
+    let mut second_roots = Vec::new();
+    for (side, ids) in [
+        (Side::Left, &inference.left),
+        (Side::Right, &inference.right),
+    ] {
+        for (&f, &first) in ids.iter().zip(halves.side(side)) {
+            if first {
+                first_roots.push(f);
+            } else {
+                second_roots.push(f);
+            }
+        }
+    }
+    let first = names_of(out, &first_roots);
+    let second = names_of(out, &second_roots);
+    let principal_first = inference
+        .principal
+        .is_some_and(|(side, at)| halves.side(side)[at]);
+    // Whether a term's head is no name of both halves, and if so whether
+    // it is bound by `∃`.
+    let kind = |out: &Formulas, t: FoTermId| -> Option<bool> {
+        let name = match out.first_order().terms[t.index()] {
+            FoTerm::App(f, _) => Name::Symbol(f),
+            FoTerm::Eigen(_) => Name::Eigen(t),
+            FoTerm::Bound(_) | FoTerm::Meta(_) => return None,
+        };
+        let (in_first, in_second) = (first.contains(&name), second.contains(&name));
+        (!(in_first && in_second)).then_some(!in_second && (in_first || principal_first))
+    };
+    // Each node rebuilt after its operands; a binder binds the terms that
+    // hold its variable first.
+    let mut made: HashMap<NodeId, NodeId> = HashMap::default();
+    let mut stack = vec![(id, false)];
+    while let Some((n, ready)) = stack.pop() {
+        if made.contains_key(&n) {
+            continue;
+        }
+        let node = out.node(n);
+        if !ready {
+            stack.push((n, true));
+            let (a, b) = node.operands();
+            stack.extend([a, b].into_iter().flatten().map(|k| (k, false)));
+            continue;
+        }
+        let at = |k: NodeId| made[&k];
+        let image = match node {
+            Node::Atom(_) | Node::True | Node::False => n,
+            Node::Not(a) => out.add_like(Node::Not(at(a)), n)?,
+            Node::And(a, b) => out.add_like(Node::And(at(a), at(b)), n)?,
+            Node::Or(a, b) => out.add_like(Node::Or(at(a), at(b)), n)?,
+            Node::Implies(a, b) => out.add_like(Node::Implies(at(a), at(b)), n)?,
+            Node::Iff(a, b) => out.add_like(Node::Iff(at(a), at(b)), n)?,
+            Node::Forall(a) | Node::Exists(a) => {
+                let found = to_bind(out, at(a), true, &kind)?;
+                let body = bound(out, at(a), found)?;
+                let node = if matches!(node, Node::Forall(_)) {
+                    Node::Forall(body)
+                } else {
+                    Node::Exists(body)
+                };
+                out.add_like(node, n)?
+            }
+        };
+        made.insert(n, image);
+    }
+    let root = made[&id];
+    let found = to_bind(out, root, false, &kind)?;
+    bound(out, root, found)
+}
+
+/// Returns the terms of `root` to bind, each with whether by `∃`: with
+/// `open`, those that hold the variable of the binder around `root` and
+/// of no binder inside it, read right under that binder; else the closed
+/// ones. A term whose head is a name of both halves is looked into.
+fn to_bind(
+    out: &mut Formulas,
+    root: NodeId,
+    open: bool,
+    kind: &dyn Fn(&Formulas, FoTermId) -> Option<bool>,
+) -> Result<Vec<(FoTermId, bool)>, Error> {
+    let mut seen: HashSet<(NodeId, u32)> = HashSet::default();
+    let mut nodes = vec![(root, 0u32)];
+    let mut terms: Vec<(FoTermId, u32)> = Vec::new();
+    while let Some((n, depth)) = nodes.pop() {
+        if !seen.insert((n, depth)) {
+            continue;
+        }
+        let node = out.node(n);
+        match node {
+            Node::Atom(a) => {
+                let tables = out.first_order();
+                if let Some(&(_, args)) = tables.atoms.get(a as usize) {
+                    terms.extend(tables.list(args).iter().map(|&t| (t, depth)));
+                }
+            }
+            Node::Forall(a) | Node::Exists(a) => nodes.push((a, depth + 1)),
+            Node::True | Node::False => {}
+            Node::Not(a) => nodes.push((a, depth)),
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                nodes.extend([(a, depth), (b, depth)]);
+            }
+        }
+    }
+    let mut found: Vec<(FoTermId, bool)> = Vec::new();
+    while let Some((t, depth)) = terms.pop() {
+        let Some(existential) = kind(out, t) else {
+            if let FoTerm::App(_, args) = out.first_order().terms[t.index()] {
+                let args = out.first_order().list(args).to_vec();
+                terms.extend(args.into_iter().map(|u| (u, depth)));
+            }
+            continue;
+        };
+        // The variables of `t`, as outside indices of the formula it
+        // stands in: `None` for one bound inside it.
+        let indices = bound_indices(out, t, depth);
+        let target = match (open, indices) {
+            (false, Some(free)) if free.is_empty() => t,
+            (true, Some(free)) if free.first() == Some(&0) => lowered_term(out, t, depth),
+            _ => continue,
+        };
+        if !found.iter().any(|&(u, _)| u == target) {
+            found.push((target, existential));
+        }
+    }
+    // The universal ones inside.
+    found.sort_by_key(|&(_, existential)| existential);
+    Ok(found)
+}
+
+/// Returns `root` under a binder for each of `found`, the first innermost.
+fn bound(out: &mut Formulas, root: NodeId, found: Vec<(FoTermId, bool)>) -> Result<NodeId, Error> {
+    let mut id = root;
+    for (t, existential) in found {
+        let body = out.abstracted(id, &[t])?;
+        let node = if existential {
+            Node::Exists(body)
+        } else {
+            Node::Forall(body)
+        };
+        id = out.add_named(node, None)?;
+    }
+    Ok(id)
+}
+
+/// Returns the variables of `t`, under `depth` binders, as outside
+/// indices, ascending; `None` where it holds a variable of those binders.
+fn bound_indices(out: &Formulas, t: FoTermId, depth: u32) -> Option<Vec<u32>> {
+    let tables = out.first_order();
+    let mut free = Vec::new();
+    let mut stack = vec![t];
+    while let Some(u) = stack.pop() {
+        match tables.terms[u.index()] {
+            FoTerm::Bound(i) if i < depth => return None,
+            FoTerm::Bound(i) => free.push(i - depth),
+            FoTerm::App(_, args) => stack.extend_from_slice(tables.list(args)),
+            FoTerm::Eigen(_) | FoTerm::Meta(_) => {}
+        }
+    }
+    free.sort_unstable();
+    free.dedup();
+    Some(free)
+}
+
+/// Returns `t`, under `depth` binders and holding none of their variables,
+/// as read outside them.
+fn lowered_term(out: &mut Formulas, t: FoTermId, depth: u32) -> FoTermId {
+    let mut made: HashMap<FoTermId, FoTermId> = HashMap::default();
+    let mut stack = vec![(t, false)];
+    while let Some((u, ready)) = stack.pop() {
+        if made.contains_key(&u) {
+            continue;
+        }
+        let term = out.first_order().terms[u.index()];
+        let image = match term {
+            FoTerm::Bound(i) => out.interner().term(FoTerm::Bound(i - depth)),
+            FoTerm::App(f, args) => {
+                let list = out.first_order().list(args).to_vec();
+                if !ready {
+                    stack.push((u, true));
+                    stack.extend(list.into_iter().map(|v| (v, false)));
+                    continue;
+                }
+                let items: Vec<FoTermId> = list.iter().map(|v| made[v]).collect();
+                let args = out.interner().list(&items);
+                out.interner().term(FoTerm::App(f, args))
+            }
+            FoTerm::Eigen(_) | FoTerm::Meta(_) => u,
+        };
+        made.insert(u, image);
+    }
+    made[&t]
+}
+
 /// Returns Maehara's interpolant of a checked derivation without cuts for
 /// the halves `root` of its sequent, built in `out`.
 ///
@@ -497,6 +796,24 @@ fn maehara(
     };
     let mut parts: Vec<Option<Parts>> = vec![None; n];
     let mut exchanged = vec![false; n];
+    // The root may list the sequent's formulas in another order: each
+    // takes the half of an equal formula of the sequent.
+    let (left, right) = derivation.sequent();
+    let context: Vec<(Side, NodeId, bool)> = left
+        .iter()
+        .zip(&root.left)
+        .map(|(&f, &first)| (Side::Left, f, first))
+        .chain(
+            right
+                .iter()
+                .zip(&root.right)
+                .map(|(&f, &first)| (Side::Right, f, first)),
+        )
+        .collect();
+    let last = &inferences[n - 1];
+    let root = premise_parts(&[last], &[Vec::new()], &context, None, true)
+        .and_then(|mut all| all.pop())
+        .ok_or_else(|| defect("the root does not conclude the sequent"))?;
     parts[n - 1] = Some(root);
     // Down the indices: every inference after its premises, so a
     // conclusion's halves are known before its premises'.
@@ -555,6 +872,7 @@ fn maehara(
             }
         }
     }
+    let first_order = derivation.formulas().is_first_order();
     let mut build = Build {
         out,
         minimal: logic == Logic::Minimal,
@@ -603,6 +921,11 @@ fn maehara(
                 }
             }
             _ => return Err(defect("more than two premises")),
+        };
+        let id = if first_order {
+            abstracted(build.out, inference, halves, id)?
+        } else {
+            id
         };
         made.push(id);
     }
@@ -916,4 +1239,106 @@ mod tests {
             ));
         }
     }
+
+    /// At first order a term of one half alone is bound in the interpolant:
+    /// by `∃` where it is the first half's, by `∀` where it is the
+    /// second's, and inside the binder whose variable it holds.
+    #[test]
+    fn first_order_interpolants_bind_the_terms_of_one_half() {
+        for (text, logic, left, right, interpolant) in [
+            (
+                "forall x. (p(x) /\\ q(x)) |- exists y. (p(y) \\/ r(y))",
+                Logic::Classical,
+                &[0][..],
+                &[][..],
+                "∃x. p(x)",
+            ),
+            (
+                "forall x. (p(x) /\\ q(x)) |- exists y. (p(y) \\/ r(y))",
+                Logic::Intuitionistic,
+                &[0],
+                &[],
+                "∀x. p(x)",
+            ),
+            (
+                "p(a) /\\ q(a) |- exists x. (p(x) \\/ s)",
+                Logic::Minimal,
+                &[0],
+                &[],
+                "∃x. p(x)",
+            ),
+            (
+                "forall x. r(x, f(x)) |- forall x. exists y. r(x, y)",
+                Logic::Intuitionistic,
+                &[0],
+                &[],
+                "∀x. ∃y. r(x, y)",
+            ),
+            ("r, p(a) |- p(a)", Logic::Classical, &[1], &[], "p(a)"),
+        ] {
+            assert_eq!(
+                interpolant_of(text, logic, left, right),
+                interpolant,
+                "{text} in {logic}"
+            );
+        }
+    }
+
+    /// Generated first-order sequents, split at random, give interpolants
+    /// that pass their checks in every logic: closed, of the names of both
+    /// halves, each half valid or unknown at a bound.
+    #[test]
+    fn generated_first_order_sequents_interpolate() {
+        use crate::linear::search::generate::Rng;
+        use crate::ordinary::normal::first_order_tests::formula;
+        let mut rng = Rng::new(77);
+        let limits = Limits::default().with_work(Some(200_000));
+        let (mut sequents, mut found, mut checked) = (0, 0, 0);
+        while sequents < SEQUENTS {
+            let (a, b, c) = (
+                formula(&mut rng, 3, &mut Vec::new()),
+                formula(&mut rng, 3, &mut Vec::new()),
+                formula(&mut rng, 3, &mut Vec::new()),
+            );
+            let Ok(sequent) = format!("{a}, {b} |- {c}").parse::<Sequent>() else {
+                continue;
+            };
+            if !sequent.formulas().is_first_order() {
+                continue;
+            }
+            sequents += 1;
+            for &logic in Logic::ALL {
+                let left = (0..2).filter(|_| rng.one_in(2)).collect();
+                let right = if logic == Logic::Classical && rng.one_in(2) {
+                    vec![0]
+                } else {
+                    Vec::new()
+                };
+                let partition = Partition::default().with_left(left).with_right(right);
+                let options = Options::default().with_logic(logic);
+                match interpolate(
+                    &sequent,
+                    &options,
+                    &partition,
+                    &search::Options::default(),
+                    &limits,
+                    |_| false,
+                ) {
+                    Ok(interpolation) => {
+                        if let Some(i) = &interpolation.interpolant {
+                            found += 1;
+                            checked += usize::from(i.is_checked());
+                        }
+                    }
+                    Err(error) if error.is_refusal() => {}
+                    Err(error) => panic!("{sequent} in {logic} split {partition:?}: {error}"),
+                }
+            }
+        }
+        assert!(found > SEQUENTS / 2, "{found} interpolants");
+        assert!(checked * 4 >= found * 3, "{checked} of {found} checked");
+    }
+
+    /// How many first-order sequents the generated test splits.
+    const SEQUENTS: usize = 300;
 }

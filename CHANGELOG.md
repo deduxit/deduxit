@@ -48,6 +48,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   sequent as written, each Skolem term an eigenvariable again, is built
   from them and checked. The library's `ordinary::herbrand`, the
   protocol's `ordinary.instances` and the wire form at level 28.
+- **Interpolants at first order**: `interpolate` takes first-order
+  sequents in all three logics. A term of one half alone is bound in the
+  interpolant by `∃` (the first half's) or `∀` (the second's), and the
+  check holds the interpolant's predicates, functions and constants to
+  both halves.
 - **The negative translations at first order**: `seq translate --by
   kolmogorov`, `godel-gentzen` and `kuroda` take first-order sequents
   (Kuroda's puts `¬¬` after every `∀`, Gödel and Gentzen's writes

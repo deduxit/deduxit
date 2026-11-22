@@ -1416,8 +1416,11 @@ sequent and checks it: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂` are decided
 and every atom of `I` must be in both halves. The first half is every
 formula left of `⊢`, or the positions `--first L0,R1` names; `--logic`
 is classical by default, and outside classical logic the formula right
-of `⊢` stays in the second half. Exit 0 for a checked interpolant, 1 for
-a sequent that is not valid, 3 for unknown.
+of `⊢` stays in the second half. At first order a term of one half
+alone is bound in the interpolant (`∃` for the first half's, `∀` for the
+second's), and the check compares predicates, functions and constants.
+Exit 0 for a checked interpolant, 1 for a sequent that is not valid, 3
+for unknown.
 
 ```console
 $ deduxit interpolate 'a /\ b |- b \/ c'
