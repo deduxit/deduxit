@@ -1422,8 +1422,13 @@ intuitionistic|minimal` names the target, and a target a translation
 does not reach is an error. The exit status is 0 where both verdicts
 are valid, 1 where neither is, 3 for unknown. At first order Kuroda's
 puts `¬¬` after every `∀` and Gödel and Gentzen's writes `∃x. A` as
-`¬∀x. ¬A`; `glivenko` refuses a first-order sequent (exit 2), since its
-theorem fails there.
+`¬∀x. ¬A`; `glivenko` refuses a first-order sequent (exit 2, code
+`glivenko_first_order`), since its theorem fails there: `⊢ ¬¬∀x. (p(x)
+∨ ¬p(x))` and the double-negation shift are not valid intuitionistically,
+their countermodel is infinite (world n with the elements 0 to n, `p(k)`
+true from world k + 1 on), deduxit's searches answer unknown on them,
+and rocq-deduxit proves the refutation (`chain_excluded_middle`,
+`chain_double_negation_shift` in `Deduxit.Intuitionistic.FirstOrderKripke`).
 
 `deduxit interpolate SEQUENT` finds a Craig interpolant of a valid
 sequent and checks it: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂` are decided again,

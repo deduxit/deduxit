@@ -57,8 +57,38 @@ The verdicts agree, as Kuroda's translation claims.
 ```
 
 Glivenko's theorem fails at first order, so `--by glivenko` refuses a
-first-order sequent: `⊢ ∀x. (p(x) ∨ ¬p(x))` holds classically, but its
-double negation does not hold intuitionistically.
+first-order sequent and says why (exit 2):
+
+```console
+$ deduxit seq translate --by glivenko 'forall x. (p(x) \/ ~p(x))'; echo "exit $?"
+error: Glivenko's translation takes propositional sequents only: its theorem fails at first order, where ⊢ ∀x. (p(x) ∨ ¬p(x)) is valid classically and ⊢ ¬¬∀x. (p(x) ∨ ¬p(x)) is not valid intuitionistically, nor is the double-negation shift ⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x)). No finite Kripke model refutes them, since each world of one sees a last world, where every classical theorem holds; the model that does has a world n for each number, with the elements 0 to n, and p(k) true from world k + 1 on. deduxit's Rocq library proves that this model refutes both (chain_excluded_middle and chain_double_negation_shift in Deduxit.Intuitionistic.FirstOrderKripke). Kuroda's translation, which adds ¬¬ after each ∀, carries first-order sequents into intuitionistic logic
+exit 2
+```
+
+`⊢ ∀x. (p(x) ∨ ¬p(x))` holds classically. Its double negation does not
+hold intuitionistically, and neither does the double-negation shift
+`⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x))`. The Kripke model that shows it is
+infinite: a world for each number n, the later worlds above, the
+elements 0 to n in world n, and `p(k)` true from world k + 1 on. Each
+world has an element, its own number, of which `p` does not hold yet
+but will, so no world forces `∀x. (p(x) ∨ ¬p(x))` or `∀x. p(x)`, and
+every world forces `∀x. ¬¬p(x)`. A finite model cannot refute them:
+each of its worlds sees a last world, where every classical theorem
+holds, so the double negation is forced. That is why deduxit's searches,
+which look for finite models, answer unknown on both formulas. The
+library [rocq-deduxit](rocq.md) proves the refutation:
+`chain_excluded_middle` and `chain_double_negation_shift` in
+`Deduxit.Intuitionistic.FirstOrderKripke` state that LJ and LM, with
+cut or without, derive neither formula. Kuroda's translation, which
+adds `¬¬` after every `∀`, reaches intuitionistic logic at first order:
+
+```console
+$ deduxit seq translate --by kuroda 'forall x. (p(x) \/ ~p(x))'
+Kuroda's translation into intuitionistic logic: ⊢ ¬¬(∀x. ¬¬(p(x) ∨ ¬p(x)))
+classical logic: valid, a checked derivation of LK (4 inferences)
+intuitionistic logic: valid, a checked derivation of LJ (14 inferences)
+The verdicts agree, as Kuroda's translation claims.
+```
 
 `--to intuitionistic` translates by Kolmogorov's or Gödel and Gentzen's
 translation into intuitionistic logic, which proves what minimal logic

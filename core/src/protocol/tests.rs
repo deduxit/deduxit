@@ -557,6 +557,26 @@ fn a_check_with_a_side_not_decided_is_open() {
     assert!(check.parts.iter().all(|p| p.status != Status::Failed));
 }
 
+/// Glivenko's translation of a first-order sequent is refused with the
+/// reason its theorem fails there.
+#[test]
+fn glivenko_s_translation_refuses_a_first_order_sequent() {
+    let sequent = ordinary(
+        "|- forall x. (p(x) \\/ ~p(x))",
+        crate::ordinary::Logic::Classical,
+    );
+    let refused = run(
+        "ordinary.translate",
+        &[&sequent],
+        r#"{"translation": "glivenko"}"#,
+        &settings(),
+        |_| false,
+    )
+    .unwrap_err();
+    assert_eq!(refused.code(), "glivenko_first_order");
+    assert!(refused.to_string().contains("chain_excluded_middle"));
+}
+
 #[test]
 fn an_interpolant_is_held_to_its_input_and_its_halves() {
     let sequent = ordinary("a /\\ b |- b \\/ c", crate::ordinary::Logic::Classical);

@@ -129,7 +129,7 @@ impl Serialize for Details<'_> {
                 entries!(s; "translation" => translation; "logic" => logic)
             }
             Partition { reason } => entries!(s; "reason" => reason),
-            NotCutFree => entries!(s),
+            NotCutFree | GlivenkoFirstOrder => entries!(s),
             NotApplicable { operation, reason } => {
                 entries!(s; "operation" => operation; "reason" => reason)
             }

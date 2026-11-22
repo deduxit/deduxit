@@ -2128,12 +2128,15 @@ mod first_order_tests {
             |_| false,
         ));
         refused(resolution::Clauses::of_sequent(&sequent));
-        // Glivenko's theorem fails at first order; the other translations
-        // take first-order sequents.
-        refused(negative::translate(
-            &sequent,
-            &negative::Options::default().with_translation(negative::Translation::Glivenko),
-            &limits,
+        // Glivenko's theorem fails at first order, which its refusal says;
+        // the other translations take first-order sequents.
+        assert!(matches!(
+            negative::translate(
+                &sequent,
+                &negative::Options::default().with_translation(negative::Translation::Glivenko),
+                &limits,
+            ),
+            Err(Error::GlivenkoFirstOrder)
         ));
         refused(derivation.term(&limits, |_| false));
         refused(crate::lambda::enumerate(

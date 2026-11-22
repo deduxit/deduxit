@@ -21,8 +21,16 @@
 //! their disjunction, which is translated.
 //!
 //! The first three translate first-order sequents too. Glivenko's
-//! refuses them: its theorem fails at first order, where
-//! `⊢ ¬¬∀x. (p(x) ∨ ¬p(x))` is not intuitionistically valid.
+//! refuses them ([`Error::GlivenkoFirstOrder`]): its theorem fails at
+//! first order, where `⊢ ¬¬∀x. (p(x) ∨ ¬p(x))` and the double-negation
+//! shift `⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x))` are not intuitionistically valid,
+//! though both are classically. No finite Kripke model refutes them (each
+//! world of one sees a last world, where every classical theorem holds);
+//! the infinite chain does, a world `n` for each number with the elements
+//! `0` to `n` and `p(k)` true from world `k + 1` on, and rocq-deduxit
+//! proves it (`chain_excluded_middle` and `chain_double_negation_shift` in
+//! `Deduxit.Intuitionistic.FirstOrderKripke`). deduxit's own searches
+//! answer unknown on both: a finite search cannot meet the chain.
 //!
 //! [`translate`] returns the translated sequent. [`compare`] decides the
 //! sequent classically and its translation in the target logic, and
@@ -286,7 +294,8 @@ const fn sides(translation: Translation) -> (u8, u8) {
 ///
 /// # Errors
 ///
-/// [`Error::NegativeTarget`] for a target logic where the translation's
+/// [`Error::GlivenkoFirstOrder`] for Glivenko's translation of a
+/// first-order sequent; [`Error::NegativeTarget`] for a target logic where the translation's
 /// claim does not hold; [`Refusal::Occurrences`](crate::Refusal) for a
 /// translation that unfolds past `limits.occurrences`;
 /// [`Refusal::Index`](crate::Refusal) when the arena is full.
@@ -296,8 +305,8 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
     // the double negation of a classical theorem that intuitionistic logic
     // does not prove.
     let first_order = sequent.formulas().is_first_order();
-    if first_order && translation == Translation::Glivenko {
-        sequent.formulas().propositional("Glivenko's translation")?;
+    if translation == Translation::Glivenko && first_order {
+        return Err(Error::GlivenkoFirstOrder);
     }
     let target = options.target();
     if !translation.reaches(target) {
@@ -572,7 +581,7 @@ mod tests {
         );
         assert!(matches!(
             written(Translation::Glivenko),
-            Err(Error::FirstOrder { .. })
+            Err(Error::GlivenkoFirstOrder)
         ));
         // The intuitionistic search needs more than the default three
         // copies of a quantified hypothesis under the double negations.
@@ -598,6 +607,47 @@ mod tests {
                 assert_eq!(compared.agreement, wanted, "{text} by {t}");
             }
         }
+    }
+
+    /// Glivenko's translation of the formula its theorem fails on is
+    /// refused with the reason, which names the formula, the infinite
+    /// model and the Rocq lemmas; Kuroda's translation of it is valid in
+    /// intuitionistic logic, as the classical formula is.
+    #[test]
+    fn glivenko_s_failure_at_first_order_is_said() {
+        let limits = Limits::default();
+        let sequent: Sequent = "|- forall x. (p(x) \\/ ~p(x))".parse().unwrap();
+        let glivenko = Options::default().with_translation(Translation::Glivenko);
+        let error = translate(&sequent, &glivenko, &limits).unwrap_err();
+        assert_eq!(error.code(), "glivenko_first_order");
+        let said = error.to_string();
+        for words in [
+            "⊢ ¬¬∀x. (p(x) ∨ ¬p(x))",
+            "⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x))",
+            "the elements 0 to n, and p(k) true from world k + 1 on",
+            "chain_excluded_middle and chain_double_negation_shift",
+            "Deduxit.Intuitionistic.FirstOrderKripke",
+        ] {
+            assert!(said.contains(words), "{said}");
+        }
+        // The comparison refuses it the same way.
+        assert!(matches!(
+            compare(
+                &sequent,
+                &glivenko,
+                &search::Options::default(),
+                &limits,
+                |_| false
+            ),
+            Err(Error::GlivenkoFirstOrder)
+        ));
+        let kuroda = Options::default().with_translation(Translation::Kuroda);
+        let lifted = search::Options::default().with_copies(None);
+        let compared = compare(&sequent, &kuroda, &lifted, &limits, |_| false).unwrap();
+        assert_eq!(compared.agreement, Agreement::Valid);
+        // A propositional sequent is translated as before.
+        let propositional: Sequent = "|- a \\/ ~a".parse().unwrap();
+        assert!(translate(&propositional, &glivenko, &limits).is_ok());
     }
 
     /// Every translation keeps the classical verdict of sequents that

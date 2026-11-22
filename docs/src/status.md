@@ -233,8 +233,10 @@ in use.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's;
-  all but Glivenko's, whose theorem fails there, translate first-order
-  sequents too. `seq translate` decides the sequent and its translation
+  all but Glivenko's translate first-order sequents too. Glivenko's
+  refuses them and says why: its theorem fails at first order, on
+  `¬¬∀x. (p(x) ∨ ¬p(x))` and the double-negation shift, which no finite
+  Kripke model refutes; rocq-deduxit proves that an infinite one does. `seq translate` decides the sequent and its translation
   and checks that the verdicts agree. `interpolate` reads a Craig
   interpolant off a derivation of LK or LJ without cuts by Maehara's
   method, first-order ones included, and checks it by deciding both

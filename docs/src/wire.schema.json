@@ -505,6 +505,7 @@
             "logic",
             "first_order",
             "negative_target",
+            "glivenko_first_order",
             "partition",
             "not_cut_free",
             "claim_fails",

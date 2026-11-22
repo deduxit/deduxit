@@ -445,6 +445,25 @@ pub enum Error {
         /// The logic asked for.
         logic: crate::ordinary::Logic,
     },
+    /// Glivenko's translation was given a first-order sequent. Glivenko's
+    /// theorem fails at first order: `⊢ ∀x. (p(x) ∨ ¬p(x))` is valid
+    /// classically, and its double negation is not valid
+    /// intuitionistically. Its countermodel is infinite, a world for each
+    /// number with a domain that grows, and Rocq proves it
+    /// (`chain_excluded_middle` in rocq-deduxit's
+    /// `Deduxit.Intuitionistic.FirstOrderKripke`).
+    #[error(
+        "Glivenko's translation takes propositional sequents only: its theorem fails at first order, \
+         where ⊢ ∀x. (p(x) ∨ ¬p(x)) is valid classically and ⊢ ¬¬∀x. (p(x) ∨ ¬p(x)) is not valid \
+         intuitionistically, nor is the double-negation shift ⊢ (∀x. ¬¬p(x)) → ¬¬(∀x. p(x)). No \
+         finite Kripke model refutes them, since each world of one sees a last world, where every \
+         classical theorem holds; the model that does has a world n for each number, with the \
+         elements 0 to n, and p(k) true from world k + 1 on. deduxit's Rocq library proves that \
+         this model refutes both (chain_excluded_middle and chain_double_negation_shift in \
+         Deduxit.Intuitionistic.FirstOrderKripke). Kuroda's translation, which adds ¬¬ after each \
+         ∀, carries first-order sequents into intuitionistic logic"
+    )]
+    GlivenkoFirstOrder,
     /// A partition of a sequent into two halves for an interpolant names
     /// a position outside the sequent or twice, or puts the formula right
     /// of `⊢` into the first half in intuitionistic or minimal logic.
@@ -868,6 +887,7 @@ impl Error {
         "logic",
         "first_order",
         "negative_target",
+        "glivenko_first_order",
         "partition",
         "not_cut_free",
         "not_applicable",
@@ -973,6 +993,7 @@ impl Error {
             | Self::Logic { .. }
             | Self::FirstOrder { .. }
             | Self::NegativeTarget { .. }
+            | Self::GlivenkoFirstOrder
             | Self::NotCutFree
             | Self::NoEngine { .. }
             | Self::EngineRefused { .. } => Unsupported,
@@ -1063,6 +1084,7 @@ impl Error {
             Self::Logic { .. } => "logic",
             Self::FirstOrder { .. } => "first_order",
             Self::NegativeTarget { .. } => "negative_target",
+            Self::GlivenkoFirstOrder => "glivenko_first_order",
             Self::Partition { .. } => "partition",
             Self::NotCutFree => "not_cut_free",
             Self::NotApplicable { .. } => "not_applicable",
@@ -1424,6 +1446,7 @@ mod tests {
                 translation: crate::ordinary::negative::Translation::Kuroda,
                 logic: crate::ordinary::Logic::Minimal,
             },
+            Error::GlivenkoFirstOrder,
             Error::Partition { reason: message() },
             Error::NotCutFree,
             Error::NotApplicable {
@@ -1679,6 +1702,7 @@ mod tests {
             | Error::Logic { .. }
             | Error::FirstOrder { .. }
             | Error::NegativeTarget { .. }
+            | Error::GlivenkoFirstOrder
             | Error::Partition { .. }
             | Error::NotCutFree
             | Error::NotApplicable { .. }

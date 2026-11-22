@@ -311,7 +311,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     (`Formulas::propositional(method)`, `Error::FirstOrder`): `decide`'s
     `within`, `ljt::run`, `sat::run`, `truth_table`, `Tableau::of`,
     `normal`'s `rewrite_dyn`, `Clauses::of_sequent`, `interpolate` and
-    `interpolant`, `negative::translate`,
+    `interpolant`,
     `Model::forcing_with`, the goal state's `close` and `hint` (a door of
     their own in `Interactive::decide`, since `decide` takes first-order
     sequents now and the graft's `ids_of` has no arm for a binder; the
@@ -1950,8 +1950,18 @@ what fails it is `Error::ClaimFails` (kind defect, code `claim_fails`).
   Kolmogorov's `¬¬` before each binder as before every node); the
   result is built in a copy of the source arena, so atoms and binder
   names stay as they are and an open subformula is one node at every
-  depth. Glivenko's translation refuses a first-order sequent: its
-  theorem fails there, and no finite Kripke model shows it. The
+  depth. Glivenko's translation refuses a first-order sequent with
+  `Error::GlivenkoFirstOrder` (unsupported, `glivenko_first_order`),
+  whose message names the formulas, the infinite chain and rocq-deduxit's
+  `chain_excluded_middle` and `chain_double_negation_shift`: its theorem
+  fails there, and no finite Kripke model shows it, so no search of
+  deduxit can. `compare` and the protocol's `ordinary.translate` meet it
+  through `translate`; a change of the lemmas' names changes the message,
+  the manual's transformations chapter and the guide. The shift is
+  written `(∀x. ¬¬p(x)) → ¬¬(∀x. p(x))`, as the printer writes it: a
+  quantifier's scope runs right, so without the brackets the text is
+  another formula, classically invalid and finitely refuted (the
+  review's finding). The
   intuitionistic side of a first-order comparison often needs more than
   the library's default three copies (the command lifts the bound).
   The result is bounded by `limits.occurrences` (`bound`, now in every

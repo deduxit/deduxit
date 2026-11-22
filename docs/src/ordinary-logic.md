@@ -788,7 +788,7 @@ answer winning. In intuitionistic logic a finite model never refutes
 model sees a world with none above it, where intuitionistic and
 classical forcing agree. So the failure of Glivenko's theorem at first
 order shows only on infinite models: `¬¬∀x. (p(x) ∨ ¬p(x))` and the
-double-negation shift `∀x. ¬¬p(x) → ¬¬∀x. p(x)` are valid classically
+double-negation shift `(∀x. ¬¬p(x)) → ¬¬(∀x. p(x))` are valid classically
 and not intuitionistically, and the search answers unknown on them. (In minimal logic a world with none above it may force `⊥`, so
 there finite models refute such formulas, `¬¬(⊥ → p(a))` among them.)
 The search's domains are initial segments of one numbering of the
