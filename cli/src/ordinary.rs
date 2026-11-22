@@ -244,11 +244,48 @@ pub(crate) fn races_the_embedding(
     sequent: &ordinary::Sequent,
     search: &deduxit::linear::search::Options,
 ) -> bool {
+    models_beside(options, sequent) && search.jobs.count() > 1
+}
+
+/// Returns whether the default asks the model search beside the embedding:
+/// a first-order sequent in intuitionistic or minimal logic with no method
+/// and no translation given.
+pub(crate) fn models_beside(options: &ordinary::Options, sequent: &ordinary::Sequent) -> bool {
     options.method.is_none()
         && options.translation.is_none()
         && options.logic != Logic::Classical
         && sequent.formulas().is_first_order()
-        && search.jobs.count() > 1
+}
+
+/// Returns the model search's refutation of a sequent [`models_beside`]
+/// names, searched first on one thread within its grace ([`model_grace`]),
+/// with how long it took; `None` where it found none, and the embedding
+/// takes the rest of the time. The command's race needs a second thread;
+/// on one, a structure found in the grace is the answer the race would
+/// give, at the cost of that grace to the embedding (`--jobs 1`,
+/// `--deterministic` and a batch's entry).
+pub(crate) fn model_first(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    search: &deduxit::linear::search::Options,
+    limits: &deduxit::Limits,
+    deadline: &Deadline,
+    halt: &dyn Fn() -> bool,
+) -> Option<(ordinary::Outcome, Duration)> {
+    let start = Instant::now();
+    let grace = model_grace(deadline);
+    let modelled = ordinary::models::decide(sequent, options.logic, search, limits, |_| {
+        halt() || start.elapsed() >= grace
+    });
+    match modelled {
+        Ok(
+            refuted @ ordinary::models::Outcome {
+                verdict: ordinary::Verdict::NotValid,
+                ..
+            },
+        ) => Some((ordinary::Outcome::from(refuted), start.elapsed())),
+        Ok(_) | Err(_) => None,
+    }
 }
 
 /// Returns whether the default's first-order method stopped at its share of

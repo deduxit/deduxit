@@ -1460,7 +1460,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (three quarters, and one thread fewer: the reviewer measured a long
   theorem 12 to 17 % slower with the model thread on top of `--jobs`), a refutation stopping the search (`found` in its
   `passed`), a proof stopping the model search; the model search's "not
-  valid" is written by `write_native`. The batch does not race yet.
+  valid" is written by `write_native`. On one thread there is no race:
+  `model_first` (`ordinary.rs`) runs the model search first within
+  `model_grace` (5% of the time limit), its refutation the answer, else
+  the embedding takes the rest; `prove` calls it where
+  `races_the_embedding` says no and `models_beside` yes (`--jobs 1`,
+  `--deterministic`), and the batch for every such entry (`decide`,
+  after `by_native`), so an entry answers as `prove --deterministic`
+  does.
   `--model-worlds N|none` (key `search.model_worlds`); an unknown at
   `kripke_size` names both flags (`advice`); `check` of an outcome with
   a Kripke model is `check_kripke_structure` (`write_refuted`, shared

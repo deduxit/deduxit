@@ -3808,3 +3808,37 @@ fn workspace_check_answers_for_the_checks() {
     let (status, out, err) = run(&["workspace", "check", file]);
     assert_eq!(status, 3, "{out}{err}");
 }
+
+/// A first-order intuitionistic sequent that is not valid gets the model
+/// search's refutation on one thread too, in a batch's entry as in `prove
+/// --jobs 1`: the model search goes first within its grace, where the
+/// embedding alone answered unknown.
+#[test]
+fn one_thread_asks_the_model_search_first() {
+    // Outside grounding's classes, so the embedding is the default.
+    let sequent = "|- (forall x. exists y. r(x, y)) \\/ ~(forall x. exists y. r(x, y))";
+    let (code, out, _) = deduxit(
+        &["prove", "--logic", "intuitionistic", "--jobs", "1", sequent],
+        "",
+    );
+    assert_eq!(code, 1, "{out}");
+    assert!(
+        out.starts_with("not valid (intuitionistic logic by the model search)"),
+        "{out}"
+    );
+    let (code, out, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--input-format",
+            "lines",
+        ],
+        &format!("s: {sequent}\n"),
+    );
+    assert_eq!(code, 1, "{out}");
+    assert!(
+        out.starts_with("s: not valid (intuitionistic logic by the model search)"),
+        "{out}"
+    );
+}

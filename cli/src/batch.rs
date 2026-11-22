@@ -744,6 +744,19 @@ impl Shared {
                         Native::Solved(outcome, start) => solved = Some((outcome, start)),
                     }
                 }
+                // An entry is a call on one thread: the model search goes
+                // first within its grace, as `prove` does there.
+                if solved.is_none() && ordinary::models_beside(&options, &sequent) {
+                    let halt = || interrupted() || deadline.passed() || self.batch.passed();
+                    if let Some((refuted, elapsed)) =
+                        ordinary::model_first(&options, &sequent, search, limits, &deadline, &halt)
+                    {
+                        let begun = Instant::now()
+                            .checked_sub(elapsed)
+                            .unwrap_or_else(Instant::now);
+                        return self.native_done(&entry.name, &refuted, begun, &deadline, false);
+                    }
+                }
                 // The classical default's evidence is translated within a
                 // bound: an image past it is refused, and the solver's
                 // answer written.

@@ -351,6 +351,37 @@ fn proved(args: &ProveArgs, given: &Given) -> Result<Status> {
         }
         Some(_) | None => None,
     };
+    // On one thread there is no race: the model search goes first, within
+    // its grace, and the embedding takes the rest of the time.
+    if race.is_none()
+        && solved.is_none()
+        && let Some((options, sequent)) = &ordinary
+        && crate::ordinary::models_beside(options, sequent)
+    {
+        // The first Ctrl-C stops the search here too, and a wait on a
+        // terminal is said.
+        catch_interrupt();
+        let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
+        let halt = || interrupted() || deadline.passed();
+        let first = crate::ordinary::model_first(
+            options,
+            sequent,
+            &settings.search,
+            &limits,
+            &deadline,
+            &halt,
+        );
+        drop(notice);
+        if let Some((refuted, elapsed)) = first {
+            output_can_be_made(args, format)?;
+            let ended = Ended {
+                stop: stopped(&deadline),
+                elapsed,
+                after_search: false,
+            };
+            return crate::ordinary::write_native(args, &settings, &refuted, &ended, &deadline);
+        }
+    }
     // The classical default's answer, written where the embedding gives no
     // evidence for it.
     let write_solved = |outcome: &deduxit::ordinary::Outcome, start: Instant| {

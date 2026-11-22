@@ -812,7 +812,9 @@ exit 1
 
 By default `prove` runs this search beside the embedding in
 intuitionistic and minimal logic, on a thread of its own, the first to
-answer winning. In intuitionistic logic a finite model never refutes
+answer winning. On one thread (`--jobs 1`, `--deterministic` and each
+sequent of a batch) the search goes first, for 5% of the time limit, and
+the embedding takes the rest. In intuitionistic logic a finite model never refutes
 `¬¬A` where `A` is valid classically, since every world of a finite
 model sees a world with none above it, where intuitionistic and
 classical forcing agree. So the failure of Glivenko's theorem at first
