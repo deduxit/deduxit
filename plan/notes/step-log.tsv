@@ -120,5 +120,6 @@ fixup-21	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 07:50	20
 fixup-22	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 09:25	2026-11-22 10:35	tests in every pair of features
 77a	design	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 10:40	2026-11-22 12:40	transformations, design and normal forms
 78a	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_f223ef15	2026-11-22 11:35		equality, cnf and SZS
-76b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 12:15		Kripke models with growing domains
+76b	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 12:15	2026-11-22 14:45	Kripke models with growing domains
 77b	large	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 12:45		Herbrand, translations, interpolants
+76c	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_b8490613	2026-11-22 14:50		Rocq, drawings, docs

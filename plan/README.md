@@ -8136,3 +8136,18 @@ move (D26).
   after it. Full check passed on `main`; pushed (`wssxzotu`). In its worker: **77b**, Herbrand's
   theorem with a deskolemized LK certificate, the negative translations at first order, Craig
   interpolants at first order, the docs.
+- 2026-11-22, about 14:50: **76b reviewed and pushed; 76c started.** 76b (Opus, high; the full panel
+  and the reviewer on Fable): Kripke models with growing domains (`KripkeStructure`, wire level 27,
+  the forcing check the one trust) found by a bounded SAT search (`--model-worlds`) for
+  intuitionistic and minimal logic, raced beside the embedding in the command on one of its threads.
+  ILTP's first-order problems at 2 s, intuitionistic: 324 refuted (93 of 94 Non-Theorems), every one
+  of nanoCoP-i's 86 and iLeanCoP's 74 among them; the library's default 226 proved and 304 refuted
+  (75d: 109). The panel found no wrong "not valid" (620 000 pairs; exact agreement with a brute-force
+  enumerator of every model within the bounds); a panic (`--model-size 0`), the protocol passing a
+  forged Kripke model, uncounted passes and the text's size fixed. **Accepted departures:** the race
+  costs a long theorem 1–3 % (from 12–17 % before the reviewer's finding); the batch does not race
+  yet (a later fixup); the classical sizes first at each level; Glivenko's failure pinned as unknown
+  (no finite model exists). Full check passed; pushed (`xukuqmwp`). In its worker: **76c**, the Rocq
+  side in rocq-deduxit (first-order Kripke semantics, LJ/LM soundness, the infinite model refuting
+  Glivenko's failure formulas) and the deduxit side (certificates of model refutations, drawings,
+  docs); no `Admitted`, a lemma that does not close reported (a Fable switch would need the author).
