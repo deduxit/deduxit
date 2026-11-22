@@ -37,12 +37,18 @@
           # The exporter's Rocq snapshots are its output, not sources.
           sources=$(rg --files --hidden --glob '!.git' \
             --glob '*.rs' --glob '*.nix' --glob '*.toml' --glob '*.sh' \
-            --glob '*.py' --glob '*.yml' --glob '*.yaml' \
+            --glob '*.py' --glob '*.yml' --glob '*.yaml' --glob '*.pl' --glob '*.ml' \
             --glob '*.v' --glob '!core/tests/snapshots/**/*.v')
           for file in $sources; do
+            # The iLeanCoP glue follows leanCoP's GPL code, so it is under
+            # the GPL; every other source is under the EUPL.
+            case "$file" in
+              modules/_provers/ileancop_main.pl) licence='SPDX-License-Identifier: GPL-3.0-or-later' ;;
+              *) licence='Licensed under the EUPL' ;;
+            esac
             # A script's header follows its shebang line.
             if ! head -n 3 "$file" | rg --quiet --fixed-strings 'deduxit © Fabian Lukas Grubmüller 2026' \
-              || ! head -n 4 "$file" | rg --quiet --fixed-strings 'Licensed under the EUPL'; then
+              || ! head -n 4 "$file" | rg --quiet --fixed-strings "$licence"; then
               echo "$file: no licence header"
               status=1
             fi

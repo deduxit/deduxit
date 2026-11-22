@@ -309,7 +309,10 @@ the machine's `claude-jj-guard` (git writes, `--commit-lock-file`) enforce this.
   ```
   Prose and configuration carry none: Markdown (CLAUDE.md, `.claude/`,
   `plan/`, README), JSON, `.gitignore`, `LICENSE` and the lock files. The
-  project is EUPL-1.2.
+  project is EUPL-1.2. One file is GPL: `modules/_provers/ileancop_main.pl`
+  follows leanCoP's GPL code, so its header's second line is
+  `SPDX-License-Identifier: GPL-3.0-or-later` (benchmark glue, in no
+  crate; the `conventions` check names it).
 - Every text a person reads (README, the manual, doc comments and
   comments, the command's help and messages, the web page's text and
   teaching material) follows `.claude/rules/writing.md`, the author's

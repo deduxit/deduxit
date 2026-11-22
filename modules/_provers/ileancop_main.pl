@@ -1,5 +1,9 @@
 % deduxit © Fabian Lukas Grubmüller 2026
-% Licensed under the EUPL
+% SPDX-License-Identifier: GPL-3.0-or-later
+% It follows leanCoP 2.1's main (`leancop_main.pl', © 2009 Jens Otten),
+% which states the GNU General Public License without a version, so this
+% file is under the GPL too. It is benchmark glue, run against provers
+% the flake fetches, and no part of any crate.
 
 % iLeanCoP 1.2's main on SWI-Prolog: the release runs on ECLiPSe and reads
 % problems in leanCoP's own syntax, made by the TPTP2X tool. Here a TPTP

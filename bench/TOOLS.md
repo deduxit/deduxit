@@ -176,7 +176,11 @@ one process, each under `call_with_time_limit`, trusting a strategy's
 ECLiPSe alone, which nixpkgs lacks: its `lib(iso)` is left out, ECLiPSe's
 global occurs check becomes SWI-Prolog's, ECLiPSe's `retract_all/1` is
 SWI-Prolog's `retractall/1`, and a TPTP problem is read by leanCoP 2.1's
-TPTP reader (`ileancop_main.pl`) in place of TPTP2X. `run --tools
+TPTP reader (`ileancop_main.pl`) in place of TPTP2X. That file follows
+leanCoP 2.1's `leancop_main.pl` closely, so it is under the GPL
+(`GPL-3.0-or-later`; leanCoP states the GPL without a version), the one
+file of the repository not under the EUPL: benchmark glue run against
+the fetched provers, in no crate. `run --tools
 deduxit,leancop,nanocop,nanocopi,ileancop --tptp DIR --logics
 classical,intuitionistic` runs them; a problem's includes are read from
 `$TPTP` by deduxit and from the library's root above the problem by the

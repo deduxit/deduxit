@@ -189,8 +189,11 @@ under nixpkgs' valgrind (`valgrind.out`, since the package's first output
 is its manual) against `bench/ceilings.csv` (`bench.md`).
 `conventions.nix` holds three checks over the tracked tree but `plan/`
 and the benchmark data: `conventions` (the licence header on every
-`.rs`, `.nix`, `.toml`, `.sh`, `.py` and `.yml` file, within the first
-four lines so that a shebang may come first; no comment and no README
+`.rs`, `.nix`, `.toml`, `.sh`, `.py`, `.yml`, `.pl` and `.ml` file,
+within the first four lines so that a shebang may come first, the
+EUPL's on every file but `modules/_provers/ileancop_main.pl`, which
+follows leanCoP 2.1's GPL main and carries `SPDX-License-Identifier:
+GPL-3.0-or-later`, the check naming that one file; no comment and no README
 line naming a step, a decision number or a file of the plan; `.claude/`
 is exempt), `typos` (configured by `typos.toml`, whose words of the
 domain are TPTP's `fof`, Rocq's `falso` and the like) and `shear`
