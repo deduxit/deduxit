@@ -45,6 +45,18 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`prove --szs`** ends the text output of `--logic` with an SZS status
   line, `% SZS status STATUS for NAME`, for the tools of the TPTP World.
 
+- **Paramodulation in first-order resolution.** A sequent with `=` is
+  resolved with paramodulation by default (`resolution::Equality`,
+  `Options::equality`, `resolve --equality paramodulation|axioms`): an
+  equation rewrites a subterm of another clause's literal as a step of
+  its own (`first_order::Step::Paramodulation`), which the checker
+  computes again, with reflexivity and functional reflexivity as clauses
+  (`equality::with_reflexivity`). `axioms` resolves with every equality
+  axiom instead.
+
+- **Linear sequents with `=`**, an ordinary sequent's image, print `s = t`
+  and read back: the linear parser reads `=`, `!=` and `≠` between terms.
+
 - **`ordinary::tptp_text`** gives a TPTP file's text from its bytes for
   `read_tptp`: a byte that is not UTF-8 in a `%` comment, where some of
   ILTP's problems write an author's name in Latin-1, is read, and one

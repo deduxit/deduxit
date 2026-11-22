@@ -1547,7 +1547,15 @@ second's `Y1`, …), and factoring unifies two literals of one clause. The
 refutation is checked step by step and read back as a checked derivation
 of LK where it reaches. No model is built there: a sequent that is not
 valid ends unknown, exit 3. `--method dpll` and `--clauses` other than
-`cnf` are refused at first order; the JSON is at wire level 29.
+`cnf` are refused at first order; the JSON is at wire level 29. With
+`=`, `--equality paramodulation` (the default) adds reflexivity and
+functional reflexivity as clauses and rewrites a subterm by an equation
+as a step of its own (JSON `{"rule": "paramodulation", "from",
+"from_literal", "into", "into_literal", "position", "reverse"}`, the
+position counted over the literal's subterms left to right, each before
+its arguments, from 0; never a variable's), checked but not read back as
+LK. With `--equality axioms` every equality axiom is a clause instead,
+and a refutation reads back where it reaches.
 
 ```console
 $ deduxit resolve 'a -> b, b -> c |- a -> c'

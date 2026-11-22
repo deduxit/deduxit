@@ -107,6 +107,33 @@ not valid ends unknown, exit status 3: when nothing new appears, or at
 such a sequent where it can. `--method dpll` and `--clauses` other than
 `cnf` are propositional and refused at first order.
 
+A sequent with `=` is resolved with **paramodulation** by default: an
+equation `s = t` of one clause rewrites a subterm of another clause's
+literal that unifies with `s`, putting `t` there, under the unifier.
+Reflexivity, `X1 = X1`, and for each function symbol `f(X1) = f(X1)` join
+the clauses; paramodulation never rewrites a variable:
+
+```console
+$ deduxit resolve 'forall x. f(x) = x |- f(f(c)) = c'
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 2 inferences; no derivation of LK was read back (the proof read back is not a derivation of LK: a refutation by paramodulation is checked step by step; LK has no rule for the step), so the verdict rests on the refutation and the clausal form's Skolem symbols
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+1. f(X1) = X1
+2. X1 = X1
+3. f(X1) = f(X1)
+4. ¬f(f(c)) = c
+resolution, the first parent's variables X1, …, the second's Y1, …:
+5. ¬f(c) = c  4 rewritten by 1 with X1 := f(c)
+6. □  from 5, 1 with Y1 := c
+```
+
+The checker computes each rewrite again. LK has no rule for it, so such a
+refutation is not read back as a derivation. With few clauses the search
+also ends where nothing new appears: `a = b |- a = c` saturates.
+`--equality axioms` takes the equality axioms as clauses instead
+(reflexivity, symmetry, transitivity, and that equal arguments give equal
+values or the same truth) and resolves alone; its refutations read back
+as derivations of LK, and its saturation rarely ends.
+
 ## Read clauses from a DIMACS file
 
 `--dimacs FILE` reads clauses in the DIMACS CNF format that SAT solvers

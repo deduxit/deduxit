@@ -2468,6 +2468,27 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
     out the hypotheses' clauses become given clauses too, so the search
     stays complete. No model is built: a saturated set is
     `Answer::Saturated`, which the command answers unknown.
+  - **Paramodulation** (`Step::Paramodulation`, `Options::equality`,
+    `Equality::Paramodulation` by default): a positive equation `s = t`
+    of `from` (each way round, `reverse`) rewrites the subterm at
+    `position` of `into`'s literal (`occurrences`: the literal's
+    subterms left to right, each before its arguments, a shared part
+    once per place) under the unifier of `s` and that subterm, through
+    `made` like the other steps (`paramodulant`, `replaced`,
+    `concluded`), so the checker computes it again. Never into a
+    variable (refused, and the search does not try one), never by an
+    equation of two equal sides; the search prefilters on the head
+    symbols. The clause set gets reflexivity and functional reflexivity
+    (`equality::with_reflexivity`), which Robinson and Wos's
+    completeness needs where paramodulation does not rewrite variables;
+    `Equality::Axioms` gets every axiom (`with_axioms`) and resolves
+    alone. A refutation with a paramodulation is not read back (`read_back`
+    refuses it: a ground instance of a paramodulant follows only with
+    the axioms, which it does not use), so its `Answer::Refuted` has no
+    derivation and says why. `clauses_of` (the step-by-step session)
+    takes the paramodulation set. The command's `resolve --equality`
+    names the way; its reader no longer adds the axioms (`prove`, the
+    batch, `interact` and `grade` add them themselves).
   - **The read-back** composes the refutation's substitutions from `□`
     down (`read_back`): each clause gets the ground substitutions its
     consequences need, a variable no consequence fixes the clauses'

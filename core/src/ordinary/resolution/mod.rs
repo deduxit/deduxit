@@ -635,6 +635,58 @@ pub struct Options {
     /// trace; past it the answer is unknown.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub steps: Option<u64>,
+    /// How first-order resolution treats `=`: paramodulation by default.
+    pub equality: Equality,
+}
+
+/// How first-order resolution decides a sequent with `=`.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
+pub enum Equality {
+    /// Paramodulation, an inference that rewrites a term by an equation,
+    /// with reflexivity and functional reflexivity as clauses: a small set
+    /// whose saturation ends where the axioms' would not. A refutation is
+    /// checked step by step; LK has no rule for the step, so it is not
+    /// read back as a derivation.
+    #[default]
+    Paramodulation,
+    /// The equality axioms as clauses (`equality::with_axioms`): resolution
+    /// alone, every refutation read back where the read-back reaches.
+    Axioms,
+}
+
+impl Equality {
+    /// Every way, in the order of `NAMES`.
+    pub const ALL: &'static [Self] = &[Self::Paramodulation, Self::Axioms];
+    /// Their names.
+    pub const NAMES: &'static [&'static str] = &["paramodulation", "axioms"];
+
+    /// Returns the name: `paramodulation` or `axioms`.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Paramodulation => "paramodulation",
+            Self::Axioms => "axioms",
+        }
+    }
+}
+
+impl std::str::FromStr for Equality {
+    type Err = Error;
+
+    /// Reads a way's [`name`](Self::name).
+    fn from_str(name: &str) -> Result<Self, Error> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|e| e.name() == name)
+            .ok_or_else(|| Error::UnknownName {
+                what: "way with equality",
+                name: name.into(),
+                known: Self::NAMES,
+            })
+    }
 }
 
 impl Options {
@@ -661,6 +713,12 @@ impl Options {
     pub const fn with_steps(self, steps: Option<u64>) -> Self {
         Self { steps, ..self }
     }
+
+    /// Returns the options with another way with equality.
+    #[must_use]
+    pub const fn with_equality(self, equality: Equality) -> Self {
+        Self { equality, ..self }
+    }
 }
 
 impl Default for Options {
@@ -670,6 +728,7 @@ impl Default for Options {
             method: Method::Saturation,
             clauses: Some(Self::DEFAULT_CLAUSES),
             steps: Some(Self::DEFAULT_STEPS),
+            equality: Equality::Paramodulation,
         }
     }
 }

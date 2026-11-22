@@ -138,9 +138,18 @@ fn first_order(
     if args.clauses != ClausesArg::Cnf {
         bail!("--clauses names a propositional form; a first-order sequent takes its clausal form");
     }
+    let equality = match args.equality {
+        crate::argument_parsing::EqualityArg::Paramodulation => {
+            deduxit::ordinary::resolution::Equality::Paramodulation
+        }
+        crate::argument_parsing::EqualityArg::Axioms => {
+            deduxit::ordinary::resolution::Equality::Axioms
+        }
+    };
     let options = Options::default()
         .with_clauses(args.clause_limit.0)
-        .with_steps(args.step_limit.0);
+        .with_steps(args.step_limit.0)
+        .with_equality(equality);
     let stop = |_| interrupted() || deadline.passed();
     let found = on_large_stack(limits.stack_bytes(), || {
         first_order::resolve(sequent, &options, limits, stop)
@@ -259,6 +268,9 @@ fn first_order_text(
                     format!("from {}, {}", first + 1, second + 1)
                 }
                 Step::Factor { clause, .. } => format!("factor of {}", clause + 1),
+                Step::Paramodulation { from, into, .. } => {
+                    format!("{} rewritten by {}", into + 1, from + 1)
+                }
                 _ => String::new(),
             };
             let unifier = set.bindings_text(inference);

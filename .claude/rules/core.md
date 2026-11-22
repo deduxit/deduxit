@@ -420,7 +420,8 @@ the commit that lands it rewrites that bullet.
   `ordinary::normal::{Checked, Claim, Form, NormalForm, Options,
   Promise, Rule, Step}` (added at step 70a);
   `ordinary::resolution::{Bound, Event, Method, Options, ProofFormat,
-  Resolution, Resolvent, Statistics, Verdict}` (added at step 70b); `ordinary::ljt::{Outcome,
+  Resolution, Resolvent, Statistics, Verdict}` (added at step 70b),
+  `ordinary::resolution::Equality` (added at step 78c); `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);

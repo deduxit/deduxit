@@ -1885,6 +1885,25 @@ pub(crate) struct ResolveArgs {
     /// The most steps, resolvents made or steps of DPLL, or `none`
     #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::ordinary::resolution::Options::DEFAULT_STEPS)))]
     pub(crate) step_limit: Count<u64>,
+    /// How a first-order sequent with `=` is resolved
+    ///
+    /// `paramodulation` (the default) rewrites a term by an equation as a
+    /// step of its own, with reflexivity and functional reflexivity as
+    /// clauses: its refutation is checked step by step but not read back as
+    /// a derivation of LK. `axioms` takes every equality axiom as clauses
+    /// and resolves alone, its refutation read back where the read-back
+    /// reaches, its saturation slower.
+    #[arg(help_heading = SEARCH, long, value_enum, value_name = "WAY", default_value_t = EqualityArg::Paramodulation)]
+    pub(crate) equality: EqualityArg,
+}
+
+/// How `resolve` treats `=`.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EqualityArg {
+    /// Paramodulation, with reflexivity and functional reflexivity
+    Paramodulation,
+    /// Every equality axiom as clauses
+    Axioms,
 }
 
 /// The arguments of `herbrand`.

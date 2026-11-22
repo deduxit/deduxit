@@ -120,6 +120,25 @@ pub enum Step {
         /// The literal dropped.
         second_literal: usize,
     },
+    /// A paramodulant: a subterm of a literal of one clause rewritten by
+    /// an equation of another, under their most general unifier.
+    Paramodulation {
+        /// The clause of the equation.
+        from: usize,
+        /// The equation `s = t`, a positive literal of `from`.
+        from_literal: usize,
+        /// The clause rewritten.
+        into: usize,
+        /// The literal rewritten.
+        into_literal: usize,
+        /// Where the subterm stands: its place among the subterms of the
+        /// literal's arguments read left to right, each before its own
+        /// arguments, from 0. A variable's place is refused.
+        position: usize,
+        /// Whether the equation is read right to left: `t` unified with the
+        /// subterm and `s` put for it.
+        reverse: bool,
+    },
 }
 
 /// An inference made: its step, the unifier, and the clause it made.
@@ -198,6 +217,7 @@ impl Clauses {
         let first = match inference.step {
             Step::Resolution { first, .. } => self.items.get(first),
             Step::Factor { clause, .. } => self.items.get(clause),
+            Step::Paramodulation { from, .. } => self.items.get(from),
         }
         .map_or(0, Clause::variables);
         let name = |k: u32| {
@@ -259,6 +279,21 @@ impl Clauses {
                 first_literal,
                 second_literal,
             } => (clause, None, first_literal, second_literal),
+            Step::Paramodulation {
+                from,
+                from_literal,
+                into,
+                into_literal,
+                position,
+                reverse,
+            } => {
+                return self.paramodulant(
+                    (from, from_literal),
+                    (into, into_literal),
+                    position,
+                    reverse,
+                );
+            }
         };
         let a = self.items.get(first).ok_or_else(out_of_range)?.clone();
         let b = match second {
@@ -314,20 +349,8 @@ impl Clauses {
                 "the atoms do not unify: two symbols clash, or a variable would occur in its own binding",
             ));
         }
-        // Every variable of the step under the unifier.
-        let mut memo: HashMap<FoTermId, FoTermId> = HashMap::default();
-        let mut terms = Vec::with_capacity(variables as usize);
-        for k in 0..variables {
-            let t = unifier.metas()[k as usize].term;
-            terms.push(self.applied(&unifier, t, &mut memo));
-        }
-        let bindings: Vec<(u32, FoTermId)> = (0..variables)
-            .filter(|&k| unifier.metas()[k as usize].bound.is_some())
-            .map(|k| (k, terms[k as usize]))
-            .collect();
-        // The rest of both parents under the unifier, each literal once; a
-        // factor keeps its first literal where it stood.
-        let mut rest: Vec<Literal> = Vec::new();
+        // The rest of both parents, before the unifier; a factor keeps its
+        // first literal where it stood.
         let kept: Vec<Literal> = match &b {
             Some(_) => a
                 .literals
@@ -351,8 +374,35 @@ impl Clauses {
                 .map(|(_, l)| *l)
                 .collect(),
         };
+        self.concluded(&unifier, variables, kept, a.variables)
+            .map(Ok)
+    }
+
+    /// Returns what an inference makes of the literals `kept` (its parents'
+    /// rest, renamed apart) under `unifier`, over the step's `variables`, the
+    /// first parent's `first` of them: each literal once, the variables
+    /// left numbered in the order they first occur.
+    fn concluded(
+        &mut self,
+        unifier: &Unifier,
+        variables: u32,
+        kept: Vec<Literal>,
+        first: u32,
+    ) -> Result<Made, Error> {
+        // Every variable of the step under the unifier.
+        let mut memo: HashMap<FoTermId, FoTermId> = HashMap::default();
+        let mut terms = Vec::with_capacity(variables as usize);
+        for k in 0..variables {
+            let t = unifier.metas()[k as usize].term;
+            terms.push(self.applied(unifier, t, &mut memo));
+        }
+        let bindings: Vec<(u32, FoTermId)> = (0..variables)
+            .filter(|&k| unifier.metas()[k as usize].bound.is_some())
+            .map(|k| (k, terms[k as usize]))
+            .collect();
+        let mut rest: Vec<Literal> = Vec::new();
         for l in kept {
-            let atom = self.applied_atom(&unifier, l.atom, &mut memo)?;
+            let atom = self.applied_atom(unifier, l.atom, &mut memo)?;
             let literal = Literal {
                 positive: l.positive,
                 atom,
@@ -380,7 +430,7 @@ impl Clauses {
                 atom,
             });
         }
-        Ok(Ok(Made {
+        Ok(Made {
             bindings,
             clause: Clause {
                 literals,
@@ -388,8 +438,207 @@ impl Clauses {
             },
             terms,
             renamed,
-            first: a.variables,
-        }))
+            first,
+        })
+    }
+
+    /// Returns what the paramodulation of the literal `into` by the
+    /// equation `from`, each a clause and a literal's place, makes at the
+    /// subterm `position`, the equation read right to left where `reverse`
+    /// is set; or why it does not apply.
+    fn paramodulant(
+        &mut self,
+        (from, from_literal): (usize, usize),
+        (into, into_literal): (usize, usize),
+        position: usize,
+        reverse: bool,
+    ) -> Result<Result<Made, &'static str>, Error> {
+        let out_of_range = || Error::InvalidOption {
+            key: "step",
+            message: "a clause or literal outside the clauses".to_owned(),
+        };
+        let a = self.items.get(from).ok_or_else(out_of_range)?.clone();
+        let b = self.items.get(into).ok_or_else(out_of_range)?.clone();
+        let x = *a.literals.get(from_literal).ok_or_else(out_of_range)?;
+        b.literals.get(into_literal).ok_or_else(out_of_range)?;
+        let Some((s, t)) = x.positive.then(|| self.equation(x.atom)).flatten() else {
+            return Ok(Err("the first literal is no equation s = t"));
+        };
+        let (s, t) = if reverse { (t, s) } else { (s, t) };
+        // The second clause's variables renamed apart, after the first's.
+        let shift = a.variables;
+        let variables = a.variables + b.variables;
+        let mut renamed_b = Vec::with_capacity(b.literals.len());
+        for l in &b.literals {
+            renamed_b.push(Literal {
+                positive: l.positive,
+                atom: self.shifted(l.atom, shift)?,
+            });
+        }
+        let target = renamed_b[into_literal].atom;
+        let occurrences = self.occurrences(target);
+        let Some((u, path)) = occurrences.get(position).cloned() else {
+            return Ok(Err("the literal has no subterm at that place"));
+        };
+        if matches!(
+            self.formulas.first_order().terms[u.index()],
+            FoTerm::Meta(_)
+        ) {
+            return Ok(Err(
+                "the subterm is a variable, which paramodulation does not rewrite",
+            ));
+        }
+        let mut unifier = Unifier::new();
+        for k in 0..variables {
+            let m = self.formulas.interner().term(FoTerm::Meta(k));
+            unifier.push_meta(m, u32::MAX);
+        }
+        if unifier
+            .unify(self.formulas.first_order(), vec![(s, u)], 0, &|_| true)
+            .is_err()
+        {
+            return Ok(Err(
+                "the equation's side and the subterm do not unify: two symbols clash, or a variable would occur in its own binding",
+            ));
+        }
+        renamed_b[into_literal].atom = self.replaced(target, &path, t)?;
+        // The equation's clause's rest, then the rewritten clause.
+        let kept: Vec<Literal> = a
+            .literals
+            .iter()
+            .enumerate()
+            .filter(|&(k, _)| k != from_literal)
+            .map(|(_, l)| *l)
+            .chain(renamed_b)
+            .collect();
+        self.concluded(&unifier, variables, kept, a.variables)
+            .map(Ok)
+    }
+
+    /// Adds to `steps` every paramodulation by a positive equation of the
+    /// clause `from` into a literal of the clause `into`, at each place
+    /// that is no variable, each way round, but where the side and the
+    /// subterm begin with two symbols (no unifier), and by no equation of
+    /// two equal sides (it rewrites nothing).
+    fn paramodulations(&self, from: usize, into: usize, steps: &mut Vec<Step>) {
+        let tables = self.formulas.first_order();
+        let head = |t: FoTermId| match tables.terms[t.index()] {
+            FoTerm::App(f, _) => Some(f),
+            FoTerm::Meta(_) | FoTerm::Bound(_) | FoTerm::Eigen(_) => None,
+        };
+        for (i, x) in self.items[from].literals.iter().enumerate() {
+            let Some((s, t)) = x.positive.then(|| self.equation(x.atom)).flatten() else {
+                continue;
+            };
+            if s == t {
+                continue;
+            }
+            for (j, y) in self.items[into].literals.iter().enumerate() {
+                for (position, (u, _)) in self.occurrences(y.atom).into_iter().enumerate() {
+                    let Some(g) = head(u) else {
+                        continue;
+                    };
+                    for (side, reverse) in [(s, false), (t, true)] {
+                        if head(side).is_none_or(|f| f == g) {
+                            steps.push(Step::Paramodulation {
+                                from,
+                                from_literal: i,
+                                into,
+                                into_literal: j,
+                                position,
+                                reverse,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Returns the two sides of `atom` where it is an equation `s = t`.
+    fn equation(&self, atom: NodeId) -> Option<(FoTermId, FoTermId)> {
+        let Node::Atom(a) = self.formulas.node(atom) else {
+            return None;
+        };
+        let tables = self.formulas.first_order();
+        let &(p, args) = tables.atoms.get(a as usize)?;
+        match *tables.list(args) {
+            [s, t] if tables.symbols[p.index()].0 == crate::first_order::EQUALS => Some((s, t)),
+            _ => None,
+        }
+    }
+
+    /// Returns the subterms of `atom`'s arguments as they stand in the
+    /// text, left to right and each before its arguments, each with its
+    /// path: the argument's place, then the place below at each level. A
+    /// shared part counts once per place it stands at.
+    fn occurrences(&self, atom: NodeId) -> Vec<(FoTermId, Vec<u32>)> {
+        let Node::Atom(a) = self.formulas.node(atom) else {
+            return Vec::new();
+        };
+        let tables = self.formulas.first_order();
+        let Some(&(_, args)) = tables.atoms.get(a as usize) else {
+            return Vec::new();
+        };
+        let mut found = Vec::new();
+        let mut stack: Vec<(FoTermId, Vec<u32>)> = tables
+            .list(args)
+            .iter()
+            .enumerate()
+            .rev()
+            .map(|(i, &t)| (t, vec![i as u32]))
+            .collect();
+        while let Some((t, path)) = stack.pop() {
+            if let FoTerm::App(_, args) = tables.terms[t.index()] {
+                for (i, &u) in tables.list(args).iter().enumerate().rev() {
+                    let mut below = path.clone();
+                    below.push(i as u32);
+                    stack.push((u, below));
+                }
+            }
+            found.push((t, path));
+        }
+        found
+    }
+
+    /// Returns `atom` with the subterm at `path` ([`occurrences`]) put
+    /// as `with`.
+    ///
+    /// [`occurrences`]: Self::occurrences
+    fn replaced(&mut self, atom: NodeId, path: &[u32], with: FoTermId) -> Result<NodeId, Error> {
+        let Node::Atom(a) = self.formulas.node(atom) else {
+            return Ok(atom);
+        };
+        let Some(&(p, args)) = self.formulas.first_order().atoms.get(a as usize) else {
+            return Ok(atom);
+        };
+        let mut items = self.formulas.first_order().list(args).to_vec();
+        // The terms along the path, the argument first.
+        let mut chain = Vec::with_capacity(path.len());
+        let mut t = items[path[0] as usize];
+        chain.push(t);
+        for &i in &path[1..] {
+            let FoTerm::App(_, below) = self.formulas.first_order().terms[t.index()] else {
+                break;
+            };
+            t = self.formulas.first_order().list(below)[i as usize];
+            chain.push(t);
+        }
+        // Built again from the bottom: each parent with its child put.
+        let mut built = with;
+        for level in (1..chain.len()).rev() {
+            let FoTerm::App(f, below) = self.formulas.first_order().terms[chain[level - 1].index()]
+            else {
+                continue;
+            };
+            let mut list = self.formulas.first_order().list(below).to_vec();
+            list[path[level] as usize] = built;
+            let list = self.formulas.interner().list(&list);
+            built = self.formulas.interner().term(FoTerm::App(f, list));
+        }
+        items[path[0] as usize] = built;
+        let list = self.formulas.interner().list(&items);
+        self.formulas.predicate_atom(p, list)
     }
 
     /// Returns the pairs of arguments of two atoms of one predicate, or
@@ -979,28 +1228,36 @@ pub fn resolve(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<FirstOrder, Error> {
-    let sequent = with_equality(sequent, limits)?;
+    let sequent = with_equality(sequent, limits, options.equality)?;
     resolve_dyn(&sequent, options, limits, &mut stop)
 }
 
-/// Returns `sequent` with the equality axioms of its symbols where it uses
-/// `=` ([`with_axioms`](crate::ordinary::equality::with_axioms)): with
-/// them a saturated set has a model that reads `=` as identity once
-/// divided by it, and a refutation may use them.
+/// Returns `sequent` with what `equality` needs of a sequent that uses
+/// `=`: every equality axiom
+/// ([`with_axioms`](crate::ordinary::equality::with_axioms)), or
+/// reflexivity and functional reflexivity for paramodulation
+/// ([`with_reflexivity`](crate::ordinary::equality::with_reflexivity)).
+/// Either way a saturated set has a model that reads `=` as identity once
+/// divided by it.
 ///
 /// # Errors
 ///
-/// `with_axioms`' refusals.
+/// Their refusals.
 fn with_equality<'a>(
     sequent: &'a Sequent,
     limits: &Limits,
+    equality: super::Equality,
 ) -> Result<std::borrow::Cow<'a, Sequent>, Error> {
-    Ok(
-        match crate::ordinary::equality::with_axioms(sequent, limits)? {
-            Some(with) => std::borrow::Cow::Owned(with),
-            None => std::borrow::Cow::Borrowed(sequent),
-        },
-    )
+    let with = match equality {
+        super::Equality::Axioms => crate::ordinary::equality::with_axioms(sequent, limits)?,
+        super::Equality::Paramodulation => {
+            crate::ordinary::equality::with_reflexivity(sequent, limits)?
+        }
+    };
+    Ok(match with {
+        Some(with) => std::borrow::Cow::Owned(with),
+        None => std::borrow::Cow::Borrowed(sequent),
+    })
 }
 
 /// [`resolve`], with the stop as a trait object.
@@ -1069,7 +1326,7 @@ pub fn clauses_of(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<(NormalForm, Clauses), Error> {
-    let sequent = &*with_equality(sequent, limits)?;
+    let sequent = &*with_equality(sequent, limits, super::Equality::Paramodulation)?;
     refuse_open_witnesses(sequent)?;
     let clausal = normal::rewrite(
         sequent,
@@ -1380,6 +1637,8 @@ impl<'l> Search<'l> {
                 }
             }
             self.active.push(given);
+            let paramodulating = self.options.equality == super::Equality::Paramodulation
+                && self.set.formulas.has_equality();
             for &other in &self.active {
                 let partner = &self.set.items[other];
                 for (i, x) in clause.literals.iter().enumerate() {
@@ -1392,6 +1651,12 @@ impl<'l> Search<'l> {
                                 second_literal: j,
                             });
                         }
+                    }
+                }
+                if paramodulating {
+                    self.set.paramodulations(given, other, &mut steps);
+                    if other != given {
+                        self.set.paramodulations(other, given, &mut steps);
                     }
                 }
             }
@@ -1472,6 +1737,10 @@ impl<'l> Search<'l> {
                     needed[second] = true;
                 }
                 Step::Factor { clause, .. } => needed[clause] = true,
+                Step::Paramodulation { from, into, .. } => {
+                    needed[from] = true;
+                    needed[into] = true;
+                }
             }
         }
         let mut position: Vec<usize> = (0..given).collect();
@@ -1503,6 +1772,21 @@ impl<'l> Search<'l> {
                     clause: position[clause],
                     first_literal,
                     second_literal,
+                },
+                Step::Paramodulation {
+                    from,
+                    from_literal,
+                    into,
+                    into_literal,
+                    position: place,
+                    reverse,
+                } => Step::Paramodulation {
+                    from: position[from],
+                    from_literal,
+                    into: position[into],
+                    into_literal,
+                    position: place,
+                    reverse,
                 },
             };
             clauses.push(self.set.items[k].clone());
@@ -1543,6 +1827,21 @@ fn read_back(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Derivation, Error> {
+    // A ground instance of a paramodulant follows from its parents' only
+    // with equality's axioms, which the refutation does not use: LK reads
+    // no such step back.
+    if refutation
+        .inferences
+        .iter()
+        .any(|i| matches!(i.step, Step::Paramodulation { .. }))
+    {
+        return Err(Error::ReadBack {
+            calculus: "LK",
+            reason: "a refutation by paramodulation is checked step by step; LK has no rule for \
+                     the step"
+                .to_owned(),
+        });
+    }
     let mut set = Clauses {
         formulas: refutation.clauses.formulas.clone(),
         items: refutation.clauses.items[..refutation.clauses.given].to_vec(),
@@ -1611,6 +1910,7 @@ fn read_back(
             let (first, second) = match refutation.inferences[k - set.given].step {
                 Step::Resolution { first, second, .. } => (first, Some(second)),
                 Step::Factor { clause, .. } => (clause, None),
+                Step::Paramodulation { from, into, .. } => (from, Some(into)),
             };
             let mut add = |c: usize, sub: Vec<FoTermId>| {
                 if !needed[c].contains(&sub) {
@@ -1914,6 +2214,68 @@ mod tests {
             "{:?}",
             found.answer
         );
+    }
+
+    /// With `=`, paramodulation refutes in steps the checker computes again,
+    /// and its small set saturates where the axioms' would not; the axioms
+    /// refute by resolution alone and read back. A paramodulation into a
+    /// variable, or with a literal that is no equation, does not apply.
+    #[test]
+    fn equality_by_paramodulation_or_axioms() {
+        for text in [
+            "a = b, p(a) |- p(b)",
+            "f(a) = b, p(f(a)) |- p(b)",
+            "forall x. f(x) = x |- f(f(c)) = c",
+            "a = b |- f(b) = f(a)",
+        ] {
+            let found = found(text);
+            let Answer::Refuted { refutation, .. } = &found.answer else {
+                panic!("{text}: {:?}", found.answer);
+            };
+            assert!(
+                refutation
+                    .inferences()
+                    .iter()
+                    .any(|i| matches!(i.step, Step::Paramodulation { .. })),
+                "{text}"
+            );
+            refutation.check(|_| false).unwrap();
+        }
+        assert!(matches!(found("a = b |- a = c").answer, Answer::Saturated));
+        let sequent: Sequent = "a = b, p(a) |- p(b)".parse().unwrap();
+        let options = Options::default().with_equality(super::super::Equality::Axioms);
+        let axioms = resolve(&sequent, &options, &Limits::default(), |_| false).unwrap();
+        assert!(matches!(
+            axioms.answer,
+            Answer::Refuted {
+                derivation: Some(_),
+                ..
+            }
+        ));
+        // `p(X)` has no place to rewrite but its variable, and `p(a)` is no
+        // equation.
+        let (_, mut clauses) = clauses_of(
+            &"a = b, forall x. p(x) |- q".parse().unwrap(),
+            &Limits::default(),
+            |_| false,
+        )
+        .unwrap();
+        let text: Vec<String> = (0..clauses.clauses().len())
+            .map(|k| clauses.text(k))
+            .collect();
+        let at = |c: &str| text.iter().position(|t| t == c).unwrap();
+        let (eq, p) = (at("a = b"), at("p(X1)"));
+        for (from, into) in [(eq, p), (p, eq)] {
+            let step = Step::Paramodulation {
+                from,
+                from_literal: 0,
+                into,
+                into_literal: 0,
+                position: 0,
+                reverse: false,
+            };
+            assert!(clauses.infer(step).is_err(), "{from} into {into}");
+        }
     }
 
     /// A sequent that is not valid saturates where its clauses are finite,
