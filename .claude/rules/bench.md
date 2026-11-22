@@ -984,6 +984,14 @@ serde_json, which the CLI and the core's tests already have.
   `equality-iltp-rebased-LOGIC-{auto,models}.csv` are the default and the
   model search again on the code after the model search landed, the
   machine under load from another session's flake check.
+  `equality-share-before.csv` (classical and intuitionistic `auto`, with
+  the library's bounded connection prover) and `equality-share-after.csv`
+  (intuitionistic `auto` with a trial share: the intuitionistic
+  connection prover within 2²² steps before the embedding, on sequents
+  with `=`) are the same problems at 2 s on cores 4 to 6, the run that
+  kept the share out of the library: it gained 36 theorems and lost 28,
+  since neither the prover's steps nor its polled units track its time
+  (step 78's report).
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the

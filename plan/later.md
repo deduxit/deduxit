@@ -2751,7 +2751,7 @@ section of `plan/reports/fixups.md`.
 Not built. On a sample of 433 of ILTP's 1 730 problems with equality at
 2 s (`bench/comparison/2026-11-22-iltp-equality/`), leanCoP 2.1 proves 134
 and nanoCoP 2.0 115 classically, deduxit's connection prover 88; iLeanCoP
-1.2 proves 90 and nanoCoP-i 2.0 87 intuitionistically, deduxit's default 33.
+1.2 proves 90 and nanoCoP-i 2.0 87 intuitionistically, deduxit's default 32.
 All of them decide equality by adding its axioms, and nanoCoP's calculus is
 deduxit's, so the gap is the search (restricted backtracking schedules and
 strategy portfolios, as 75b found without equality), not the axioms. A
@@ -2759,3 +2759,19 @@ native rule would need a published equality-handling connection calculus to
 follow, which no session has read; revisit only once deduxit's prover
 closes the gap with the axioms, then measure again. Source: step 78's
 report, session 78c.
+
+## The intuitionistic connection prover beside the embedding, with `=` (78c, 2026-11-22)
+
+Not in the library's default. With the equality axioms the intuitionistic
+connection prover proves ILTP theorems the embedding does not (36 at 2 s,
+the SWV and AGT problems). A share of 2²² steps before the embedding
+(`bench/defaults/equality-share-*.csv`) gained those 36 and lost 28 the
+embedding proves in milliseconds: the library has no clock, and neither
+the prover's steps nor its polled units track its time (63 000 steps or
+75 000 units filled 2 s on SYN083+1, where SWV095+1's proof took 2.3
+million units in 0.19 s). The way is a race in the command, which has a
+clock and threads: the prover on a thread beside the embedding and the
+model search (`races_the_embedding`, `prove.rs`), for an intuitionistic
+first-order sequent with `=`, the first proof stopping the others, then
+the same 1 730 problems before and after (no verdict lost, the time per
+row). Source: step 78's report, session 78c.
