@@ -8018,3 +8018,15 @@ move (D26).
   +1.88 % at every gate since). In the same worker: **fixup-18**, LJT's leftovers ("limit of 0 B",
   the verdict line naming LJT's hand-over, `Derivation::term` refusing, the stale `check` entry).
   76a still held by the author's permission prompt from 01:59.
+- 2026-11-22, about 05:00: **fixup-18 reviewed and pushed; fixup-19 started.** fixup-18 (Opus,
+  high; the reviewer on Fable): "limit of 0 B" traced to the Horn engine's share of the bound in the
+  command's race (every engine's unknown now names the bound given, in one place); the verdict line
+  says when and why the default gave way to the embedding (not for `Incomplete`); the lambda
+  read-back refuses every derivation it cannot read (eleven broken derivations tested); the stale
+  `check` entry closed (`check` reads LK and LJ derivations). The reviewer's five fixed. Full check
+  passed on `main`'s head; pushed (`pmoppnoz`). **Decided unattended** (`later.md`'s pigeonhole
+  entry, "each the author's to choose"): the first way, the built and checked derivation bounded by
+  inferences and memory and `--derivation-limit` for the drawing alone, so `-q` and JSON give the
+  checked verdict for SYJ202; the second (shared subderivations, a checker change) stays for a user
+  who asks. That and `comparison.sh`'s ILTP pass are **fixup-19**, in the same worker. 76a still
+  held by the author's prompt from 01:59.
