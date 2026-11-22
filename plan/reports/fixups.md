@@ -1334,3 +1334,94 @@ need `parse`; no gate run builds that combination.
 - `nix flake check` under the machine lock at the report's commit
   (07:23 to 07:40), on `main@origin` (`lqwqkxor`): every check passed.
   Only this line changed after.
+
+## Session fixup-21: JSON for a late unknown
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixups 15 to 20), cores 10 to 12,
+from what fixup-20 found. One question went to the planning session
+(the library change below), answered within the hour. Nothing was
+pushed.
+
+### What landed
+
+- `rpxwmqly`: **a bound or the stop that ends the read-back or a check
+  after the search decided is an unknown with that reason and the
+  search's statistics**, as a bound that ends the search was (the
+  planning session's decision, unattended). `ordinary::decide::ended`
+  maps `Refusal::{Stopped, Memory, Work, Index}` to their reasons and
+  leaves every other error as it is. LJT, the SAT solver in all three
+  logics (its read-back, LJT after it, the clausal proof's check, the
+  model's check), both connection provers and the model checks of the
+  truth table and the tableau answer through it. So `prove --format
+  json` writes an outcome where it wrote nothing (SYJ202+1.007 and .008
+  at 2 s: `"verdict":"unknown","reason":{"kind":"stopped"}` with the
+  solver's statistics, exit 3), the batch writes an unknown record where
+  it wrote an error record, and a named method's bound there is exit 3,
+  not 2. The command keeps the line "the search ended, but the time
+  limit … before its answer was checked" through `Ended::after_search`:
+  the stop closure notes a poll outside `Phase::Search` (LJT and the SAT
+  solver only, whose read-back follows the search; on SYJ202+1.007 the
+  read-back ran out of memory and the stop fired in LJT's search after
+  it, so the firing poll's phase alone said nothing). `check`'s JSON
+  already wrote an unknown record; the protocol's `ordinary.decide` now
+  writes these outcomes too. Pinned by `a_stop_after_the_search_is_an_unknown`
+  (the library), `every_decided_outcome_reads_back` (the protocol) and
+  a `--work-limit 5 --format json` case in `ordinary_logic` (the
+  command). The `# Errors` sections, the manual's JSON section, the
+  guide, the changelog and the rules say so; the `later.md` entry is
+  gone.
+  - **Departs from the decision:** the embedding's read-back in
+    `ordinary::decide` keeps its refusal. Beside a proved image an
+    unknown verdict is a document the outcome's reader refuses (the
+    review's finding: a workspace edit lost); the command's own race
+    answers with `Evidence::Image` there, as before. A truth table or a
+    tableau that a bound ends while it is built (the tableau's until
+    its derivation is checked) stays an error too: its outcome holds
+    the table or the tableau, which is not there.
+- `qznvnnuy`: **`Derive::Ljt` is `#[cfg(all(test, feature =
+  "parse"))]`**, and the `features` check runs `cargo hack check
+  --each-feature --tests` beside its two runs: 283 s to 345 s in the
+  sandbox (rebuilt both under the lock). It found two more test-only
+  items under one feature alone, fixed: `goal_tree`'s test module
+  (`serialize`) and a protocol test's closure (`rocq`). Every pair with
+  its tests takes eight minutes on three cores and fails in more places
+  (tests that assume features they do not name), so pairs build no
+  tests; `plan/later.md` lists what failed.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`). Soundness held: `ended` maps only
+the four bounds, defects stay errors, `prefer_ljt` and `by_ljt` keep
+their behaviour, `gives_way` gives way in the same cases, and the
+workspace still refuses a run its stop ended; the command's JSON, text
+and batch held on SYJ202+1.007; `cargo hack check --each-feature
+--tests` passed all 15 sets. Findings, all fixed in `rpxwmqly`:
+- **The embedding's new unknown was a document the reader refuses**
+  (`workspace apply … ordinary.decide --set method=embedding
+  --work-limit 50` on a chain of 100 negations: the edit lost): reverted
+  at that site, the departure above; `every_decided_outcome_reads_back`
+  fails with the reverted code back.
+- **The tableau's check after its search, and the manual's sentence**:
+  its derivation's check refused at a bound stays an error, since the
+  tableau is built from that derivation; the manual says so now, and
+  its model check's stop is an unknown, as the table's.
+- **Stale texts**: the rules on `gives_way` and on `--method ljt`'s
+  refusals, `by_native`'s and the intuitionistic connection prover's
+  `# Errors`.
+- **The harness wrote `stopped` for a table's late stop** where it
+  writes `timeout` (`bench/src/ordinary.rs`): one `unknown` mapping for
+  its three sites now.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` (39 binaries) after each commit and after the
+  review's fixes; `cargo hack check --each-feature --tests` (15 sets,
+  warnings denied).
+- The gate passed on the chain before the review's fixes
+  (`ordinary-pigeons` +1.03 %, as since fixup-19).
+- `nix flake check` under the machine lock at the report's commit
+  (08:58 to 09:16), on `main@origin` (`tvmvslwk`): every check passed,
+  the `features` check with each feature's tests among them. Only this
+  line changed after.
