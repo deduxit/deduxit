@@ -126,3 +126,13 @@ Deliverables: the commits (both repositories),
   without equality (`bench/COMPARISON.md`); their "not valid" answers
   (nanoCoP 84, nanoCoP-i 86, iLeanCoP 74 at 2 s) are this step's measure
   beside deduxit's 77 and 109.
+
+## Added on 2026-11-22: Glivenko's failure for step 77
+
+76b found that the formula on which Glivenko's theorem fails at first
+order (`∀x. ¬¬p(x) → ¬¬∀x. p(x)`, and `¬¬∀x. (p(x) ∨ ¬p(x))`) has no
+finite Kripke countermodel: a finite frame's maximal worlds force every
+classical tautology. Its countermodel is the infinite chain of worlds n
+with domains 0..n and p(k) from world k+1 on. **76c** proves in
+rocq-deduxit, on its first-order Kripke semantics, that this model
+refutes both formulas; step 77 shows the model and cites the lemma.

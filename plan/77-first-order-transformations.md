@@ -48,9 +48,17 @@ ones are.
   Gentzen's (their `∀`/`∃` rows exist in `negative.rs`), each checked as
   63t checks them; **the formula on which Glivenko's theorem fails** at
   first order (`∀x. ¬¬p(x) → ¬¬∀x. p(x)` or the design's choice), shown
-  with its intuitionistic countermodel: **this item waits for 76b's
-  Kripke models with growing domains**; everything else in this step
-  rests on steps 74 and 75 and runs beside step 76.
+  with its intuitionistic countermodel. That countermodel is
+  necessarily infinite (76b, 2026-11-22: in a finite frame every world
+  sees a maximal world, which forces every classical tautology, so
+  `¬¬A` holds everywhere; the double-negation shift fails only on an
+  infinite chain of worlds with growing domains, world n with elements
+  0..n and p(k) from world k+1 on). So the item is **a lemma of
+  rocq-deduxit that this infinite model refutes the formula**, on 76c's
+  first-order Kripke semantics, shown by 77 with the model's
+  description; deduxit's bounded searches answer "unknown" on it, which
+  77 says. Everything else in this step rests on steps 74 and 75 and
+  runs beside step 76.
 - **Craig interpolants of LK and LJ at first order** (Maehara's method
   with the eigenvariable condition: an interpolant's free variables and
   symbols in both sides), each checked by derivations of its two halves.
@@ -71,7 +79,7 @@ Two to three sessions, Opus 5.5 at `high`, `fresh-reviewer` on Fable
 - **77b**: Herbrand's theorem with its certificate, the negative
   translations, Craig interpolants at first order, the manual and the
   guide.
-- **77c** (if needed, after 76b): Glivenko's failure with its countermodel.
+- **77c** (after 76c's semantics): Glivenko's failure shown with the infinite model and its Rocq lemma.
 
 Step 76 runs beside it (76a now, then 76b and 76c, in
 `core/src/ordinary`'s model search, the countermodel type and the

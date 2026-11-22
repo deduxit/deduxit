@@ -8117,3 +8117,9 @@ move (D26).
   5 % grace after the prover gives way (the reviewer's "valid waited 90 %" fixed); a table's text
   capped at 64 entries. The web module's ceiling raised to 2 700 000. Full check passed; pushed
   (`kpwlyunq`). In its worker: **76b**, Kripke models with growing domains and Glivenko's failure.
+- 2026-11-22, about 12:30: **Glivenko's failure at first order has no finite countermodel** (76b's
+  finding: a finite Kripke frame's maximal worlds force every classical tautology, so `¬¬A` holds
+  everywhere; the double-negation shift fails only on an infinite chain with growing domains). So
+  step 77's Glivenko item becomes a lemma of rocq-deduxit, proved by 76c on its first-order Kripke
+  semantics, that the infinite model refutes the formula; 76b pins that its bounded search answers
+  unknown there. The prompts of 76 and 77 say so.
