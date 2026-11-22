@@ -184,12 +184,68 @@ pub fn load_ordinary(id: &str) -> Result<ordinary::Problem> {
     Ok(ordinary::read_tptp(&text, &Limits::default())?)
 }
 
-/// Returns the text of a TPTP file. A byte that is no UTF-8 becomes
-/// U+FFFD: ILTP writes a few authors' names in Latin-1, always in a
-/// comment, which the reader skips.
+/// Returns the text of a TPTP file, as the command reads one: ILTP writes
+/// a few authors' names in Latin-1, always in a comment, where a byte that
+/// is no UTF-8 stands as U+FFFD (the reader skips comments, `%` to the end
+/// of the line); anywhere else such a byte is refused, naming its line.
+/// The command's `io::tptp_text` is the same.
 fn text_of(path: &Path) -> Result<String> {
     let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    let bytes = match String::from_utf8(bytes) {
+        Ok(text) => return Ok(text),
+        Err(error) => error.into_bytes(),
+    };
+    // Where the text is: in a formula, a comment, or a quoted name or
+    // string, whose `%` opens no comment.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum At {
+        Code,
+        Comment,
+        Quoted(char),
+    }
+    let mut at = At::Code;
+    let mut line = 1usize;
+    let mut escaped = false;
+    let mut out = String::with_capacity(bytes.len());
+    for chunk in bytes.utf8_chunks() {
+        for c in chunk.valid().chars() {
+            out.push(c);
+            match at {
+                At::Code => match c {
+                    '%' => at = At::Comment,
+                    '\'' | '"' => at = At::Quoted(c),
+                    _ => {}
+                },
+                At::Comment => {
+                    if c == '\n' {
+                        at = At::Code;
+                    }
+                }
+                At::Quoted(quote) => {
+                    if escaped {
+                        escaped = false;
+                    } else if c == '\\' {
+                        escaped = true;
+                    } else if c == quote {
+                        at = At::Code;
+                    }
+                }
+            }
+            if c == '\n' {
+                line += 1;
+            }
+        }
+        if !chunk.invalid().is_empty() {
+            if at != At::Comment {
+                bail!(
+                    "reading {}: line {line} holds a byte that is not UTF-8 outside a comment",
+                    path.display()
+                );
+            }
+            out.push(char::REPLACEMENT_CHARACTER);
+        }
+    }
+    Ok(out)
 }
 
 /// Returns the text of the TPTP file at `path` with each line
@@ -451,7 +507,8 @@ mod tests {
     }
 
     /// An include names a file from the library's root, found above the
-    /// problem, and a Latin-1 byte in a comment is read.
+    /// problem, and a Latin-1 byte in a comment is read; one in a formula
+    /// is refused with its line.
     #[test]
     fn a_tptp_problem_s_includes_are_read() {
         let root = std::env::temp_dir().join(format!("deduxit-include-{}", std::process::id()));
@@ -466,6 +523,15 @@ mod tests {
         .unwrap();
         let read = load_ordinary(&format!("tptp:{}", problem.display())).unwrap();
         assert_eq!(read.sequent.to_string(), "p ⊢ p");
+        let refused = root.join("Problems/D/y.p");
+        std::fs::write(&refused, b"% fine\nfof(c, conjecture, p\xf6).\n").unwrap();
+        let error = load_ordinary(&format!("tptp:{}", refused.display())).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("line 2 holds a byte that is not UTF-8"),
+            "{error}"
+        );
         std::fs::remove_dir_all(&root).unwrap();
     }
 

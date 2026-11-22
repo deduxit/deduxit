@@ -838,6 +838,46 @@ fn tptp_includes_are_read() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
 }
 
+/// A TPTP problem whose comments hold Latin-1 bytes is read, its own and
+/// an included file's; such a byte in a formula is refused with its line.
+#[test]
+fn tptp_comments_need_not_be_utf8() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-tptp-latin1");
+    std::fs::create_dir_all(dir.join("Axioms")).unwrap();
+    // `é` in Latin-1, in a comment of each file.
+    std::fs::write(dir.join("Axioms/a.ax"), b"% Jos\xe9\nfof(a, axiom, p).\n").unwrap();
+    let cases: [(&str, &[u8]); 2] = [
+        (
+            "valid.p",
+            b"% Author: Jos\xe9 '%'\ninclude('Axioms/a.ax').\nfof(c, conjecture, p).\n",
+        ),
+        ("refused.p", b"% fine\nfof(c, conjecture, p\xe9).\n"),
+    ];
+    let mut answers = Vec::new();
+    for (name, bytes) in cases {
+        let file = dir.join(name);
+        std::fs::write(&file, bytes).unwrap();
+        let line = [
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--quiet",
+            "--file",
+            file.to_str().unwrap(),
+        ];
+        answers.push(deduxit(&line, ""));
+    }
+    assert_eq!(answers[0].0, 0, "{:?}", answers[0]);
+    assert_eq!(answers[1].0, 2, "{:?}", answers[1]);
+    assert!(
+        answers[1]
+            .2
+            .contains("line 2 holds a byte that is not UTF-8 outside a comment"),
+        "{}",
+        answers[1].2
+    );
+}
+
 /// A first-order session of LJ takes a witness after `∃R`'s name, names
 /// a fresh eigenvariable for `∃L`, and refuses a witness that names
 /// neither a symbol nor an eigenvariable made.

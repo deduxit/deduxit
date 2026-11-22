@@ -151,6 +151,10 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- `prove --logic` reads a TPTP problem whose comments hold bytes that
+  are not UTF-8: 107 of ILTP's first-order problems write an author's
+  name in Latin-1, and the command refused them as not UTF-8 text. Such
+  a byte in a formula is refused with its line.
 - `Sequent::add` and `add_cut` on a JSON sequent with quantifiers over
   nullary atoms only, joined with a first-order sequent, gave its atoms
   the other sequent's names: `⊢ ∀x. (a ⅋ ~b)` with `⊢ p(c), q` added

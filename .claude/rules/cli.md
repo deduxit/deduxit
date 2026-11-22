@@ -125,7 +125,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   inlined by `io::included`, from `$TPTP`, else the problem's directory
   and those above it, the working directory's for an argument; a stack,
   `INCLUDE_DEPTH` 32 and a name repeated in it refused, so a cycle ends;
-  the batch inlines per entry with the entry's path) for `--input-format tptp` or a `.p`
+  the batch inlines per entry with the entry's path; the problem and its
+  includes read by `io::read_tptp`, whose `tptp_text` takes a byte that
+  is no UTF-8 in a `%` comment (the reader's only kind) as U+FFFD and refuses one
+  elsewhere naming its line, since ILTP writes authors' names in
+  Latin-1 and the harness's `text_of` reads files the same way) for `--input-format tptp` or a `.p`
   file under `--logic` (`InputFormat::of(path, ordinary)`; without
   `--logic` a `.p` file stays LLTP and `tptp` is refused), translates it
   and admits the image under `--occurrence-limit`. The verdict line is

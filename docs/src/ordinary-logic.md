@@ -512,7 +512,10 @@ reads the file it names, found under the directory `$TPTP` names, where
 set, else under the problem's directory or one above it, as TPTP's
 library lays its axioms out (`nix build .#iltp-first-order` fetches
 ILTP's 2 670 first-order problems with their `Axioms/`). A missing file
-and an include of itself are refused by name.
+and an include of itself are refused by name. A file need not be UTF-8
+in its comments, where some of ILTP's problems write an author's name in
+Latin-1: such a byte is read as it comes, since comments are skipped. In
+a formula it is refused with the line it is on.
 
 ```console
 $ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p

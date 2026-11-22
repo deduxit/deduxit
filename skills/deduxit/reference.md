@@ -1527,7 +1527,8 @@ An ordinary formula may apply predicates to terms and bind variables
 :` and `? [X] :`); there is no `=` yet. A TPTP file's
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed
-(`par` as `par_`, a function symbol named like a predicate as `name_f`). `prove` decides a first-order
+(`par` as `par_`, a function symbol named like a predicate as `name_f`).
+A byte that is not UTF-8 is read in a comment and refused in a formula. `prove` decides a first-order
 sequent of the decidable classes by grounding (`--method grounding`,
 above), another classical one by the connection prover (`--method
 connection`) and another intuitionistic or minimal one through the

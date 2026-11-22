@@ -700,7 +700,11 @@ impl Shared {
                 Source::Bad(why) => return Err(anyhow!(why)),
                 Source::Text(text, format) => (text, format, None),
                 Source::File(path, format) => (
-                    io::read(Some(&path), "sequent", memory)?,
+                    if logic.is_some() && format == InputFormat::Tptp {
+                        io::read_tptp(Some(&path), "sequent", memory)?
+                    } else {
+                        io::read(Some(&path), "sequent", memory)?
+                    },
                     format,
                     Some(path),
                 ),

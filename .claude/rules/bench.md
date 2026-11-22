@@ -50,8 +50,11 @@ serde_json, which the CLI and the core's tests already have.
   reads the same way: `load_ordinary` inlines each `include('NAME').`
   from the nearest directory above the problem that has the file (TPTP
   names it from the library's root; 1 279 problems include `Axioms/…`)
-  and reads bytes as lossy UTF-8 (a few SYJ headers are Latin-1, in
-  comments). A method's first-order refusal (LJT, the SAT solver) is a
+  and reads a file as the command does (`text_of`, the same as
+  `cli/src/io.rs`'s `tptp_text`: a byte that is no UTF-8 stands as
+  U+FFFD in a comment and is refused elsewhere, naming its line; 107 of
+  the 940 first-order problems without equality hold Latin-1 in their
+  comments, which the lossy reading before took anywhere). A method's first-order refusal (LJT, the SAT solver) is a
   `refused` row with the reason `first_order`, the reader's refusal of
   `=` one with `equality` (`summary` drops both, as a configuration that
   does not apply); every other error is the reader's and a finding. The
@@ -625,10 +628,10 @@ serde_json, which the CLI and the core's tests already have.
   to the library's root, two directories above the problem's real path,
   so a problem's includes resolve wherever the file is linked from.
   They decide equality (axioms added), which deduxit refuses: a
-  comparison on deduxit's set leaves those problems out. deduxit's
-  command refuses a file that is not UTF-8 (107 of ILTP's 940
-  first-order problems without equality hold Latin-1 in comments), so
-  the comparison gives every tool those files converted.
+  comparison on deduxit's set leaves those problems out. 107 of ILTP's
+  940 first-order problems without equality hold Latin-1 in comments,
+  which deduxit reads as they are (the run of 2026-11-21 gave every tool
+  those files converted, since the command refused them then).
 - **The columns** `tool`, `tool_version` (from the flake's record,
   `DEDUXIT_COMPARISON_TOOLS`), `translate_ms`, `peak_bytes` and `raw` (the
   tool's last line of output) came at the end of `HEADER`; `run` without
