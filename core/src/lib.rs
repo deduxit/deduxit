@@ -55,9 +55,9 @@
 //!   and the formats under [`export`].
 //! - Work with proof nets: [`ProofStructure`](linear::ProofStructure).
 //! - Prove step by step: `linear::Interactive` (feature `interactive`).
-//! - Decide classical, intuitionistic or minimal propositional logic,
-//!   with a Kripke countermodel ([`kripke::Model`]) for what is not
-//!   valid: [`ordinary`].
+//! - Decide classical, intuitionistic or minimal logic, propositional or
+//!   first-order, with a Kripke countermodel ([`kripke::Model`]) or a
+//!   finite structure for what is not valid: [`ordinary`].
 //! - Translate a classical sequent into intuitionistic or minimal logic,
 //!   or find a Craig interpolant, each checked: `ordinary::negative` and
 //!   `ordinary::interpolant`.
@@ -69,7 +69,8 @@
 //!   `interactive`).
 //! - Rewrite a classical sequent into a normal form, each step checked,
 //!   and refute its clauses by resolution or DPLL with a checked
-//!   refutation: `ordinary::normal` and `ordinary::resolution`.
+//!   refutation: `ordinary::normal` and `ordinary::resolution`; prove a
+//!   first-order one by Herbrand's theorem: `ordinary::herbrand`.
 //! - Read a proof as a lambda-term, check a term you write, and find and
 //!   count a simple type's terms: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule

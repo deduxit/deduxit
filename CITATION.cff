@@ -9,15 +9,18 @@ abstract: >-
   A collection of logic suites: a Rust library and a command line
   program that decide, check, prove step by step and export sequents of
   linear logic, classical and intuitionistic, of classical,
-  intuitionistic and minimal propositional logic, and of propositional
+  intuitionistic and minimal logic, propositional and first-order with
+  equality, and of propositional
   modal logic in the fifteen systems from K to S5. Proofs are shown as
   derivation trees, proof nets or tableaux, and classical sequents also
   by their truth tables; a sequent that is not valid gets a Kripke
-  countermodel, and a modal one that is valid a derivation in a
+  countermodel, at first order a finite structure or a Kripke model
+  with growing domains, and a modal one that is valid a derivation in a
   labelled sequent calculus. It checks and builds derivations in calculi given as
   rule files, natural deduction in Gentzen's and Fitch's styles among
-  them. It rewrites classical sequents into normal forms and refutes
-  their clauses by resolution and DPLL, each step checked, checks the
+  them. It rewrites classical sequents into normal forms, proves
+  first-order ones by Herbrand's theorem, and refutes their clauses by
+  resolution and DPLL, each step checked, checks the
   terms of the simply typed and the linear lambda calculus and finds and
   counts a simple type's terms, and grades answers to problems. Its code, tests and documentation were written with
   substantial AI assistance, by Anthropic's Claude models in Claude
@@ -46,9 +49,10 @@ references:
     title: rocq-deduxit
     abstract: >-
       The Rocq library of deduxit: the sequent calculi of linear,
-      intuitionistic and minimal logic, deduxit's proof terms, their
-      checkers and soundness theorems, and a checker of Kripke
-      countermodels, against which the certificates deduxit writes are
+      intuitionistic, minimal and classical logic, propositional and
+      first-order, deduxit's proof terms, their checkers and soundness
+      theorems, and checkers of Kripke countermodels and finite
+      structures, against which the certificates deduxit writes are
       proved.
     authors:
       - given-names: Fabian Lukas
@@ -61,6 +65,7 @@ keywords:
   - intuitionistic logic
   - Kripke semantics
   - modal logic
+  - first-order logic
   - proof search
   - sequent calculus
   - natural deduction

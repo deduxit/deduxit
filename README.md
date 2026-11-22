@@ -8,15 +8,16 @@ deduxit is a collection of logic suites. It decides whether a sequent
 is provable, and shows the proof or says why there is none. It is a
 command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
 are linear logic (classical and intuitionistic, first-order and cyclic,
-and the Lambek calculus), propositional logic (classical,
-intuitionistic and minimal), where a sequent that is not valid gets a
-Kripke countermodel and classical logic has truth tables and tableaux,
-and propositional modal logic in the fifteen systems from K to S5.
+and the Lambek calculus), ordinary logic (classical, intuitionistic
+and minimal, propositional and first-order, with equality), where a
+sequent that is not valid gets a Kripke countermodel or a finite
+structure and classical logic has truth tables and tableaux, and
+propositional modal logic in the fifteen systems from K to S5.
 It checks and builds derivations in calculi given as rule files,
 natural deduction among them, drawn as trees or as Fitch proofs. It
 proves step by step, draws proof nets and countermodels, rewrites a
-classical sequent into normal forms and refutes its clauses by
-resolution, reads intuitionistic proofs as lambda-terms, checks the
+classical sequent into normal forms, proves a first-order one by
+Herbrand's theorem, refutes its clauses by resolution, reads intuitionistic proofs as lambda-terms, checks the
 terms you write and finds a type's terms, grades an answer to a
 problem, and exports proofs to LaTeX,
 Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
