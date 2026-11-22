@@ -424,16 +424,8 @@ impl Notation {
     ) -> FmtResult {
         let (symbol, args) = sequent.fo.atoms[atom.index()];
         let fo = &sequent.fo;
-        self.atom.write(out, &fo.symbols[symbol.index()].0)?;
         let list = fo.list(args);
-        if list.is_empty() {
-            return Ok(());
-        }
-        out.write_char('(')?;
-        for (i, &t) in list.iter().enumerate() {
-            if i > 0 {
-                out.write_str(", ")?;
-            }
+        let term = |out: &mut W, t| {
             fo.write(
                 out,
                 t,
@@ -443,9 +435,42 @@ impl Notation {
                     Some(Bound::Term(term)) => out.write_str(term),
                     None => write!(out, "#{index}"),
                 },
-            )?;
+            )
+        };
+        // Equality, an image's `=`, is written between its terms.
+        if let [left, right] = *list
+            && fo.symbols[symbol.index()].0 == crate::first_order::EQUALS
+        {
+            term(out, left)?;
+            out.write_str(" = ")?;
+            return term(out, right);
+        }
+        self.atom.write(out, &fo.symbols[symbol.index()].0)?;
+        if list.is_empty() {
+            return Ok(());
+        }
+        out.write_char('(')?;
+        for (i, &t) in list.iter().enumerate() {
+            if i > 0 {
+                out.write_str(", ")?;
+            }
+            term(out, t)?;
         }
         out.write_char(')')
+    }
+
+    /// Returns whether the atom `atom` of `sequent` is an equality, which
+    /// a postfix dual writes in brackets: `(a = b)^⊥`.
+    #[cold]
+    #[inline(never)]
+    fn is_equality(sequent: &Sequent, atom: Atom) -> bool {
+        sequent
+            .fo
+            .atoms
+            .get(atom.index())
+            .is_some_and(|&(symbol, _)| {
+                sequent.fo.symbols[symbol.index()].0 == crate::first_order::EQUALS
+            })
     }
 
     /// Opens the binder `term` of `sequent` in `scope` and writes it up to
@@ -603,7 +628,16 @@ impl Notation {
                             if !self.dual_prefix.is_empty() {
                                 out.write_str(self.dual_prefix)?;
                             }
+                            let bracket = predicates
+                                && !self.dual.is_empty()
+                                && Self::is_equality(sequent, a);
+                            if bracket {
+                                out.write_char('(')?;
+                            }
                             self.write_atom(out, sequent, a, predicates, scope.as_deref())?;
+                            if bracket {
+                                out.write_char(')')?;
+                            }
                             out.write_str(self.dual)?;
                         }
                         One => out.write_str(self.one)?,

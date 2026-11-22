@@ -472,10 +472,48 @@ impl<'a> Parser<'a> {
     /// stack, so no term uses the caller's stack.
     #[cold]
     #[inline(never)]
-    fn predicate(&mut self, name: &'a str, start: usize) -> Result<Atom, Error> {
+    fn predicate(&mut self, name: &'a str, start: usize) -> Result<(Atom, bool), Error> {
         self.enter_first_order(start..self.at)?;
+        let (symbol, from, items) = self.application(name, start)?;
+        let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
+        let args = self.interner.list(&items);
+        // `f(a) = b`: the application was a term.
+        if self.equality_follows() {
+            let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
+            let left = self.interner.term(FoTerm::App(symbol, args));
+            return self.equality(left);
+        }
+        let symbol = self.symbol(&symbol, arity, true, from..self.at)?;
+        Ok((self.predicate_atom(symbol, args), false))
+    }
+
+    /// Returns the atom of `symbol` applied to `args`, making it where the
+    /// text has none of that key.
+    fn predicate_atom(&mut self, symbol: fo::Symbol, args: fo::Args) -> Atom {
+        let key = self.interner.tables.atom_key(symbol, args);
+        match self.names.get(key.as_str()) {
+            Some(&atom) => atom,
+            None => {
+                let atom = Atom::new(self.atoms.len() as u32);
+                self.atoms.push(key.clone());
+                self.names.insert(Cow::Owned(key), atom);
+                self.predicates.push((symbol, args));
+                atom
+            }
+        }
+    }
+
+    /// Reads the argument list of `name`, whose `(` has been read, up to its
+    /// `)`, and returns the name, where it starts and its arguments, every
+    /// inner application made a term. Nested applications go on an explicit
+    /// stack, so no term uses the caller's stack.
+    fn application(
+        &mut self,
+        name: &'a str,
+        start: usize,
+    ) -> Result<(Cow<'a, str>, usize, Vec<FoTermId>), Error> {
         // The applications being read: each one's symbol, where it starts
-        // and its arguments so far. The predicate's own list is the first.
+        // and its arguments so far. The outermost is the first.
         let mut open: Vec<(Cow<'a, str>, usize, Vec<FoTermId>)> =
             vec![(normalized(name), start, Vec::new())];
         loop {
@@ -489,28 +527,17 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.unexpected(at, &["a term"])),
             }
             let word = self.identifier(at);
-            if KEYWORDS.contains(&word) || RESERVED.contains(&word) {
-                let error = ParseError::spanning(self.input, at..self.at, &["a term"]);
-                return Err(error.with_hint(KEYWORD).into());
-            }
-            let word = normalized(word);
             self.skip_blank();
             if self.peek() == Some('(') {
+                self.keyword_term(word, at)?;
                 self.at += 1;
-                open.push((word, at, Vec::new()));
+                open.push((normalized(word), at, Vec::new()));
                 continue;
             }
-            let mut term = match self.scope.iter().rev().position(|&v| *v == *word) {
-                Some(index) => FoTerm::Bound(index as u32),
-                None => {
-                    let symbol = self.symbol(&word, 0, false, at..self.at)?;
-                    FoTerm::App(symbol, self.interner.list(&[]))
-                }
-            };
+            let mut id = self.bare_term(word, at)?;
             // The term closes every application whose last argument it is.
             loop {
-                let id = self.interner.term(term);
-                let list = &mut open.last_mut().expect("the predicate's list is open").2;
+                let list = &mut open.last_mut().expect("an application is open").2;
                 list.push(id);
                 self.skip_blank();
                 let at = self.at;
@@ -523,27 +550,114 @@ impl<'a> Parser<'a> {
                     _ => return Err(self.unexpected(at, &["`,`", "`)`"])),
                 }
                 let (symbol, from, items) = open.pop().expect("an application was open");
+                if open.is_empty() {
+                    return Ok((symbol, from, items));
+                }
                 let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
                 let args = self.interner.list(&items);
-                if open.is_empty() {
-                    let symbol = self.symbol(&symbol, arity, true, from..self.at)?;
-                    let key = self.interner.tables.atom_key(symbol, args);
-                    let atom = match self.names.get(key.as_str()) {
-                        Some(&atom) => atom,
-                        None => {
-                            let atom = Atom::new(self.atoms.len() as u32);
-                            self.atoms.push(key.clone());
-                            self.names.insert(Cow::Owned(key), atom);
-                            self.predicates.push((symbol, args));
-                            atom
-                        }
-                    };
-                    return Ok(atom);
-                }
                 let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
-                term = FoTerm::App(symbol, args);
+                id = self.interner.term(FoTerm::App(symbol, args));
             }
         }
+    }
+
+    /// Refuses a keyword read where a term stands, at byte `at`.
+    fn keyword_term(&self, word: &str, at: usize) -> Result<(), Error> {
+        if KEYWORDS.contains(&word) || RESERVED.contains(&word) {
+            let error = ParseError::spanning(self.input, at..at + word.len(), &["a term"]);
+            return Err(error.with_hint(KEYWORD).into());
+        }
+        Ok(())
+    }
+
+    /// Returns the term a word without arguments is, read at byte `at`:
+    /// the variable of the innermost open binder of that name, or else a
+    /// constant.
+    #[cold]
+    #[inline(never)]
+    fn bare_term(&mut self, word: &'a str, at: usize) -> Result<FoTermId, Error> {
+        self.keyword_term(word, at)?;
+        let span = at..at + word.len();
+        let word = normalized(word);
+        let term = match self.scope.iter().rev().position(|&v| *v == *word) {
+            Some(index) => FoTerm::Bound(index as u32),
+            None => {
+                let symbol = self.symbol(&word, 0, false, span)?;
+                FoTerm::App(symbol, self.interner.list(&[]))
+            }
+        };
+        Ok(self.interner.term(term))
+    }
+
+    /// Returns whether `=`, `!=` or `≠` follows, skipping white space: the
+    /// operand just read is then a term. An inline scan and one compare per
+    /// atom; the sign itself is tested out of line.
+    fn equality_follows(&self) -> bool {
+        let bytes = self.input.as_bytes();
+        let mut at = self.at;
+        while bytes.get(at).is_some_and(u8::is_ascii_whitespace) {
+            at += 1;
+        }
+        matches!(bytes.get(at), Some(b'=' | b'!' | 0xE2)) && self.equality_sign(at)
+    }
+
+    /// Returns whether an equality's sign starts at byte `at`.
+    #[cold]
+    #[inline(never)]
+    fn equality_sign(&self, at: usize) -> bool {
+        let rest = &self.input[at..];
+        rest.starts_with('=') || rest.starts_with("!=") || rest.starts_with('≠')
+    }
+
+    /// Returns the atom `name = t`, `name` the word read at `start` and the
+    /// sign next, and whether the sign negates it (`!=`, `≠`).
+    #[cold]
+    #[inline(never)]
+    fn equality_after(&mut self, name: &'a str, start: usize) -> Result<(Atom, bool), Error> {
+        self.enter_first_order(start..self.at)?;
+        let left = self.bare_term(name, start)?;
+        self.equality(left)
+    }
+
+    /// Reads the sign after the term `left` and the term after it, and
+    /// returns the atom `left = right` and whether the sign negates it.
+    #[cold]
+    #[inline(never)]
+    fn equality(&mut self, left: FoTermId) -> Result<(Atom, bool), Error> {
+        self.skip_blank();
+        let sign = self.at;
+        let rest = &self.input[self.at..];
+        let negated = if rest.starts_with("!=") {
+            self.at += 2;
+            true
+        } else if rest.starts_with('≠') {
+            self.at += '≠'.len_utf8();
+            true
+        } else {
+            self.at += 1;
+            false
+        };
+        self.skip_blank();
+        let at = self.at;
+        match self.peek() {
+            Some(c) if starts_identifier(c) => self.at += c.len_utf8(),
+            _ => return Err(self.unexpected(at, &["a term"])),
+        }
+        let word = self.identifier(at);
+        let right = if self.peek() == Some('(') {
+            self.keyword_term(word, at)?;
+            self.at += 1;
+            let (symbol, from, items) = self.application(word, at)?;
+            let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
+            let args = self.interner.list(&items);
+            let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
+            self.interner.term(FoTerm::App(symbol, args))
+        } else {
+            self.bare_term(word, at)?
+        };
+        let symbol = self.symbol(crate::first_order::EQUALS, 2, true, sign..self.at)?;
+        let args = self.interner.list(&[left, right]);
+        Ok((self.predicate_atom(symbol, args), negated))
     }
 
     /// Applies to `operand` the pending operators that take it before the
@@ -707,6 +821,8 @@ impl<'a> Parser<'a> {
             };
         };
         self.at += c.len_utf8();
+        // An equality read with `!=` or `≠` is its atom's dual.
+        let mut negated = false;
         let term = match c {
             '~' => return self.prefix(Pending::Dual),
             '!' => return self.prefix(Pending::Bang),
@@ -743,7 +859,14 @@ impl<'a> Parser<'a> {
                 "exists" => return self.binder(false),
                 name if self.input.as_bytes().get(self.at) == Some(&b'(') => {
                     self.at += 1;
-                    Term::Atom(self.predicate(name, start)?)
+                    let (atom, dual) = self.predicate(name, start)?;
+                    negated = dual;
+                    Term::Atom(atom)
+                }
+                name if self.equality_follows() => {
+                    let (atom, dual) = self.equality_after(name, start)?;
+                    negated = dual;
+                    Term::Atom(atom)
                 }
                 name => {
                     let atom = self.atom(name);
@@ -756,7 +879,11 @@ impl<'a> Parser<'a> {
             _ => return Err(self.unexpected(start, self.operands())),
         };
         self.empty = false;
-        Ok(State::Operator(self.push(term)?))
+        let id = self.push(term)?;
+        if negated {
+            self.negate(id);
+        }
+        Ok(State::Operator(id))
     }
 
     /// Reads what follows the operand just read: a postfix `^`, a binary

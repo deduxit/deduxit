@@ -383,6 +383,12 @@ fn quantifiers_and_predicates() {
             "|- forall x. forall x. forall x. r(x)",
             "⊢ ∀x. (∀x_1. (∀x_2. r(x_2)))",
         ),
+        // Equality between terms, an ordinary sequent's image's: `!=` and
+        // `≠` its dual, written between its terms.
+        (
+            "a = b, p(f(a)) |- p(f(b)), c != d, forall x. x ≠ g(x)",
+            "⊢ ~a = b, ~p(f(a)), p(f(b)), ~c = d, ∀x. ~x = g(x)",
+        ),
     ] {
         let s: Sequent = input.parse().unwrap_or_else(|e| panic!("{input:?}: {e}"));
         assert_eq!(s.to_string(), printed, "{input:?}");
