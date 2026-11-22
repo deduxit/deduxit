@@ -1812,6 +1812,10 @@ mod tests {
             "exists x. forall y. r(x, y) |- forall y. exists x. r(x, y)",
             "forall x. (p(x) \\/ p(f(x))) |- exists x. p(x)",
             "|- (forall x. p(x)) <-> ~(exists x. ~p(x))",
+            "~((exists x. p(x)) -> (r \\/ p(a))) |- forall y. ((exists x. p(x)) -> (exists x. p(x)))",
+            // A closed instance of an open step's quantifier is another
+            // node, which the clausal form left alone.
+            "forall y. exists x. p(x, y), exists z. (q(z) /\\ exists x. p(x, a)) |- exists z. q(z)",
         ] {
             let found = found(text);
             let Answer::Refuted {
@@ -1973,6 +1977,30 @@ mod tests {
             matches!(found, Err(Error::Refused(Refusal::Terms { .. }))),
             "{found:?}"
         );
+    }
+
+    /// The read-back asks the stop while a branch grows, so a stop ends it
+    /// and the refutation stands for the verdict.
+    #[test]
+    fn the_read_back_asks_the_stop() {
+        let sequent: Sequent =
+            "forall x0 x1 x2 x3 x4 x5. r(x0, x1, x2, x3, x4, x5) |- r(c0, c1, c2, c3, c4, c5)"
+                .parse()
+                .unwrap();
+        let found = resolve(&sequent, &Options::default(), &Limits::default(), |p| {
+            p.phase == Phase::ReadBack && p.done > 500
+        })
+        .unwrap();
+        let Answer::Refuted {
+            derivation,
+            not_read_back,
+            ..
+        } = &found.answer
+        else {
+            panic!("{:?}", found.answer);
+        };
+        assert!(derivation.is_none());
+        assert!(not_read_back.is_some());
     }
 
     /// A propositional sequent keeps an arena without first-order tables

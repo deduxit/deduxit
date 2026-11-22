@@ -2197,6 +2197,25 @@ Public as `ordinary::herbrand` (feature `sat`); the command's
   one term per formula (`keys`). The kept set being irreducible, a proof
   that needs both terms of one formula is not known; the check would
   refuse it, a defect (the review's witness was the first case).
+- **Earlier steps first**: the clausal form Skolemizes the hypotheses
+  left to right, and the node it replaces is replaced wherever it stands
+  (`Passes::substitute`), inside a later formula too. So `skolem` walks
+  the steps in order: a step met by the whole formula is a candidate,
+  and a step whose own quantifier, closed, stands inside the formula is
+  taken there (`taken`: that node becomes the step's `after`) before the
+  next is tried. Only that node: a closed instance of an open step's
+  quantifier is another node, which the clausal form left alone (the
+  reviewer's witness, `∀y. ∃x. p(x, y), ∃z. (q(z) ∧ ∃x. p(x, a)) ⊢ ∃z.
+  q(z)`, read back before a first version that took instances). An open
+  quantifier replaced inside a later formula (`∀y. ∃x. p(x, y)` inside
+  `∃z. (q(z) ∧ ∀y. ∃x. p(x, y))`) is not taken, and that read-back still
+  fails, `Error::ReadBack` in `herbrand`, `not_read_back` in resolution.
+- **The read-back asks the stop at every step**, not only when an
+  inference is pushed (`Build::expand`, `expanded`, also against
+  `limits.work`): every witness goes into every `∀` hypothesis, so six
+  nested `∀` over six constants make about 6⁶ instances on one branch
+  before any closes, and the time limit was ignored. That uniform set is
+  the read-back's known cost; a witness set per quantifier would cut it.
 - **Unknown for its reason**: an unknown from the solver (a bound, the
   stop) ends the search with that reason; only a set it finds
   satisfiable goes on to the next depth. The universe's terms and the

@@ -624,15 +624,21 @@ pub(super) fn deskolemized(
     // The clausal arena began as a copy of the input's, so the input's
     // ids are its ids.
     let mut formulas = ground.formulas().clone();
-    let skolems: Vec<(NodeId, FoTermId)> = clausal
+    let skolems: Vec<Skolemized> = clausal
         .steps
         .iter()
         .filter(|s| s.rule == NormalRule::Skolemize)
-        .filter_map(|s| s.term.map(|t| (s.before, t)))
+        .filter_map(|s| {
+            s.term.map(|term| Skolemized {
+                before: s.before,
+                after: s.after,
+                term,
+            })
+        })
         .collect();
     let symbols: HashSet<Symbol> = skolems
         .iter()
-        .filter_map(|&(_, t)| match formulas.first_order().terms[t.index()] {
+        .filter_map(|k| match formulas.first_order().terms[k.term.index()] {
             FoTerm::App(f, _) => Some(f),
             FoTerm::Bound(_) | FoTerm::Eigen(_) | FoTerm::Meta(_) => None,
         })
@@ -665,6 +671,7 @@ pub(super) fn deskolemized(
         made: Vec::new(),
         inferences: Vec::new(),
         bytes: 0,
+        expanded: 0,
         limits,
     };
     let mut root = Branch::default();
@@ -744,6 +751,18 @@ fn term_depths(formulas: &Formulas, terms: &[FoTermId]) -> HashMap<FoTermId, u32
         depth.insert(t, deepest);
     }
     depth
+}
+
+/// A Skolem step of the clausal form: the quantifier replaced, open, what
+/// replaced it, and its Skolem term over the quantifier's free variables.
+#[derive(Clone, Copy, Debug)]
+struct Skolemized {
+    /// The quantifier replaced.
+    before: NodeId,
+    /// Its operand with the Skolem term in place of its variable.
+    after: NodeId,
+    /// The Skolem term.
+    term: FoTermId,
 }
 
 /// A formula on a branch of the derivation built.
@@ -846,9 +865,8 @@ enum Frame {
 struct Build<'l> {
     /// The arena: the clausal form's and the instances'.
     formulas: Formulas,
-    /// The clausal form's Skolem steps: the quantifier replaced, open, and
-    /// its Skolem term over its free variables.
-    skolems: Vec<(NodeId, FoTermId)>,
+    /// The clausal form's Skolem steps, in order.
+    skolems: Vec<Skolemized>,
     /// The Skolem symbols.
     symbols: HashSet<Symbol>,
     /// The witnesses, the shallowest first.
@@ -864,6 +882,8 @@ struct Build<'l> {
     inferences: Vec<Inference>,
     /// The bytes they hold, estimated.
     bytes: u64,
+    /// The branches expanded so far.
+    expanded: u64,
     /// The bounds.
     limits: &'l Limits,
 }
@@ -958,6 +978,19 @@ impl Build<'_> {
         results: &mut Vec<InfId>,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
+        // A branch may grow long before any inference closes: the stop and
+        // the bound of work are asked at each step taken.
+        self.expanded = self.expanded.saturating_add(1);
+        if stop(Progress::new(Phase::ReadBack, 1, self.expanded)) {
+            return Err(Error::Refused(Refusal::Stopped {
+                phase: Phase::ReadBack,
+            }));
+        }
+        if let Some(limit) = self.limits.work
+            && self.expanded > limit
+        {
+            return Err(Error::Refused(Refusal::Work { limit }));
+        }
         if let Some(id) = self.close(&branch, stop)? {
             results.push(id);
             return Ok(());
@@ -1335,14 +1368,21 @@ impl Build<'_> {
         } else {
             self.formulas.add(Node::Not(node))?
         };
-        let normal = normal::negation_normal(&mut self.formulas, moved, self.limits)?;
-        let found: Vec<(FoTermId, Vec<Option<FoTermId>>)> = self
-            .skolems
-            .iter()
-            .filter_map(|&(before, term)| {
-                matched(&self.formulas, before, normal).map(|values| (term, values))
-            })
-            .collect();
+        let mut normal = normal::negation_normal(&mut self.formulas, moved, self.limits)?;
+        // The clausal form took its steps in order, and an earlier one may
+        // have replaced a quantifier inside this one (an equal formula of
+        // another hypothesis, Skolemized first): each step met as a whole
+        // is a candidate, and each met by a closed part of the formula is
+        // taken there before the next.
+        let mut found: Vec<(FoTermId, Vec<Option<FoTermId>>)> = Vec::new();
+        for k in 0..self.skolems.len() {
+            let step = self.skolems[k];
+            if let Some(values) = matched(&self.formulas, step.before, normal) {
+                found.push((step.term, values));
+            } else {
+                normal = self.taken(normal, step)?;
+            }
+        }
         // An instance of one quantifier can be another quantifier of the
         // sequent: of the steps it meets, the one whose term the kept
         // instances use.
@@ -1364,6 +1404,44 @@ impl Build<'_> {
             .unwrap_or(first);
         self.keys.insert((node, left), s);
         Ok(s)
+    }
+
+    /// Returns `root` with the step's quantifier, where it is closed and
+    /// stands inside `root`, replaced by what the step made.
+    fn taken(&mut self, root: NodeId, step: Skolemized) -> Result<NodeId, Error> {
+        let mut made: HashMap<NodeId, NodeId> = HashMap::default();
+        let mut stack = vec![(root, false)];
+        while let Some((n, ready)) = stack.pop() {
+            if made.contains_key(&n) {
+                continue;
+            }
+            let node = self.formulas.node(n);
+            // The clausal form replaced the step's own node wherever it
+            // stood, and no other: a closed quantifier that is that node.
+            if n == step.before && n != root && self.formulas.free_variables(n).is_empty() {
+                made.insert(n, step.after);
+                continue;
+            }
+            if !ready {
+                stack.push((n, true));
+                let (a, b) = node.operands();
+                stack.extend([a, b].into_iter().flatten().map(|k| (k, false)));
+                continue;
+            }
+            let at = |k: NodeId| made[&k];
+            let image = match node {
+                Node::Atom(_) | Node::True | Node::False => n,
+                Node::Not(a) => self.formulas.add_like(Node::Not(at(a)), n)?,
+                Node::And(a, b) => self.formulas.add_like(Node::And(at(a), at(b)), n)?,
+                Node::Or(a, b) => self.formulas.add_like(Node::Or(at(a), at(b)), n)?,
+                Node::Implies(a, b) => self.formulas.add_like(Node::Implies(at(a), at(b)), n)?,
+                Node::Iff(a, b) => self.formulas.add_like(Node::Iff(at(a), at(b)), n)?,
+                Node::Forall(a) => self.formulas.add_like(Node::Forall(at(a)), n)?,
+                Node::Exists(a) => self.formulas.add_like(Node::Exists(at(a)), n)?,
+            };
+            made.insert(n, image);
+        }
+        Ok(made[&root])
     }
 
     /// Returns the Skolem term `term`, over variables, with each variable
@@ -1563,6 +1641,12 @@ mod tests {
             // An instance of the first hypothesis is the second: the kept
             // instances' term decides which Skolem term it stands for.
             "forall y. exists x. p(x, y), exists x. p(x, a) |- exists x. ~~p(x, a)",
+            // The clausal form Skolemizes the hypothesis's `∃x. p(x)` first,
+            // inside the goal's quantifier too.
+            "~((exists x. p(x)) -> (r \\/ p(a))) |- forall y. ((exists x. p(x)) -> (exists x. p(x)))",
+            // A closed instance of an open step's quantifier is another
+            // node, which the clausal form left alone.
+            "forall y. exists x. p(x, y), exists z. (q(z) /\\ exists x. p(x, a)) |- exists z. q(z)",
         ] {
             let found = found(text);
             let Verdict::Valid(Evidence::Derivation(derivation)) = &found.verdict else {
