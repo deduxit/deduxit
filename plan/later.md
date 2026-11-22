@@ -1902,11 +1902,6 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
 - **The embedding's memory message under `--memory-limit 1MiB`** said
   "limit of 0 B" (seen by 54b's integers panel on a large ordinary
   sequent, through the embedding; not traced, and not LJT's).
-- **`Derivation::term` checks nothing** (54a's follow-up): checking first
-  would refuse the admissible view, which `term` reads too, and the
-  derivation of a session with open goals. Its doc says so (`# Panics`).
-  A read-back that refuses instead of panicking needs each of its
-  `expect`s turned into an error.
 
 Left by step 54s (`plan/reports/54s-sat-engines.md`):
 

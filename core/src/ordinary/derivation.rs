@@ -562,7 +562,10 @@ impl Derivation {
     /// is checked first unless [`check`](Self::check) has accepted it. So
     /// one that breaks a rule gets [`check`](Self::check)'s error, and so
     /// does a view of it with its structural rules left out: check the
-    /// derivation, then take the view.
+    /// derivation, then take the view. [`Error::ReadBack`], a defect, for
+    /// a derivation the read-back cannot read (a hypothesis out of scope,
+    /// a premise or an operand missing): the checker refuses such a
+    /// derivation, and the crate makes none.
     pub fn term(
         &self,
         limits: &crate::Limits,

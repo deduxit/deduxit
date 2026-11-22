@@ -78,7 +78,10 @@ struct ReadBack<'d> {
 }
 
 /// Reads a derivation of LJ back as a term, or refuses one of LK or one
-/// with open goals, asking `stop` once per inference.
+/// with open goals, asking `stop` once per inference. A derivation that
+/// breaks what the read-back rests on (a hypothesis out of scope, a
+/// premise or an operand missing) is [`Error::ReadBack`]: the checker
+/// refuses such a derivation, and the crate makes none, so it is a defect.
 ///
 /// `limits` bounds nothing here, since the term is no larger than the
 /// derivation, which its maker built within its own bounds. It holds at
@@ -100,6 +103,22 @@ pub(crate) fn read(
         .any(|i| i.rule() == Rule::Open)
     {
         return refuse(NoTerm::Open);
+    }
+    // The walk indexes premises and the root: each premise comes before
+    // its inference (so the walk ends), and there is a root.
+    if derivation.inferences().is_empty() {
+        return Err(Error::ReadBack {
+            calculus: "LJ",
+            reason: "the derivation has no inference".to_owned(),
+        });
+    }
+    for (n, inference) in derivation.inferences().iter().enumerate() {
+        if inference.premises().iter().any(|p| p.index() >= n) {
+            return Err(unreadable(
+                InfId::new(n as u32),
+                "a premise does not come before it",
+            ));
+        }
     }
     let mut walk = ReadBack {
         derivation,
@@ -130,22 +149,23 @@ impl ReadBack<'_> {
         }
     }
 
-    /// Returns the term of the innermost hypothesis of a formula.
-    fn of(&self, id: NodeId) -> TermId {
-        *self
-            .scope
+    /// Returns the term of the innermost hypothesis of a formula, which
+    /// inference `at` uses.
+    fn of(&self, id: NodeId, at: InfId) -> Result<TermId, Error> {
+        self.scope
             .get(&id)
             .and_then(|v| v.last())
-            .expect("a checked derivation uses only hypotheses in scope")
+            .copied()
+            .ok_or_else(|| unreadable(at, "it uses a hypothesis no rule below gives"))
     }
 
     /// Returns the implication `A → B` of the derivation's arena, which
-    /// holds both of every equivalence.
-    fn implication(&self, a: NodeId, b: NodeId) -> NodeId {
+    /// holds both of every equivalence that inference `at` takes apart.
+    fn implication(&self, a: NodeId, b: NodeId, at: InfId) -> Result<NodeId, Error> {
         self.derivation
             .formulas()
             .find(crate::ordinary::Node::Implies(a, b))
-            .expect("the arena holds an equivalence's implications")
+            .ok_or_else(|| unreadable(at, "the arena lacks an implication of its equivalence"))
     }
 
     /// Reads the derivation back from its root.
@@ -169,7 +189,7 @@ impl ReadBack<'_> {
                     if stop() {
                         return Err(stopped());
                     }
-                    self.enter(id, &mut tasks, &mut results);
+                    self.enter(id, &mut tasks, &mut results)?;
                 }
                 Task::Bind(binds) => {
                     for (f, t) in binds {
@@ -186,7 +206,9 @@ impl ReadBack<'_> {
                     formula,
                     function,
                 } => {
-                    let argument = results.pop().expect("the first premise's term");
+                    let argument = results
+                        .pop()
+                        .ok_or_else(|| unreadable(inference, "a premise has no term"))?;
                     let t = match function {
                         Some(function) => self.builder.node(Node::Apply { function, argument }),
                         None => argument,
@@ -196,51 +218,58 @@ impl ReadBack<'_> {
                     tasks.push(Task::Bind(vec![(formula, t)]));
                 }
                 Task::Make(make) => {
-                    let node = Self::make(make, &mut results);
+                    let node = Self::make(make, &mut results)
+                        .ok_or_else(|| unreadable(root, "a rule has no term for a premise"))?;
                     let t = self.builder.node(node);
                     results.push(t);
                 }
             }
         }
-        let root = results.pop().expect("the root's term");
+        let root = results
+            .pop()
+            .ok_or_else(|| unreadable(root, "the root has no term"))?;
         let builder = std::mem::replace(&mut self.builder, Builder::new());
         Ok(builder.finish(Calculus::Simple, context, goal, root))
     }
 
-    /// Returns the node a `Make` makes of the terms read last.
-    fn make(make: Make, results: &mut Vec<TermId>) -> Node {
-        let mut pop = || results.pop().expect("a premise's term");
-        match make {
+    /// Returns the node a `Make` makes of the terms read last, `None`
+    /// where too few were read.
+    fn make(make: Make, results: &mut Vec<TermId>) -> Option<Node> {
+        let mut pop = || results.pop();
+        Some(match make {
             Make::Lambda(variable) => Node::Lambda {
                 variable,
-                body: pop(),
+                body: pop()?,
             },
             Make::Apply(function) => Node::Apply {
                 function,
-                argument: pop(),
+                argument: pop()?,
             },
             Make::Pair => {
-                let right = pop();
-                Node::Pair { left: pop(), right }
+                let right = pop()?;
+                Node::Pair {
+                    left: pop()?,
+                    right,
+                }
             }
-            Make::Left(sum) => Node::Left { term: pop(), sum },
-            Make::Right(sum) => Node::Right { term: pop(), sum },
+            Make::Left(sum) => Node::Left { term: pop()?, sum },
+            Make::Right(sum) => Node::Right { term: pop()?, sum },
             Make::Case(term, left, right) => {
-                let right_body = pop();
+                let right_body = pop()?;
                 Node::Case {
                     term,
                     left,
-                    left_body: pop(),
+                    left_body: pop()?,
                     right,
                     right_body,
                 }
             }
             Make::Abort(goal) => Node::False {
                 context: Box::new([]),
-                term: pop(),
+                term: pop()?,
                 goal,
             },
-        }
+        })
     }
 
     /// Pushes the tasks that read a premise with formulas bound.
@@ -253,32 +282,60 @@ impl ReadBack<'_> {
 
     /// Reads one inference back: pushes what its premises and its node
     /// need, or the term of a rule without premises.
-    fn enter(&mut self, id: InfId, tasks: &mut Vec<Task>, results: &mut Vec<TermId>) {
+    fn enter(
+        &mut self,
+        id: InfId,
+        tasks: &mut Vec<Task>,
+        results: &mut Vec<TermId>,
+    ) -> Result<(), Error> {
         use Rule::*;
         let d = self.derivation;
         let inference = d.inference(id);
         let premises = inference.premises();
-        let principal = inference.principal().map(|(side, at)| match side {
-            Side::Left => inference.left()[at],
-            Side::Right => inference.right()[at],
-        });
+        let premise = |k: usize| {
+            premises
+                .get(k)
+                .copied()
+                .ok_or_else(|| unreadable(id, "it has fewer premises than its rule"))
+        };
+        let principal =
+            match inference.principal() {
+                Some((side, at)) => {
+                    Some(inference.side(side).get(at).copied().ok_or_else(|| {
+                        unreadable(id, "its principal formula is past its sequent")
+                    })?)
+                }
+                None => None,
+            };
         let operands = principal.map(|p| d.formulas().node(p).operands());
         let (a, b) = operands.unwrap_or((None, None));
-        let a = || a.expect("the rule's first operand");
-        let b = || b.expect("the rule's second operand");
+        let a = || {
+            a.ok_or_else(|| unreadable(id, "its principal formula lacks its rule's first operand"))
+        };
+        let b = || {
+            b.ok_or_else(|| unreadable(id, "its principal formula lacks its rule's second operand"))
+        };
         // The term of the principal formula, where it is a hypothesis.
-        let z = match inference.principal() {
-            Some((Side::Left, _)) => principal.map(|p| self.of(p)),
+        let z = match (inference.principal(), principal) {
+            (Some((Side::Left, _)), Some(p)) => Some(self.of(p, id)),
             _ => None,
         };
-        let z = || z.expect("the rule's hypothesis has its term");
+        let z = || match z.clone() {
+            Some(term) => term,
+            None => Err(unreadable(
+                id,
+                "its rule takes a hypothesis apart and names none",
+            )),
+        };
         match inference.rule() {
             Axiom => {
-                let t = self.of(inference.right()[0]);
-                results.push(t);
+                let goal = inference.right().first().copied().ok_or_else(|| {
+                    unreadable(id, "an axiom has no formula right of the turnstile")
+                })?;
+                results.push(self.of(goal, id)?);
             }
             WeakenLeft | ContractLeft | TrueLeft | FalseRight => {
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(premise(0)?));
             }
             WeakenRight => {
                 // A term of `⊥` is its own `abort` into `⊥`.
@@ -286,7 +343,7 @@ impl ReadBack<'_> {
                 if self.builder.types.get(goal) != Type::Zero {
                     tasks.push(Task::Make(Make::Abort(goal)));
                 }
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(premise(0)?));
             }
             TrueRight => {
                 let t = self.builder.node(Node::True {
@@ -297,11 +354,12 @@ impl ReadBack<'_> {
             FalseLeft => {
                 let goal = self.goal(id);
                 let t = if self.builder.types.get(goal) == Type::Zero {
-                    z()
+                    z()?
                 } else {
+                    let term = z()?;
                     self.builder.node(Node::False {
                         context: Box::new([]),
-                        term: z(),
+                        term,
                         goal,
                     })
                 };
@@ -310,11 +368,14 @@ impl ReadBack<'_> {
             AndLeft | AndLeft1 | AndLeft2 | IffLeft | IffLeft1 | IffLeft2 => {
                 let iff = matches!(inference.rule(), IffLeft | IffLeft1 | IffLeft2);
                 let (x, y) = if iff {
-                    (self.implication(a(), b()), self.implication(b(), a()))
+                    (
+                        self.implication(a()?, b()?, id)?,
+                        self.implication(b()?, a()?, id)?,
+                    )
                 } else {
-                    (a(), b())
+                    (a()?, b()?)
                 };
-                let z = z();
+                let z = z()?;
                 let mut binds = Vec::new();
                 if !matches!(inference.rule(), AndLeft2 | IffLeft2) {
                     binds.push((x, self.builder.node(Node::First { term: z })));
@@ -322,76 +383,98 @@ impl ReadBack<'_> {
                 if !matches!(inference.rule(), AndLeft1 | IffLeft1) {
                     binds.push((y, self.builder.node(Node::Second { term: z })));
                 }
-                Self::premise(tasks, premises[0], binds);
+                Self::premise(tasks, premise(0)?, binds);
             }
             AndRight | IffRight => {
+                let (first, second) = (premise(0)?, premise(1)?);
                 tasks.push(Task::Make(Make::Pair));
-                tasks.push(Task::Enter(premises[1]));
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(second));
+                tasks.push(Task::Enter(first));
             }
             OrLeft => {
+                let (left, right) = (a()?, b()?);
+                let (first, second) = (premise(0)?, premise(1)?);
                 let (x, xt) = {
-                    let ty = self.ty(a());
+                    let ty = self.ty(left);
                     self.builder.variable(ty)
                 };
                 let (y, yt) = {
-                    let ty = self.ty(b());
+                    let ty = self.ty(right);
                     self.builder.variable(ty)
                 };
-                tasks.push(Task::Make(Make::Case(z(), x, y)));
-                Self::premise(tasks, premises[1], vec![(b(), yt)]);
-                Self::premise(tasks, premises[0], vec![(a(), xt)]);
+                tasks.push(Task::Make(Make::Case(z()?, x, y)));
+                Self::premise(tasks, second, vec![(right, yt)]);
+                Self::premise(tasks, first, vec![(left, xt)]);
             }
             OrRight1 | OrRight2 => {
-                let sum = self.ty(principal.expect("∨R"));
+                let goal =
+                    principal.ok_or_else(|| unreadable(id, "∨R names no principal formula"))?;
+                let sum = self.ty(goal);
                 tasks.push(Task::Make(if inference.rule() == OrRight1 {
                     Make::Left(sum)
                 } else {
                     Make::Right(sum)
                 }));
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(premise(0)?));
             }
             ImpliesRight | NotRight => {
-                let ty = self.ty(a());
+                let antecedent = a()?;
+                let ty = self.ty(antecedent);
                 let (x, xt) = self.builder.variable(ty);
                 tasks.push(Task::Make(Make::Lambda(x)));
-                Self::premise(tasks, premises[0], vec![(a(), xt)]);
+                Self::premise(tasks, premise(0)?, vec![(antecedent, xt)]);
             }
             NotLeft if premises.len() == 1 => {
-                tasks.push(Task::Make(Make::Apply(z())));
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Make(Make::Apply(z()?)));
+                tasks.push(Task::Enter(premise(0)?));
             }
             ImpliesLeft | NotLeft => {
                 let consequent = if inference.rule() == NotLeft {
                     d.formulas()
                         .find(crate::ordinary::Node::False)
-                        .expect("a checked ¬L has ⊥")
+                        .ok_or_else(|| unreadable(id, "the arena lacks the ⊥ of its ¬L"))?
                 } else {
-                    b()
+                    b()?
                 };
+                let (first, second) = (premise(0)?, premise(1)?);
                 tasks.push(Task::Applied {
-                    inference: premises[1],
+                    inference: second,
                     formula: consequent,
-                    function: Some(z()),
+                    function: Some(z()?),
                 });
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(first));
             }
             Cut => {
+                let (first, second) = (premise(0)?, premise(1)?);
+                let formula = d.inference(first).right().first().copied().ok_or_else(|| {
+                    unreadable(id, "its cut formula is not right of its first premise")
+                })?;
                 tasks.push(Task::Applied {
-                    inference: premises[1],
-                    formula: d.inference(premises[0]).right()[0],
+                    inference: second,
+                    formula,
                     function: None,
                 });
-                tasks.push(Task::Enter(premises[0]));
+                tasks.push(Task::Enter(first));
             }
             // `read` refuses LK and open goals, which alone have these.
             ContractRight | OrRight | Open => {
-                unreachable!("no rule of LJ the read-back takes")
+                return Err(unreadable(id, "its rule is no rule of LJ"));
             }
             ForallLeft | ForallRight | ExistsLeft | ExistsRight => {
                 unreachable!("{}", crate::ordinary::REFUSED)
             }
         }
+        Ok(())
+    }
+}
+
+/// The read-back's refusal of inference `at` of a derivation that breaks
+/// what it reads by, for `reason`: [`Error::ReadBack`], a defect where
+/// the derivation was checked or made by the crate.
+fn unreadable(at: InfId, reason: &str) -> Error {
+    Error::ReadBack {
+        calculus: "LJ",
+        reason: format!("inference {}: {reason}", at.index()),
     }
 }
 

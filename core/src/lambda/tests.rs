@@ -1479,3 +1479,163 @@ fn any_depth_is_read_and_checked_on_a_small_stack() {
         .join()
         .unwrap();
 }
+
+/// A derivation of LJ that breaks what the read-back rests on is refused
+/// as a defect, naming the inference, never a panic: the checker refuses
+/// each of these, and the crate makes none.
+#[test]
+fn a_derivation_the_read_back_cannot_read_is_refused() {
+    use crate::linear::proofs::InfId;
+    use crate::ordinary::{Derivation, Inference, Rule, Sequent as OrdinarySequent, Side};
+    let sequent: OrdinarySequent = "a /\\ b, a <-> b |- a".parse().unwrap();
+    let formulas = sequent.formulas().clone();
+    let (and, iff, a) = (sequent.left()[0], sequent.left()[1], sequent.right()[0]);
+    let inference = |left: Vec<_>, right: Vec<_>, rule, principal, premises: Vec<u32>| Inference {
+        left,
+        right,
+        rule,
+        principal,
+        premises: premises.into_iter().map(InfId::new).collect(),
+        term: None,
+    };
+    let refused = |root: (Vec<_>, Vec<_>), inferences| {
+        let derivation =
+            Derivation::from_parts(Logic::Intuitionistic, formulas.clone(), root, inferences);
+        match derivation.term(&Limits::default(), never) {
+            Err(crate::Error::ReadBack { reason, .. }) => reason,
+            other => panic!("a defect, not {other:?}"),
+        }
+    };
+    // An axiom on a formula no hypothesis gives.
+    let reason = refused(
+        (vec![], vec![a]),
+        vec![inference(vec![], vec![a], Rule::Axiom, None, vec![])],
+    );
+    assert!(
+        reason.contains("a hypothesis no rule below gives"),
+        "{reason}"
+    );
+    // `∧R` with one premise.
+    let axiom = inference(vec![a], vec![a], Rule::Axiom, None, vec![]);
+    let reason = refused(
+        (vec![a], vec![and]),
+        vec![
+            axiom.clone(),
+            inference(
+                vec![a],
+                vec![and],
+                Rule::AndRight,
+                Some((Side::Right, 0)),
+                vec![0],
+            ),
+        ],
+    );
+    assert!(reason.contains("fewer premises than its rule"), "{reason}");
+    // A rule of LK alone.
+    let reason = refused(
+        (vec![a], vec![a]),
+        vec![
+            axiom.clone(),
+            inference(
+                vec![a],
+                vec![a],
+                Rule::ContractRight,
+                Some((Side::Right, 0)),
+                vec![0],
+            ),
+        ],
+    );
+    assert!(reason.contains("no rule of LJ"), "{reason}");
+    // `∧L` that names no principal formula.
+    let reason = refused(
+        (vec![and], vec![a]),
+        vec![
+            inference(vec![and, a], vec![a], Rule::Axiom, None, vec![]),
+            inference(vec![and], vec![a], Rule::AndLeft, None, vec![0]),
+        ],
+    );
+    assert!(reason.contains("first operand"), "{reason}");
+    // `↔L` over an arena without the equivalence's implications.
+    let reason = refused(
+        (vec![iff], vec![a]),
+        vec![
+            inference(vec![iff, a], vec![a], Rule::Axiom, None, vec![]),
+            inference(
+                vec![iff],
+                vec![a],
+                Rule::IffLeft,
+                Some((Side::Left, 0)),
+                vec![0],
+            ),
+        ],
+    );
+    assert!(reason.contains("lacks an implication"), "{reason}");
+    // A premise past the inference, which the walk would index.
+    let reason = refused(
+        (vec![a], vec![a]),
+        vec![inference(
+            vec![a],
+            vec![a],
+            Rule::WeakenLeft,
+            Some((Side::Left, 0)),
+            vec![5],
+        )],
+    );
+    assert!(reason.contains("does not come before it"), "{reason}");
+    // A principal position past the sequent.
+    let reason = refused(
+        (vec![and], vec![a]),
+        vec![
+            inference(vec![and, a], vec![a], Rule::Axiom, None, vec![]),
+            inference(
+                vec![and],
+                vec![a],
+                Rule::AndLeft,
+                Some((Side::Left, 5)),
+                vec![0],
+            ),
+        ],
+    );
+    assert!(reason.contains("past its sequent"), "{reason}");
+    // An axiom with nothing right of `⊢`.
+    let reason = refused(
+        (vec![a], vec![]),
+        vec![inference(vec![a], vec![], Rule::Axiom, None, vec![])],
+    );
+    assert!(reason.contains("no formula right"), "{reason}");
+    // `∨R` naming no principal formula.
+    let reason = refused(
+        (vec![a], vec![a]),
+        vec![
+            axiom.clone(),
+            inference(vec![a], vec![a], Rule::OrRight1, None, vec![0]),
+        ],
+    );
+    assert!(reason.contains("∨R names no principal formula"), "{reason}");
+    // `¬L` over an arena without `⊥`.
+    let reason = refused(
+        (vec![and], vec![a]),
+        vec![
+            inference(vec![and], vec![a], Rule::Axiom, None, vec![]),
+            inference(vec![and], vec![a], Rule::Axiom, None, vec![]),
+            inference(
+                vec![and],
+                vec![a],
+                Rule::NotLeft,
+                Some((Side::Left, 0)),
+                vec![0, 1],
+            ),
+        ],
+    );
+    assert!(reason.contains("lacks the ⊥"), "{reason}");
+    // A cut whose first premise has nothing right of `⊢`.
+    let reason = refused(
+        (vec![a], vec![a]),
+        vec![
+            inference(vec![a], vec![], Rule::WeakenRight, None, vec![]),
+            axiom.clone(),
+            inference(vec![a], vec![a], Rule::Cut, None, vec![0, 1]),
+        ],
+    );
+    assert!(reason.contains("cut formula is not right"), "{reason}");
+}

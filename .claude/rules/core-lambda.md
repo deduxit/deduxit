@@ -130,7 +130,15 @@ design, with its sources and the alternatives weighed, is
   arena id, a contraction is a variable used twice, a weakening one left
   unused, and the admissible view (`Derivation::shown`) reads back like
   the explicit one (`simple` in `tests.rs` checks both). `WR` and `⊥L`
-  into `⊥` write no `abort` (`abort_⊥(M)` is `M`).
+  into `⊥` write no `abort` (`abort_⊥(M)` is `M`). **It never panics on
+  a derivation**: what it rests on (an inference at all, every premise
+  before its inference, a hypothesis in scope, a rule's premises and
+  operands, an equivalence's implications and `⊥` in the arena, a rule
+  of LJ) is checked as it reads, and a break is
+  `Error::ReadBack` naming the inference (`unreadable`), a defect, since
+  the checker refuses each and the crate makes none
+  (`a_derivation_the_read_back_cannot_read_is_refused`). Only the
+  quantifier arms stay `unreachable!`, behind `propositional`'s door.
 - **The DAG and the bound.** A left rule's term is one node every place
   the hypothesis goes names, so the nodes stay within twice the
   inferences, one per formula a compact run weakens or copies (a run of
