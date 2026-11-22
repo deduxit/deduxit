@@ -568,3 +568,260 @@ logic (it covers the double-negation shift too) and with pinning
   library's path length of 8 on some sequents (76a's open item), which
   keeps the library's default from reaching the embedding and the model
   search there.
+
+## Session 76c: certified, drawn and documented
+
+Opus 5.5 at `high` up to the three commits' first gate (the Rocq
+library, the writer, the drawings, the command, the protocol and the
+docs were written on it); **Fable 5.2 at `high` from the panel's
+findings on** (the author's word, relayed by the planning session): the
+fixes of the panel's and the reviewer's findings, the measurement and
+this report.
+
+### Outcome
+
+**rocq-deduxit**, one commit on `main@origin` (`mmvluwsx`): change
+`vmoknupz`, "Add first-order countermodels: Kripke models with growing
+domains, LK and finite structures". No `Admitted`, no axiom: every
+lemma closed, and the eight new theorems answer `Closed under the
+global context` in `tests/Assumptions.v`.
+
+- `Intuitionistic/FirstOrderFormulas.v` and `FirstOrderCalculus.v`
+  (trusted): formulas over `Deduxit.Linear.Terms` (`var p [terms]`,
+  `bot`, `wedge`, `vee`, `imp`, `fall`, `fex`; `top`, `neg`, `equiv`
+  defined), `lj R Γ C` (LJ and LM over the propositional `rules`
+  record) and `lk c Γ Δ` (LK, cut when `c = true`), each G1 with shared
+  contexts, `∀L`/`∃R` with any `tclosed` witness and `∀R`/`∃L` with an
+  eigenvariable fresh for the conclusion.
+- `FirstOrderKripke.v`: `model` (any world and element type; `dom w`
+  growing, `fn w` closed in the domain and agreeing with the world
+  below on its elements, `pred w` and `absurd` growing, `d0` in every
+  domain), `forces w η ρ A`, `persistence`, `forces_subst`,
+  `kripke_soundness`, `kripke_countermodel`; the section `Chain`.
+- `FirstOrderClassical.v`: boolean evaluation in a finite structure,
+  `classical_soundness` of LK (constructive: truth is computed),
+  `classical_countermodel`; `eval_fast`, which stops early, proved equal.
+- `FirstOrderCheck.v`: the data (`structure`, `kripke_model`; a table
+  `(f, arity, values)`, facts `(p, tuple)`), `srefutes`, `kwell_formed`,
+  `kforces`/`kforces_fast`, `krefutes`, and the theorems
+  `fo_classical_refutation : srefutes eqb S Γ Δ = true -> ~ lk c Γ Δ`
+  and `fo_kripke_refutation : (reflect …) -> krefutes eqb M R w Γ C =
+  true -> ~ lj R Γ C`. The classical structure is also the one-world
+  Kripke model (deduxit writes it so in LJ and LM).
+- `tests/Intuitionistic/FirstOrder.v` (certificates in the writer's
+  form, the chain's theorems applied, `krefutes … = false` and
+  `srefutes … = false` per condition, two tests that the check stops
+  early), README, CHANGELOG, `rocq.md`, `typos.toml` (`fo`).
+
+**deduxit**, on `xukuqmwp`:
+
+- `nvoklttl` "Hold the Kripke check's order and growth passes to the
+  work bound": 76b's check counted those steps and compared them with
+  the bound only in the agreement pass (the integers member's finding).
+- `yxsmmuuq` "Certify and draw first-order countermodels": the writer
+  (`ordinary/rocq_models.rs`; `rocq::write_structure`,
+  `write_kripke_structure`, `DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`,
+  `Unsupported::Domain`, `MOST_DOMAIN`), the drawings' layout
+  (`export/models.rs`) and the three targets (`svg::structure`,
+  `svg::kripke_structure`, the same in `latex` and `typst`), tests and
+  24 snapshots.
+- `wumrutkq` "Write first-order countermodels' certificates and
+  drawings from the command and the protocol": `prove` and `check`
+  (`show::FirstOrderModel`), `ordinary.draw`, `ordinary.export` (takes an
+  outcome now) and `ordinary.certificate`, the `rocq-deduxit` check's
+  three command-written certificates and a planted fault, the manual
+  (`ordinary-logic.md` "Finite models", `rocq.md`, `status.md`,
+  `workspace.md`), the guide, the changelog, the rules.
+
+### What step 77c needs
+
+The lemmas, in `Deduxit.Intuitionistic.FirstOrderKripke`, for every
+symbol type, every `R : Calculus.rules` (LJ and LM, with cut or without)
+and every predicate symbol `p`:
+
+```coq
+Theorem chain_excluded_middle : forall R (p : symbol),
+  ~ lj R [] (neg (neg (fall (vee (var p [bound 0]) (neg (var p [bound 0])))))).
+
+Theorem chain_double_negation_shift : forall R (p : symbol),
+  ~ lj R [] (imp (fall (neg (neg (var p [bound 0])))) (neg (neg (fall (var p [bound 0]))))).
+```
+
+The model is `chain_model : forall R, model nat le nat 0 chain_dom
+chain_fn chain_pred chain_absurd R`: worlds the natural numbers in
+their order, `chain_dom n d := d <= n`, `chain_pred n p [k] := k < n`
+(every unary predicate holds of `k` from world `k + 1` on), every
+function `0`, no world forcing `⊥`. No world forces `∀x. (p(x) ∨
+¬p(x))` or `∀x. p(x)` (at world `n` the element `n` fails now and holds
+at `n + 1`), and every world forces `∀x. ¬¬p(x)`. The manual's "Finite
+models" already names the model and both lemmas; 77c shows it.
+
+### Measured
+
+A sample of the models the model search finds on ILTP's first-order
+problems (every problem `kripke-iltp-first-order-1.csv` lists as
+refuted, 104, and the first 60 of `models-iltp-first-order-1.csv`;
+`--method models --timeout 20s --format rocq --standalone`, cores 7-9):
+158 refuted and certified (six of the 164 were generated-family names
+my script gave the wrong path), **all 158 certificates compile**
+against the library built in place: 60 by `fo_classical_refutation`
+(classical logic), 98 by `fo_kripke_refutation` (intuitionistic logic),
+of which 27 are Kripke models of more than one world and 71 the one
+world of a structure.
+
+D17: the ratchet passed in the gate; propositional paths are untouched
+(the behaviour lock unchanged).
+
+### The panel
+
+On the Rocq statements against the Rust check, the writer and the
+drawings. The argument member ran on Fable (started while the session
+was on Opus, so it was not the writer's model), counterexamples on
+Opus, integers on Sonnet, each at `high`.
+
+- **No soundness break**: no certificate that compiles states anything
+  false or another sequent. The counterexamples member compiled 788
+  certificates of generated sequents and 125 of ILTP problems, each
+  also against a statement written by its own de Bruijn writer
+  (`exact certificate`), with its own evaluator agreeing on every
+  model; 708 SVGs parsed and 530 LaTeX and Typst tables compiled.
+- **Rocq did not stop early** (argument): `forallb` and `&&` evaluate
+  every member under `vm_compute`, so a model the Rust check accepts in
+  30 ms (eight nested `∀` over eleven elements, by grounding) did not
+  compile in 200 s. Answered in the library: `eval_fast` and
+  `kforces_fast` (`allb`, `anyb`, `if`), proved equal to the plain
+  functions, are what the checks compute; the witness compiles in under
+  a second, and two tests pin it.
+- **A table listed twice** (all three): the Rust checks read the last,
+  the writer wrote the first, so Rocq refused a model `check` accepted.
+  The writer and the drawings take the last.
+- **Tables of symbols no formula uses** (counterexamples, argument): the
+  writer took its symbols from the whole term table, the check from the
+  formulas' terms. `applied` walks the formulas as the check does (I
+  had found and fixed this while the panel ran; their witnesses
+  compile).
+- **The statements were cut-free** (argument, counterexamples):
+  deduxit's checker takes `Cut` in LJ and LM and an empty right side's
+  `WR`, which the cut-free `lj` covers only by cut elimination, unproved
+  in the library. The certificates now state the calculi with cut
+  (`cut := true`, `lk true`); the theorems hold for every choice.
+- **A domain of 2³² elements** (integers, counterexamples): the Rust
+  check accepts it where no quantifier ranges over it, Rocq's unary
+  numbers took 8 GB. The writer refuses a model too large for Rocq
+  (`Unsupported::LargeModel`, a `no certificate: …` line; the bounds
+  are in the reviewer's round).
+- **The layout** (integers): the SVG's words listed the whole domain
+  (16 GB for 2³²; now `0 to N`), `vec![0; arity]` for an unused
+  symbol's arity of 4·10⁹ (a symbol of more than 16 arguments is
+  counted, not shown), scans per table and per constant without a stop
+  (48 s at a 1 s limit; maps and a poll per world now: 0.25 s).
+- **76b's check** (integers): its closure and growth passes were not
+  held to the work bound (commit `nvoklttl`, with a test).
+- The manual named one of the chain's two formulas (argument): both
+  are written now.
+
+Every witness was run again on the fixed build: the ten forged outcomes
+compile, the large domain is refused with its line and drawn in 12 MB.
+
+Left as it is, said in the rules: Rocq finds a table or a fact by a
+scan, so a sequent of thousands of function symbols compiles slowly
+though the Rust check is fast.
+
+### The reviewer's round
+
+`fresh-reviewer` on Opus 5.5 at `high` (the session was on Fable by
+then). It found every item of the brief present, no `Admitted` or
+axiom, the writer agreeing with the Rust check on a list of points it
+compiled certificates for, and nothing against the writing rule; and
+two findings, both answered:
+
+- **A model `check` accepts whose certificate Rocq cannot compile**: a
+  table of 30 000 values overflowed Rocq's stack (a list literal is
+  read recursively; 20 000 entries compile, 24 000 do not), and a table
+  of 20 000 values of 19 999 took 57 s and 7.4 GB (unary numbers,
+  compared one by one). The writer now counts what it writes
+  (`Bounded::number`, `Bounded::entries`) and refuses with
+  `Unsupported::LargeModel` a domain past 4 096 elements
+  (`rocq::MOST_DOMAIN`; Rocq warns of a number from 5 000 on, and a
+  certificate compiles in silence), a list past 8 192 entries
+  (`rocq::MOST_ENTRIES`), or numbers adding up past 2²⁰. At that edge
+  (4 096 elements, a table of 4 096 values of 250) a certificate
+  compiles in 6.8 s and 1.1 GB. The statements "costs what deduxit's
+  own check costs" in the library's changelog and a comment, and the
+  rule's sentence, are corrected.
+- **A table of a symbol the sequent does not name was drawn as unary**
+  (`h(0)` twice for a table of four values): a table is shown only
+  where its length is `size^arity`, the arity the sequent's or, for an
+  unnamed symbol, the one the length gives; otherwise it is counted.
+
+The model search's own models are far below these bounds (the 158 of
+the measurement compile as before).
+
+### Departures
+
+- **The terms are `Deduxit.Linear.Terms`** (departs from the library's
+  rule that `Deduxit.Intuitionistic` shares nothing with
+  `Deduxit.Linear`): a copy would give deduxit's two first-order
+  developments two term types, and moving the file to a `Deduxit.Base`
+  would change a released path. `rocq.md` says so.
+- **`lk c` takes a `bool`**, not a `rules` record (the design named
+  none): LK has no optional ex falso.
+- **Certificates state the calculi with cut** (departs from the
+  propositional certificate's `intuitionistic`, which the design took
+  as the model): the panel's point above. The propositional Kripke
+  certificate could state the same; not changed here (a released
+  form).
+- **The boolean forcing is a recursion per world that stops early**,
+  not `KripkeCheck`'s bottom-up vectors (departs from the design's
+  "`KripkeCheck`'s shape"): the bound variables' environment varies per
+  element, so there is no vector per subformula.
+- **The drawings** (departs from the design's §5): in SVG a structure
+  is one box like a world, not tables; in LaTeX and Typst a Kripke
+  model is a table with a row per world, since neither has a drawing of
+  a propositional model to follow. At most 16 values and 16 facts per
+  world are shown.
+- **`ordinary.export` takes an outcome** (the catalogue's `from` list
+  grew), so that a model exports as text or a table.
+- **The gate ran on the whole change before the three commits**, not
+  between them (the brief asks it between commits): the first two
+  commits are parts of one tested state.
+- One `make` of the library ran on cores 10-12 by my mistake (under a
+  minute); everything else kept to 7-9, the panel and the reviewer to
+  13-15.
+
+### What was checked, and by what
+
+- **rocq-deduxit**: `nix flake check` at `vmoknupz` (its last commit),
+  under the machine lock, passed: the library on Rocq 9.0 to 9.3, every
+  test, the 53 theorems' assumptions closed, the bridges, `conventions`,
+  `typos`, `treefmt`. It was run again after each amendment (the
+  short-circuiting evaluators, the corrected comments and rules).
+- **deduxit**: the gate on the whole change before the commits (passed,
+  the ratchet among it); `cargo clippy --workspace --all-targets` and
+  `cargo test --workspace` after every later fix; `nix flake check
+  --override-input rocq-deduxit git+file://…/rocq-deduxit` at the
+  chain's head rebased onto `main@origin` (`vwrvwvpl`), under the
+  machine lock: passed, every check (a first run failed `doc-private`
+  alone, on a rustdoc link of the new layout module, fixed). With the override the `rocq-deduxit`
+  check compiles the six new snapshots and the three certificates the
+  command writes and refuses the planted model; the `export` check
+  renders the six SVGs and compiles the six LaTeX and six Typst tables.
+- The panel's and the reviewer's witnesses, each run again on the fixed
+  build (above).
+- Not run: the web bindings' own tests beyond the flake's checks (no
+  file under `web/` changed); the comparison; the baseline.
+
+### For the planning session
+
+- **Order of landing**: push rocq-deduxit's `vmoknupz` first, then move
+  deduxit's lock (`nix flake update rocq-deduxit`, a commit of its own)
+  on top of this chain: until the lock moves, deduxit's `rocq-deduxit`
+  check fails without the override, since six new snapshots and three
+  command-written certificates need the new library. The library's
+  version stays 0.6.0 (`export::rocq::DEDUXIT` unchanged); its release
+  is the author's.
+- The batch writes no countermodel's drawing or certificate, of either
+  kind (as before).
+- The propositional Kripke certificate still states the cut-free
+  calculus; the same strengthening is one line there and a snapshot
+  bless, if the author wants it.
