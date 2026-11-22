@@ -230,20 +230,32 @@ in use.
   first-order problems.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
-  translations, and into intuitionistic logic by Kuroda's and Glivenko's.
-  `seq translate` decides the sequent and its translation and checks
-  that the verdicts agree. `interpolate` reads a Craig interpolant off a
-  derivation of LK or LJ without cuts by Maehara's method, and checks it
-  by deciding both halves and comparing the atoms. The library, the
-  web bindings and the web page have both.
+  translations, and into intuitionistic logic by Kuroda's and Glivenko's;
+  all but Glivenko's, whose theorem fails there, translate first-order
+  sequents too. `seq translate` decides the sequent and its translation
+  and checks that the verdicts agree. `interpolate` reads a Craig
+  interpolant off a derivation of LK or LJ without cuts by Maehara's
+  method, first-order ones included, and checks it by deciding both
+  halves and comparing the atoms, or at first order the predicates,
+  functions and constants. The library, the web bindings and the web
+  page have both, the page for propositional sequents.
 - [Classical sequents are rewritten into normal forms](transformations.md#rewrite-a-sequent-into-a-normal-form)
   step by step: negation, conjunctive and disjunctive normal form by
   equivalence laws, and the clauses of Tseitin's and of Plaisted and
   Greenbaum's encodings. `seq normalize` shows each step and checks with
   the SAT solver that each form is equivalent to its input, or for an
   encoding that the clauses can be satisfied exactly when the sequent
-  can be false. The library and the protocol have them; the web page
-  does not yet.
+  can be false. At first order `seq normalize` makes the prenex form,
+  the miniscope form, the Skolem, Herbrand and clausal forms, each
+  equivalence step checked by a derivation of its law (of LJ where the
+  law holds there) and each Skolem symbol checked new. The library and
+  the protocol have them; the web page does not yet.
+- [Herbrand's theorem proves first-order sequents](transformations.md#prove-a-first-order-sequent-by-herbrands-theorem):
+  `herbrand` puts closed terms into the clausal form's clauses, depth by
+  depth, until the SAT solver refutes the instances, checks its clausal
+  proof, and builds from the instances it needs a derivation of LK of
+  the sequent as written, each Skolem term an eigenvariable again, which
+  the checker accepts. The library and the protocol have it.
 - [Clauses are refuted by resolution and by DPLL](resolution.md) at
   teaching scale, within bounds of clauses and steps: a sequent's
   negation turned into clauses, or a DIMACS file. Every refutation is
@@ -542,9 +554,9 @@ The collection grows by a suite at a time, release by release:
 - 0.8.0: first-order ordinary logic: classical, intuitionistic and
   minimal, searched, with finite countermodels and Rocq certificates; a
   witness left open in a session for an axiom to fill;
-  prenex form, Skolem form, clausal form and Herbrand's theorem, each
-  checked; equality and first-order resolution; all of it on the web
-  page, the linear tab at first order too.
+  equality and first-order resolution; all of it on the web page, the
+  normal forms and Herbrand's theorem among it, the linear tab at first
+  order too.
 
 Not yet placed in a release: the comparison with the other provers on
 the libraries with the engines of 0.2.0.
