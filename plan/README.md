@@ -8271,3 +8271,11 @@ move (D26).
   41 s and 2.6 GB at a 2 s limit (the matrix build asks no stop). Full check passed on fixup-23's head;
   rebased onto fixup-24 without a conflict, the combined head through `push-ci`. **Step 78 complete.**
   Next: step 80, the release of 0.8.0.
+- 2026-11-23, about 00:25: **78c on `main`; a red `main` for 25 minutes; step 80 started.** 78c's
+  combined head failed CI in one call of the behaviour lock (`resolve-equality-axioms`, written by 78c
+  before fixup-24 shortened Herbrand's read-back: 209 inferences, now 116, the verdict alike). I pushed
+  the plan commit above it before reading `push-ci`'s verdict, which put the failing head on `main`;
+  the lock reblessed in a commit of its own (`uwrmtmpk`), the CLI's tests passed here, every other job
+  had passed on the same tree, pushed. Lesson kept: read `push-ci`'s last line before any push above
+  its head. In fixup-24's worker: **step 80**, the release of 0.8.0 prepared (both repositories, up to
+  the tags, which are the author's).
