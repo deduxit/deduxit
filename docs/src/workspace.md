@@ -39,6 +39,7 @@ $ deduxit workspace apply lem.json 1 ordinary.decide
 $ deduxit workspace operations ordinary.outcome
 ordinary.derivation  ordinary.session or ordinary.outcome -> ordinary.derivation: The derivation
 ordinary.draw  ordinary.session or ordinary.derivation or ordinary.outcome -> drawing: A drawing
+ordinary.export  ordinary.session or ordinary.derivation or ordinary.outcome -> text: An export
 ordinary.certificate  ordinary.derivation or ordinary.outcome -> certificate: A Rocq certificate
 ```
 

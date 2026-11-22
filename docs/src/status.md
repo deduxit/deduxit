@@ -224,7 +224,9 @@ in use.
   and it refutes 210 of ILTP's first-order problems at 2 seconds. In
   intuitionistic and minimal logic it also finds Kripke models with
   growing domains, checked by the forcing relation, beside the
-  embedding. The other methods refuse them by name. A
+  embedding. Both kinds of model are drawn (SVG, PNG and PDF as boxes,
+  LaTeX and Typst as tables) and certified in Rocq. The other methods
+  refuse them by name. A
   [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)
   runs them beside leanCoP, nanoCoP, nanoCoP-i and iLeanCoP on ILTP's
   first-order problems.
@@ -328,6 +330,9 @@ in use.
   countermodel, an atom's count, the count equation, a weighted count or
   a Petri net's state equation, `--format rocq` writes the lemma that the
   calculus does not derive it, checked by computation.
+- For a first-order sequent the model search refutes, `--format rocq`
+  writes the lemma that LK, or LJ or LM, does not derive it, proved from
+  its finite structure or Kripke model with growing domains.
 - For a modal sequent, `--format rocq` writes the lemma that it is valid
   over the system's frames, proved from its labelled derivation, or
   that it is not, proved from its countermodel. A derivation built step
@@ -353,7 +358,10 @@ in use.
   - the calculi of intuitionistic and minimal logic, their Kripke
     models with the theorem that a derivable sequent holds in every
     model, and a checker of finite countermodels, on which the
-    certificates of countermodels rest;
+    certificates of countermodels rest; at first order, LJ, LM and LK,
+    Kripke models with growing domains and finite structures with the
+    same theorems and checkers, and the infinite model that refutes
+    `¬¬∀x. (p(x) ∨ ¬p(x))`, which no finite model refutes;
   - the modal systems from K to S5 with their Kripke models, the
     labelled sequent calculus with the theorem that it derives only
     valid sequents, and checkers of labelled proofs and of finite

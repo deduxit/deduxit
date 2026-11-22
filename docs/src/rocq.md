@@ -49,7 +49,8 @@ names:
   ([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)),
   the default for Mix, affine and intuitionistic logic, for a sequent
   with a quantifier, and the only kernel for a refutation, for a
-  Kripke countermodel of ordinary logic and for modal logic.
+  Kripke countermodel or a finite structure of ordinary logic and for
+  modal logic.
 
 The verdict line becomes a comment of the certificate.
 
@@ -204,6 +205,20 @@ shows one). Its statement rests on the library's
 `Intuitionistic/Formulas.v` and `Intuitionistic/Calculus.v`: the
 formulas of ordinary logic and the calculus LJ, with minimal logic as
 LJ without its rule for `false`.
+
+A first-order sequent that the model search refutes gets a certificate
+from its model ([Finite models](ordinary-logic.md#finite-models) shows
+one). In intuitionistic and minimal logic its lemma is `~ lj (symbol :=
+string) {| Calculus.explosion := true; Calculus.cut := true |} [Γ] C`
+(`explosion := false` in minimal logic), proved by
+`fo_kripke_refutation` from a Kripke model with growing domains; in
+classical logic it is `~ lk (symbol := string) true [Γ] [Δ]`, proved by
+`fo_classical_refutation` from a finite structure. Both name the
+calculus with cut: no derivation of the sequent exists, with a cut or
+without. The library checks the model by computation. These statements rest on `Terms.v`,
+`Intuitionistic/FirstOrderFormulas.v`, `Intuitionistic/FirstOrderCalculus.v`
+and `Intuitionistic/Calculus.v`: the terms, the first-order formulas and
+the calculi LJ, LM and LK with their quantifier rules.
 
 ## Certificates of modal logic
 

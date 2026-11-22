@@ -156,6 +156,11 @@ workspace graph builds on it.
   is built within the memory bound whatever its drawn size, so the bound
   their `reads` list is applied here, where nothing upstream applies it
   (`a_drawing_past_the_derivation_bound_is_refused`).
+- **First-order models**: `ordinary.draw` and `ordinary.certificate`
+  take an outcome with a `structure` or a `kripke` model (the
+  export functions of each), and `ordinary.export` takes an outcome now
+  (`from` gained `ordinary.outcome`), writing a model as text (its
+  `Display`, after its check), a LaTeX or a Typst table (`model_table`).
 - **Adding an operation**: its row in the suite's `OPERATIONS`, its name
   in `mod.rs`'s `OPERATIONS` in the same place, its arm in `run`, its
   promise's arm in `check`, a schema entry for a new kind's form, the

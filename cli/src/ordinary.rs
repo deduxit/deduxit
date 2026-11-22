@@ -807,7 +807,18 @@ pub(crate) fn write_native(
                     &over,
                     &why,
                 )?,
-                None => Shown::Nothing,
+                None => match crate::show::FirstOrderModel::of(outcome) {
+                    Some(model) => crate::show::first_order_model_drawn(
+                        model,
+                        outcome.logic,
+                        &show,
+                        prefix.as_deref(),
+                        &mut out,
+                        &over,
+                        &why,
+                    )?,
+                    None => Shown::Nothing,
+                },
             }
         }
         (ordinary::Verdict::NotValid, false) if format == Format::Rocq => {
@@ -820,7 +831,17 @@ pub(crate) fn write_native(
                     &mut out,
                     over,
                 ),
-                None => Shown::Nothing,
+                None => match crate::show::FirstOrderModel::of(outcome) {
+                    Some(model) => crate::show::first_order_certificate_into(
+                        model,
+                        outcome.logic,
+                        &show,
+                        prefix.as_deref(),
+                        &mut out,
+                        over,
+                    ),
+                    None => Shown::Nothing,
+                },
             }
         }
         _ => Shown::Nothing,

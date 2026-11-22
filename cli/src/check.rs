@@ -7,8 +7,9 @@ use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Show, Shown, abbreviated, countermodel_into, derivation, disproof_into, every_steps,
-    lambda_json, lambda_line, linear_term, model_drawn, net_into, net_json, nets_exist,
+    FirstOrderModel, Show, Shown, abbreviated, countermodel_into, derivation, disproof_into,
+    every_steps, first_order_certificate_into, first_order_model_drawn, lambda_json, lambda_line,
+    linear_term, model_drawn, net_into, net_json, nets_exist,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
@@ -946,8 +947,9 @@ fn check_structure(
         sequent: &countermodel.sequent,
         model,
         text: structure,
+        shown: FirstOrderModel::Structure(countermodel),
     };
-    write_refuted(&refuted, result, logic, show, quiet, out)
+    write_refuted(&refuted, result, (logic, deadline), show, quiet, out)
 }
 
 /// Checks that an outcome's Kripke model with growing domains refutes its
@@ -973,8 +975,9 @@ fn check_kripke_structure(
         sequent: &countermodel.sequent,
         model,
         text: &countermodel.model,
+        shown: FirstOrderModel::Kripke(countermodel),
     };
-    write_refuted(&refuted, result, logic, show, quiet, out)
+    write_refuted(&refuted, result, (logic, deadline), show, quiet, out)
 }
 
 /// A first-order refutation by a model, as `check` writes it.
@@ -986,6 +989,8 @@ struct Refuted<'a> {
     /// The model, written as text after the verdict of a valid
     /// refutation only (a refused one may be too large to write).
     text: &'a dyn std::fmt::Display,
+    /// The model, for its certificate and its drawing.
+    shown: FirstOrderModel<'a>,
 }
 
 /// Writes the verdict of a checked first-order refutation by a model and
@@ -994,7 +999,7 @@ struct Refuted<'a> {
 fn write_refuted(
     refuted: &Refuted<'_>,
     result: Result<(), deduxit::Error>,
-    logic: ordinary::Logic,
+    (logic, deadline): (ordinary::Logic, &Deadline),
     show: &Show,
     quiet: bool,
     out: &mut io::Output,
@@ -1038,8 +1043,27 @@ fn write_refuted(
         return Ok((status, true));
     }
     let line = (show.verdict || result.is_err()).then_some(line);
-    show.open(out, line.as_deref())?;
-    let keep = show.close(out, Shown::Nothing, line.as_deref())?;
+    let prefix = show.open(out, line.as_deref())?;
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let shown = match show.format {
+        _ if result.is_err() => Shown::Nothing,
+        Format::Rocq => {
+            first_order_certificate_into(refuted.shown, logic, show, prefix.as_deref(), out, over)
+        }
+        Format::Svg | Format::Png | Format::Pdf | Format::Latex | Format::Typst => {
+            first_order_model_drawn(
+                refuted.shown,
+                logic,
+                show,
+                prefix.as_deref(),
+                out,
+                &over,
+                &|| Stop::why(stopped(deadline)),
+            )?
+        }
+        Format::Text | Format::Json => Shown::Nothing,
+    };
+    let keep = show.close(out, shown, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
         show.after(out, &refuted.text.to_string(), false)?;
     }

@@ -787,13 +787,65 @@ answer winning. In intuitionistic logic a finite model never refutes
 `¬¬A` where `A` is valid classically, since every world of a finite
 model sees a world with none above it, where intuitionistic and
 classical forcing agree. So the failure of Glivenko's theorem at first
-order shows only on infinite models: `¬¬∀x. (p(x) ∨ ¬p(x))` is valid
-classically and not intuitionistically, and the search answers unknown
-on it. (In minimal logic a world with none above it may force `⊥`, so
+order shows only on infinite models: `¬¬∀x. (p(x) ∨ ¬p(x))` and the
+double-negation shift `∀x. ¬¬p(x) → ¬¬∀x. p(x)` are valid classically
+and not intuitionistically, and the search answers unknown on them. (In minimal logic a world with none above it may force `⊥`, so
 there finite models refute such formulas, `¬¬(⊥ → p(a))` among them.)
 The search's domains are initial segments of one numbering of the
 elements, so two worlds that are not ordered add the same new elements;
 models over a tree, which suffice for completeness, lose nothing by it.
+The infinite model that refutes both formulas has a world for each
+number n, with the elements 0 to n, and `p(k)` true from world k + 1
+on: each world has an element, its own number, of which `p` does not
+hold yet but will. deduxit's Rocq library proves that this model
+refutes them (`chain_excluded_middle` and `chain_double_negation_shift`
+in `Deduxit.Intuitionistic.FirstOrderKripke`).
+
+`--format svg`, `png` and `pdf` draw the model found as the
+propositional ones are drawn: each world a box with its domain, the
+values of the constants and functions, and the true atoms. LaTeX and
+Typst write it as a table, a row per world (one for a structure), the
+model's world in bold:
+
+```console
+$ deduxit prove --logic intuitionistic --format latex '~(forall x. p(x)) |- exists x. ~p(x)'
+% not valid (intuitionistic logic by the model search): a checked Kripke model of 2 worlds with growing domains refutes it
+\begin{tabular}{lllll}
+world & above & domain & functions & facts \\
+\hline
+$\mathbf{w_{0}}$ & $w_{1}$ & $\{0\}$ &  &  \\
+$w_{1}$ &  & $\{0, 1\}$ &  & $p(0)$ \\
+\end{tabular}
+```
+
+`--format rocq` writes the model as a certificate for deduxit's Rocq
+library ([Check a certificate in Rocq](rocq.md)): in classical logic a
+lemma that LK does not derive the sequent, proved by the library's
+theorem that a finite structure refutes what it makes false; in
+intuitionistic and minimal logic a lemma that LJ or LM does not derive
+it, proved by the theorem that a Kripke model with growing domains
+refutes what it does not force. Each lemma names the calculus with cut,
+so no derivation with a cut escapes it. The model is written as data: each
+world's domain size, a table per constant and function symbol, its true
+facts, the worlds above it and those that force `false`. The library
+checks it by computation; `check --format rocq` writes the same for an
+outcome's model. Rocq counts every number one by one, so a model with a
+domain of more than 4 096 elements, or a table of more than 8 192
+values, gets no certificate (`no certificate: …`); the models the
+search finds are far smaller.
+
+```console
+$ deduxit prove --logic classical --method models --format rocq 'forall x. r(x, f(x)) |- exists x. r(f(x), x)'
+(* not valid (classical logic by the model search): a checked finite structure of 3 elements refutes it *)
+Lemma certificate : ~ lk (symbol := string) true [fall (var "r" [bound 0; (tapp "f" [bound 0])])] [fex (var "r" [(tapp "f" [bound 0]); bound 0])].
+Proof.
+  apply (fo_classical_refutation String.eqb true
+    {| size := 3;
+       functions := [("f", 1, [1; 2; 0])];
+       predicates := [("r", [0; 1]); ("r", [1; 2]); ("r", [2; 0])] |}).
+  vm_compute. reflexivity.
+Qed.
+```
 
 `--stats` prints the largest structure tried, the worlds of the last
 Kripke model tried, the atoms and formulas of the last formula, and the

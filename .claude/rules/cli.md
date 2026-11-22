@@ -187,6 +187,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   rendered as a net's is; LaTeX and Typst a left-out line), in
   `write_native` (not under `--tree never`), in `check_countermodel`
   and `check_model` as the certificate is.
+  A first-order model (`show::FirstOrderModel::of`: an outcome's
+  `structure`, else its `kripke`) goes to `first_order_model_drawn`
+  (svg, png, pdf, and LaTeX and Typst tables) and
+  `first_order_certificate_into` (rocq), in `write_native` and in
+  `check`'s `write_refuted`.
   `--format rocq` writes its certificate (`show::countermodel_into`,
   `rocq::write_countermodel` under the settings' limits, a refusal a
   `no certificate: …` line, the verdict standing), in `write_native`,

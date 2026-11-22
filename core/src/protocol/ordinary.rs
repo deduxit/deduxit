@@ -482,7 +482,11 @@ static OPERATIONS: &[Operation] = &[
     },
     Operation {
         name: "ordinary.export",
-        from: &[&["ordinary.session", "ordinary.derivation"]],
+        from: &[&[
+            "ordinary.session",
+            "ordinary.derivation",
+            "ordinary.outcome",
+        ]],
         to: "text",
         class: Class::Derived,
         cost: Cost::Instant,
@@ -1125,6 +1129,32 @@ impl Suite for Ordinary {
                             stop,
                         )?
                     }
+                    Input::Outcome(outcome) if outcome.structure.is_some() => {
+                        let structure = outcome
+                            .structure
+                            .as_ref()
+                            .unwrap_or_else(|| unreachable!("the guard found a structure"));
+                        crate::export::svg::structure(
+                            structure,
+                            outcome.logic,
+                            &settings.styles.svg,
+                            limits,
+                            stop,
+                        )?
+                    }
+                    Input::Outcome(outcome) if outcome.kripke.is_some() => {
+                        let kripke = outcome
+                            .kripke
+                            .as_ref()
+                            .unwrap_or_else(|| unreachable!("the guard found a Kripke model"));
+                        crate::export::svg::kripke_structure(
+                            kripke,
+                            outcome.logic,
+                            &settings.styles.svg,
+                            limits,
+                            stop,
+                        )?
+                    }
                     input => {
                         let derivation = derivation_of(input, false, call, stop)?;
                         drawable(&derivation, limits)?;
@@ -1142,9 +1172,16 @@ impl Suite for Ordinary {
             }
             "ordinary.export" => {
                 let input = input(call, limits)?;
+                let p: Format = parameters(call)?;
+                if let Input::Outcome(outcome) = &input
+                    && (outcome.structure.is_some() || outcome.kripke.is_some())
+                {
+                    let format = p.format.unwrap_or_else(|| "text".to_owned());
+                    let text = model_table(outcome, &format, settings, stop)?;
+                    return Ok(Produced::done(written(&Text { format, text })?));
+                }
                 let derivation = derivation_of(input, false, call, stop)?;
                 drawable(&derivation, limits)?;
-                let p: Format = parameters(call)?;
                 let format = p.format.unwrap_or_else(|| "text".to_owned());
                 let styles = &settings.styles;
                 let mut out = String::new();
@@ -1180,6 +1217,34 @@ impl Suite for Ordinary {
                             .unwrap_or_else(|| unreachable!("the guard found a countermodel"));
                         crate::export::rocq::write_countermodel(
                             countermodel,
+                            outcome.logic,
+                            &settings.styles.rocq,
+                            limits,
+                            &mut out,
+                            stop,
+                        )?;
+                    }
+                    Input::Outcome(outcome) if outcome.structure.is_some() => {
+                        let structure = outcome
+                            .structure
+                            .as_ref()
+                            .unwrap_or_else(|| unreachable!("the guard found a structure"));
+                        crate::export::rocq::write_structure(
+                            structure,
+                            outcome.logic,
+                            &settings.styles.rocq,
+                            limits,
+                            &mut out,
+                            stop,
+                        )?;
+                    }
+                    Input::Outcome(outcome) if outcome.kripke.is_some() => {
+                        let kripke = outcome
+                            .kripke
+                            .as_ref()
+                            .unwrap_or_else(|| unreachable!("the guard found a Kripke model"));
+                        crate::export::rocq::write_kripke_structure(
+                            kripke,
                             outcome.logic,
                             &settings.styles.rocq,
                             limits,
@@ -1646,5 +1711,49 @@ fn json_error(error: &serde_json::Error) -> Error {
     Error::Json {
         form: "value",
         message: error.to_string(),
+    }
+}
+
+/// Returns an outcome's first-order countermodel as text (its own
+/// `Display`), a LaTeX or a Typst table.
+fn model_table(
+    outcome: &ordinary::Outcome,
+    format: &str,
+    settings: &crate::Settings,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<String, Error> {
+    let (logic, limits) = (outcome.logic, &settings.limits);
+    #[cfg(any(feature = "latex", feature = "typst"))]
+    let styles = &settings.styles;
+    match (format, &outcome.structure, &outcome.kripke) {
+        ("text", Some(structure), _) => {
+            structure.check(logic, limits, &mut *stop)?;
+            Ok(structure.structure.to_string())
+        }
+        ("text", None, Some(kripke)) => {
+            kripke.check(logic, limits, &mut *stop)?;
+            Ok(kripke.model.to_string())
+        }
+        #[cfg(feature = "latex")]
+        ("latex", Some(structure), _) => {
+            crate::export::latex::structure(structure, logic, &styles.latex, limits, stop)
+        }
+        #[cfg(feature = "latex")]
+        ("latex", None, Some(kripke)) => {
+            crate::export::latex::kripke_structure(kripke, logic, &styles.latex, limits, stop)
+        }
+        #[cfg(feature = "typst")]
+        ("typst", Some(structure), _) => {
+            crate::export::typst::structure(structure, logic, &styles.typst, limits, stop)
+        }
+        #[cfg(feature = "typst")]
+        ("typst", None, Some(kripke)) => {
+            crate::export::typst::kripke_structure(kripke, logic, &styles.typst, limits, stop)
+        }
+        (other, _, _) => Err(Error::UnknownName {
+            what: "format",
+            name: other.into(),
+            known: FORMATS,
+        }),
     }
 }

@@ -567,6 +567,130 @@ pub(crate) fn countermodel_into(
     }
 }
 
+/// A first-order countermodel: a finite structure or a Kripke model with
+/// growing domains.
+#[derive(Clone, Copy)]
+pub(crate) enum FirstOrderModel<'a> {
+    /// A finite structure.
+    Structure(&'a deduxit::ordinary::FiniteCountermodel),
+    /// A Kripke model with growing domains.
+    Kripke(&'a deduxit::ordinary::KripkeCountermodel),
+}
+
+impl<'a> FirstOrderModel<'a> {
+    /// Returns an outcome's first-order countermodel, if it has one.
+    pub(crate) fn of(outcome: &'a deduxit::ordinary::Outcome) -> Option<Self> {
+        match (&outcome.structure, &outcome.kripke) {
+            (Some(structure), _) => Some(Self::Structure(structure)),
+            (None, Some(kripke)) => Some(Self::Kripke(kripke)),
+            (None, None) => None,
+        }
+    }
+}
+
+/// Writes the certificate of a first-order countermodel into `out` after
+/// `prefix`, for `--format rocq`: that deduxit's library does not derive
+/// the sequent in LK, or in LJ or LM; or says why there is none (a model
+/// past a bound, or `halt`), which leaves the verdict as it is.
+pub(crate) fn first_order_certificate_into(
+    model: FirstOrderModel<'_>,
+    logic: deduxit::ordinary::Logic,
+    show: &Show,
+    prefix: Option<&str>,
+    out: &mut impl Write,
+    halt: impl Fn() -> bool,
+) -> Shown {
+    let mut out = Prefixed { out, prefix };
+    let options = &show.styles.rocq;
+    let written = match model {
+        FirstOrderModel::Structure(m) => {
+            rocq::write_structure(m, logic, options, &show.limits, &mut out, |_| halt())
+        }
+        FirstOrderModel::Kripke(m) => {
+            rocq::write_kripke_structure(m, logic, options, &show.limits, &mut out, |_| halt())
+        }
+    };
+    match written {
+        // The output's own error, which finishing it reports.
+        Ok(()) | Err(Error::WriteFailed) => Shown::Written,
+        Err(error) => Shown::LeftOut(format!("no certificate: {error}")),
+    }
+}
+
+/// Writes the drawing of a first-order countermodel into `out` after
+/// `prefix`: boxes for `--format svg`, `png` or `pdf`, a table for
+/// `latex` or `typst`; or says why there is none: a drawing past a bound,
+/// or `halt`. The verdict stays as it is.
+///
+/// # Errors
+///
+/// An output that cannot be written, and a render that cannot start.
+pub(crate) fn first_order_model_drawn(
+    model: FirstOrderModel<'_>,
+    logic: deduxit::ordinary::Logic,
+    show: &Show,
+    prefix: Option<&str>,
+    out: &mut io::Output,
+    halt: &dyn Fn() -> bool,
+    why: &dyn Fn() -> String,
+) -> Result<Shown> {
+    let styles = &show.styles;
+    let limits = &show.limits;
+    let drawn = match (show.format, model) {
+        (Format::Latex, FirstOrderModel::Structure(m)) => {
+            latex::structure(m, logic, &styles.latex, limits, |_| halt())
+        }
+        (Format::Latex, FirstOrderModel::Kripke(m)) => {
+            latex::kripke_structure(m, logic, &styles.latex, limits, |_| halt())
+        }
+        (Format::Typst, FirstOrderModel::Structure(m)) => {
+            typst::structure(m, logic, &styles.typst, limits, |_| halt())
+        }
+        (Format::Typst, FirstOrderModel::Kripke(m)) => {
+            typst::kripke_structure(m, logic, &styles.typst, limits, |_| halt())
+        }
+        (_, FirstOrderModel::Structure(m)) => {
+            svg::structure(m, logic, &styles.svg, limits, |_| halt())
+        }
+        (_, FirstOrderModel::Kripke(m)) => {
+            svg::kripke_structure(m, logic, &styles.svg, limits, |_| halt())
+        }
+    };
+    let drawing = match drawn {
+        Ok(drawing) => drawing,
+        Err(Error::Refused(Refusal::Stopped { .. })) => {
+            return Ok(Shown::LeftOut(format!(
+                "the countermodel is not drawn: {}",
+                why()
+            )));
+        }
+        Err(error) => {
+            return Ok(Shown::LeftOut(format!(
+                "the countermodel is not drawn: {error}"
+            )));
+        }
+    };
+    if matches!(show.format, Format::Svg | Format::Latex | Format::Typst) {
+        write!(out, "{}{drawing}", prefix.unwrap_or(""))?;
+        return Ok(Shown::Written);
+    }
+    Ok(
+        match render(
+            drawing,
+            show.format,
+            &show.styles,
+            show.limits.memory_bytes,
+            halt,
+        )? {
+            Rendered::Bytes(bytes) => Shown::Rendered(bytes),
+            Rendered::Refused(line) => Shown::LeftOut(line),
+            Rendered::Stopped => {
+                Shown::LeftOut(format!("the countermodel is not drawn: {}", why()))
+            }
+        },
+    )
+}
+
 /// Writes the drawing of a countermodel into `out` after `prefix`, for
 /// `--format svg`, `png` or `pdf`; or says why there is none: LaTeX and
 /// Typst, which have no drawing of a model, a drawing past a bound, or

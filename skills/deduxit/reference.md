@@ -1234,6 +1234,20 @@ while the time limit lasts).
   the reason `model_size` (classical) or `kripke_size` (the others), at
   the time limit `stopped`. In intuitionistic logic a finite model never
   refutes `¬¬A` for a classically valid `A` (in minimal logic it may).
+- `--format svg`, `png` and `pdf` draw the structure or the Kripke model
+  (a box per world with its domain, values and facts), `latex` and
+  `typst` write it as a table, and `rocq` writes a certificate for
+  deduxit's Rocq library: `~ lk (symbol := string) true [Γ] [Δ]` by
+  `fo_classical_refutation` in classical logic, `~ lj (symbol := string)
+  {| Calculus.explosion := true; Calculus.cut := true |} [Γ] C`
+  (`explosion := false` in minimal logic) by `fo_kripke_refutation` in
+  the others, each the calculus with cut. `check` writes the same for an
+  outcome. In the library: `export::svg::structure`,
+  `export::svg::kripke_structure`, `export::latex::structure`,
+  `export::typst::structure` (and their `kripke_structure`),
+  `export::rocq::write_structure` and
+  `export::rocq::write_kripke_structure`, each `(&countermodel, logic,
+  &options, &limits, …, stop)`.
 - `--stats` prints `largest structure tried, elements`, `worlds of the
   last Kripke model tried` (where it tried one), `atoms`, `formulas`,
   `solver calls` and `conflicts`.

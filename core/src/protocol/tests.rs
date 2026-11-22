@@ -313,6 +313,36 @@ fn herbrand_s_instances_are_checked() {
     assert_eq!(check.status, Status::None);
 }
 
+/// A first-order model is drawn, exported as text and as tables, and
+/// certified, the Kripke model and the finite structure alike.
+#[test]
+fn a_first_order_model_is_drawn_and_certified() {
+    let kripke = ordinary(
+        "(forall x. p(x)) -> q |- exists x. (p(x) -> q)",
+        crate::ordinary::Logic::Intuitionistic,
+    );
+    let structure = ordinary(
+        "exists x. p(x) |- forall x. p(x)",
+        crate::ordinary::Logic::Classical,
+    );
+    for (sequent, words, theorem) in [
+        (&kripke, "growing domains", "fo_kripke_refutation"),
+        (&structure, "finite structure", "fo_classical_refutation"),
+    ] {
+        let decided = ran("ordinary.decide", &[sequent], r#"{"method": "models"}"#);
+        #[cfg(feature = "svg")]
+        assert!(ran("ordinary.draw", &[&decided], "").contains(words));
+        assert!(ran("ordinary.export", &[&decided], "").contains("domain"));
+        #[cfg(feature = "latex")]
+        assert!(ran("ordinary.export", &[&decided], r#"{"format": "latex"}"#).contains("tabular"));
+        #[cfg(feature = "typst")]
+        assert!(ran("ordinary.export", &[&decided], r#"{"format": "typst"}"#).contains("#table"));
+        #[cfg(feature = "rocq")]
+        assert!(ran("ordinary.certificate", &[&decided], "").contains(theorem));
+        let _ = (words, theorem);
+    }
+}
+
 #[test]
 fn a_sequent_that_is_not_valid_has_a_checked_countermodel() {
     let sequent = ordinary("a \\/ b |- a", crate::ordinary::Logic::Intuitionistic);

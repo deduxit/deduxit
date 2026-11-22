@@ -7,7 +7,8 @@
 # the flake input `rocq-deduxit' pins it (github:deduxit/rocq-deduxit, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault (a wrong witness, a wrong weight, a
-# valuation that does not grow along the order, a modal step on the wrong
+# valuation that does not grow along the order, a first-order model whose
+# facts do not grow, a modal step on the wrong
 # edges, a modal model that misses its system's frame condition) must
 # be refused, and a file that requires a certificate and applies its lemma
 # compiles. Rocq prints nothing for
@@ -125,6 +126,17 @@
             deduxit check --logic intuitionistic --sequent '~~a |- a' --format rocq --standalone \
               --output cli_kripke_model.v ../model.json || [ $? -eq 1 ]
             for file in cli_kripke*.v; do grep -q '^Lemma certificate' "$file"; done
+            # First-order countermodels: a Kripke model with growing domains
+            # and a finite structure the model search finds, and a Kripke
+            # model from checking an outcome.
+            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_fo_kripke.v \
+              '~(forall x. p(x)) |- exists x. ~p(x)' || [ $? -eq 1 ]
+            deduxit prove --logic classical --method models --format rocq --standalone \
+              --output cli_fo_structure.v 'p(a) |- p(f(a))' || [ $? -eq 1 ]
+            deduxit prove --logic intuitionistic --format json --output ../fo.json \
+              'forall x. (p(x) \/ q) |- (forall x. p(x)) \/ q' || [ $? -eq 1 ]
+            deduxit check --format rocq --standalone --output cli_fo_kripke_check.v ../fo.json
+            for file in cli_fo_kripke*.v cli_fo_structure.v; do grep -q '^Lemma certificate' "$file"; done
             printf '%s\n' 'apply 0 0 ∀L' 'apply 1 0 ∃R' 'close 2' 'proof --rocq cli_fo_session.v' |
               deduxit interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
             # Modal logic: a valid sequent for each frame rule, a derivation
@@ -196,6 +208,19 @@
             fi
             if rocq compile ../fault/model.v >/dev/null 2>&1; then
               echo "a certificate with a model that is no Kripke model was accepted"
+              exit 1
+            fi
+            # And a first-order model whose root holds a fact the world above
+            # it drops: one forcing does not need, so only the model's growth
+            # fails.
+            sed 's/facts := \[\[\]; \[("p", \[0\])\]\]/facts := [[("p", [1])]; [("p", [0])]]/' \
+              countermodel_fo_not_forall.v >../fault/facts.v
+            if cmp -s countermodel_fo_not_forall.v ../fault/facts.v; then
+              echo "no first-order model was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/facts.v >/dev/null 2>&1; then
+              echo "a first-order certificate with a model that is no Kripke model was accepted"
               exit 1
             fi
             # And a modal term whose transitivity step names its edges wrongly,

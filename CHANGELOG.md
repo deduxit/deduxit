@@ -188,6 +188,25 @@ second number (0.1.x to 0.2.0), anything else the third.
   command's threads. In intuitionistic logic a finite model never
   refutes `¬¬A` for a classically valid `A`, so Glivenko's failure at
   first order stays unknown.
+- **First-order countermodels drawn and certified**: `svg::structure`
+  and `svg::kripke_structure` draw a finite structure or a Kripke model
+  with growing domains as the propositional models are drawn, each
+  world's box with its domain, values and facts; `latex::structure`,
+  `latex::kripke_structure`, `typst::structure` and
+  `typst::kripke_structure` write them as tables; `rocq::write_structure`
+  and `rocq::write_kripke_structure` write the certificate for deduxit's
+  Rocq library, `~ lk …` by `fo_classical_refutation` or `~ lj …` by
+  `fo_kripke_refutation`, with the prelude
+  `rocq::DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`. `prove` and `check` write
+  them for `--format svg|png|pdf|latex|typst|rocq`, and the protocol's
+  `ordinary.draw`, `ordinary.export` (which takes an outcome now) and
+  `ordinary.certificate` give them. The certificates need rocq-deduxit's
+  next release, and state the calculi with cut. A model too large for
+  Rocq, which counts every number one by one, has no certificate
+  (`rocq::Unsupported::LargeModel`, a new variant): a domain of more
+  than 4 096 elements (`rocq::MOST_DOMAIN`), a table or a list of more
+  than 8 192 entries (`rocq::MOST_ENTRIES`), or numbers that add up to
+  more than 1 048 576.
 - **Finite structures interpret function symbols**
   (`Structure::functions`, `Structure::with_functions`): each function
   symbol of one argument or more with its table, the values of its
