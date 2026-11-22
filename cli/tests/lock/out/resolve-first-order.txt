@@ -1,0 +1,12 @@
+$ deduxit resolve 'forall x y. (p(x) \/ p(y)), forall u v. (~p(u) \/ ~p(v)) |-'
+--- status 0
+--- stdout
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 inferences, read back as a checked derivation of LK (19 inferences)
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+1. p(X1) ∨ p(X2)
+2. ¬p(X1) ∨ ¬p(X2)
+resolution, the first parent's variables X1, …, the second's Y1, …:
+3. p(X1)  factor of 1 with X1 := X2
+4. ¬p(X1)  factor of 2 with X1 := X2
+5. □  from 4, 3 with X1 := Y1
+--- stderr

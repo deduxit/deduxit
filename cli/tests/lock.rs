@@ -402,6 +402,26 @@ const CASES: &[Case] = &[
         &["resolve", "--step-limit", "1", "a -> b, b -> c |- a -> c"],
     ),
     call(
+        "resolve-first-order",
+        &[
+            "resolve",
+            "forall x y. (p(x) \\/ p(y)), forall u v. (~p(u) \\/ ~p(v)) |-",
+        ],
+    ),
+    call(
+        "resolve-first-order-json",
+        &[
+            "resolve",
+            "--format",
+            "json",
+            "forall x. (p(x) -> q(f(x))), p(a) |- exists y. q(y)",
+        ],
+    ),
+    call(
+        "resolve-first-order-saturated",
+        &["resolve", "exists x. p(x) |- forall y. p(y)"],
+    ),
+    call(
         "herbrand",
         &["herbrand", "|- exists x. (p(x) -> forall y. p(y))"],
     ),
