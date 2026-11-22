@@ -1419,7 +1419,15 @@ fn structure_of(sequent: &Sequent, ground: &Ground, true_atoms: &[String]) -> St
         })
         .collect();
     predicates.sort_unstable();
-    Structure::new(ground.elements.len() as u32, constants, predicates)
+    let structure = Structure::new(ground.elements.len() as u32, constants, predicates);
+    // The model satisfies the equality axioms' instances over the domain,
+    // so its `=` is a congruence there; divided by it, `=` is identity,
+    // which is how a structure reads it.
+    if formulas.has_equality() {
+        super::equality::identified(structure)
+    } else {
+        structure
+    }
 }
 
 #[cfg(all(test, feature = "parse"))]

@@ -802,6 +802,20 @@ pub(crate) struct ProveArgs {
     /// Where and how to write the result.
     #[command(flatten)]
     pub(crate) output: OutputArgs,
+    /// With --logic, end standard output with an SZS status line, as the
+    /// tools of the TPTP World read it
+    ///
+    /// The line is `% SZS status STATUS for NAME`, NAME the problem file's
+    /// name without its extension, `stdin` for standard input and
+    /// `sequent` for the argument. A sequent with a formula right of the
+    /// turnstile (a conjecture) is a Theorem or CounterSatisfiable, one
+    /// without Unsatisfiable or Satisfiable, both meaning validity in the
+    /// logic decided; an unknown one Timeout at the time limit, User when
+    /// interrupted, and GaveUp otherwise; an error SyntaxError where the
+    /// input does not read, and Error otherwise. Text output only, one
+    /// problem per call.
+    #[arg(help_heading = OUTPUT, long, requires = "logic")]
+    pub(crate) szs: bool,
     /// Also print what the search cost: the counters of the engine that
     /// ran, a line each, and the time
     ///

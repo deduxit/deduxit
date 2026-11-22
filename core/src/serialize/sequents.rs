@@ -285,7 +285,14 @@ impl Tables {
         tables.symbols = self
             .symbols
             .into_iter()
-            .map(|(name, arity)| Ok((normalized(name)?, arity)))
+            // Equality's name is no identifier; `FirstOrder::check` holds it
+            // to a binary predicate.
+            .map(|(name, arity)| {
+                if name == crate::first_order::EQUALS {
+                    return Ok((name, arity));
+                }
+                Ok((normalized(name)?, arity))
+            })
             .collect::<Result<_, crate::Error>>()?;
         // Equal lists are one entry, as the parser interns them.
         let mut known = crate::hash::HashMap::<Vec<u32>, Args>::default();

@@ -166,6 +166,11 @@ impl Structure {
         }
         let mut holds: HashMap<&str, HashSet<&[u32]>> = HashMap::default();
         for (name, tuples) in &self.predicates {
+            if name == crate::first_order::EQUALS {
+                return Err(wrong(
+                    "lists equality, which every structure reads as identity".to_owned(),
+                ));
+            }
             let set = holds.entry(name.as_str()).or_default();
             for tuple in tuples {
                 if tuple.iter().any(|&e| e >= self.size) {
@@ -483,6 +488,12 @@ impl Evaluator<'_, '_> {
         let mut tuple = Vec::with_capacity(args.len());
         for &t in args {
             tuple.push(self.term(t, env)?);
+        }
+        // Equality is identity in every structure.
+        if let [left, right] = tuple[..]
+            && name == crate::first_order::EQUALS
+        {
+            return Ok(left == right);
         }
         Ok(self
             .holds

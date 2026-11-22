@@ -739,6 +739,17 @@ fn within(
     limits: &Limits,
     mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
+    // A sequent with `=` is decided with the equality axioms as
+    // hypotheses. Valid with them is valid; "not valid" stands only on a
+    // checked structure, which reads `=` as identity.
+    if let Some(with) = super::equality::with_axioms(sequent, limits)? {
+        let mut outcome = within(&with, options, search, limits, stop)?;
+        if matches!(outcome.verdict, Verdict::NotValid) && outcome.structure.is_none() {
+            outcome.verdict = Verdict::Unknown(Reason::Incomplete);
+            outcome.countermodel = None;
+        }
+        return Ok(outcome);
+    }
     // At first order the embedding, the connection prover, grounding and
     // the model search decide: every other method refuses at its door.
     let method = options.method_for(sequent);

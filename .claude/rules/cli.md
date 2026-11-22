@@ -1395,6 +1395,28 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `native_statistics` prints six counters. `check` of an outcome with a
   structure is `check_structure` (`FiniteCountermodel::check`, exit 0
   valid refutation, 1 invalid, 3 at a limit).
+- **Equality**: `ordinary::sequent_in` appends the equality axioms
+  (`ordinary::equality::with_axioms`, within `--occurrence-limit`) to a
+  sequent with `=` right after reading it, so every path of `prove`, the
+  batch, `interact --logic` and `grade` decides or proves the one
+  sequent with them; `seq print` reads through `show::sequent_in` and
+  prints the sequent as written. A valid verdict line ends `, its last N
+  hypotheses the equality axioms` (`axioms_note`: `image_axioms` on the
+  image path, `outcome_axioms` from the derivation on the native one,
+  nothing for a clausal proof); a session's `close` passes 0.
+- **`--szs`** (`prove`, `requires = "logic"`, no settings key: it
+  changes only what is printed): `prove` wraps `proved` and writes `%
+  SZS status STATUS for NAME` as the last line of standard output
+  (`szs_status`, `szs_name`), after the output, not first as the SZS
+  page recommends, since the status is known only once the output is
+  written (departs from the design's "first line"). The conjecture's
+  presence is the `CONJECTURE` static `proved` sets from the sequent
+  read; `Timeout` is an unknown after the time limit counted from the
+  wrapper's start, `User` one after Ctrl-C, `GaveUp` any other (a memory
+  bound included); an error's status is `SyntaxError` where
+  `Explained::of` finds `Error::Parse` or `Error::Tptp`, else `Error`,
+  the error itself still written to standard error. Refused beside a
+  batch and a format other than text.
 - **The first-order share** (`FIRST_ORDER_SHARE`, 90): where no method
   is given and the sequent's method is grounding or the connection
   prover, `first_order_share` starts a second deadline at 90% of the

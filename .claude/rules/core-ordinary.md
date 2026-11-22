@@ -29,7 +29,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `connection/` (public): the connection prover of classical logic,
-  below; `grounding.rs` (public, behind `sat`) and `structure.rs`: the
+  below; `equality.rs` (public): equality as axioms, below; `grounding.rs` (public, behind `sat`) and `structure.rs`: the
   decidable classes and the finite structure, below; `models.rs`
   (public, behind `sat`): the finite model search, below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
@@ -396,10 +396,20 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     the hot path. The LLTP reader renames nothing: its syntax is the
     linear one, whose `top` and `bot` are the units LLTP writes. A name in term position
     is the innermost bound variable of that name, else a constant or
-    function symbol; in TPTP an unbound upper-case word is refused. `=`
-    and `!=` get the `EQUALITY` hint. `lltp::clauses` counts `[`/`]`
-    with the parentheses, or a quantifier's `[X, Y]` read as an
-    annotation.
+    function symbol; in TPTP an unbound upper-case word is refused.
+    `lltp::clauses` counts `[`/`]` with the parentheses, or a
+    quantifier's `[X, Y]` read as an annotation.
+  - **`=` is read by looking ahead** (`equality_follows`, after an
+    atom's identifier and in `predicate` after its arguments): one
+    compare of the next byte on the hot path (`=`, `!`, or `0xE2` for
+    `≠`, which the native Unicode connectives share), the sign itself
+    tested out of line (`equality_sign`: TPTP's `=>` is no equality).
+    The operand read is then a term (`bare_term`, or the application
+    `application` read, made a function), and `equality` reads the sign
+    and the right term; `!=` and `≠` are `¬(s = t)`. A `cnf` clause
+    (`read_clauses`, `closure`) is parsed as `! [X, …] : (clause)` over
+    its upper-case words in order of first occurrence, error places
+    mapped back past that prefix.
   - **The embedding at first order** (`translate`, `read_back`,
     `decide`; `plan/notes/first-order-search-design.md` §2 and §7):
     - The rows: `∀` takes `∧`'s row and `∃` `∨`'s with one operand
@@ -479,6 +489,52 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     written at 25 when its arena is first-order, a goal state too.
     `wire/level-25.txt` pins a
     sequent and a derivation.
+
+## Equality (`equality.rs`)
+
+Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
+
+- **`=` is the binary predicate named `first_order::EQUALS`** (`"="`),
+  its atoms keyed `=(s, t)`; no identifier is that name, so it never
+  meets a symbol of a text. `Formulas::equality` makes an atom,
+  `has_equality` (one lookup in the tables, none for a propositional
+  arena) is the test every caller asks. `FirstOrder::check` holds `=` to
+  a binary predicate and lets its name pass `name::check`; the JSON
+  tables (`serialize/sequents.rs`'s `read`, `Formulas::of_tables`) take
+  it by that test. `write_atom` writes it infix, `s = t`, which the
+  parser reads back (`¬a = b` is `¬(a = b)`, since an equality is one
+  atom).
+- **The axioms are hypotheses** (`with_axioms`): reflexivity, symmetry,
+  transitivity, and per function symbol of arity ≥ 1 and per predicate of
+  arity ≥ 1 but `=` the all-arguments substitution axiom, built into the
+  sequent's own arena (equal formulas one node) and appended after its
+  hypotheses unless the antecedent holds them, so the call is idempotent
+  and the roots keep their positions (the read-backs match roots by
+  position). Symmetry and transitivity make `=`'s own congruence
+  redundant. One place serves every method: `decide_within`'s `within`
+  augments before the dispatch, the command's `ordinary::sequent_in`
+  after reading (so `prove`, the batch, `interact --logic` and `grade`
+  see the axioms), the harness's `ordinary::tail` after loading. A method
+  called directly (`connection::decide`, `grounding::decide`) takes the
+  sequent as given: a caller that skips `with_axioms` decides `=` as an
+  uninterpreted predicate.
+- **"Not valid" stands only on a structure of identity**: `Structure`'s
+  evaluator reads `=` as identity (`atom`), and `FiniteCountermodel::check`
+  refuses a structure that lists `=`. Grounding's model satisfies every
+  axiom instance over its domain, so its `=` is a congruence, and
+  `structure_of` divides the domain by it (`identified`: union-find over
+  the true `=` atoms, classes numbered by their least element, tuples
+  mapped and deduplicated); the check of the quotient is the verdict's
+  check. `within` turns any other `NotValid` of an augmented sequent
+  into `Unknown(Incomplete)` (none arises today: the axioms give the
+  connection prover slots, and the embedding is unknown at first order).
+  A Kripke model with domains (step 76) must read `=` as identity at
+  each world, or be refused beside `=`.
+- **`axiom_count(formulas, left)`** finds the axioms in a copy of the
+  arena (never builds into the caller's) and counts the trailing
+  hypotheses that are axioms: the command's verdict line ("its last N
+  hypotheses the equality axioms") asks it of the image's sequent or the
+  outcome's derivation.
 
 ## The native engine (`ljt.rs`)
 

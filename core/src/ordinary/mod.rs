@@ -69,6 +69,7 @@ pub mod connection;
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
+pub mod equality;
 #[cfg(feature = "sat")]
 pub mod grounding;
 #[cfg(feature = "sat")]
@@ -137,9 +138,7 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
-#[cfg(any(test, feature = "parse", feature = "serialize"))]
-use crate::first_order::FoTermId;
-use crate::first_order::{Args, FirstOrder, FoTerm, Interner};
+use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Interner};
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -947,7 +946,11 @@ impl Formulas {
         }
         let mut symbols = Vec::with_capacity(tables.symbols.len());
         for ((name, arity), &predicate) in tables.symbols.iter().zip(&predicates) {
-            crate::name::check_ordinary(name)?;
+            // Equality is a binary predicate, which `FirstOrder::check`
+            // has held it to; no identifier is its name.
+            if name != crate::first_order::EQUALS {
+                crate::name::check_ordinary(name)?;
+            }
             let symbol = fo
                 .symbol(name, *arity, predicate)
                 .map_err(|fault| Error::Symbol {
@@ -1128,6 +1131,48 @@ impl Formulas {
         self.predicate_atom(symbol, args)
     }
 
+    /// Returns whether the arena uses equality, the predicate written `s =
+    /// t`: a sequent over it is decided with the equality axioms
+    /// ([`equality::with_axioms`]).
+    pub fn has_equality(&self) -> bool {
+        self.fo
+            .as_ref()
+            .is_some_and(|fo| fo.find_symbol(crate::first_order::EQUALS).is_some())
+    }
+
+    /// Returns the atom `left = right`, adding it unless the arena has it,
+    /// and making the arena first-order where it was not.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Symbol`] where an atom's name is a function symbol's, and
+    /// [`Refusal::Index`] when the arena is full.
+    pub(crate) fn equality(&mut self, left: FoTermId, right: FoTermId) -> Result<NodeId, Error> {
+        self.enter_first_order()?;
+        let name = crate::first_order::EQUALS;
+        let symbol = self
+            .interner()
+            .symbol(name, 2, true)
+            .map_err(|fault| Error::Symbol {
+                name: name.to_owned(),
+                fault,
+            })?;
+        let args = self.interner().list(&[left, right]);
+        self.predicate_atom(symbol, args)
+    }
+
+    /// Returns the atom of the predicate `symbol` of the tables applied to
+    /// `args`, adding it unless the arena has it. The arena must be
+    /// first-order, `args` as many as the symbol's arity.
+    pub(crate) fn applied_atom(
+        &mut self,
+        symbol: crate::first_order::Symbol,
+        args: &[FoTermId],
+    ) -> Result<NodeId, Error> {
+        let args = self.interner().list(args);
+        self.predicate_atom(symbol, args)
+    }
+
     /// Returns the atom of `symbol` applied to `args`, both of the tables,
     /// adding it unless the arena has it. The arena must be first-order.
     fn predicate_atom(
@@ -1160,7 +1205,6 @@ impl Formulas {
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// [`Error::IndexOutOfBounds`] for a body of another arena, and
     /// [`Refusal::Index`] when the arena is full.
-    #[cfg(any(test, feature = "parse", feature = "serialize"))]
     pub(crate) fn binder(
         &mut self,
         forall: bool,
@@ -1420,12 +1464,7 @@ impl Formulas {
         if list.is_empty() {
             return atom(out, a);
         }
-        name(out, &tables.symbols[symbol.index()].0)?;
-        out.write_char('(')?;
-        for (i, &t) in list.iter().enumerate() {
-            if i > 0 {
-                out.write_str(", ")?;
-            }
+        let term = |out: &mut W, t: FoTermId| {
             tables.write_with(
                 out,
                 t,
@@ -1446,7 +1485,23 @@ impl Formulas {
                     }
                     FoTerm::Bound(_) | FoTerm::App(..) => Ok(()),
                 },
-            )?;
+            )
+        };
+        let predicate = tables.symbols[symbol.index()].0.as_str();
+        if let [left, right] = *list
+            && predicate == crate::first_order::EQUALS
+        {
+            term(out, left)?;
+            out.write_str(" = ")?;
+            return term(out, right);
+        }
+        name(out, predicate)?;
+        out.write_char('(')?;
+        for (i, &t) in list.iter().enumerate() {
+            if i > 0 {
+                out.write_str(", ")?;
+            }
+            term(out, t)?;
         }
         out.write_char(')')
     }
@@ -1547,7 +1602,9 @@ impl Display for Formula<'_> {
 /// q(x)` is `∀x. (p(x) → q(x))`. A name that a quantifier around it binds
 /// is that variable; any other name in a term is a constant or a function
 /// symbol. A name has one arity and is a predicate or a function symbol,
-/// not both. Every formula is closed.
+/// not both. Every formula is closed. `s = t` says two terms are equal,
+/// and `s != t` (or `s ≠ t`) is `¬(s = t)`; a sequent that uses `=` is
+/// decided with the equality axioms ([`equality::with_axioms`]).
 ///
 /// `Display` writes the Unicode symbols with every nested binary formula
 /// in brackets, which this syntax reads back.

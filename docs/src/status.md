@@ -200,9 +200,11 @@ in use.
   itself. A goal's `close` and `hint` decide through the embedding; in the bindings a goal that is not valid gets the SAT
   solver's countermodel.
 - [First-order sequents](ordinary-logic.md#first-order-sequents) are
-  read from text, JSON and TPTP (of ILTP's 2 670 first-order problems,
-  all but those with equality and four whose conjecture uses a variable
-  outside its quantifier), proved
+  read from text, JSON and TPTP, `fof` and `cnf` (of ILTP's 2 670
+  first-order problems, all but four whose conjecture uses a variable
+  outside its quantifier), with [equality](ordinary-logic.md#equality)
+  decided by its axioms as extra hypotheses and refuted only by a checked
+  structure that reads `=` as identity, proved
   step by step in LK, LJ and LM with the quantifier rules
   (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
   Typst and SVG. `prove` decides the Bernays–Schönfinkel and the
@@ -229,7 +231,8 @@ in use.
   refuse them by name. A
   [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)
   runs them beside leanCoP, nanoCoP, nanoCoP-i and iLeanCoP on ILTP's
-  first-order problems.
+  first-order problems. `prove --szs` ends its output with the SZS
+  status line that TPTP's tools read.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
   translations, and into intuitionistic logic by Kuroda's and Glivenko's;
@@ -567,8 +570,8 @@ The collection grows by a suite at a time, release by release:
 - 0.8.0: first-order ordinary logic: classical, intuitionistic and
   minimal, searched, with finite countermodels and Rocq certificates; a
   witness left open in a session for an axiom to fill;
-  equality; all of it on the web page, the normal forms, Herbrand's
-  theorem and resolution among it, the linear tab at first order too.
+  all of it on the web page, the normal forms, Herbrand's theorem,
+  resolution and equality among it, the linear tab at first order too.
 
 Not yet placed in a release: the comparison with the other provers on
 the libraries with the engines of 0.2.0.

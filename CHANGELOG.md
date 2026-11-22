@@ -26,6 +26,25 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **Equality in ordinary logic.** `s = t` and `s != t` (natively also
+  `s ≠ t`) are read in the ordinary syntax and in TPTP, and printed
+  `s = t`. A sequent with `=` is decided with the equality axioms of its
+  symbols appended to its hypotheses (`ordinary::equality::with_axioms`;
+  `ordinary::decide_within`, `prove --logic`, its batch and `interact
+  --logic` do it themselves), so a valid one's derivation shows them as
+  its last hypotheses (`equality::axiom_count`, and the verdict line
+  counts them). A finite structure reads `=` as identity, and "not
+  valid" comes only with such a checked structure. `Formulas::has_equality`
+  says whether an arena uses `=`; in JSON it is the binary predicate
+  named `"="`.
+
+- **TPTP's `cnf`**: `read_tptp` and the command read `cnf(NAME, ROLE,
+  CLAUSE).`, each clause the universal closure of its disjunction, the
+  role `negated_conjecture` a hypothesis.
+
+- **`prove --szs`** ends the text output of `--logic` with an SZS status
+  line, `% SZS status STATUS for NAME`, for the tools of the TPTP World.
+
 - **`ordinary::tptp_text`** gives a TPTP file's text from its bytes for
   `read_tptp`: a byte that is not UTF-8 in a `%` comment, where some of
   ILTP's problems write an author's name in Latin-1, is read, and one

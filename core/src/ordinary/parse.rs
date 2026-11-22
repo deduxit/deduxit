@@ -2,8 +2,8 @@
 // Licensed under the EUPL
 
 //! A precedence parser for ordinary formulas and sequents, in two
-//! dialects: this crate's syntax (documented on [`Sequent`]) and the
-//! propositional formulas of TPTP's `fof`, the syntax of the ILTP library.
+//! dialects: this crate's syntax (documented on [`Sequent`]) and TPTP's
+//! `fof` and `cnf`, the syntax of the ILTP library.
 //! It keeps its own stack, so a formula of any depth is read without
 //! recursion.
 
@@ -13,10 +13,6 @@ use crate::errors::ParseError;
 use crate::first_order::FoTermId;
 use crate::limits::{Limits, Refusal};
 use crate::linear::lltp::{Clauses, Status, clauses};
-
-/// The hint for `=` and `!=`, which ordinary formulas do not have.
-const EQUALITY: &str =
-    "ordinary formulas have no equality; write it as a predicate, such as eq(a, b)";
 
 /// A binary connective as it is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -298,14 +294,7 @@ impl<'a> Parser<'a> {
                         &["a connective", "`,`", "`|-`", "the end"]
                     };
                     let at = self.at.max(at);
-                    let error = ParseError::new(self.input, at, expected);
-                    let equality =
-                        self.input[at..].starts_with('=') || self.input[at..].starts_with("!=");
-                    return Err(if equality {
-                        error.with_hint(EQUALITY).into()
-                    } else {
-                        error.into()
-                    });
+                    return Err(ParseError::new(self.input, at, expected).into());
                 };
                 return Ok((self.reduce(operand, None)?, end));
             }
@@ -352,6 +341,10 @@ impl<'a> Parser<'a> {
             Some("true") if native => self.add(Node::True),
             Some("false") if native => self.add(Node::False),
             Some(name) if self.input.as_bytes().get(self.at) == Some(&b'(') => self.predicate(name),
+            Some(name) if self.equality_follows() => {
+                let left = self.bare_term(name, at)?;
+                self.equality(left)
+            }
             Some(name) => {
                 let id = match self.formulas.atom(name) {
                     Ok(id) => id,
@@ -506,6 +499,23 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn predicate(&mut self, name: &'a str) -> Result<NodeId, Error> {
+        let (symbol, args) = self.application(name)?;
+        // `f(a) = b`: the application was a term.
+        if self.equality_follows() {
+            let symbol = self.symbol_name(symbol, true);
+            let left = self.formulas.function(&symbol, &args)?;
+            return self.equality(left);
+        }
+        let symbol = self.symbol_name(symbol, false);
+        let id = self.formulas.predicate(&symbol, &args)?;
+        self.within(id)
+    }
+
+    /// Reads the arguments of `name`, whose `(` follows, and returns the
+    /// name with its arguments, every inner application made a term. It
+    /// reads on a stack of its own, so a term of any depth costs no
+    /// recursion.
+    fn application(&mut self, name: &'a str) -> Result<(&'a str, Vec<FoTermId>), Error> {
         // The applications open, each its symbol's name and the arguments
         // read so far.
         let mut open: Vec<(&'a str, Vec<FoTermId>)> = Vec::new();
@@ -523,19 +533,7 @@ impl<'a> Parser<'a> {
                     name = word;
                     break;
                 }
-                let word = crate::name::normalized(word);
-                let term = match self.scope.iter().rposition(|bound| *bound == *word) {
-                    Some(at) => self.formulas.variable((self.scope.len() - 1 - at) as u32),
-                    None if self.dialect == Dialect::Tptp
-                        && word.starts_with(char::is_uppercase) =>
-                    {
-                        return Err(self.unexpected(here, &["a bound variable", "a constant"]));
-                    }
-                    None => {
-                        let word = self.symbol_name(&word, true);
-                        self.formulas.function(&word, &[])?
-                    }
-                };
+                let term = self.bare_term(word, here)?;
                 // The term may end its own application and those around.
                 let mut term = Some(term);
                 loop {
@@ -554,14 +552,77 @@ impl<'a> Parser<'a> {
                     }
                     let (symbol, args) = open.pop().expect("an application is open");
                     if open.is_empty() {
-                        let symbol = self.symbol_name(symbol, false);
-                        let id = self.formulas.predicate(&symbol, &args)?;
-                        return self.within(id);
+                        return Ok((symbol, args));
                     }
                     let symbol = self.symbol_name(symbol, true);
                     term = Some(self.formulas.function(&symbol, &args)?);
                 }
             }
+        }
+    }
+
+    /// Returns the term a word without arguments is, read at `here`: the
+    /// variable of the innermost binder of that name waiting for its body,
+    /// else a constant. In TPTP an upper-case word is a variable, and one
+    /// that no binder binds is refused.
+    fn bare_term(&mut self, word: &str, here: usize) -> Result<FoTermId, Error> {
+        let word = crate::name::normalized(word);
+        match self.scope.iter().rposition(|bound| *bound == *word) {
+            Some(at) => Ok(self.formulas.variable((self.scope.len() - 1 - at) as u32)),
+            None if self.dialect == Dialect::Tptp && word.starts_with(char::is_uppercase) => {
+                Err(self.unexpected(here, &["a bound variable", "a constant"]))
+            }
+            None => {
+                let word = self.symbol_name(&word, true);
+                self.formulas.function(&word, &[])
+            }
+        }
+    }
+
+    /// Returns whether `=`, `!=` or natively `≠` follows, skipping white
+    /// space: the operand just read is then a term. A propositional text
+    /// pays one compare per atom; TPTP's `=>` is no equality.
+    fn equality_follows(&mut self) -> bool {
+        let rest = self.rest();
+        matches!(rest.as_bytes().first(), Some(b'=' | b'!' | 0xE2)) && self.equality_sign(rest)
+    }
+
+    /// Returns whether `rest` starts with an equality's sign.
+    #[cold]
+    #[inline(never)]
+    fn equality_sign(&self, rest: &str) -> bool {
+        (rest.starts_with('=') && !(self.dialect == Dialect::Tptp && rest.starts_with("=>")))
+            || rest.starts_with("!=")
+            || (self.dialect == Dialect::Native && rest.starts_with('≠'))
+    }
+
+    /// Reads the sign that follows the term `left` and the term after it,
+    /// and returns the atom `left = right`, or its negation for `!=` and
+    /// `≠`.
+    #[cold]
+    #[inline(never)]
+    fn equality(&mut self, left: FoTermId) -> Result<NodeId, Error> {
+        let negated = self.eat("!=") || self.eat("≠");
+        if !negated {
+            self.eat("=");
+        }
+        let here = self.next_at();
+        let Some(word) = self.word() else {
+            return Err(self.unexpected(here, &["a term"]));
+        };
+        let right = if self.input[self.at..].starts_with('(') {
+            let (symbol, args) = self.application(word)?;
+            let symbol = self.symbol_name(symbol, true);
+            self.formulas.function(&symbol, &args)?
+        } else {
+            self.bare_term(word, here)?
+        };
+        let equal = self.formulas.equality(left, right)?;
+        let equal = self.within(equal)?;
+        if negated {
+            self.add(Node::Not(equal))
+        } else {
+            Ok(equal)
         }
     }
 
@@ -796,7 +857,11 @@ pub struct Problem {
 /// as here. A quantifier binds the unit after it: `! [X] : p(X) & q` is
 /// `(∀X. p(X)) ∧ q`. An atom may be a predicate applied to terms, a term
 /// a variable (upper-case, bound by a quantifier) or a function symbol
-/// applied to terms (lower-case). The file's statuses are read as
+/// applied to terms (lower-case). `s = t` and `s != t` say that two terms
+/// are equal and that they are not. A clause `cnf(name, role, clause).`
+/// is the universal closure of its disjunction of literals over its
+/// upper-case variables, and its role may be `negated_conjecture`, a
+/// hypothesis like the others. The file's statuses are read as
 /// [`lltp::read`](crate::linear::lltp::read) reads them.
 ///
 /// A name TPTP allows and this crate's syntax keeps for itself is renamed
@@ -820,7 +885,7 @@ pub struct Problem {
 /// arities or as a predicate and a function symbol, and
 /// [`Refusal::Occurrences`] past the bound.
 pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
-    let clauses = clauses(text, |message| Error::Tptp { message })?;
+    let clauses = clauses(text, |message| Error::Tptp { message }, true)?;
     // A name TPTP allows and this syntax refuses is renamed, and the file
     // read again: a keyword, or a name both a predicate and a function
     // symbol. Each try renames one name more, so the tries end; a file
@@ -942,11 +1007,27 @@ fn read_clauses(
 ) -> Result<Problem, Error> {
     let mut formulas = Formulas::default();
     let mut roots = 0;
-    let mut read = |formula: &str| {
+    let mut read = |formula: &str, clausal: bool| {
         roots += 1;
         count_within(roots, limits.occurrences)?;
+        // A parse error's place in the file, which the formula is a part of.
+        let (start, len) = (
+            formula.as_ptr() as usize - clauses.code().as_ptr() as usize,
+            formula.len(),
+        );
+        // A `cnf` clause is the universal closure of its disjunction, read
+        // as `! [X, …] : (clause)`; `prefix` is that text's length before
+        // the clause.
+        let closed;
+        let (input, prefix) = match clausal.then(|| closure(formula)).flatten() {
+            Some((text, prefix)) => {
+                closed = text;
+                (closed.as_str(), prefix)
+            }
+            None => (formula, 0),
+        };
         let mut parser = Parser {
-            input: formula,
+            input,
             at: 0,
             dialect: Dialect::Tptp,
             formulas: &mut formulas,
@@ -956,17 +1037,15 @@ fn read_clauses(
             scope: Vec::new(),
             renames: Some(renames),
         };
-        // A parse error's place in the file, which the formula is a part of.
-        let (start, len) = (
-            formula.as_ptr() as usize - clauses.code().as_ptr() as usize,
-            formula.len(),
-        );
         parser
             .formula()
             .map(|(formula, _)| formula)
             .map_err(|error| {
                 if let Error::Parse(error) = error {
-                    let at = |at: usize| (start + at.min(len), at >= len);
+                    let at = |at: usize| {
+                        let at = at.saturating_sub(prefix);
+                        (start + at.min(len), at >= len)
+                    };
                     Error::Parse(Box::new(clauses.located(text, &error, at)))
                 } else {
                     error
@@ -975,12 +1054,12 @@ fn read_clauses(
     };
     let left: Vec<_> = clauses
         .hypotheses()
-        .map(&mut read)
+        .map(|(formula, clausal)| read(formula, clausal))
         .collect::<Result<_, _>>()?;
     // Without a conjecture TPTP asks for the hypotheses' refutation; a
     // file of no formula at all, empty or cut short, is no problem.
     let right = match clauses.conjecture() {
-        Some(conjecture) => vec![read(conjecture)?],
+        Some(conjecture) => vec![read(conjecture, false)?],
         None if left.is_empty() => {
             return Err(Error::Tptp {
                 message: "no formula".to_owned(),
@@ -992,6 +1071,30 @@ fn read_clauses(
         sequent: Sequent::new(formulas, left, right)?,
         status: clauses.status,
     })
+}
+
+/// Returns the universal closure of the `cnf` clause `clause` as TPTP text,
+/// `! [X, …] : (clause)` with its variables (its words that start
+/// upper-case) in the order they first occur, and the length of the text
+/// before the clause; `None` for a clause without variables, which reads
+/// as it is.
+#[cold]
+#[inline(never)]
+fn closure(clause: &str) -> Option<(String, usize)> {
+    let mut variables: Vec<std::borrow::Cow<'_, str>> = Vec::new();
+    for word in words(clause) {
+        if word.starts_with(|c: char| c.is_ascii_uppercase()) && !variables.contains(&word) {
+            variables.push(word);
+        }
+    }
+    if variables.is_empty() {
+        return None;
+    }
+    let mut text = format!("! [{}] : (", variables.join(", "));
+    let prefix = text.len();
+    text.push_str(clause);
+    text.push(')');
+    Some((text, prefix))
 }
 
 #[cfg(test)]
@@ -1120,12 +1223,45 @@ mod tests {
         assert!(read("p(X)").is_err());
         assert!(read("! [] : p").is_err());
         assert!(read("! X : p(X)").is_err());
-        let Err(Error::Parse(e)) = read("a = b") else {
-            panic!("a = b");
-        };
-        assert_eq!(e.hint, Some(EQUALITY));
+        // Equality between terms, `!=` its negation; `=>` stays the
+        // implication.
+        assert_eq!(
+            read("! [X] : (f(X) = X => ~ a != g(b, X))").unwrap(),
+            "⊢ ∀X. (f(X) = X → ¬¬a = g(b, X))"
+        );
+        assert!(read("a = ").is_err());
         // An unmatched bracket is refused.
         assert!(read("p ] q").is_err());
+    }
+
+    /// A `cnf` clause is the universal closure of its disjunction, a
+    /// negated conjecture one more hypothesis; a `cnf` conjecture is
+    /// refused, and an error in a clause names its place in the file. The
+    /// native syntax reads `=`, `!=` and `≠` and prints `=` back.
+    #[test]
+    fn reads_cnf_and_equality() {
+        let text = "cnf(a, axiom, p(X) | ~ q(X, Y) | X = f(Y)).\n\
+                    cnf(n, negated_conjecture, ~ p(a)).\n\
+                    fof(b, axiom, q(a, b)).\n";
+        let problem = read_tptp(text, &Limits::default()).unwrap();
+        assert_eq!(
+            problem.sequent.to_string(),
+            "∀X. ∀Y. ((p(X) ∨ ¬q(X, Y)) ∨ X = f(Y)), ¬p(a), q(a, b) ⊢"
+        );
+        assert!(read_tptp("cnf(c, conjecture, p).", &Limits::default()).is_err());
+        let Err(Error::Parse(e)) = read_tptp("cnf(a, axiom, p(X) | | q).", &Limits::default())
+        else {
+            panic!("an empty literal");
+        };
+        assert_eq!((e.line, e.column), (1, 22));
+
+        let sequent: Sequent = "a = b, b != c |- f(a) ≠ c, forall x. x = x"
+            .parse()
+            .unwrap();
+        assert_eq!(sequent.to_string(), "a = b, ¬b = c ⊢ ¬f(a) = c, ∀x. x = x");
+        let again: Sequent = sequent.to_string().parse().unwrap();
+        assert_eq!(again.to_string(), sequent.to_string());
+        assert!(sequent.formulas().has_equality());
     }
 
     /// TPTP's connectives, its constants, the clauses' roles and the

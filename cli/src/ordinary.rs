@@ -39,20 +39,55 @@ pub(crate) fn sequent_in(
     most: crate::io::Most,
 ) -> Result<ordinary::Sequent> {
     let within = bound(most);
-    match format {
+    let sequent = match format {
         // The library's error says that the text is no TPTP problem.
-        InputFormat::Tptp => Ok(ordinary::read_tptp(text, &within)
-            .map_err(|e| refused(e, most))?
-            .sequent),
+        InputFormat::Tptp => {
+            ordinary::read_tptp(text, &within)
+                .map_err(|e| refused(e, most))?
+                .sequent
+        }
         InputFormat::Text | InputFormat::Auto | InputFormat::Lines => {
             ordinary::Sequent::parse_within(text, &within).map_err(|e| match e {
                 Error::Parse(_) => crate::parse_error(text, e),
                 e => refused(e, most),
-            })
+            })?
         }
         _ => bail!(
             "--logic reads text (one sequent, or one per line with --input-format lines) or TPTP problems"
         ),
+    };
+    // A sequent with `=` is decided, and proved by hand, with the equality
+    // axioms as its last hypotheses, so that every method decides the one
+    // sequent and every derivation shows them.
+    Ok(ordinary::equality::with_axioms(&sequent, &within)
+        .map_err(|e| refused(e, most))?
+        .unwrap_or(sequent))
+}
+
+/// Returns what a verdict line adds for a derivation whose conclusion's
+/// last `axioms` hypotheses are the equality axioms: nothing for none.
+pub(crate) fn axioms_note(axioms: usize) -> String {
+    match axioms {
+        0 => String::new(),
+        n => format!(", its last {n} hypotheses the equality axioms"),
+    }
+}
+
+/// Returns how many of the last hypotheses of the ordinary sequent an
+/// image translates are equality axioms.
+pub(crate) fn image_axioms(image: &Image) -> usize {
+    let sequent = image.ordinary();
+    ordinary::equality::axiom_count(sequent.formulas(), sequent.left())
+}
+
+/// Returns how many of the last hypotheses of the derivation of a valid
+/// outcome are equality axioms: `0` without a derivation.
+fn outcome_axioms(outcome: &ordinary::Outcome) -> usize {
+    match &outcome.verdict {
+        ordinary::Verdict::Valid(ordinary::Evidence::Derivation(derivation)) => {
+            ordinary::equality::axiom_count(derivation.formulas(), derivation.sequent().0)
+        }
+        _ => 0,
     }
 }
 
@@ -937,7 +972,9 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
         ordinary::Verdict::Valid(_) if method == Method::Tableau => {
             format!("valid ({context}): every branch closes, a checked derivation of LK")
         }
-        ordinary::Verdict::Valid(_) => format!("valid ({context})"),
+        ordinary::Verdict::Valid(_) => {
+            format!("valid ({context}){}", axioms_note(outcome_axioms(outcome)))
+        }
         ordinary::Verdict::NotValid => match &outcome.search {
             ordinary::Search::Table(table) => {
                 let rows = table.rows();
@@ -1114,12 +1151,14 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
 /// Returns the first line of the text output for an ordinary sequent
 /// decided in `logic` through its image under `translation`: the verdict,
 /// the logic and the translation, the engine, and for an undecided
-/// sequent why.
+/// sequent why. A valid one says that the last `axioms` hypotheses are the
+/// equality axioms ([`image_axioms`]).
 pub(crate) fn verdict_line(
     outcome: &Outcome,
     logic: Logic,
     translation: Translation,
     incomplete: bool,
+    axioms: usize,
     ended: &Ended,
 ) -> String {
     let context = format!(
@@ -1128,7 +1167,7 @@ pub(crate) fn verdict_line(
         outcome.engine
     );
     match &outcome.verdict {
-        Verdict::Proved(_) => format!("valid ({context})"),
+        Verdict::Proved(_) => format!("valid ({context}){}", axioms_note(axioms)),
         Verdict::Unprovable(_) if incomplete => format!(
             "unknown ({context}): the translated sequent is unprovable, which leaves a \
              first-order sequent open, since the translation may lose its proofs"

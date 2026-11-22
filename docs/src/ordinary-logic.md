@@ -540,6 +540,34 @@ $ deduxit prove --logic classical --quiet --file pel1.p
 valid (classical logic by the affine translation into affine MALL, focus engine)
 ```
 
+A clause `cnf(NAME, ROLE, CLAUSE).` is a disjunction of literals whose
+upper-case variables hold for every value: `cnf(a, axiom, p(X) | ~
+q(X)).` reads as `∀X. (p(X) ∨ ¬q(X))`. A clause of the role
+`negated_conjecture` is a hypothesis like the others, so a file of
+clauses asks that they be refuted together.
+
+`--szs` ends the output with the line TPTP's tools read, `% SZS status
+STATUS for NAME`. A file with a conjecture is a `Theorem` or
+`CounterSatisfiable`, one without (such as a file of clauses)
+`Unsatisfiable` or `Satisfiable`; an unknown answer is `Timeout` at the
+time limit and `GaveUp` otherwise:
+
+```console
+$ echo 'cnf(a, axiom, p(X) | ~ q(X)).' > clauses.p
+$ echo 'cnf(b, axiom, q(a)).' >> clauses.p
+$ echo 'cnf(c, negated_conjecture, ~ p(a)).' >> clauses.p
+$ deduxit prove --logic classical --quiet --szs --file clauses.p
+valid (classical logic by the connection prover)
+% SZS status Unsatisfiable for clauses
+$ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
+$ deduxit prove --logic intuitionistic --quiet --szs --file pel1.p
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+% SZS status CounterSatisfiable for pel1
+```
+
+The statuses mean validity in the logic `--logic` names, as the ILTP
+library reads them for intuitionistic logic.
+
 ## First-order sequents
 
 A formula may apply predicates to terms and bind variables:
@@ -547,8 +575,9 @@ A formula may apply predicates to terms and bind variables:
 quantifier reaches as far right as it can, and `forall x y.` binds
 two). A name in a term is the variable of the nearest quantifier that
 binds it, else a constant or a function symbol, as in `p(f(a), x)`. TPTP's
-`! [X] :` and `? [X] :` read the same way. There is no equality yet: `=`
-is refused, with a hint to write a predicate.
+`! [X] :` and `? [X] :` read the same way. `s = t` says two terms are
+equal, and `s != t` (or `s ≠ t`) that they are not
+([Equality](#equality)).
 
 `prove` decides a first-order sequent by grounding where it lies in a
 class grounding decides ([Decidable classes](#decidable-classes)), in
@@ -965,6 +994,42 @@ A quantifier inference names its term by `"term": k`, a position in
 witness is `{"M": k}` (`$1` for `k = 0`), and `"bindings": [[k, term,
 step]]` lists the witnesses an axiom filled; its inferences are written
 as their steps made them, and reading the session fills them again.
+
+### Equality
+
+A sequent that uses `=` is decided with the equality axioms of its
+symbols as extra hypotheses, after its own:
+- `∀x. x = x`, `∀x. ∀y. (x = y → y = x)` and `∀x. ∀y. ∀z. ((x = y ∧ y =
+  z) → x = z)`;
+- for each function symbol `f` of n arguments, that equal arguments give
+  equal values: `∀x1. ∀y1. (x1 = y1 → f(x1) = f(y1))` for one argument;
+- for each predicate `p` of n arguments other than `=`, that equal
+  arguments give the same truth: `∀x1. ∀y1. ((x1 = y1 ∧ p(x1)) → p(y1))`
+  for one argument.
+
+Every method then decides the sequent as it decides any other, in every
+logic, and a valid one gets a derivation whose conclusion has the axioms
+as its last hypotheses; the verdict line says how many they are. `prove
+--tree never` leaves the derivation out here, since the axioms make it
+long:
+
+```console
+$ deduxit prove --logic classical --tree never 'a = b, p(a) |- p(b)'
+valid (classical logic by the connection prover), its last 4 hypotheses the equality axioms
+$ deduxit prove --logic classical '|- a = b'; echo "exit $?"
+not valid (classical logic by grounding): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+a = 0
+b = 1
+exit 1
+```
+
+A structure reads `=` as identity, the same element on both sides, and
+lists no tuples for it. A sequent is called not valid only with such a
+structure, checked; every other search that ends without a proof leaves
+it unknown. `interact --logic` starts with the axioms among the
+hypotheses too, so that a proof by hand can use them. In JSON `=` is the
+binary predicate named `"="` in `symbols`.
 
 ## JSON output
 

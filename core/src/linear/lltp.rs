@@ -117,7 +117,7 @@ pub enum Status {
 /// - [`Error::Refused`] for a sequent past `limits`, as
 ///   [`Sequent::parse_within`] refuses it.
 pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
-    let clauses = clauses(text, |message| Error::Lltp { message })?;
+    let clauses = clauses(text, |message| Error::Lltp { message }, false)?;
     let Some(conjecture) = &clauses.conjecture else {
         return Err(Error::Lltp {
             message: "no conjecture".to_owned(),
@@ -126,7 +126,11 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     // The sequent as text, and where each formula of the file starts in it.
     let mut sequent = String::new();
     let mut pieces = Vec::new();
-    let ranges = clauses.hypotheses.iter().chain([conjecture]);
+    let ranges = clauses
+        .hypotheses
+        .iter()
+        .map(|(r, _)| r)
+        .chain([conjecture]);
     for (i, range) in ranges.enumerate() {
         sequent.push_str(match i {
             0 => "",
@@ -172,8 +176,9 @@ pub(crate) struct Clauses {
     /// [`HYPHEN`] and a `.` as [`DOT`].
     code: String,
     /// The formulas of the clauses with the role `axiom`, `hypothesis`,
-    /// `lemma` or `theorem`.
-    hypotheses: Vec<std::ops::Range<usize>>,
+    /// `lemma` or `theorem`, and of `cnf` clauses with `negated_conjecture`,
+    /// each with whether it is a `cnf` clause.
+    hypotheses: Vec<(std::ops::Range<usize>, bool)>,
     /// The formula of the one clause with the role `conjecture`, if any.
     conjecture: Option<std::ops::Range<usize>>,
     /// The provability the header claims.
@@ -181,9 +186,13 @@ pub(crate) struct Clauses {
 }
 
 impl Clauses {
-    /// Returns the hypotheses' formulas, in the order of the file.
-    pub(crate) fn hypotheses(&self) -> impl Iterator<Item = &str> {
-        self.hypotheses.iter().map(|r| &self.code[r.clone()])
+    /// Returns the hypotheses' formulas, in the order of the file, each
+    /// with whether it is a `cnf` clause, whose variables no quantifier
+    /// binds.
+    pub(crate) fn hypotheses(&self) -> impl Iterator<Item = (&str, bool)> {
+        self.hypotheses
+            .iter()
+            .map(|(r, clausal)| (&self.code[r.clone()], *clausal))
     }
 
     /// Returns the clauses' text: the file's without comments, with the
@@ -251,12 +260,14 @@ impl Clauses {
 
 /// Splits a file of `fof(name, role, formula).` clauses as [`read`]
 /// describes, and checks that no formula is empty and that there is
-/// exactly one conjecture.
+/// at most one conjecture. Where `cnf` is set it takes TPTP's `cnf(name,
+/// role, clause).` too, its role `negated_conjecture` a hypothesis and
+/// `conjecture` refused.
 ///
 /// `error` makes the error for a file of the wrong form from its message;
 /// a second conjecture is [`Error::SeveralConjectures`] whatever `error`
 /// makes.
-pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses, Error> {
+pub(crate) fn clauses(text: &str, error: fn(String) -> Error, cnf: bool) -> Result<Clauses, Error> {
     // The first status for the problem's logic, `(intuit.)` or `(linear)`,
     // and the first plain one. A status for the logic that says neither
     // `Theorem` nor `Non-Theorem` (`Open`, `Unsolved`) is no claim, and
@@ -315,11 +326,18 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
     let mut conjecture = None;
     let mut rest = code.trim_start();
     while !rest.is_empty() {
-        let body = rest
-            .strip_prefix("fof")
+        let (clausal, after) = match rest.strip_prefix("fof") {
+            Some(after) => (false, Some(after)),
+            None if cnf => (true, rest.strip_prefix("cnf")),
+            None => (false, None),
+        };
+        let body = after
             .map(str::trim_start)
             .and_then(|r| r.strip_prefix('('))
-            .ok_or_else(|| error(format!("expected `fof(` at `{}`", excerpt(rest))))?;
+            .ok_or_else(|| {
+                let expected = if cnf { "`fof(` or `cnf(`" } else { "`fof(`" };
+                error(format!("expected {expected} at `{}`", excerpt(rest)))
+            })?;
         let (name, body) = body
             .split_once(',')
             .ok_or_else(|| error(format!("a clause without a role at `{}`", excerpt(rest))))?;
@@ -358,7 +376,16 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
         let range = start..start + formula.len();
         match role.trim() {
             // A lemma and a theorem are claimed true, as an axiom is.
-            "axiom" | "hypothesis" | "lemma" | "theorem" => hypotheses.push(range),
+            "axiom" | "hypothesis" | "lemma" | "theorem" => hypotheses.push((range, clausal)),
+            // A clause of the conjecture's negation is one more to refute.
+            "negated_conjecture" if clausal => hypotheses.push((range, clausal)),
+            "conjecture" if clausal => {
+                return Err(error(format!(
+                    "clause `{name}` is a `cnf` clause with the role `conjecture`, which TPTP \
+                     gives no meaning: a clause of the negated conjecture has the role \
+                     `negated_conjecture`"
+                )));
+            }
             "conjecture" if conjecture.is_some() => {
                 return Err(Error::SeveralConjectures {
                     second: name.to_owned(),

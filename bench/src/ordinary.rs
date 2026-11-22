@@ -33,12 +33,8 @@ use std::sync::atomic::Ordering;
 /// embedding, and `auto` the logic's default. A method that does not
 /// decide the logic gives a `refused` row.
 pub fn tail(args: &OneArgs, logic: Logic) -> String {
-    let problem = match problems::load_ordinary(&args.problem) {
+    let mut problem = match problems::load_ordinary(&args.problem) {
         Ok(problem) => problem,
-        // Equality is not read yet: the reader refuses `=` and `!=` by name.
-        Err(error) if equality(&error) => {
-            return row(&[("verdict", "refused"), ("reason", "equality")]);
-        }
         Err(error) => {
             return row(&[
                 ("verdict", "error"),
@@ -46,6 +42,18 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
             ]);
         }
     };
+    // A problem with `=` is decided with the equality axioms as its last
+    // hypotheses, as the command decides it, whichever method runs.
+    match ordinary::equality::with_axioms(&problem.sequent, &Limits::default()) {
+        Ok(Some(with)) => problem.sequent = with,
+        Ok(None) => {}
+        Err(error) => {
+            return row(&[
+                ("verdict", "error"),
+                ("reason", &clean(&format!("{error:#}"))),
+            ]);
+        }
+    }
     let expected = expected(problem.status, logic);
     let method = match args.engine {
         EngineChoice::Ordinary(method) => method,
@@ -71,15 +79,6 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
             ("reason", &format!("the harness does not run {other}")),
         ]),
     }
-}
-
-/// Returns whether a problem's error is the reader's refusal of equality,
-/// which it reads only from a later version on.
-fn equality(error: &anyhow::Error) -> bool {
-    matches!(
-        error.downcast_ref::<Error>(),
-        Some(Error::Parse(parse)) if parse.hint.is_some_and(|hint| hint.contains("no equality"))
-    )
 }
 
 /// Returns the `expected` column of a problem in `logic`. ILTP's statuses

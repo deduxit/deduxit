@@ -1631,7 +1631,20 @@ a ∧ b ⊢ b       a ∧ b ⊢ a
 
 An ordinary formula may apply predicates to terms and bind variables
 (`forall x. p(x) -> q(x)`, `exists x. p(x)`, `∀x.`, `∃x.`; TPTP's `! [X]
-:` and `? [X] :`); there is no `=` yet. A TPTP file's
+:` and `? [X] :`). `s = t` is equality, `s != t` or `s ≠ t` its
+negation (TPTP's `=` and `!=` alike): a sequent with `=` is decided
+with the equality axioms of its symbols (reflexivity, symmetry,
+transitivity, and for each function and predicate symbol that equal
+arguments give equal values or the same truth) appended to its
+hypotheses, so a valid one's derivation has them as its last hypotheses
+(the verdict line counts them), and "not valid" comes only with a
+checked finite structure, which reads `=` as identity. A TPTP file may
+hold `cnf(NAME, ROLE, CLAUSE).` clauses, each the universal closure of
+its disjunction, `negated_conjecture` a hypothesis. `prove --logic L
+--szs` ends its text output with `% SZS status STATUS for NAME`
+(`Theorem`, `CounterSatisfiable`, without a conjecture `Unsatisfiable`,
+`Satisfiable`; `Timeout`, `GaveUp`, `User`, `SyntaxError`, `Error`). A
+TPTP file's
 `include('NAME').` is read from `$TPTP`, else the problem's directory or
 one above it, and a TPTP name this syntax keeps for itself is renamed
 (`par` as `par_`, a function symbol named like a predicate as `name_f`).

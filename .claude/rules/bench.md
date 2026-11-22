@@ -55,9 +55,12 @@ serde_json, which the CLI and the core's tests already have.
   U+FFFD in a comment and is refused elsewhere, naming its line; 107 of
   the 940 first-order problems without equality hold Latin-1 in their
   comments, which the lossy reading before took anywhere). A method's first-order refusal (LJT, the SAT solver) is a
-  `refused` row with the reason `first_order`, the reader's refusal of
-  `=` one with `equality` (`summary` drops both, as a configuration that
-  does not apply); every other error is the reader's and a finding. The
+  `refused` row with the reason `first_order` (`summary` drops it, as a
+  configuration that does not apply); every other error is the reader's
+  and a finding. A problem with `=` gets the equality axioms as its
+  last hypotheses after loading (`ordinary::equality::with_axioms` in
+  `tail`), whichever method runs, as the command decides it; files from
+  before 78a have `refused`/`equality` rows for those problems. The
   embedding takes a first-order problem, and an unprovable image of one is
   an `unknown` row with the reason `incomplete` (`Searched::incomplete`),
   as `ordinary::decide` answers: mapped to `unprovable` it read a

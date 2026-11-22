@@ -230,6 +230,68 @@ pub(crate) fn unread_into(args: &ProveArgs, line: &str) -> Result<Status> {
 /// or a fragment that does not apply), an output that cannot be made, or
 /// a proof the checker rejects.
 pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
+    if !args.szs {
+        return proved(args, given);
+    }
+    if crate::batch::is_batch(args) {
+        bail!("--szs answers for one problem: give it as the argument, or one file with --file");
+    }
+    if args.output.format() != crate::argument_parsing::Format::Text {
+        bail!("--szs writes its line into text output: leave out --format, or give --format text");
+    }
+    let start = Instant::now();
+    let decided = proved(args, given);
+    let limit = args.settings(given).ok().and_then(|s| time_limit(&s));
+    let status = szs_status(&decided, *CONJECTURE.get().unwrap_or(&true), || {
+        limit.is_some_and(|limit| start.elapsed() >= limit)
+    });
+    let line = format!("% SZS status {status} for {}", szs_name(&args.input));
+    io::write(None, &line)?;
+    decided
+}
+
+/// Whether the ordinary sequent `prove` read has a formula right of `⊢`,
+/// which TPTP calls a conjecture; set once, for `--szs`.
+static CONJECTURE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Returns the SZS status of what `prove` answered for a sequent with a
+/// conjecture where `conjecture` is set: an unknown one `Timeout` where
+/// `timed_out` says the time limit passed.
+fn szs_status(
+    decided: &Result<Status>,
+    conjecture: bool,
+    timed_out: impl FnOnce() -> bool,
+) -> &'static str {
+    match decided {
+        Ok(Status::Yes) if conjecture => "Theorem",
+        Ok(Status::Yes) => "Unsatisfiable",
+        Ok(Status::No) if conjecture => "CounterSatisfiable",
+        Ok(Status::No) => "Satisfiable",
+        Ok(Status::Unknown) if crate::interrupted() => "User",
+        Ok(Status::Unknown) if timed_out() => "Timeout",
+        Ok(Status::Unknown) => "GaveUp",
+        Ok(Status::Error) => "Error",
+        Err(error) => match crate::Explained::of(error) {
+            Some(deduxit::Error::Parse(_) | deduxit::Error::Tptp { .. }) => "SyntaxError",
+            _ => "Error",
+        },
+    }
+}
+
+/// Returns the problem's name an SZS line gives: the file's name without
+/// its extension, `stdin` for standard input, `sequent` for the argument.
+fn szs_name(input: &crate::argument_parsing::SequentInput) -> String {
+    match (&input.sequent, input.file.first()) {
+        (Some(_), _) => "sequent".to_owned(),
+        (None, Some(path)) if path.as_os_str() != "-" => path
+            .file_stem()
+            .map_or_else(|| "stdin".to_owned(), |s| s.to_string_lossy().into_owned()),
+        (None, _) => "stdin".to_owned(),
+    }
+}
+
+/// Runs `prove` as its documentation says, without the SZS line.
+fn proved(args: &ProveArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
     let settings = args.settings(given)?;
     if crate::batch::is_batch(args) {
@@ -263,6 +325,8 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 return unread_into(args, &unread(limit));
             };
             let sequent = sequent?;
+            // Set once: `prove` reads one sequent.
+            let _ = CONJECTURE.set(!sequent.right().is_empty());
             if options.method_for(&sequent) != Method::Embedding {
                 output_can_be_made(args, format)?;
                 match crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)? {
@@ -525,6 +589,7 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                     image.logic(),
                     image.translation(),
                     crate::ordinary::incomplete(&outcome, image),
+                    crate::ordinary::image_axioms(image),
                     &ended,
                 );
                 // The logic's default gave way: say why, so that the user

@@ -34,7 +34,12 @@ the generated families are read or changed; the harness that runs them is
   succedent and was decided) and a second conjecture
   (`Error::SeveralConjectures`, naming it; joined right of `⊢` the two
   read as their par) are refused, in `lltp::clauses`, which
-  `ordinary::read_tptp` shares. A file without a conjecture is refused
+  `ordinary::read_tptp` shares. `clauses`' flag `cnf` (`read_tptp`'s
+  alone) takes TPTP's `cnf(name, role, clause).` beside `fof`, each
+  hypothesis recorded with whether it is a `cnf` clause, the role
+  `negated_conjecture` a hypothesis there and `conjecture` refused;
+  `lltp::read` passes `false`, so an LLTP file of `cnf` is refused as
+  before ("expected `fof(`"). A file without a conjecture is refused
   by `lltp::read` alone: `read_tptp` reads it as the hypotheses'
   refutation, nothing right of `⊢`, as TPTP means it (182 of ILTP's
   first-order problems), and refuses a file of no formula at all, which

@@ -844,6 +844,7 @@ impl Shared {
                 image.logic(),
                 image.translation(),
                 ordinary::incomplete(&outcome, image),
+                ordinary::image_axioms(image),
                 &ended,
             ),
             None => verdict_line(&outcome, search.fragment.is_some(), &ended),

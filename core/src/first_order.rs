@@ -16,6 +16,10 @@ use crate::hash::HashMap;
 use crate::name;
 use std::fmt::{Result as FmtResult, Write};
 
+/// The name of equality, the binary predicate written `s = t`. No
+/// identifier is this name, so it never meets a symbol of a text.
+pub(crate) const EQUALS: &str = "=";
+
 /// A predicate or function symbol, by its index in its sequent's symbol
 /// table. A symbol is a name with one arity. A constant is a function
 /// symbol of arity 0.
@@ -423,8 +427,22 @@ impl<K> FirstOrder<K> {
                 atoms: atom_count,
             });
         }
-        for (name, _) in &self.symbols {
-            name::check(name)?;
+        for (name, arity) in &self.symbols {
+            // Equality is the one symbol no identifier names, and it is
+            // binary; that it is a predicate the roles below check.
+            if name == EQUALS {
+                if *arity != 2 {
+                    return Err(Error::Symbol {
+                        name: name.clone(),
+                        fault: SymbolFault::Arity {
+                            declared: 2,
+                            found: *arity,
+                        },
+                    });
+                }
+            } else {
+                name::check(name)?;
+            }
         }
         let mut names = std::collections::BTreeSet::<&str>::new();
         for (name, _) in &self.symbols {
@@ -506,6 +524,14 @@ impl<K> FirstOrder<K> {
         }
         for &(p, args) in &self.atoms {
             arity(p, args, true)?;
+        }
+        if let Some(at) = self.symbols.iter().position(|(name, _)| name == EQUALS)
+            && role[at] == Some(false)
+        {
+            return Err(Error::Symbol {
+                name: EQUALS.to_owned(),
+                fault: SymbolFault::Role,
+            });
         }
         if self.binders.windows(2).any(|w| w[0].0 >= w[1].0) {
             return Err(Error::NotTopological {
@@ -616,6 +642,11 @@ impl<K> Interner<K> {
         }
         *slot = Some(predicate);
         Ok(symbol)
+    }
+
+    /// Returns the symbol called `name`, if the tables have one.
+    pub(crate) fn find_symbol(&self, name: &str) -> Option<Symbol> {
+        self.symbols.get(name).copied()
     }
 
     /// Returns the term `term`, interned.

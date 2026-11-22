@@ -482,8 +482,14 @@ impl Session {
             outcome.verdict,
             ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete)
         );
-        let line =
-            crate::ordinary::verdict_line(linear, outcome.logic, *translation, incomplete, &ended);
+        let line = crate::ordinary::verdict_line(
+            linear,
+            outcome.logic,
+            *translation,
+            incomplete,
+            0,
+            &ended,
+        );
         match closed.grafted {
             Ok(()) => Ok(line),
             Err(Refusal::Output {

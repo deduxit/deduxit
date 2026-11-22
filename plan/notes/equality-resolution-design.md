@@ -134,11 +134,16 @@ sequent's, grounding grounds it. No method changes.
 ### A5. How a derivation shows them
 
 The derivation's conclusion is `Γ, E ⊢ Δ`: the axioms stand as hypotheses
-in every inference below them, drawn, exported and checked as such, and
-the outcome (`Outcome::axioms`, JSON `"equality_axioms": n`) says how
-many of the last hypotheses are the equality axioms, so a reader tells
-them from the problem's. The checker is `Derivation::check`, unchanged:
-it checks that the derivation derives its conclusion.
+in every inference below them, drawn, exported and checked as such.
+`equality::axiom_count(formulas, left)` says how many of the last
+hypotheses of a sequent or a derivation's conclusion are the equality
+axioms (it finds them again in a copy of the arena), and the command's
+verdict line says it ("its last 4 hypotheses the equality axioms"). As
+built, the outcome has no field for it (departs from the first draft,
+which named `Outcome::axioms` and a JSON key): the count is a function
+of the derivation, so a key would only repeat it, and every constructor
+of `Outcome` would carry it. The checker is `Derivation::check`,
+unchanged: it checks that the derivation derives its conclusion.
 
 ### A6. "Not valid" only from a structure where `=` is identity
 
@@ -184,8 +189,12 @@ look-ahead is one compare per atom; the journeys `read-tptp`,
 
 ### A9. SZS status lines
 
-- `prove --logic --szs` writes `% SZS status VALUE for NAME` as the first
-  line of standard output, then the output as without the flag; `NAME` is
+- `prove --logic --szs` writes `% SZS status VALUE for NAME` as the last
+  line of standard output, after the output as without the flag (as
+  built; the first draft said first, as [SZS] recommends "as early as
+  possible", but the command writes its verdict and derivation as it
+  goes, and the status is known only at the end; a tool greps for the
+  line wherever it stands); `NAME` is
   the problem file's name without its extension, `stdin` for standard
   input and `sequent` for the argument [SZS: "the problem name"].
 - VALUE: with a conjecture (something right of `⊢`) `Theorem` for valid,
