@@ -1242,3 +1242,95 @@ Its findings, all fixed in `ywwvtxow` unless named:
 - `nix flake check` under the machine lock at the report's commit
   (06:28 to 06:44), on the chain rebased onto `main@origin`: every
   check passed. Only this line changed after.
+
+## Session fixup-20: LJT's preference within a bound
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixups 15 to 19), cores 10 to 12,
+from the entry fixup-19's review added to `plan/later.md`. Nothing was
+pushed.
+
+### What landed
+
+- `zrkmnxmv`: **where the SAT solver has decided, the intuitionistic
+  default gives LJT at most 2¹⁴ sequents** (`sat::PREFER_SEQUENTS`) to
+  find the derivation it prefers, and past them keeps the derivation read
+  off the search. `ljt::decide_preferred` takes that bound beside the
+  drawing's (`Bounds`, replacing fixup-19's `decide_drawable`); it caps
+  LJT's search alone, not `limits.work`, which also bounds the check's
+  inferences and would have refused large derivations kept today.
+  `ljt::decide` and `by_ljt` are unchanged. The size: every derivation
+  the default kept from LJT on ILTP took at most 3 440 sequents
+  (SYJ206+1.009), while LJT takes 1 019 980 sequents and 5 s on
+  SYJ202+1.005; 16 384 sequents cost LJT under 0.1 s.
+  `ljt_is_given_up_where_its_search_runs_long` builds SYJ202+1.005 (the
+  file's sequent: the same solver counters and formulas) and holds the
+  searches' polls under 2 000: 762 with the bound, 24 217 without it (it
+  fails then, after 55 s in a debug build). The manual, the guide, the
+  changelog and the rules say so; the `later.md` entry is gone, and one
+  found on the way takes its place (below).
+
+### Measurements
+
+Release builds of `tutwkxpq` (before) and the commit (after), core 10
+for single runs, 10 to 12 for the ILTP runs.
+
+| `prove -q --logic intuitionistic` | before | after |
+|---|---|---|
+| SYJ202+1.004 | 0.06 s | 0.04 s |
+| SYJ202+1.005 | 2.12 s | 0.05 s |
+| SYJ202+1.006 | 2.20 s | 0.49 s |
+| SYJ202+1.007, .008 | unknown at 2 s | the same |
+
+The drawings fixup-19 kept are the same bytes (SYJ201+1.003, .006 and
+.020, SYJ206+1.009 and .012, by hash). Through the command on all 274
+problems in intuitionistic and minimal logic at 2 s (548 runs, JSON):
+the same 237 valid, 272 not valid, 35 unknown, 4 without output (below),
+the same 186 derivations kept from LJT, every decided outcome the same
+size; 96.4 s against 88.2 s in all.
+
+ILTP's propositional rows at 2 s in the three logics (`--engines auto`,
+three shards): 763 decided, all within the limit, against 761 (756
+within it); nothing lost, the two classical edge rows of fixup-19
+(SYJ202+1.010, SYJ208+1.010) back, which this change does not touch
+(classical logic never runs LJT). On the 761 rows both decide, the time
+summed: intuitionistic 6.19 s to 2.10 s, minimal 8.47 s to 4.04 s,
+classical 4.55 s and 4.61 s. `summary --strict` passes.
+
+**Found on the way** (older than this chain, now in `plan/later.md`):
+`prove --format json` writes nothing on standard output for an unknown
+the time limit ended in the read-back or check (SYJ202+1.007 and .008:
+the line on standard error, exit 3, no outcome).
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`). Criteria 1 (no verdict changed:
+the same 548 rows, `-q` and JSON, every decided outcome byte-identical,
+the summed time 16.60 s to 8.15 s), 2 (the bound is LJT's search's
+alone), 4 (the texts) and 5 (no dead item in four feature sets) held.
+Two findings, both fixed in `zrkmnxmv`:
+- **The test's generator was not ILTP's SYJ202+1.005**: its flat
+  disjunctions read nested to the left, the file's to the right (202
+  conflicts against 184; LJT 1.76 million sequents against 1.02). The
+  generator nests to the right now and gives the file's sequent; the
+  test still fails without the bound (24 217 polls). Its comment on
+  LJT's polls named one cadence of two.
+- **A sentence of the rules was false**: "on ILTP LJT gave one or was
+  refused at the derivation bound within 0.3 s on every valid problem"
+  (fixup-19's); removed.
+
+It noted, outside the commit, that `--no-default-features --features sat
+--tests` warns of `Derive::Ljt`, a variant `#[cfg(test)]` whose tests
+need `parse`; no gate run builds that combination.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` (39 binaries) before the review, clippy on
+  core and the two tests after its fixes (a test and a rule line).
+- The gate passed on the commit before the review's fixes; the ratchet's
+  `ordinary-pigeons` +1.03 %, as at fixup-19 (the embedding's journey,
+  which this change does not reach).
+- `nix flake check` under the machine lock at the report's commit
+  (07:23 to 07:40), on `main@origin` (`lqwqkxor`): every check passed.
+  Only this line changed after.
