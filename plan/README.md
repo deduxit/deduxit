@@ -8059,3 +8059,16 @@ move (D26).
   outcome for JSON and the protocol; the `# Errors` sections of `ljt::decide`, `sat::decide` and
   `ordinary::decide` change, with a changelog line. The alternative (a command-only outcome with
   made-up statistics) refused.
+- 2026-11-22, about 09:25: **fixup-21 reviewed and pushed; fixup-22 started.** fixup-21 (Opus,
+  high; the reviewer on Fable): a bound or the stop that ends the read-back or a check after the
+  search decided is an unknown with its reason and the search's statistics
+  (`ordinary::decide::ended`, for LJT, the SAT solver in all three logics, both connection provers,
+  the table's and tableau's model checks), so `--format json` writes an outcome (SYJ202+1.007 and
+  .008), the batch an unknown record, and a named method's bound there exits 3. **Accepted
+  departure** from my decision: the embedding's read-back keeps its refusal (beside a proved image an
+  unknown is a document the reader refuses; the reviewer lost a workspace edit to it), and a table
+  or tableau a bound ends while it is built stays an error. `Derive::Ljt` under its uses' `cfg`, and
+  the `features` check builds each feature's tests (283 s → 345 s), which found two more test-only
+  items. Full check passed on `main`'s head; pushed (`tzysnlzm`). In the same worker:
+  **fixup-22**, the tests in every pair of features (its `later.md` entry). 76a still held by the
+  author's prompt from 01:59.
