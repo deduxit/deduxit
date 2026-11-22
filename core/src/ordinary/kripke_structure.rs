@@ -303,6 +303,9 @@ impl KripkeStructure {
                             phase: Phase::Check,
                         }));
                     }
+                    if steps > most_work {
+                        return Err(Error::Refused(Refusal::Work { limit: most_work }));
+                    }
                     if mark[v as usize] != w {
                         mark[v as usize] = w;
                         list.push(v);
@@ -360,6 +363,9 @@ impl KripkeStructure {
                             return Err(Error::Refused(Refusal::Stopped {
                                 phase: Phase::Check,
                             }));
+                        }
+                        if steps > most_work {
+                            return Err(Error::Refused(Refusal::Work { limit: most_work }));
                         }
                         if !holds[u as usize]
                             .get(name)
@@ -1190,6 +1196,34 @@ mod tests {
     }
 
     /// A model that is no Kripke model is refused, each rule by its words.
+    /// The passes over the order count against the work bound: a chain's
+    /// closure takes more steps than a bound of one.
+    #[test]
+    fn the_closure_keeps_to_the_work_bound() {
+        let sequent: Sequent = "|- p(a) \\/ ~p(a)".parse().unwrap();
+        let model = KripkeStructure::new(
+            vec![
+                world(1, &[], Vec::new(), vec![1]),
+                world(1, &[], Vec::new(), vec![2]),
+                world(1, &[0], Vec::new(), Vec::new()),
+            ],
+            vec![("a".to_owned(), 0)],
+            0,
+        );
+        let limits = Limits::default().with_work(Some(1));
+        assert!(matches!(
+            model.refutes(&sequent, Logic::Intuitionistic, &limits, |_| false),
+            Err(Error::Refused(crate::Refusal::Work { limit: 1 }))
+        ));
+        assert!(
+            model
+                .refutes(&sequent, Logic::Intuitionistic, &Limits::default(), |_| {
+                    false
+                })
+                .is_ok()
+        );
+    }
+
     #[test]
     fn a_model_that_breaks_a_rule_is_refused() {
         let sequent: Sequent = "|- p(f(a)) \\/ ~p(f(a))".parse().unwrap();
