@@ -520,10 +520,17 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   redundant. One place serves every method: `decide_within`'s `within`
   augments before the dispatch, the command's `ordinary::sequent_in`
   after reading (so `prove`, the batch, `interact --logic` and `grade`
-  see the axioms), the harness's `ordinary::tail` after loading. A method
-  called directly (`connection::decide`, `grounding::decide`) takes the
-  sequent as given: a caller that skips `with_axioms` decides `=` as an
-  uninterpreted predicate.
+  see the axioms), the harness's `ordinary::tail` after loading, and the
+  public `connection::decide` and `grounding::decide` at their doors (the
+  review's finding: called directly without the axioms, grounding's
+  structure of identity failed its check on `⊢ a = a`, a defect, and the
+  connection prover's matrix had no slot, so it answered "not valid").
+  An already augmented sequent costs each door a copy of the arena in
+  which the axioms are found again. The embedding's `translate` takes
+  the sequent as given: its "valid" with `=` uninterpreted is valid with
+  identity too, and an unprovable image is unknown at first order.
+- **A linear document naming `=` is written at level 25**
+  (`wire::level_of_sequent`): the readers of 7 to 24 refuse the name.
 - **"Not valid" stands only on a structure of identity**: `Structure`'s
   evaluator reads `=` as identity (`atom`), and `FiniteCountermodel::check`
   refuses a structure that lists `=`. Grounding's model satisfies every

@@ -102,7 +102,9 @@ pub struct Outcome {
 /// "unknown": [`Reason::PathLength`] at the bound on the active path,
 /// [`Reason::Incomplete`] where a search with variables failed without
 /// meeting it, [`Reason::WorkLimit`], [`Reason::MemoryLimit`] or
-/// [`Reason::Stopped`].
+/// [`Reason::Stopped`]. A sequent with `=` is searched with the equality
+/// axioms ([`with_axioms`](super::equality::with_axioms)), which give
+/// its matrix variables, so it is never "not valid".
 ///
 /// # Errors
 ///
@@ -122,7 +124,12 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, options, limits, &mut stop)
+    // A sequent with `=` is searched with the equality axioms, as every
+    // method decides it.
+    match super::equality::with_axioms(sequent, limits)? {
+        Some(with) => run(&with, logic, options, limits, &mut stop),
+        None => run(sequent, logic, options, limits, &mut stop),
+    }
 }
 
 /// [`decide`] with the stop as a trait object, so that the search is

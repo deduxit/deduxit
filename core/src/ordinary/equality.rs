@@ -408,6 +408,22 @@ mod tests {
                 structure.check(logic, &limits, |_| false).unwrap();
             }
         }
+        // The methods called directly add the axioms themselves.
+        let sequent: Sequent = "|- a = a".parse().unwrap();
+        let grounded =
+            crate::ordinary::grounding::decide(&sequent, Logic::Classical, &limits, |_| false);
+        assert!(matches!(
+            grounded.unwrap().unwrap().verdict,
+            Verdict::Valid(_)
+        ));
+        let connected = crate::ordinary::connection::decide(
+            &sequent,
+            Logic::Classical,
+            &search,
+            &limits,
+            |_| false,
+        );
+        assert!(matches!(connected.unwrap().verdict, Verdict::Valid(_)));
         // A sequent augmented already, as the command hands it over,
         // whose structure a bound leaves unchecked, is unknown.
         let sequent: Sequent = "a = b, p(a) |- p(c)".parse().unwrap();

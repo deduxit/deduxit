@@ -560,11 +560,18 @@ pub(crate) const FIRST_ORDER_CLAUSES: u32 = 29;
 /// backward search.
 pub(crate) const BASIS: u32 = 11;
 
-/// The level of a document that holds `sequent`: 7 where it is
-/// first-order, 6 where it has cut formulas, else 1.
+/// The level of a document that holds `sequent`: 25 where it names
+/// equality (an image of an ordinary sequent with `=`, which the readers
+/// before that level refuse by its name), 7 where it is first-order, 6
+/// where it has cut formulas, else 1.
 pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
     if sequent.is_first_order() {
-        TERMS
+        let equality = sequent
+            .fo
+            .symbols
+            .iter()
+            .any(|(name, _)| name == crate::first_order::EQUALS);
+        if equality { ORDINARY_TERMS } else { TERMS }
     } else if sequent.cuts().is_empty() {
         BASE
     } else {

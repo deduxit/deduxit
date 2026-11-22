@@ -423,6 +423,11 @@ struct Ground {
 /// on the grounding. A stop, during the set-up or the check, is unknown
 /// ([`Reason::Stopped`]).
 ///
+/// A sequent with `=` is grounded with the equality axioms
+/// ([`with_axioms`](super::equality::with_axioms)); its structure reads
+/// `=` as identity, and where a bound drops the structure the verdict is
+/// unknown ([`Reason::Incomplete`]).
+///
 /// # Errors
 ///
 /// [`Error::Succedents`] for more than one formula right of `⊢` outside
@@ -436,7 +441,12 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Option<Outcome>, Error> {
-    run(sequent, logic, limits, &mut stop)
+    // A sequent with `=` is grounded with the equality axioms, which make
+    // the model's `=` a congruence that its structure is divided by.
+    match super::equality::with_axioms(sequent, limits)? {
+        Some(with) => run(&with, logic, limits, &mut stop),
+        None => run(sequent, logic, limits, &mut stop),
+    }
 }
 
 /// The most nodes of the ground formula (and pending steps) that the

@@ -206,10 +206,13 @@ look-ahead is one compare per atom; the journeys `read-tptp`,
   input and `sequent` for the argument [SZS: "the problem name"].
 - VALUE: with a conjecture (something right of `⊢`) `Theorem` for valid,
   `CounterSatisfiable` for not valid; without one `Unsatisfiable` and
-  `Satisfiable` [SZS]; unknown at the time limit `Timeout`, at the memory
-  limit `MemoryOut`, interrupted `User`, at any other bound or incomplete
-  `GaveUp`; a syntax error `SyntaxError`, another input error
-  `InputError`, any other error `Error`. The statuses mean validity in
+  `Satisfiable` [SZS]; unknown at the time limit `Timeout`, interrupted
+  `User`, at any other bound (the memory bound included) or incomplete
+  `GaveUp`; a syntax error `SyntaxError`, an error at the memory bound
+  `MemoryOut`, at another bound `ResourceOut`, any other error `Error`
+  (as built: the first draft gave an unknown at the memory bound
+  `MemoryOut` and named `InputError`, but the status sees the command's
+  exit status, not the unknown's reason). The statuses mean validity in
   the logic decided (`--logic`), as ILTP reads them for intuitionistic
   logic.
 - Refused beside `--format` other than text and beside a batch (exit 2):
