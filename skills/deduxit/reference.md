@@ -1535,6 +1535,15 @@ step, every model clause by clause. `--clause-limit N` (2000) and
 for unsatisfiable clauses (a valid sequent), 1 for satisfiable ones, 3
 for unknown.
 
+A first-order sequent's negation becomes its clausal form, each clause's
+variables `X1`, `X2`, …; resolution unifies two literals' atoms (the
+unifier shown on each step, the first parent's variables `X1`, … and the
+second's `Y1`, …), and factoring unifies two literals of one clause. The
+refutation is checked step by step and read back as a checked derivation
+of LK where it reaches. No model is built there: a sequent that is not
+valid ends unknown, exit 3. `--method dpll` and `--clauses` other than
+`cnf` are refused at first order; the JSON is at wire level 29.
+
 ```console
 $ deduxit resolve 'a -> b, b -> c |- a -> c'
 valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 resolutions

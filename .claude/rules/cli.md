@@ -561,6 +561,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `prove --logic classical` for an unknown; JSON the level-28 document.
   Exit 0 valid, 3 unknown (never 1: no countermodel is built), 2 an
   error.
+- `resolve.rs`'s `first_order`: a first-order sequent (not `--dimacs`)
+  goes to `resolution::first_order::resolve` before any propositional
+  rewriting; `--method dpll` and `--clauses` other than `cnf` are exit 2.
+  Text is the verdict line (the refutation's length and the derivation
+  read back, or why not), the clauses with variables `X1`, …, and each
+  inference `from I, J with X1 := …` or `factor of I with …`; exit 0
+  refuted, 3 unknown or saturated (no model is built), 2 an error.
 - `resolve.rs`: `resolve` (`ResolveArgs`: `TransformArgs` with
   `--dimacs FILE`, `--method`, `--clauses`, `--clause-limit`,
   `--step-limit`; the bounds are options of the call, so no settings

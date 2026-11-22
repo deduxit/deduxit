@@ -263,8 +263,11 @@ in use.
   negation turned into clauses, or a DIMACS file. Every refutation is
   checked step by step, every model clause by clause, and DPLL prints
   each step. A refutation written by hand, and an outside SAT solver's
-  DRAT or LRAT proof, are checked by `check`. The library and the
-  protocol have them; the web page does not yet.
+  DRAT or LRAT proof, are checked by `check`. At first order the
+  clausal form's clauses resolve with the most general unifier and are
+  factored, each step with its unifier; a refutation is checked step by
+  step and read back as a checked derivation of LK where it reaches. The
+  library and the protocol have them; the web page does not yet.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is
@@ -562,9 +565,8 @@ The collection grows by a suite at a time, release by release:
 - 0.8.0: first-order ordinary logic: classical, intuitionistic and
   minimal, searched, with finite countermodels and Rocq certificates; a
   witness left open in a session for an axiom to fill;
-  equality and first-order resolution; all of it on the web page, the
-  normal forms and Herbrand's theorem among it, the linear tab at first
-  order too.
+  equality; all of it on the web page, the normal forms, Herbrand's
+  theorem and resolution among it, the linear tab at first order too.
 
 Not yet placed in a release: the comparison with the other provers on
 the libraries with the engines of 0.2.0.

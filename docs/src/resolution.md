@@ -53,6 +53,60 @@ clauses of its negation by Tseitin's encoding, checked:
 exit 1
 ```
 
+## Refute a first-order sequent
+
+A first-order sequent's negation becomes its
+[clausal form](transformations.md#at-first-order): each clause a
+disjunction of literals whose variables, written `X1`, `X2`, …, stand
+for any term. Two clauses resolve on a literal of each when a
+substitution, their most general unifier, makes the two atoms equal; the
+resolvent is the rest of both under it:
+
+```console
+$ deduxit resolve 'forall x. (p(x) -> q(f(x))), p(a) |- exists y. q(y)'
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 2 inferences, read back as a checked derivation of LK (15 inferences)
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+1. ¬p(X1) ∨ q(f(X1))
+2. p(a)
+3. ¬q(X1)
+resolution, the first parent's variables X1, …, the second's Y1, …:
+4. ¬p(X1)  from 3, 1 with X1 := f(Y1)
+5. □  from 4, 2 with X1 := a
+```
+
+Each step renames the two clauses' variables apart, the first's `X1`, …
+and the second's `Y1`, …, and shows the unifier. Factoring unifies two
+literals of one clause, which binary resolution alone needs for `p(x) ∨
+p(y)` against `¬p(u) ∨ ¬p(v)`:
+
+```console
+$ deduxit resolve 'forall x y. (p(x) \/ p(y)), forall u v. (~p(u) \/ ~p(v)) |-'
+valid in classical logic: the clauses of its negation are unsatisfiable, a checked refutation of 3 inferences, read back as a checked derivation of LK (19 inferences)
+clauses of its negation by clausal normal form, each clause's variables X1, X2, …:
+1. p(X1) ∨ p(X2)
+2. ¬p(X1) ∨ ¬p(X2)
+resolution, the first parent's variables X1, …, the second's Y1, …:
+3. p(X1)  factor of 1 with X1 := X2
+4. ¬p(X1)  factor of 2 with X1 := X2
+5. □  from 4, 3 with X1 := Y1
+```
+
+The search takes the lightest clause not yet used and resolves it with
+every clause used; the clauses of the negated goals go first (the set of
+support), and the hypotheses' clauses are resolved with each other only
+once those run out. deduxit checks the refutation step by step, each
+unifier computed again, then reads it back as a derivation of LK of the
+sequent as written, the way [Herbrand's theorem](transformations.md#prove-a-first-order-sequent-by-herbrands-theorem)
+does, and checks that too. Where the read-back does not reach, the line
+says so, and the verdict rests on the refutation and the clausal form's
+Skolem symbols.
+
+At first order no model of the clauses is built, so a sequent that is
+not valid ends unknown, exit status 3: when nothing new appears, or at
+`--clause-limit` and `--step-limit`. `prove --logic classical` refutes
+such a sequent where it can. `--method dpll` and `--clauses` other than
+`cnf` are propositional and refused at first order.
+
 ## Read clauses from a DIMACS file
 
 `--dimacs FILE` reads clauses in the DIMACS CNF format that SAT solvers
@@ -187,11 +241,21 @@ solvers' extended techniques write) is not accepted. The exit status is
 "resolvents", "true_atoms", "bound", "trace", "statistics"}`, `verdict`
 being `unsatisfiable` with the refutation's `resolvents`, `satisfiable`
 with the `true_atoms` of a model, or `unknown` with the `bound`; `trace`
-holds DPLL's steps, each tagged `event`.
+holds DPLL's steps, each tagged `event`. A first-order sequent's
+document is at level 29: `{"version", "deduxit", "method", "verdict",
+"bound", "sequent", "clausal", "clauses", "inferences", "derivation",
+"not_read_back", "statistics"}`, its clauses as text, each inference's
+`rule` (`resolution` with `first`, `second`, `first_literal` and
+`second_literal`, or `factor` with `parent`), its `unifier` and the
+`clause` it made, numbered on after the given clauses; `verdict` is
+`unsatisfiable`, `saturated` or `unknown`.
 
 In a program, `deduxit::ordinary::resolution::decide` decides a
 `Clauses` set, `Clauses::from_dimacs` and `resolution::clauses_of` make
 one, `Refutation::resolve` takes a step by hand and `Refutation::check`
 checks a refutation; `resolution::check_proof` checks an outside proof.
+At first order `resolution::first_order::resolve` decides a sequent,
+`first_order::clauses_of` gives its clauses, `Clauses::infer` takes a
+step by hand and `first_order::Refutation::check` checks a refutation.
 The protocol's operation `ordinary.resolve` decides a sequent's clauses
 in a [workspace](workspace.md).

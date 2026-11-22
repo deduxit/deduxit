@@ -318,9 +318,18 @@ pub(crate) enum Command {
     /// literals, then decides an atom and backtracks at a conflict, and
     /// prints every step; the refutation is read off its steps.
     ///
+    /// A first-order sequent's negation becomes its clausal form (as `seq
+    /// normalize --to clausal`), each clause's variables X1, X2, …; two
+    /// clauses resolve on literals whose atoms a most general unifier makes
+    /// equal, and factoring unifies two literals of one clause. The search
+    /// is saturation, the clauses of the negated goals the set of support;
+    /// a refutation is checked step by step (each unifier computed again)
+    /// and read back as a derivation of LK where it reaches. No model is
+    /// built at first order: a sequent that is not valid ends unknown.
+    ///
     /// The command prints the clauses, numbered from 1, then the
     /// refutation, each resolvent with the clauses and the atom it comes
-    /// from, or a model of the clauses. Every refutation is checked step
+    /// from (at first order its unifier), or a model of the clauses. Every refutation is checked step
     /// by step before it is printed, and every model against each clause.
     /// The exit status is 0 for unsatisfiable clauses (a valid sequent),
     /// 1 for satisfiable ones, 3 where --clause-limit or --step-limit or

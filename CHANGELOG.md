@@ -41,6 +41,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   variables free in its quantifier (`normal::Step::term`), and the
   result is checked to imply the input's negation (Skolem, clausal) or
   to follow from the input (Herbrand, `normal::Promise::Equivalid`).
+- **Resolution at first order**: `deduxit resolve` takes first-order
+  sequents: binary resolution with the most general unifier and
+  factoring on the clausal form, each step with its unifier, the clauses
+  of the negated goals the set of support. Every refutation is checked
+  step by step and read back as a checked derivation of LK where it
+  reaches. The library's `ordinary::resolution::first_order`, the
+  protocol's `ordinary.resolve` at first order, the wire form at level
+  29.
 - **Herbrand's theorem**: `deduxit herbrand SEQUENT` makes the clausal
   form of a first-order sequent, puts closed terms for its variables up
   to `--depth`, and has the SAT solver refute the ground instances; the

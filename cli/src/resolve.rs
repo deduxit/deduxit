@@ -51,6 +51,9 @@ pub(crate) fn resolve(args: &ResolveArgs, given: &Given) -> Result<Status> {
         }
         None => {
             let sequent = args.common.input.ordinary(&limits)?;
+            if sequent.formulas().is_first_order() {
+                return first_order(args, &sequent, &limits, &deadline);
+            }
             let form = match args.clauses {
                 ClausesArg::Cnf => Form::Cnf,
                 ClausesArg::Tseitin => Form::Tseitin,
@@ -109,6 +112,170 @@ pub(crate) fn resolve(args: &ResolveArgs, given: &Given) -> Result<Status> {
     };
     io::write(args.common.output.as_deref(), &text)?;
     Ok(status)
+}
+
+/// Decides a first-order sequent's clauses by first-order resolution and
+/// prints its answer. Returns the exit status: yes for a refutation,
+/// unknown otherwise (no model is built).
+///
+/// # Errors
+///
+/// `--method dpll` or `--clauses` other than cnf, which resolution at
+/// first order does not take; the clausal form's refusals; a refutation
+/// that fails its check (a defect); an output that cannot be written.
+fn first_order(
+    args: &ResolveArgs,
+    sequent: &deduxit::ordinary::Sequent,
+    limits: &deduxit::Limits,
+    deadline: &Deadline,
+) -> Result<Status> {
+    use deduxit::ordinary::resolution::first_order::{self, Answer};
+    if args.method == ResolutionArg::Dpll {
+        bail!(
+            "--method dpll decides propositional clauses; a first-order sequent takes saturation"
+        );
+    }
+    if args.clauses != ClausesArg::Cnf {
+        bail!("--clauses names a propositional form; a first-order sequent takes its clausal form");
+    }
+    let options = Options::default()
+        .with_clauses(args.clause_limit.0)
+        .with_steps(args.step_limit.0);
+    let stop = |_| interrupted() || deadline.passed();
+    let found = on_large_stack(limits.stack_bytes(), || {
+        first_order::resolve(sequent, &options, limits, stop)
+    })?;
+    let found = match found {
+        Ok(found) => found,
+        Err(Error::Refused(Refusal::Stopped { .. })) => {
+            return unknown(args, &Stop::why(stopped(deadline)));
+        }
+        Err(error @ Error::Refused(Refusal::Form { .. })) => {
+            bail!("{error}; raise limits.form_occurrences in a --settings file")
+        }
+        Err(Error::Refused(refusal)) => {
+            let flag = match refusal.setting() {
+                Some("limits.memory_bytes") => "; raise it with --memory-limit",
+                Some("limits.work") => "; raise it with --work-limit",
+                _ => "",
+            };
+            return unknown(args, &format!("{refusal}{flag}"));
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let status = match found.answer {
+        Answer::Refuted { .. } => Status::Yes,
+        _ => Status::Unknown,
+    };
+    let text = match args.common.format {
+        AnswerFormat::Json => serde_json::to_string(&found)?,
+        AnswerFormat::Text => first_order_text(&found, deadline)?,
+    };
+    io::write(args.common.output.as_deref(), &text)?;
+    Ok(status)
+}
+
+/// Returns the text of a first-order sequent's clauses decided: the
+/// verdict, the clauses numbered from 1, and the refutation's inferences,
+/// each with its parents, the predicate it resolves on and its unifier.
+///
+/// # Errors
+///
+/// None in practice: writing into a string does not fail.
+fn first_order_text(
+    found: &deduxit::ordinary::resolution::first_order::FirstOrder,
+    deadline: &Deadline,
+) -> Result<String> {
+    use deduxit::ordinary::resolution::first_order::{Answer, Step};
+    let mut text = String::new();
+    match &found.answer {
+        Answer::Refuted {
+            refutation,
+            derivation,
+            not_read_back,
+        } => {
+            let n = refutation.inferences().len();
+            let steps = format!("a checked refutation of {n} inference{}", plural(n));
+            let back = match (derivation, not_read_back) {
+                (Some(d), _) => {
+                    let k = d.inferences().len();
+                    format!(
+                        ", read back as a checked derivation of LK ({k} inference{})",
+                        plural(k)
+                    )
+                }
+                (None, Some(why)) => format!(
+                    "; no derivation of LK was read back ({why}), so the verdict rests on the \
+                     refutation and the clausal form's Skolem symbols"
+                ),
+                (None, None) => String::new(),
+            };
+            writeln!(
+                text,
+                "valid in classical logic: the clauses of its negation are unsatisfiable, {steps}{back}"
+            )?;
+        }
+        Answer::Saturated => writeln!(
+            text,
+            "unknown: every inference was made and none gave □, so the clauses have a model, \
+             which resolution does not build; prove --logic classical refutes the sequent where it \
+             can"
+        )?,
+        Answer::Unknown(bound) => {
+            let why = match bound {
+                resolution::Bound::Stopped => Stop::why(stopped(deadline)),
+                resolution::Bound::Clauses { .. } => {
+                    format!("{bound}; raise it with --clause-limit")
+                }
+                resolution::Bound::Steps { .. } => format!("{bound}; raise it with --step-limit"),
+                _ => bound.to_string(),
+            };
+            writeln!(text, "unknown: {why}")?;
+        }
+        _ => writeln!(text, "decided")?,
+    }
+    writeln!(
+        text,
+        "clauses of its negation by clausal normal form, each clause's variables X1, X2, …:"
+    )?;
+    let given = found.clauses.clauses().len();
+    let made = match &found.answer {
+        Answer::Refuted { refutation, .. } => refutation.inferences().len(),
+        _ => 0,
+    };
+    let width = (given + made).to_string().len();
+    for k in 0..given {
+        writeln!(text, "{:>width$}. {}", k + 1, found.clauses.text(k))?;
+    }
+    if let Answer::Refuted { refutation, .. } = &found.answer {
+        writeln!(
+            text,
+            "resolution, the first parent's variables X1, …, the second's Y1, …:"
+        )?;
+        let set = refutation.clauses();
+        for inference in refutation.inferences() {
+            let from = match inference.step {
+                Step::Resolution { first, second, .. } => {
+                    format!("from {}, {}", first + 1, second + 1)
+                }
+                Step::Factor { clause, .. } => format!("factor of {}", clause + 1),
+                _ => String::new(),
+            };
+            let unifier = set.bindings_text(inference);
+            let with = if unifier.is_empty() {
+                String::new()
+            } else {
+                format!(" with {}", unifier.join(", "))
+            };
+            writeln!(
+                text,
+                "{:>width$}. {}  {from}{with}",
+                inference.clause + 1,
+                set.text(inference.clause)
+            )?;
+        }
+    }
+    Ok(text.trim_end().to_owned())
 }
 
 /// Writes the line of an answer a stop ended, as `transform` does, and
