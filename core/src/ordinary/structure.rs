@@ -23,8 +23,9 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 /// # JSON
 ///
 /// With the feature `serialize` it is `{"size": 2, "constants": [["a",
-/// 0]], "predicates": [["p", [[0], [1]]], ["q", []]]}`, inside an ordinary
-/// outcome under the key `structure`.
+/// 0]], "functions": [["f", [1, 0]]], "predicates": [["p", [[0], [1]]],
+/// ["q", []]]}`, inside an ordinary outcome under the key `structure`;
+/// `functions` is left out where there is none.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
@@ -37,6 +38,14 @@ pub struct Structure {
     pub size: u32,
     /// Each constant of the sequent, by name, with the element it denotes.
     pub constants: Vec<(String, u32)>,
+    /// Each function symbol of one argument or more, by name, with its
+    /// table: the values of its `size^arity` argument tuples in
+    /// lexicographic order (`f(d₀, …, dₖ₋₁)` at `Σ dᵢ·size^(k−1−i)`).
+    #[cfg_attr(
+        feature = "serialize",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
+    pub functions: Vec<(String, Vec<u32>)>,
     /// Each predicate, by name, with the tuples of elements it holds of. A
     /// predicate left out holds of none; a nullary one holds where its list
     /// has the empty tuple.
@@ -71,8 +80,17 @@ impl Structure {
         Self {
             size,
             constants,
+            functions: Vec::new(),
             predicates,
         }
+    }
+
+    /// Returns the structure with these function tables, each by name with
+    /// the values of its argument tuples in lexicographic order.
+    #[must_use]
+    pub fn with_functions(mut self, functions: Vec<(String, Vec<u32>)>) -> Self {
+        self.functions = functions;
+        self
     }
 
     /// Evaluates `sequent` in the structure, its hypotheses first, and says
@@ -83,7 +101,8 @@ impl Structure {
     ///
     /// [`Error::Structure`] for a structure that cannot interpret the
     /// sequent: an empty domain, an element out of it, a constant with no
-    /// element, a function symbol with arguments, or a term no quantifier
+    /// element, a function symbol without a table of one value in the
+    /// domain for each argument tuple, or a term no quantifier
     /// binds and the sequent does not name (an eigenvariable of a
     /// derivation's arena); [`Refusal::Work`] past `limits.work`
     /// evaluations ([`WORK`](Self::WORK) where it sets none), and
@@ -114,8 +133,14 @@ impl Structure {
         // read from JSON is many times its text (an empty tuple is two
         // bytes there and a vector here).
         let memory = limits.memory_bytes.unwrap_or(u64::MAX);
+        let tables = self.functions.iter().fold(0u64, |held, (_, table)| {
+            held.saturating_add(ENTRY_BYTES)
+                .saturating_add((table.len() as u64).saturating_mul(4))
+        });
         let held = self.predicates.iter().fold(
-            (self.constants.len() as u64).saturating_mul(ENTRY_BYTES),
+            (self.constants.len() as u64)
+                .saturating_mul(ENTRY_BYTES)
+                .saturating_add(tables),
             |held, (_, tuples)| {
                 tuples.iter().fold(held, |held, tuple| {
                     held.saturating_add(ENTRY_BYTES)
@@ -149,6 +174,13 @@ impl Structure {
                 set.insert(tuple.as_slice());
             }
         }
+        let mut functions: HashMap<&str, &[u32]> = HashMap::default();
+        for (name, table) in &self.functions {
+            if table.iter().any(|&e| e >= self.size) {
+                return Err(wrong(format!("gives {name} a value past its domain")));
+            }
+            functions.insert(name.as_str(), table.as_slice());
+        }
         // Every term of the sequent's formulas is interpreted, whether the
         // evaluation reaches it or not; a term of the arena no formula uses
         // is no part of the sequent.
@@ -180,18 +212,38 @@ impl Structure {
                 }
             }
         }
-        for t in terms {
+        // The terms and their subterms, each once.
+        let mut met = vec![false; tables.terms.len()];
+        while let Some(t) = terms.pop() {
+            if std::mem::replace(&mut met[t.index()], true) {
+                continue;
+            }
             match tables.terms[t.index()] {
                 FoTerm::App(f, args) => {
                     let name = tables.symbols[f.index()].0.as_str();
-                    if !tables.list(args).is_empty() {
-                        return Err(wrong(format!(
-                            "interprets no function symbol, and {name} is one"
-                        )));
+                    let args = tables.list(args);
+                    if args.is_empty() {
+                        if !elements.contains_key(name) {
+                            return Err(wrong(format!("names no element for the constant {name}")));
+                        }
+                        continue;
                     }
-                    if !elements.contains_key(name) {
-                        return Err(wrong(format!("names no element for the constant {name}")));
+                    let cells = u32::try_from(args.len())
+                        .ok()
+                        .and_then(|k| u64::from(self.size).checked_pow(k));
+                    match functions.get(name) {
+                        Some(table) if cells == Some(table.len() as u64) => {}
+                        Some(_) => {
+                            return Err(wrong(format!(
+                                "gives {name} a table that is not one value for each of its \
+                                 argument tuples"
+                            )));
+                        }
+                        None => {
+                            return Err(wrong(format!("has no table for the function {name}")));
+                        }
                     }
+                    terms.extend_from_slice(args);
                 }
                 FoTerm::Bound(_) => {}
                 FoTerm::Eigen(_) | FoTerm::Meta(_) => {
@@ -205,6 +257,7 @@ impl Structure {
             sequent,
             size: self.size,
             elements,
+            functions,
             holds,
             work: 0,
             most: limits.work.unwrap_or(Self::WORK),
@@ -263,6 +316,8 @@ struct Evaluator<'a, 's> {
     size: u32,
     /// Each constant's element.
     elements: HashMap<&'a str, u32>,
+    /// Each function's table, checked up front to hold `size^arity` values.
+    functions: HashMap<&'a str, &'a [u32]>,
     /// Each predicate's tuples.
     holds: HashMap<&'a str, HashSet<&'a [u32]>>,
     /// The evaluations made.
@@ -428,31 +483,58 @@ impl Evaluator<'_, '_> {
             .is_some_and(|set| set.contains(tuple.as_slice())))
     }
 
-    /// Returns the element the term `t` denotes under `env`.
+    /// Returns the element the term `t` denotes under `env`, the innermost
+    /// binding last. A term is evaluated with a stack of its own: terms
+    /// may nest as deep as a document is long.
     fn term(&self, t: FoTermId, env: &[u32]) -> Result<u32, Error> {
         let tables = self.sequent.formulas().first_order();
-        match tables.terms[t.index()] {
-            FoTerm::Bound(index) => {
-                let at = env.len().checked_sub(index as usize + 1).ok_or_else(|| {
-                    (self.wrong)("meets a variable no quantifier binds".to_owned())
-                })?;
-                Ok(env[at])
-            }
-            FoTerm::App(f, args) => {
-                let name = tables.symbols[f.index()].0.as_str();
-                if !tables.list(args).is_empty() {
-                    return Err((self.wrong)(format!(
-                        "interprets no function symbol, and {name} is one"
-                    )));
+        let mut values: Vec<u32> = Vec::new();
+        // Each entry: a term, and whether its arguments' values are on
+        // `values` already.
+        let mut stack = vec![(t, false)];
+        while let Some((t, applied)) = stack.pop() {
+            match tables.terms[t.index()] {
+                FoTerm::Bound(index) => {
+                    let at = env.len().checked_sub(index as usize + 1).ok_or_else(|| {
+                        (self.wrong)("meets a variable no quantifier binds".to_owned())
+                    })?;
+                    values.push(env[at]);
                 }
-                self.elements.get(name).copied().ok_or_else(|| {
-                    (self.wrong)(format!("names no element for the constant {name}"))
-                })
+                FoTerm::App(f, args) => {
+                    let name = tables.symbols[f.index()].0.as_str();
+                    let args = tables.list(args);
+                    if args.is_empty() {
+                        let e = self.elements.get(name).copied().ok_or_else(|| {
+                            (self.wrong)(format!("names no element for the constant {name}"))
+                        })?;
+                        values.push(e);
+                    } else if applied {
+                        let table = self.functions.get(name).ok_or_else(|| {
+                            (self.wrong)(format!("has no table for the function {name}"))
+                        })?;
+                        let start = values.len() - args.len();
+                        let index = values
+                            .drain(start..)
+                            .fold(0usize, |i, e| i * self.size as usize + e as usize);
+                        let e = table.get(index).copied().ok_or_else(|| {
+                            (self.wrong)(format!("gives {name} too short a table"))
+                        })?;
+                        values.push(e);
+                    } else {
+                        stack.push((t, true));
+                        for &a in args.iter().rev() {
+                            stack.push((a, false));
+                        }
+                    }
+                }
+                FoTerm::Eigen(_) | FoTerm::Meta(_) => {
+                    return Err((self.wrong)(
+                        "cannot interpret an eigenvariable or an open witness".to_owned(),
+                    ));
+                }
             }
-            FoTerm::Eigen(_) | FoTerm::Meta(_) => Err((self.wrong)(
-                "cannot interpret an eigenvariable or an open witness".to_owned(),
-            )),
         }
+        Ok(values.pop().expect("the term's value"))
     }
 }
 
@@ -527,9 +609,11 @@ impl FiniteCountermodel {
 
 impl std::fmt::Display for Structure {
     /// Writes the structure in lines: the domain (`domain: {0, 1}`, past
-    /// eight elements `{0, …, 41}`), each constant's element (`a = 0`), and
-    /// each predicate as the set it holds of (`p: {0}`, `r: {(0, 1)}`; a
-    /// nullary one `q: true`), a predicate that holds of nothing left out.
+    /// eight elements `{0, …, 41}`), each constant's element (`a = 0`),
+    /// each function's table (`f: 0 ↦ 1, 1 ↦ 0`, `g: (0, 1) ↦ 0, …`, or
+    /// `f: always 0` where every value is one element), and each predicate
+    /// as the set it holds of (`p: {0}`, `r: {(0, 1)}`; a nullary one `q:
+    /// true`), a predicate that holds of nothing left out.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.size {
             0 => write!(f, "domain: {{}}")?,
@@ -541,6 +625,41 @@ impl std::fmt::Display for Structure {
         }
         for (name, e) in &self.constants {
             write!(f, "\n{name} = {e}")?;
+        }
+        for (name, table) in &self.functions {
+            if let Some(&first) = table.first()
+                && table.iter().all(|&v| v == first)
+            {
+                write!(f, "\n{name}: always {first}")?;
+                continue;
+            }
+            // The arity: the tuples are `size^arity`, and a table of two
+            // values or more needs two elements or more.
+            let n = u64::from(self.size.max(2));
+            let mut arity = 0u32;
+            let mut cells = 1u64;
+            while cells < table.len() as u64 {
+                cells = cells.saturating_mul(n);
+                arity += 1;
+            }
+            let entries: Vec<String> = table
+                .iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    let mut tuple = Vec::with_capacity(arity as usize);
+                    let mut rest = i as u64;
+                    for _ in 0..arity {
+                        tuple.push((rest % n).to_string());
+                        rest /= n;
+                    }
+                    tuple.reverse();
+                    match tuple.len() {
+                        1 => format!("{} ↦ {v}", tuple[0]),
+                        _ => format!("({}) ↦ {v}", tuple.join(", ")),
+                    }
+                })
+                .collect();
+            write!(f, "\n{name}: {}", entries.join(", "))?;
         }
         for (name, tuples) in &self.predicates {
             if tuples.is_empty() {
@@ -563,5 +682,77 @@ impl std::fmt::Display for Structure {
             write!(f, "\n{name}: {{{}}}", items.join(", "))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "parse"))]
+mod tests {
+    use super::{Evaluation, FiniteCountermodel, Structure};
+    use crate::ordinary::{Logic, Sequent};
+    use crate::{Error, Limits};
+
+    /// Evaluates `text` in `structure` within the default limits.
+    fn evaluate(structure: &Structure, text: &str) -> Result<Evaluation, Error> {
+        let sequent: Sequent = text.parse().unwrap();
+        structure.refutes(&sequent, &Limits::default(), |_| false)
+    }
+
+    /// A structure with function tables evaluates terms through them:
+    /// `f` swaps the two elements, `g` is the first projection.
+    #[test]
+    fn function_tables_interpret_terms() {
+        let structure = Structure::new(
+            2,
+            vec![("a".to_owned(), 0)],
+            vec![("p".to_owned(), vec![vec![0]])],
+        )
+        .with_functions(vec![
+            ("f".to_owned(), vec![1, 0]),
+            ("g".to_owned(), vec![0, 0, 1, 1]),
+        ]);
+        let cases = [
+            ("p(a) |- p(f(a))", Evaluation::Refutes),
+            ("p(a) |- p(f(f(a)))", Evaluation::TrueGoal(0)),
+            ("forall x. p(g(a, x)) |- p(f(a))", Evaluation::Refutes),
+            ("|- exists x. p(f(x))", Evaluation::TrueGoal(0)),
+            ("exists x. p(g(x, f(x))) |-", Evaluation::Refutes),
+            ("p(f(a)) |-", Evaluation::FalseHypothesis(0)),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(evaluate(&structure, text).unwrap(), expected, "{text}");
+        }
+        let sequent: Sequent = "p(a) |- p(f(a))".parse().unwrap();
+        FiniteCountermodel::new(sequent, structure.clone())
+            .check(Logic::Intuitionistic, &Limits::default(), |_| false)
+            .unwrap();
+        assert_eq!(
+            structure.to_string(),
+            "domain: {0, 1}\na = 0\nf: 0 ↦ 1, 1 ↦ 0\ng: (0, 0) ↦ 0, (0, 1) ↦ 0, (1, 0) ↦ 1, (1, 1) ↦ 1\np: {0}"
+        );
+    }
+
+    /// A table of the wrong length, a value past the domain and a missing
+    /// table are each refused, even on a branch the evaluation skips.
+    #[test]
+    fn a_table_that_does_not_fit_is_refused() {
+        let base = || Structure::new(2, vec![("a".to_owned(), 0)], Vec::new());
+        let cases = [
+            (
+                base().with_functions(vec![("f".to_owned(), vec![1])]),
+                "table",
+            ),
+            (
+                base().with_functions(vec![("f".to_owned(), vec![0, 2])]),
+                "domain",
+            ),
+            (base(), "no table"),
+        ];
+        for (structure, words) in cases {
+            let error = evaluate(&structure, "|- true \\/ p(f(a))").unwrap_err();
+            assert!(
+                matches!(&error, Error::Structure { reason } if reason.contains(words)),
+                "{words}: {error}"
+            );
+        }
     }
 }

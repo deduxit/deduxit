@@ -41,6 +41,7 @@
 //! | 23 | the lambda-term: its calculus, its atoms, types and variables, and its nodes, `{"calculus": "simple", "atoms": […], "types": […], "variables": [{"type": 0, "name": "x"}], "context": […], "goal": 1, "nodes": […], "root": 1}` | a term of [`lambda`](crate::lambda) |
 //! | 24 | a type's terms listed and counted, and whether a type has a term (written only): `{"count": {"kind": "exactly", "count": 2}, "terms": [term, …]}` and `{"verdict": "inhabited", "term": term}` | [`lambda::Inhabitants`](crate::lambda::Inhabitants), [`lambda::Inhabitation`](crate::lambda::Inhabitation) |
 //! | 25 | the first-order forms of ordinary logic: the formulas `{"∀": a}` and `{"∃": a}`, the names of their variables as `binders`, and the first-order sequent's `symbols`, `fo` and predicate atoms `{"P": [symbol, [terms]]}` | a sequent or derivation of [`ordinary`](crate::ordinary) whose formulas have a binder or a predicate with arguments |
+//! | 26 | a finite structure's function tables, `"functions": [["f", [1, 0]]]`, each function symbol with arguments by name with the values of its argument tuples in lexicographic order | an ordinary outcome whose structure interprets a function symbol with arguments |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -298,7 +299,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 25;
+pub const LEVEL: u32 = 26;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
@@ -484,6 +485,10 @@ pub(crate) const ORDINARY_CUT: u32 = 9;
 
 /// The level of a first-order form of ordinary logic.
 pub(crate) const ORDINARY_TERMS: u32 = 25;
+
+/// The level of an ordinary outcome whose finite structure interprets
+/// function symbols (its `functions`), which a reader of level 25 refuses.
+pub(crate) const FUNCTIONS: u32 = 26;
 
 /// The level of an ordinary outcome: its search tagged by its method,
 /// the image's outcome nested under the embedding.

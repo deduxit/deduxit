@@ -740,6 +740,12 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
     } else {
         version
     };
+    // A structure with function tables is read from level 26 on: a reader
+    // of 25 refuses the key.
+    let version = match &outcome.structure {
+        Some(found) if !found.structure.functions.is_empty() => version.max(wire::FUNCTIONS),
+        Some(_) | None => version,
+    };
     let countermodel = outcome.countermodel.as_ref().map(CountermodelForm::of);
     // A reader of level 12 may ignore the countermodel without
     // misreading the verdict, so it raises no level.

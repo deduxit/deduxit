@@ -3272,7 +3272,7 @@
           }
         },
         "structure": {
-          "description": "The finite structure that refutes a first-order sequent found not valid by grounding, with the sequent it refutes: the number of elements (the domain is 0 to size − 1), each constant's element by name, and each predicate by name with the tuples it holds of (a predicate left out holds of none, a nullary one holds where its list has the empty tuple). `check` evaluates the sequent in it again.",
+          "description": "The finite structure that refutes a first-order sequent found not valid by grounding or the model search, with the sequent it refutes: the number of elements (the domain is 0 to size − 1), each constant's element by name, each function symbol with arguments by name with its table (the values of its argument tuples in lexicographic order; left out where there is none, and a structure with one is written at wire level 26), and each predicate by name with the tuples it holds of (a predicate left out holds of none, a nullary one holds where its list has the empty tuple). `check` evaluates the sequent in it again.",
           "type": "object",
           "required": [
             "sequent",
@@ -3307,6 +3307,25 @@
                       },
                       {
                         "$ref": "#/$defs/index"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2
+                  }
+                },
+                "functions": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/index"
+                        }
                       }
                     ],
                     "items": false,
