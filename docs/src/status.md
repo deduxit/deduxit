@@ -192,14 +192,16 @@ in use.
 - The linear proof is read back as a derivation of LK or LJ, which a
   checker of its own validates and every output draws. Its weakenings and
   contractions are drawn, or left out where they are admissible. A valid
-  sequent gets a certificate over `Prop` for Rocq, and so does a sequent
-  that an assignment of its atoms makes false; a Kripke countermodel of
+  propositional sequent gets a certificate over `Prop` for Rocq, and so
+  does a sequent that an assignment of its atoms makes false; a Kripke
+  countermodel of
   intuitionistic or minimal logic gets a certificate for deduxit's Rocq
   library.
 - Sequents are proved step by step in LK and LJ, in the command and in
   the web bindings, and a session can apply the invertible rules by
-  itself. A goal's `close` and `hint` decide through the embedding; in the bindings a goal that is not valid gets the SAT
-  solver's countermodel.
+  itself. A goal's `close` and `hint` decide through the embedding, for
+  propositional goals; in the bindings a goal that is not valid gets the
+  SAT solver's countermodel.
 - [First-order sequents](ordinary-logic.md#first-order-sequents) are
   read from text, JSON and TPTP, `fof` and `cnf` (of ILTP's 2 670
   first-order problems, all but four whose conjecture uses a variable
@@ -207,7 +209,8 @@ in use.
   decided by its axioms as extra hypotheses and refuted only by a checked
   structure that reads `=` as identity, proved
   step by step in LK, LJ and LM with the quantifier rules
-  (a typed witness, a fresh eigenvariable), checked, and drawn in LaTeX,
+  (a typed witness or one left open for an axiom to fill, a fresh
+  eigenvariable), checked, and drawn in LaTeX,
   Typst and SVG. `prove` decides the Bernays–Schönfinkel and the
   monadic class by grounding over the constants and the SAT solver, in
   every logic: valid in classical logic with a checked clausal proof
@@ -391,7 +394,8 @@ in use.
 ## The command
 
 - The `deduxit` command has `prove`, `check`, `eliminate`, `interact`,
-  `interpolate`, `resolve`, `grade`, `term`, `seq` and `workspace`. It
+  `interpolate`, `resolve`, `herbrand`, `grade`, `term`, `seq` and
+  `workspace`. It
   has time limits, Ctrl-C, statistics, JSON output, proof nets, LaTeX,
   Typst, SVG and Rocq output, and `--jobs`, `--pool-after` and
   `--deterministic` for the search. [Decide a sequent](commands.md)
@@ -573,14 +577,14 @@ in use.
 
 The collection grows by a suite at a time, release by release:
 
-- 0.8.0: first-order ordinary logic: classical, intuitionistic and
-  minimal, searched, with finite countermodels and Rocq certificates; a
-  witness left open in a session for an axiom to fill;
-  all of it on the web page, the normal forms, Herbrand's theorem,
-  resolution and equality among it, the linear tab at first order too.
+- After 0.8.0: first-order logic on the web page, with the normal forms,
+  Herbrand's theorem, resolution and equality, and the linear tab at
+  first order, once the page's redesign is done.
 
 Not yet placed in a release: the comparison with the other provers on
-the libraries with the engines of 0.2.0.
+the libraries with the engines of 0.2.0, and Rocq certificates of
+first-order derivations of LK, LJ and LM (the countermodels have
+theirs).
 
 ## Where it comes from
 
