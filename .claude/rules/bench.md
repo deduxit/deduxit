@@ -972,6 +972,15 @@ serde_json, which the CLI and the core's tests already have.
   embedding,sat,auto` (3 minutes), the run that made the SAT solver the
   classical default with the embedding's evidence kept. The tables are
   in step 54s's report.
+- **`defaults/equality-iltp-LOGIC-METHOD.csv`** are ILTP's 1 730
+  first-order problems with equality (each problem file named by `--tptp`,
+  the list read off the files and their includes), decided with the
+  equality axioms at 2 s with `--copies none`, classical and
+  intuitionistic logic, `auto`, `connection`, `grounding` and
+  `embedding`, three shards pinned to cores 4 to 6 on a machine in use
+  (verdicts, not times), split by logic and method so that each file is
+  under jj's 1 MiB snapshot limit. The tables, and the verdicts against
+  both statuses of every file, are in step 78's report.
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the
