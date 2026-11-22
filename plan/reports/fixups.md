@@ -1006,3 +1006,90 @@ changed by the one addition. Two findings:
 - `nix flake check` under the machine lock at the report's commit, on
   the chain rebased onto `main@origin`: every check passed. Only this
   line changed after.
+
+## Session fixup-18: LJT's leftovers
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation of 75a, 75c and fixups 15 to 17), cores 10 to 12,
+from the entries step 54 left in `plan/later.md`. Nothing was pushed.
+
+### What landed
+
+- `nvqpvtmu`: **"limit of 0 B"**, traced. The Horn engine's memory
+  refusal read its own account's limit; in the command's race that
+  account is a part of the whole (`Account::part_of`: the bound less the
+  input), so on an input near the bound it was zero, and the line said
+  "the memory limit of 0 B was reached" under `--memory-limit 1MiB`
+  (witness: `!(a0 -o a1), …, !(a19999 -o a20000), a0 |- a20000`, `-i`).
+  The focused engine, the additive path and the inverse method applied
+  `Reason::as_set` (the option's bound) themselves; the Horn and the
+  essential engines did not. `conclude` now applies it to every engine's
+  unknown, one place. `the_memory_limit_named_is_the_one_given` pins the
+  line. The entry said "through the embedding, not traced"; the
+  embedding's own engines named the right bound on every input tried.
+- `mknsnsnv`: **the verdict line says why the default gave way**: where
+  the SAT solver (or LJT) stops at a bound and the embedding decides,
+  `prove`'s line ends `; the SAT solver gave no verdict: REASON, and the
+  embedding took over`, a derivation past the bound written as "its
+  derivation passes the --derivation-limit of L". Not for `Incomplete`: at first order grounding passes every
+  sequent outside its classes on, and a note there said nothing a user
+  can act on (it showed on the manual's first-order example). The
+  batch's lines and the JSON say nothing of it. The manual's example
+  (`a -> b, b -> c |- a -> c` under `--derivation-limit 1KiB`) and the
+  guide say so; ILTP's SYJ202+1.004 shows it at the default bounds.
+- `znzozxtz`: **`ordinary::Derivation::term` never panics**: each
+  `expect` of the read-back (a hypothesis out of scope, a premise, an
+  operand, an equivalence's implication or `⊥` missing, the LK-only
+  arm, an empty results stack) is `Error::ReadBack` naming the
+  inference (`unreadable`), a defect, since the checker refuses each and
+  the crate makes none; the quantifier arms stay `unreachable!` behind
+  `propositional`'s door; a pass before the walk refuses a derivation
+  with no inference or a premise that does not come before its
+  inference. The `# Panics` section was already gone (a derivation from
+  JSON is checked first since 54a's follow-up); a test builds eleven
+  broken derivations by hand
+  (`a_derivation_the_read_back_cannot_read_is_refused`).
+- `vnmxktzy`: **`check` reads derivations of LK and LJ**, propositional
+  ones too (an LJT outcome, an embedding's LK outcome and a bare LJ
+  derivation checked by hand; `cli/tests/cli.rs` and the lock's
+  `check-ordinary` pin it): the entry was stale and is gone.
+- Each closed entry is out of `plan/later.md`; the changelog has a line
+  for the first three.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`). Points 2 (the memory bound
+named, under `-j 1`, `-j 3` and the race, the JSON too; the old binary
+prints "0 B" on the test's input) and 4 (`check` of every method's
+outcome and bare derivation, a changed rule refused) held. Five
+findings, all fixed in the commits named:
+- **The gave-way line printed a running count as the estimate**: the
+  refusal's `estimate_bytes` is where the read-back stopped, so
+  `--derivation-limit 1129` after "estimated at 1128 bytes" was refused
+  again ("estimated at 1464"). The line names the limit alone now
+  (`mknsnsnv`).
+- **The manual's example sat under "`--method sat` reports the bound
+  instead:"**, which it does not show; it follows the default's
+  sentence now (`mknsnsnv`).
+- **The read-back still indexed a premise past the end** (and an empty
+  derivation's root, and looped on a premise naming its own inference),
+  through `from_parts` alone: a pass before the walk refuses each
+  (`znzozxtz`), and the rules' sentence lists them.
+- **Seven of the new refusals had no test**: six more cases in the
+  test (a premise past its inference, a principal past its sequent, an
+  axiom with nothing right, `∨R` without a principal, `¬L` without `⊥`
+  in the arena, a cut whose first premise has nothing right); the second
+  operand's has none, being the first operand's in shape.
+- **`term`'s doc contradicted itself** ("a derivation the crate made …
+  which the crate never makes"): reworded.
+
+### Checks
+
+- `cargo test --workspace` and `cargo clippy --workspace --all-targets
+  -- --deny warnings` after each commit and after the review's fixes;
+  the gate passed on the chain rebased onto `main@origin`
+  (`onzrmpum`) before the review's fixes, `ordinary-pigeons` at its
+  ceiling (+0.00 %, raised in `vpwowvor`).
+- `nix flake check` under the machine lock at the report's commit
+  (04:33 to 04:50), on the chain rebased onto `main@origin`: every
+  check passed. Only this line changed after.
