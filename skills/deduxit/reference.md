@@ -1836,6 +1836,11 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 ### Ordinary logic
 
+- `ordinary::read_tptp(&text, &limits)` reads a TPTP problem into a
+  `Problem` (its sequent and status); `ordinary::tptp_text(&bytes)`
+  gives a file's text first, reading a byte that is not UTF-8 in a `%`
+  comment and refusing one elsewhere (`Error::Tptp`). Includes are the
+  caller's to inline, file by file.
 - `ordinary::decide(&sequent, &options)` decides within the default
   limits; `ordinary::decide_within(&sequent, &options, &search, &limits,
   stop)` takes the bounds, the image's search options and a stop. Both

@@ -112,7 +112,7 @@ pub(crate) use interactive::Parts;
 pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Step, StepError};
 pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
-pub use parse::{Problem, read_tptp};
+pub use parse::{Problem, read_tptp, tptp_text};
 pub use structure::{Evaluation, FiniteCountermodel, Structure};
 pub use table::{TruthTable, truth_table};
 #[cfg(feature = "interactive")]

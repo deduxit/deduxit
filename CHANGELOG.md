@@ -26,6 +26,10 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **`ordinary::tptp_text`** gives a TPTP file's text from its bytes for
+  `read_tptp`: a byte that is not UTF-8 in a `%` comment, where some of
+  ILTP's problems write an author's name in Latin-1, is read, and one
+  anywhere else is `Error::Tptp` naming its line.
 - **The quantifier rules of LK, LJ and LM**: the checker takes `∀L`,
   `∀R`, `∃L` and `∃R` with their eigenvariable conditions, each inference
   recording its witness or eigenvariable (`Inference::term`).

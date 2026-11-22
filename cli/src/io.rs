@@ -165,83 +165,22 @@ pub(crate) fn read(path: Option<&Path>, what: &str, memory: Option<u64>) -> Resu
         })
 }
 
-/// Reads a TPTP problem as [`read`] does, its bytes decoded by
-/// [`tptp_text`]: a byte that is no UTF-8 is read where it stands in a
-/// comment.
+/// Reads a TPTP problem as [`read`] does, its bytes decoded by the
+/// library's `ordinary::tptp_text`: a byte that is no UTF-8 is read where
+/// it stands in a comment.
 ///
 /// # Errors
 ///
 /// As [`read`], and a byte that is no UTF-8 outside a comment.
 pub(crate) fn read_tptp(path: Option<&Path>, what: &str, memory: Option<u64>) -> Result<String> {
     let bytes = read_bytes(path, what, memory)?;
-    tptp_text(bytes).with_context(|| match path {
-        Some(path) if path != Path::new("-") => format!("cannot read {}", path.display()),
-        _ => "cannot read standard input".to_owned(),
-    })
-}
-
-/// Returns the text of a TPTP problem's bytes. TPTP files are ASCII in
-/// their formulas, but some write an author's name in Latin-1 in a
-/// comment: a byte that is no UTF-8 stands as U+FFFD there, since the
-/// reader skips comments (`%` to the end of the line), and is refused
-/// anywhere else, naming its line.
-///
-/// # Errors
-///
-/// A byte that is no UTF-8 outside a comment.
-pub(crate) fn tptp_text(bytes: Vec<u8>) -> Result<String> {
-    let bytes = match String::from_utf8(bytes) {
-        Ok(text) => return Ok(text),
-        Err(error) => error.into_bytes(),
-    };
-    // Where the text is: in a formula, a comment, or a quoted name or
-    // string, whose `%` opens no comment.
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    enum At {
-        Code,
-        Comment,
-        Quoted(char),
-    }
-    let mut at = At::Code;
-    let mut line = 1usize;
-    let mut escaped = false;
-    let mut out = String::with_capacity(bytes.len());
-    for chunk in bytes.utf8_chunks() {
-        for c in chunk.valid().chars() {
-            out.push(c);
-            match at {
-                At::Code => match c {
-                    '%' => at = At::Comment,
-                    '\'' | '"' => at = At::Quoted(c),
-                    _ => {}
-                },
-                At::Comment => {
-                    if c == '\n' {
-                        at = At::Code;
-                    }
-                }
-                At::Quoted(quote) => {
-                    if escaped {
-                        escaped = false;
-                    } else if c == '\\' {
-                        escaped = true;
-                    } else if c == quote {
-                        at = At::Code;
-                    }
-                }
-            }
-            if c == '\n' {
-                line += 1;
-            }
-        }
-        if !chunk.invalid().is_empty() {
-            if at != At::Comment {
-                bail!("line {line} holds a byte that is not UTF-8 outside a comment");
-            }
-            out.push(char::REPLACEMENT_CHARACTER);
-        }
-    }
-    Ok(out)
+    deduxit::ordinary::tptp_text(&bytes)
+        .map(std::borrow::Cow::into_owned)
+        .map_err(anyhow::Error::from)
+        .with_context(|| match path {
+            Some(path) if path != Path::new("-") => format!("cannot read {}", path.display()),
+            _ => "cannot read standard input".to_owned(),
+        })
 }
 
 /// Reads all of a file or of standard input as bytes, as [`read`] reads

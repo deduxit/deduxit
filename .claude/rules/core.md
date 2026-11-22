@@ -151,6 +151,7 @@ Each entry point is described in the file of its module:
 - `lltp::read`, `mist::read` and `families` (`core-inputs.md`);
 - `ordinary`: `"…".parse::<ordinary::Sequent>()`, `read_tptp`,
   `Sequent::parse_within(text, &limits)`, `read_tptp(text, &limits)`,
+  `tptp_text(bytes)` (a file's bytes to `read_tptp`'s text),
   `translate(&sequent, logic, translation, &limits)` to an `Image`,
   `Image::read_back(&proof, &limits, stop)` to a `Derivation` of LK or
   LJ, `Derivation::check(&limits, stop)`, `ordinary::decide` all of it

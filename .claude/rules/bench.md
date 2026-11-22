@@ -50,8 +50,8 @@ serde_json, which the CLI and the core's tests already have.
   reads the same way: `load_ordinary` inlines each `include('NAME').`
   from the nearest directory above the problem that has the file (TPTP
   names it from the library's root; 1 279 problems include `Axioms/…`)
-  and reads a file as the command does (`text_of`, the same as
-  `cli/src/io.rs`'s `tptp_text`: a byte that is no UTF-8 stands as
+  and reads a file as the command does (`text_of`, through the library's
+  `ordinary::tptp_text`: a byte that is no UTF-8 stands as
   U+FFFD in a comment and is refused elsewhere, naming its line; 107 of
   the 940 first-order problems without equality hold Latin-1 in their
   comments, which the lossy reading before took anywhere). A method's first-order refusal (LJT, the SAT solver) is a

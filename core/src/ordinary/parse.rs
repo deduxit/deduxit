@@ -846,6 +846,92 @@ pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
     }
 }
 
+/// Returns the text of a TPTP file's bytes, for [`read_tptp`]. A TPTP
+/// formula is ASCII, but some files write an author's name in Latin-1 in
+/// a comment, as 107 of the ILTP library's first-order problems do: a
+/// byte that is no UTF-8 is read as U+FFFD inside a `%` comment, which
+/// the reader skips, and is refused anywhere else. Text that is UTF-8 is
+/// borrowed as it is.
+///
+/// A caller that inlines a file's `include('NAME').` lines decodes each
+/// file with this before it joins them; the library reads no files.
+///
+/// Needs the cargo feature `parse` (on by default).
+///
+/// ```
+/// use deduxit::Limits;
+/// use deduxit::ordinary;
+///
+/// // `é` in Latin-1, in a comment.
+/// let bytes = b"% by Jos\xe9\nfof(c, conjecture, p => p).\n";
+/// let text = ordinary::tptp_text(bytes)?;
+/// let problem = ordinary::read_tptp(&text, &Limits::default())?;
+/// assert_eq!(problem.sequent.to_string(), "\u{22a2} p \u{2192} p");
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+///
+/// # Errors
+///
+/// [`Error::Tptp`] for a byte that is no UTF-8 outside a comment, naming
+/// its line.
+pub fn tptp_text(bytes: &[u8]) -> Result<std::borrow::Cow<'_, str>, Error> {
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return Ok(std::borrow::Cow::Borrowed(text));
+    }
+    // Where the text is: in a formula, a comment, or a quoted name or
+    // string, whose `%` opens no comment.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum At {
+        Code,
+        Comment,
+        Quoted(char),
+    }
+    let mut at = At::Code;
+    let mut line = 1usize;
+    let mut escaped = false;
+    let mut out = String::with_capacity(bytes.len());
+    for chunk in bytes.utf8_chunks() {
+        for c in chunk.valid().chars() {
+            out.push(c);
+            match at {
+                At::Code => match c {
+                    '%' => at = At::Comment,
+                    '\'' | '"' => at = At::Quoted(c),
+                    _ => {}
+                },
+                At::Comment => {
+                    if c == '\n' {
+                        at = At::Code;
+                    }
+                }
+                At::Quoted(quote) => {
+                    if escaped {
+                        escaped = false;
+                    } else if c == '\\' {
+                        escaped = true;
+                    } else if c == quote {
+                        at = At::Code;
+                    }
+                }
+            }
+            if c == '\n' {
+                line += 1;
+            }
+        }
+        if !chunk.invalid().is_empty() {
+            if at != At::Comment {
+                return Err(Error::Tptp {
+                    message: format!(
+                        "line {line} holds a byte that is not UTF-8 outside a comment"
+                    ),
+                });
+            }
+            out.push(char::REPLACEMENT_CHARACTER);
+        }
+    }
+    Ok(std::borrow::Cow::Owned(out))
+}
+
 /// Reads the clauses of a TPTP file, `text`, with the names `renames`
 /// gives, as [`read_tptp`] describes.
 fn read_clauses(

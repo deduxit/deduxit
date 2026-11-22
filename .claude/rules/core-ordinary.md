@@ -17,7 +17,12 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `parse.rs` (behind `parse`): the precedence parser in two dialects,
   this crate's (`->`, `/\`, `\/`, `~`, `<->`, `true`, `false` and their
   Unicode symbols) and TPTP's `fof` (`read_tptp`, through
-  `lltp::clauses`, which `lltp::read` shares); `translate.rs`: the
+  `lltp::clauses`, which `lltp::read` shares; `tptp_text` decodes a
+  file's bytes for it: UTF-8 borrowed, a byte that is no UTF-8 in a `%`
+  comment, the reader's only kind, as U+FFFD, one elsewhere
+  `Error::Tptp` naming its line; the command's `io::read_tptp` and the
+  harness's `text_of` call it, each inlining includes after, since the
+  library reads no files); `translate.rs`: the
   pattern table, `translate`, `Image`, `Target` (`Translation::target`:
   MALL in classical affine mode or LL in intuitionistic mode, whose
   `Display` the command prints, `affine MALL`, `ILL`); `derivation.rs`:

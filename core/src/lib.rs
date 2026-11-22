@@ -262,7 +262,8 @@
 //! On by default:
 //! - `parse`: the text syntaxes, the LLTP reader `linear::lltp`, the
 //!   reader of coverability problems `linear::mist`, the generated
-//!   `linear::families` and the TPTP reader `ordinary::read_tptp`;
+//!   `linear::families` and the TPTP reader `ordinary::read_tptp` with
+//!   `ordinary::tptp_text`, which decodes a file's bytes for it;
 //! - `serialize`: the JSON forms, through serde;
 //! - `interactive`: `Interactive`, proving step by step;
 //! - `latex`, `typst`, `svg` and `rocq`: the exports under [`export`];
