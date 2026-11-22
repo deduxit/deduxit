@@ -8283,3 +8283,16 @@ move (D26).
   don't start any new session after session 80 finishes"). fixup-26 (in 78c's worker): the connection
   provers' setup within its bounds (78c's reviewer's note). Step 80, fixup-25 and fixup-26 finish and
   are reviewed and pushed; after 80 nothing new starts until the author says go.
+- 2026-11-23, about 01:05: **80 reviewed; 0.8.0 ready for the author's tags.** 80 (Opus, high; the
+  reviewer on Fable): the versions 0.8.0 (the lock's outcome version blessed in its own commit),
+  `breaks 0.7.0` covered, `status.md`, README, the guide, the changelog dated 2026-11-23 with what
+  breaks and wire levels 25 to 29, the release workflow's dry run (the tag check, the crate
+  selection: `deduxit` and `deduxit-cli` through Trusted Publishing), the release notes and the
+  checklist (`plan/notes/release-0.8.0.md`), the state of `later.md`'s items; rocq-deduxit's release
+  commit (`zxknsvsx`, its CHANGELOG, CITATION and opam file 0.8.0). The reviewer's five findings, all
+  in the release's text, fixed. rocq-deduxit's release commit pushed (`e3eecb30`); deduxit's lock
+  moved to it below `zpxsuouq` (which names rocq-deduxit 0.8.0 in the certificates); the chain
+  through `push-ci`, then `main`. **Waiting for the author:** rocq-deduxit's tag `v0.8.0` at
+  `e3eecb30`, then deduxit's tag `v0.8.0`, then the crates.io approval; the opam submission can go
+  now, theirs. fixup-25 and fixup-26 fold their entries into 0.8.0's section if they land before
+  deduxit's tag. Per the author, nothing new starts.
