@@ -449,7 +449,7 @@ Limits:
       --derivation-limit <SIZE>
           The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
           
-          A derivation writes out the whole sequent at every inference, and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format. The verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn, and left out above the same limit.
+          A derivation writes out the whole sequent at every inference, and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format. The verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn, and left out above the same limit. Under --logic the derivation of LK or LJ is built and checked within --memory-limit whatever its size, so the verdict is a checked one, and this limit bounds only its drawing (the tableau method builds its tableau within it); `prove --format json` writes the derivation at any size.
           
           [default: 64MiB]
 
