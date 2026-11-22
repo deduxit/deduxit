@@ -86,4 +86,43 @@ Deliverables: the commits (both repositories),
 
 ## What step 75 left you
 
-(Finished at 75's review.)
+- **The type to extend**: `ordinary::FiniteCountermodel { sequent,
+  structure }` and `Structure { size, constants, predicates }` (both
+  `#[non_exhaustive]`), JSON `"structure": {"sequent", "structure":
+  {"size", "constants", "predicates"}}` beside `not_valid` at level 25,
+  `deny_unknown_fields`. A predicate left out holds of nothing. It
+  refuses function symbols with arguments today: this step's structures
+  interpret functions, and its Kripke models add worlds, an order and a
+  domain per world.
+- **The check is the one trust**: `FiniteCountermodel::check(logic,
+  limits, stop)` evaluates the original sequent (`Structure::refutes`:
+  iterative, short cuts, the work bound and the stop, the tables
+  charged); `check` and the protocol's `decides` re-evaluate an
+  outcome's structure (`Error::Structure`). A structure too large to
+  check is dropped with the verdict kept where the verdict has its own
+  argument (grounding's); a model search's "not valid" has no other
+  argument, so its model is always checked.
+- **What is left to this step**: every sequent with function symbols,
+  Ackermann's and Gödel's classes, monadic sequents past bounded
+  miniscoping, and in intuitionistic and minimal logic every classically
+  valid sequent (grounding answers `Unknown(Incomplete)` there). A
+  first-order "not valid" in those logics comes only from a classical
+  structure today.
+- **The defaults** (75d's measurement): grounding for its classes in
+  every logic, then the connection prover (classical) or the embedding
+  (intuitionistic, minimal: every order with 75c's prover proved fewer
+  at 2 s); the command gives the first 90 % of its time limit. A model
+  search comes after them, within the command's time, without making a
+  "valid" slower (measure it on ILTP's first-order problems).
+- **Grounding's rule**: one Skolem constant per `∀` occurrence (per node
+  and value of its free `∀` variables), equal nodes sharing (δ⁺⁺); a
+  constant per variable was unsound (ILTP's SYN316+1). MACE's flattening
+  must keep the same discipline for its Skolem functions.
+- **Minimal logic** stays on the embedding (75c's map back is ambiguous
+  with both `¬A` and `A → ⊥`); its countermodels are Kripke models where
+  `⊥` is an ordinary atom, as the propositional suite's.
+- **The comparison**: `deduxit-bench run --tools …` runs leanCoP,
+  nanoCoP, nanoCoP-i and iLeanCoP on ILTP's 940 first-order problems
+  without equality (`bench/COMPARISON.md`); their "not valid" answers
+  (nanoCoP 84, nanoCoP-i 86, iLeanCoP 74 at 2 s) are this step's measure
+  beside deduxit's 77 and 109.

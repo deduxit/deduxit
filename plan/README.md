@@ -7978,3 +7978,14 @@ move (D26).
   following leanCoP's `leancop_main/3`, never in the crates; `bench/TOOLS.md` says why), and TPTP
   files that are not UTF-8 are read; both, with the intuitionistic default measured with 75c's
   prover, go to fixup-16.
+- 2026-11-22, about 01:30: **75d rebased onto 75c; step 75 complete once it lands; 76a started.**
+  75d rebased onto 75c (gate passed; the web module 2 631 105 bytes under 75c's 2 650 000).
+  **Accepted departure, by measurement:** 75c's prover stays out of the intuitionistic default: at
+  2 s the embedding without a copy bound proves 374 of ILTP's first-order problems, the prover 155,
+  and every order or share with the prover proved fewer (75d's report). So the intuitionistic
+  default's measurement leaves fixup-16, which keeps the GPL header and the TPTP files not in
+  UTF-8. 75d's check on `ci/step-75d`, then `main`. **Step 76's prompt** finished with "What step 75
+  left you" (the `FiniteCountermodel` type and its check, what the fragments leave, the defaults,
+  grounding's Skolem rule, the comparison's "not valid" counts) and committed; **76a** (the design:
+  MACE or Paradox, the type with functions, Kripke models with growing domains, the Rocq lemmas;
+  then the classical model search) started in 75d's worker, which keeps its conversation.
