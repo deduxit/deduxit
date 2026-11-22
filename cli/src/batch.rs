@@ -926,17 +926,25 @@ impl Shared {
         let gives_way = options.method.is_none();
         let start = Instant::now();
         let share = ordinary::first_order_share(options, sequent, deadline)?;
+        let connection = ordinary::connection_share(options, sequent, deadline)?;
         let halt = || interrupted() || deadline.passed() || self.batch.passed() || share.passed();
         // Whether the read-back or a check began, which the entry's line of
         // a stop says (LJT's and the SAT solver's follow their search).
         let after_search = std::cell::Cell::new(false);
-        let decided =
-            ordinary::decide_natively(options, sequent, &plan.search, &plan.limits, |p| {
+        let decided = ordinary::decide_natively(
+            options,
+            sequent,
+            &plan.search,
+            &plan.limits,
+            &connection,
+            &halt,
+            |p| {
                 if p.phase != deduxit::Phase::Search {
                     after_search.set(true);
                 }
                 halt()
-            });
+            },
+        );
         let at_share =
             ordinary::stopped_at_share(&decided, &share, deadline) && !self.batch.passed();
         if gives_way && (at_share || ordinary_logic::gives_way(&decided)) {

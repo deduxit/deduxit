@@ -659,7 +659,8 @@ pub(crate) struct ProveArgs {
     pub(crate) system: Option<deduxit::modal::System>,
     /// With --logic, how to decide the sequent: through its embedding into
     /// linear logic, by LJT, by a SAT solver, by its truth table, by a
-    /// tableau, by a connection prover or by grounding (ordinary.method)
+    /// tableau, by a connection prover, by grounding or by a search for a
+    /// finite structure that refutes it (ordinary.method)
     ///
     /// By default every logic is decided by the SAT solver: intuitionistic
     /// and minimal logic with LJT's derivation where LJT gives one, and
@@ -668,8 +669,10 @@ pub(crate) struct ProveArgs {
     /// short bound of work. A first-order sequent is decided by grounding
     /// where it lies in the classes grounding decides, else by the
     /// connection prover in classical logic and through the embedding in
-    /// the others, the methods that take one; where grounding or the
-    /// connection prover gives up, the embedding decides in its place.
+    /// the others, the methods that take one; in classical logic the
+    /// model search runs beside the connection prover, on a thread of its
+    /// own, the first to answer winning; where they give up, the embedding
+    /// decides in its place.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
@@ -690,13 +693,19 @@ pub(crate) struct ProveArgs {
     /// elements, each constant's element and where each predicate holds.
     /// In intuitionistic and minimal logic a classically valid sequent is
     /// unknown to grounding.
+    /// The model search looks for a finite structure that refutes a
+    /// first-order sequent, of 1, 2, … elements (--model-size bounds
+    /// them), by the SAT solver. A structure it finds is checked and
+    /// printed after the verdict, each function's table among the rest;
+    /// it refutes the sequent in every logic. It never finds a sequent
+    /// valid: past the bound or the time limit the sequent is unknown.
     /// The truth table and the tableau decide classical logic, and print
     /// the table or the tableau in place of a derivation: the table's rows
     /// that falsify the sequent marked `×`, the tableau's lines numbered,
     /// each branch closed with `×` or left open. --table-atoms bounds the
     /// table.
     /// Under LJT, the SAT solver, the table, the tableau, the
-    /// connection prover and grounding, --stats prints
+    /// connection prover, grounding and the model search, --stats prints
     /// the method's counters. Under every method --format json writes the
     /// outcome of the ordinary sequent, its "search" tagged by "method".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
@@ -899,6 +908,15 @@ pub(crate) struct SearchArgs {
     /// (exit status 3).
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
     pub(crate) path_length: Count<u32>,
+    /// The most elements of a finite structure the model search tries, or
+    /// `none` for no bound (search.model_size)
+    ///
+    /// The model search (--method models) tries structures of 1, 2, …
+    /// elements in turn. By default it goes on until it finds one or the
+    /// time limit passes; with a bound, a sequent no structure within it
+    /// refutes is unknown (exit status 3).
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
+    pub(crate) model_size: Count<u32>,
     /// Keep the connection prover's first solution of each literal, never
     /// trying another (search.restricted_backtracking)
     ///
@@ -2224,6 +2242,10 @@ pub(crate) enum MethodArg {
     /// every predicate takes at most one argument: a sequent that is not
     /// valid gets a checked finite structure
     Grounding,
+    /// By a search for a finite structure that refutes it, of 1, 2, …
+    /// elements, for first-order sequents in every logic: a structure found
+    /// is checked; it never finds a sequent valid
+    Models,
 }
 
 impl From<MethodArg> for deduxit::ordinary::Method {
@@ -2236,6 +2258,7 @@ impl From<MethodArg> for deduxit::ordinary::Method {
             MethodArg::Tableau => Self::Tableau,
             MethodArg::Connection => Self::Connection,
             MethodArg::Grounding => Self::Grounding,
+            MethodArg::Models => Self::Models,
         }
     }
 }

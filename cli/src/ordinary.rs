@@ -22,6 +22,7 @@ use deduxit::{
     linear::{Forest, Proof, ViewOptions},
 };
 use std::fmt::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// Returns the ordinary sequent `text` holds in `format`: text in the
@@ -98,8 +99,13 @@ pub(crate) fn translated(
 /// Either flag beside `--method ljt` or `sat`, or beside a settings
 /// file's `ordinary.method` of either.
 pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Result<()> {
-    if let Some(method @ (Method::Ljt | Method::Sat | Method::Connection | Method::Grounding)) =
-        options.method
+    if let Some(
+        method @ (Method::Ljt
+        | Method::Sat
+        | Method::Connection
+        | Method::Grounding
+        | Method::Models),
+    ) = options.method
         && (args.logic.translation.is_some() || args.linear)
     {
         bail!(
@@ -142,6 +148,38 @@ pub(crate) fn first_order_share(
     }
 }
 
+/// The part of the time limit, in percent, that the default's connection
+/// prover gets of a first-order classical sequent before the model search
+/// takes the rest of [`FIRST_ORDER_SHARE`]. On ILTP's first-order problems
+/// the model search finds each of its 210 structures within 0.4 s, a fifth
+/// of a 2 s limit; at 70% the prover loses two of its 604 theorems at 2 s
+/// and none at 5 s.
+pub(crate) const CONNECTION_SHARE: u32 = 70;
+
+/// Returns the deadline of the default's connection prover on a
+/// first-order classical sequent: [`CONNECTION_SHARE`] of the time limit
+/// where no method is given and the sequent's method is grounding or the
+/// connection prover in classical logic, else one that never passes.
+///
+/// # Errors
+///
+/// A thread for the deadline that cannot be started.
+pub(crate) fn connection_share(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    deadline: &Deadline,
+) -> Result<Deadline> {
+    let first_order = matches!(
+        options.method_for(sequent),
+        Method::Connection | Method::Grounding
+    );
+    if options.method.is_none() && first_order && options.logic == Logic::Classical {
+        deadline.share(CONNECTION_SHARE)
+    } else {
+        Deadline::start(None, Instant::now())
+    }
+}
+
 /// Returns whether the default's first-order method stopped at its share of
 /// the time limit, not at the limit or Ctrl-C: the embedding then decides
 /// with the time left.
@@ -170,19 +208,25 @@ pub(crate) const fn by(method: Method) -> &'static str {
         Method::Tableau => "a tableau",
         Method::Connection => "the connection prover",
         Method::Grounding => "grounding",
+        Method::Models => "the model search",
         _ => "LJT",
     }
 }
 
 /// Decides an ordinary sequent by a method other than the embedding, as
-/// the options' method for it says, under `stop`. With no method given,
-/// the SAT solver takes LJT's derivation where LJT gives one, as the
-/// library's default does.
+/// the options' method for it says, until `halt` says to stop. With no
+/// method given, the SAT solver takes LJT's derivation where LJT gives one,
+/// as the library's default does, and a first-order classical sequent the
+/// connection prover decides is searched for a finite structure beside it
+/// ([`by_connection`]). `stop` is asked on the calling thread, `halt` on
+/// the model search's.
 pub(crate) fn decide_natively(
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
     search: &deduxit::linear::search::Options,
     limits: &deduxit::Limits,
+    connection: &Deadline,
+    halt: &(dyn Fn() -> bool + Sync),
     mut stop: impl FnMut(deduxit::Progress) -> bool,
 ) -> Result<ordinary::Outcome, Error> {
     let logic = options.logic;
@@ -204,8 +248,7 @@ pub(crate) fn decide_natively(
                 ordinary::decide_within(sequent, &named, search, &grounding_limits, &mut stop);
             let classical = options.method.is_none() && logic == Logic::Classical;
             if classical && ordinary::gives_way(&grounded) {
-                return ordinary::connection::decide(sequent, logic, search, limits, stop)
-                    .map(ordinary::Outcome::from);
+                return by_connection(sequent, logic, search, limits, connection, halt, &mut stop);
             }
             let grounded = grounded?;
             if classical
@@ -226,7 +269,12 @@ pub(crate) fn decide_natively(
             }
             Ok(grounded)
         }
+        Method::Connection if options.method.is_none() && logic == Logic::Classical => {
+            by_connection(sequent, logic, search, limits, connection, halt, &mut stop)
+        }
         Method::Connection => ordinary::connection::decide(sequent, logic, search, limits, stop)
+            .map(ordinary::Outcome::from),
+        Method::Models => ordinary::models::decide(sequent, logic, search, limits, stop)
             .map(ordinary::Outcome::from),
         Method::Sat if options.method.is_none() => {
             sat::decide_preferring_ljt(sequent, logic, limits, stop).map(ordinary::Outcome::from)
@@ -238,6 +286,115 @@ pub(crate) fn decide_natively(
         }
         _ => ljt::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
     }
+}
+
+/// Decides a first-order classical sequent as the default does: the
+/// connection prover, and beside it on a thread of its own the model
+/// search, the first to decide answering ("not valid" from the model
+/// search, either verdict from the prover), each with half the memory
+/// bound. On one thread (`--jobs 1`, `--deterministic`, or where no thread
+/// starts) the prover searches until `connection` passes or it gives way,
+/// and the model search takes the rest. The calling thread asks `stop`,
+/// the model search's thread `halt`.
+///
+/// On ILTP's first-order problems at 2 s, the model search found each of
+/// its 210 structures within 0.4 s, while the prover proves two theorems
+/// only after 1.4 s: run one after the other within the first-order share,
+/// one of them would lose the other's answers.
+fn by_connection(
+    sequent: &ordinary::Sequent,
+    logic: Logic,
+    search: &deduxit::linear::search::Options,
+    limits: &deduxit::Limits,
+    connection: &Deadline,
+    halt: &(dyn Fn() -> bool + Sync),
+    stop: &mut dyn FnMut(deduxit::Progress) -> bool,
+) -> Result<ordinary::Outcome, Error> {
+    let stopped = |decided: &Result<ordinary::Outcome, Error>| {
+        matches!(
+            decided,
+            Ok(ordinary::Outcome {
+                verdict: ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Stopped),
+                ..
+            }) | Err(Error::Refused(Refusal::Stopped { .. }))
+        )
+    };
+    if search.jobs.count() > 1 {
+        let half = limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 2));
+        let done = AtomicBool::new(false);
+        let raced = std::thread::scope(|scope| {
+            let modelled = std::thread::Builder::new()
+                .name("model search".into())
+                .spawn_scoped(scope, || {
+                    let modelled = ordinary::models::decide(sequent, logic, search, &half, |_| {
+                        halt() || done.load(Ordering::Relaxed)
+                    });
+                    if matches!(
+                        &modelled,
+                        Ok(ordinary::models::Outcome {
+                            verdict: ordinary::Verdict::NotValid,
+                            ..
+                        })
+                    ) {
+                        done.store(true, Ordering::Relaxed);
+                    }
+                    modelled
+                })
+                .ok()?;
+            let connected = ordinary::connection::decide(sequent, logic, search, &half, |p| {
+                stop(p) || done.load(Ordering::Relaxed)
+            });
+            if matches!(
+                &connected,
+                Ok(ordinary::connection::Outcome {
+                    verdict: ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid,
+                    ..
+                })
+            ) {
+                done.store(true, Ordering::Relaxed);
+            }
+            let modelled = match modelled.join() {
+                Ok(modelled) => modelled,
+                Err(panic) => std::panic::resume_unwind(panic),
+            };
+            Some((connected, modelled))
+        });
+        if let Some((connected, modelled)) = raced {
+            let connected = connected.map(ordinary::Outcome::from);
+            return match (connected, modelled) {
+                (
+                    connected @ Ok(ordinary::Outcome {
+                        verdict: ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid,
+                        ..
+                    }),
+                    _,
+                ) => connected,
+                (
+                    _,
+                    Ok(
+                        modelled @ ordinary::models::Outcome {
+                            verdict: ordinary::Verdict::NotValid,
+                            ..
+                        },
+                    ),
+                ) => Ok(ordinary::Outcome::from(modelled)),
+                // A defect of either is the answer.
+                (Err(error @ Error::Countermodel { .. }), _)
+                | (_, Err(error @ Error::Countermodel { .. })) => Err(error),
+                // The prover's unknown, which the embedding takes over from.
+                (connected, _) => connected,
+            };
+        }
+    }
+    let connected = ordinary::connection::decide(sequent, logic, search, limits, |p| {
+        stop(p) || connection.passed()
+    })
+    .map(ordinary::Outcome::from);
+    if (stopped(&connected) && connection.passed() && !halt()) || ordinary::gives_way(&connected) {
+        return ordinary::models::decide(sequent, logic, search, limits, stop)
+            .map(ordinary::Outcome::from);
+    }
+    connected
 }
 
 /// What deciding an ordinary sequent by LJT or the SAT solver leaves to
@@ -389,25 +546,37 @@ pub(crate) fn by_native(
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
         let share = first_order_share(options, sequent, deadline)?;
+        let connection = connection_share(options, sequent, deadline)?;
         let halt = || interrupted() || deadline.passed() || share.passed();
         // Whether the read-back or a check began, which the verdict line of
         // a stop says (LJT's and the SAT solver's follow their search).
         let after_search = std::cell::Cell::new(false);
-        let decided = decide_natively(options, sequent, &settings.search, &limits, |p| {
-            if p.phase != Phase::Search {
-                after_search.set(true);
-            }
-            halt()
-        });
+        let decided = decide_natively(
+            options,
+            sequent,
+            &settings.search,
+            &limits,
+            &connection,
+            &halt,
+            |p| {
+                if p.phase != Phase::Search {
+                    after_search.set(true);
+                }
+                halt()
+            },
+        );
         drop(notice);
+        // The method that ran last: the model search after the connection
+        // prover, where it took over.
+        let last = decided.as_ref().map_or(method, ordinary::Outcome::method);
         if gives_way && stopped_at_share(&decided, &share, deadline) {
             return Ok(Native::GivesWay(Some(format!(
                 "{} gave no verdict within {FIRST_ORDER_SHARE}% of the time limit",
-                by(method)
+                by(last)
             ))));
         }
         if gives_way && ordinary::gives_way(&decided) {
-            return Ok(Native::GivesWay(gave_way(method, &decided)));
+            return Ok(Native::GivesWay(gave_way(last, &decided)));
         }
         if keeps
             && let Ok(solved) = &decided
@@ -771,6 +940,13 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
             ("solver calls", s.sat.calls),
             ("conflicts", s.sat.conflicts),
             ("proof steps", s.sat.proof_steps),
+        ],
+        ordinary::Search::Models(s) => &[
+            ("largest structure tried, elements", s.size),
+            ("atoms", s.atoms),
+            ("formulas", s.nodes),
+            ("solver calls", s.sat.calls),
+            ("conflicts", s.sat.conflicts),
         ],
         ordinary::Search::Tableau(tableau) => &[
             ("lines", u64::from(tableau.line_count())),

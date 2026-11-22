@@ -599,6 +599,7 @@ pub(crate) fn check_ordinary(
                     ordinary::Method::Sat => "the SAT solver",
                     ordinary::Method::Connection => "the connection prover",
                     ordinary::Method::Grounding => "grounding",
+                    ordinary::Method::Models => "the model search",
                     _ => "LJT",
                 };
                 let line = format!(

@@ -1385,6 +1385,18 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   prover alone; the prover proves all but three of its theorems within
   0.6 s, and five of the seven the embedding alone proves take it under
   6 ms. Without a time limit there is no share.
+- **The model search** (`--method models`, `--model-size N|none`, key
+  `search.model_size`, none by default: it deepens while the time limit
+  lasts): `decide_natively` runs `ordinary::models::decide`. As the
+  classical default of a first-order sequent (after grounding gives way,
+  or where the method is the connection prover), `by_connection` runs
+  the prover until `connection_share`'s deadline (`CONNECTION_SHARE`
+  percent of the time limit) or until it gives way, then the model
+  search under the caller's stop, which the first-order share ends;
+  `decide_natively` takes that deadline from `prove` and the batch. Its
+  "not valid" is `not_valid`'s structure line, the structure (function
+  tables among it) printed after it; an unknown at its bound names
+  `--model-size` (`advice`); `native_statistics` prints five counters.
 - **`interact --logic` with quantifiers**: `apply G F RULE TERM…` reads
   the words after `∀L` or `∃R` as the witness
   (`ordinary::Interactive::witness`), none leaving it open (`$1`), and

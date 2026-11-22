@@ -110,6 +110,8 @@ sequent with nothing on the left.
 - `grounding` decides the first-order sequents of two decidable classes
   in every logic, and is the default for them ([Decidable
   classes](#decidable-classes)).
+- `models` searches for a finite structure that refutes a first-order
+  sequent, in every logic ([Finite models](#finite-models)).
 
 ```console
 $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
@@ -554,7 +556,8 @@ every logic. Otherwise it decides it by the connection prover in
 classical logic, and through the embedding in intuitionistic and minimal
 logic. Under a time limit, grounding or the connection prover gets 90%
 of it and the embedding the rest: on ILTP's first-order problems that
-proves five theorems more at 2 seconds. A valid sequent gets a checked
+proves five theorems more at 2 seconds. In classical logic a search for
+a finite structure runs beside the prover ([Finite models](#finite-models)). A valid sequent gets a checked
 derivation with the quantifier rules:
 
 ```console
@@ -706,6 +709,62 @@ p: {1}
 q: true
 ```
 
+### Finite models
+
+`--method models` looks for a finite structure that refutes a
+first-order sequent, function symbols included. It tries structures of
+1, 2, … elements in turn: for each size it writes "the sequent fails in
+a structure of this size" as a formula of propositional logic, every
+`∀` and `∃` spelled out over the elements, and asks the SAT solver for
+a model. A structure it finds is checked against the sequent before the
+answer, and printed after the verdict line with each function's table:
+
+```console
+$ deduxit prove --logic classical --method models 'forall x. r(x, f(x)) |- exists x. r(f(x), x)'; echo "exit $?"
+not valid (classical logic by the model search): a checked finite structure of 3 elements refutes it
+domain: {0, 1, 2}
+f: 0 ↦ 1, 1 ↦ 2, 2 ↦ 0
+r: {(0, 1), (1, 2), (2, 0)}
+exit 1
+```
+
+The structure refutes the sequent in intuitionistic and minimal logic
+too. The search never finds a sequent valid: a sequent that no structure
+up to `--model-size N` elements refutes is unknown (exit 3), and without
+the flag the search goes on until the time limit. Some sequents are
+refuted only by infinite structures, such as a strict order without a
+greatest element.
+
+```console
+$ deduxit prove --logic intuitionistic --method models --model-size 2 'forall x. p(x) |- p(f(a))'; echo "exit $?"
+unknown (intuitionistic logic by the model search): no structure of up to 2 elements refutes it after …; raise the bound with --model-size N, or lift it with --model-size none to try larger structures while the time limit lasts
+exit 3
+```
+
+In classical logic `prove` runs the search by default beside the
+connection prover, on a thread of its own, the first to answer winning;
+on one thread (`--jobs 1`) the prover gets 70% of the time limit and the
+search the rest of the first-order share. Without the time limit, the
+library runs it last, on a first-order sequent the embedding leaves
+unknown, in every logic. On ILTP's first-order problems it refutes 210
+in classical logic at 2 seconds, each within 0.4 seconds: 176 of the 178
+the library marks CounterSatisfiable that have no equality, among them
+every one of the 77 grounding refutes and the 84 nanoCoP refutes.
+
+```console
+$ deduxit prove --logic classical 'forall x. (p(x) -> p(f(x))), p(a) |- p(b)'; echo "exit $?"
+not valid (classical logic by the model search): a checked finite structure of 2 elements refutes it
+domain: {0, 1}
+a = 0
+b = 1
+f: 0 ↦ 0, 1 ↦ 1
+p: {0}
+exit 1
+```
+
+`--stats` prints the largest structure tried, the atoms and formulas of
+its formula, and the solver's counters.
+
 The translation into linear logic may lose a first-order proof: the
 classical image cannot use a hypothesis twice. So where the image is
 unprovable, the answer is unknown (exit 3), never "not valid". The
@@ -808,10 +867,13 @@ name and its arity), `fo` (the terms: `{"B": k}` the variable of the
 k-th quantifier out, `{"F": [symbol, [terms]]}` an application), each
 atom as `{"P": [symbol, [terms]]}`, and `binders`, one name per
 quantifier. A formula `{"∀": a}` or `{"∃": a}` binds in its operand `a`.
-An outcome refuted by grounding holds `"structure": {"sequent": …,
-"structure": {"size": 2, "constants": [["a", 0]], "predicates": [["p",
-[[0]]]]}}`: the sequent, the number of elements, each constant's element
-and each predicate's tuples, a predicate left out holding of none.
+An outcome refuted by grounding or the model search holds `"structure":
+{"sequent": …, "structure": {"size": 2, "constants": [["a", 0]],
+"functions": [["f", [1, 0]]], "predicates": [["p", [[0]]]]}}`: the
+sequent, the number of elements, each constant's element, each function
+symbol's values in the lexicographic order of its arguments (`f(0)`,
+`f(1)`; the key left out where there is no function symbol), and each
+predicate's tuples, a predicate left out holding of none.
 A quantifier inference names its term by `"term": k`, a position in
 `fo`, where a derivation's eigenvariable is `{"E": n}`. A session's open
 witness is `{"M": k}` (`$1` for `k = 0`), and `"bindings": [[k, term,

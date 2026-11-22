@@ -124,6 +124,31 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **The command shares its time limit at first order**: where the
   default of a first-order sequent is grounding or the connection
   prover, it gets 90% of the time limit and the embedding the rest.
+- **A search for finite models** (`ordinary::models`, `Method::Models`,
+  `prove --logic … --method models`, behind the feature `sat`): for 1,
+  2, … elements in turn, it writes the sequent's falsity in a structure
+  of that size as a propositional formula and asks the SAT solver for a
+  model, after MACE and Paradox (both quantifiers expanded over the
+  domain, each function symbol's values as atoms that must give each
+  argument tuple one value, the constants' symmetries broken). A
+  structure it finds is checked against the sequent and refutes it in
+  every logic; it never answers "valid", and a sequent no structure
+  within the bound refutes is unknown with the new reason
+  `Reason::ModelSize` (`search::Options::model_size`, `--model-size
+  N|none`, by default 6 in the library and none in the command). The
+  default runs it too: the command beside the connection prover in
+  classical logic, on a thread of its own, the first to answer winning
+  (on one thread, after the prover's 70% of the time limit); the library
+  last, on a first-order sequent the embedding leaves unknown, in every
+  logic. On
+  ILTP's first-order problems it refutes 210 classically at 2 s, among
+  them all of grounding's 77 and nanoCoP's 84. `deduxit-bench run
+  --engines models` runs it.
+- **Finite structures interpret function symbols**
+  (`Structure::functions`, `Structure::with_functions`): each function
+  symbol of one argument or more with its table, the values of its
+  argument tuples in lexicographic order, printed after the constants
+  (`f: 0 ↦ 1, 1 ↦ 0`).
 - **Otten's connection provers in the comparison**: the flake fetches
   leanCoP 2.1, nanoCoP 2.0, nanoCoP-i 2.0 and iLeanCoP 1.2 at their
   released archives and runs them on SWI-Prolog (`prover-leancop`,
@@ -223,6 +248,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   "atoms", "nodes", "sat"}}`), and a refutation by it holds
   `"structure": {"sequent": …, "structure": {"size", "constants",
   "predicates"}}`.
+- **Level 26**: an ordinary outcome of the model search (`"search":
+  {"method": "models", "statistics": {"size", "atoms", "nodes",
+  "sat"}}`), one unknown at its bound (`{"kind": "model_size", "size":
+  6}`), and one whose structure has function tables (`"functions":
+  [["f", [1, 0]]]`, left out where there are none). The search options
+  have the key `model_size`.
 
 ## [0.7.0] - 2026-11-20
 

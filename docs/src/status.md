@@ -217,7 +217,11 @@ in use.
   term (every `∀` one to prove and every `∃` one to assume, negations
   and implications taken into account); otherwise unknown. Under the
   command's time limit the first-order method gets 90% and the
-  embedding the rest. The other methods refuse them by name. A
+  embedding the rest. A search for finite structures (`--method
+  models`, MACE's method through the SAT solver) refutes a first-order
+  sequent with function symbols in every logic, with a checked
+  structure; in classical logic it runs beside the connection prover,
+  and it refutes 210 of ILTP's first-order problems at 2 seconds. The other methods refuse them by name. A
   [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)
   runs them beside leanCoP, nanoCoP, nanoCoP-i and iLeanCoP on ILTP's
   first-order problems.

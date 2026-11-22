@@ -734,6 +734,10 @@ pub(crate) fn advice(reason: Reason, at: &str, ended: &Ended) -> String {
             "{reason} {after}{at}; raise it with --path-length N, or lift it with --path-length \
              none to deepen it while the time limit lasts"
         ),
+        (Reason::ModelSize { .. }, _) => format!(
+            "{reason} {after}{at}; raise the bound with --model-size N, or lift it with \
+             --model-size none to try larger structures while the time limit lasts"
+        ),
         // Any other reason, which no flag changes.
         _ => format!("{reason} {after}{at}"),
     }
