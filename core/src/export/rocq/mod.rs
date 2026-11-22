@@ -14,6 +14,8 @@
 //! | a certificate that a sequent has no proof | [`write_disproof`] |
 //! | a certificate that an ordinary sequent is not valid | [`write_not_valid`] |
 //! | the same, from a Kripke countermodel | [`write_countermodel`] |
+//! | the same at first order, from a finite structure | [`write_structure`] |
+//! | the same at first order, from a Kripke model with growing domains | [`write_kripke_structure`] |
 //!
 //! Each takes an [`Options`]: start from its `default()` and set the
 //! fields you want to change. By default a certificate is the lemma
@@ -328,6 +330,17 @@ From Deduxit.Linear Require Import FirstOrderCalculus FirstOrderIntuitionistic F
 Import ListNotations.
 Open Scope string_scope.";
 
+/// The prelude of a certificate that a first-order sequent is not valid,
+/// from a finite structure or a Kripke model with growing domains, for
+/// deduxit's library: the import of its first-order models' checkers and
+/// theorems (which export the calculi, and leave the record of rules
+/// `Calculus` qualified), and of lists and strings, whose notations the
+/// lemma uses.
+pub const DEDUXIT_FIRST_ORDER_MODEL_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Intuitionistic Require Import FirstOrderCheck.
+Import ListNotations.
+Open Scope string_scope.";
+
 /// The prelude of a certificate that a sequent of intuitionistic or
 /// minimal logic is not valid, for deduxit's library: the import of its
 /// Kripke models' checker and theorem, and of lists and strings, whose
@@ -537,7 +550,27 @@ pub enum Unsupported {
         "the Rocq kernels have no typing rules of the lambda calculus, so a typing derivation has no certificate"
     )]
     Typing,
+    /// The model is larger than a certificate can hold: Rocq counts every
+    /// number one by one and reads a list within its stack. A domain has
+    /// at most [`MOST_DOMAIN`] elements, a list (a table's values, a
+    /// world's facts, the worlds) at most [`MOST_ENTRIES`] entries, and
+    /// the numbers written add up to at most 1 048 576.
+    #[error(
+        "the model is too large for a certificate: Rocq counts every number one by one and reads a list within its stack, so a certificate holds domains of at most 4096 elements, lists of at most 8192 entries and numbers that add up to at most 1048576"
+    )]
+    LargeModel,
 }
+
+/// The most elements of a domain a first-order countermodel's certificate
+/// holds ([`Unsupported::LargeModel`] past it). Rocq warns of a number
+/// from 5 000 on, and a certificate must compile in silence.
+pub const MOST_DOMAIN: u32 = 4_096;
+
+/// The most entries of a list a first-order countermodel's certificate
+/// holds: a function table's values, a world's facts or tables, the
+/// worlds ([`Unsupported::LargeModel`] past it). Rocq overflowed its
+/// default stack reading a list of 24 000 entries.
+pub const MOST_ENTRIES: usize = 8_192;
 
 /// Rocq's keywords, which no atom and no lemma may take.
 pub(crate) const KEYWORDS: &[&str] = &[
@@ -1204,6 +1237,118 @@ pub fn write_countermodel(
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
     crate::ordinary::rocq::countermodel(countermodel, logic, options, limits, out, stop)
+}
+
+/// Writes the certificate that a first-order sequent is not valid, from
+/// a finite structure, after checking it in `logic` under `limits`.
+///
+/// In classical logic the lemma `options.lemma` states `~ lk (symbol :=
+/// string) true [Γ] [Δ]`, that LK with cut does not derive the sequent,
+/// over the
+/// first-order development of deduxit's library; its proof applies the
+/// library's `fo_classical_refutation` to the structure written as data
+/// (its size, a table per function symbol and constant the sequent
+/// applies, its true facts). In intuitionistic and minimal logic the
+/// structure is the Kripke model of one world, and the certificate is
+/// [`write_kripke_structure`]'s. The library's checker accepts the data by
+/// `vm_compute`. A standalone file starts with `options.prelude`, by
+/// default [`DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`].
+///
+/// # Examples
+///
+#[cfg_attr(all(feature = "parse", feature = "sat"), doc = "```")]
+#[cfg_attr(not(all(feature = "parse", feature = "sat")), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::export::rocq::{self, Options};
+/// use deduxit::ordinary::{Logic, Method, Options as Ordinary, Sequent, decide};
+///
+/// let sequent: Sequent = "exists x. p(x) |- forall x. p(x)".parse()?;
+/// let options = Ordinary::default()
+///     .with_logic(Logic::Classical)
+///     .with_method(Some(Method::Models));
+/// let outcome = decide(&sequent, &options)?;
+/// let structure = outcome.structure.expect("a finite structure");
+/// let mut certificate = String::new();
+/// rocq::write_structure(
+///     &structure,
+///     Logic::Classical,
+///     &Options::default(),
+///     &Limits::default(),
+///     &mut certificate,
+///     |_| false,
+/// )?;
+/// assert!(certificate.starts_with(
+///     r#"Lemma certificate : ~ lk (symbol := string) true [fex (var "p" [bound 0])] [fall (var "p" [bound 0])]."#
+/// ));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// - The errors of [`FiniteCountermodel::check`](crate::ordinary::FiniteCountermodel::check):
+///   a structure that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+///   for a text past `limits.derivation_bytes`, before anything is
+///   written, [`Refusal::Work`](crate::Refusal::Work) past `limits.work`
+///   steps of listing the worlds above each world, and
+///   [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked.
+/// - [`Error::Unsupported`] with [`Unsupported::LargeModel`] for a model
+///   past [`MOST_DOMAIN`] elements in a domain, [`MOST_ENTRIES`] entries
+///   in a list, or numbers that add up to more than 1 048 576.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+pub fn write_structure(
+    countermodel: &crate::ordinary::FiniteCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::ordinary::rocq_models::structure(countermodel, logic, options, limits, out, stop)
+}
+
+/// Writes the certificate that a first-order sequent is not valid, from
+/// a Kripke model with growing domains, after checking it in `logic`
+/// under `limits`.
+///
+/// In intuitionistic and minimal logic the lemma `options.lemma` states
+/// `~ lj (symbol := string) R [Γ] C` over the first-order development of
+/// deduxit's library, `R` being LJ or LM with cut (`{| Calculus.explosion
+/// := true; Calculus.cut := true |}`, `explosion := false` for LM) and
+/// `C` `bot` where nothing is right of `⊢`; its
+/// proof applies the library's `fo_kripke_refutation` to the model
+/// written as data (for each world the worlds above it, its domain's
+/// size, a table per function symbol and constant the sequent applies,
+/// its true facts, and the worlds that force `⊥`) and to its world. In
+/// classical logic the model is one world, and the certificate is
+/// [`write_structure`]'s, `~ lk …`. The library's checker accepts the data
+/// by `vm_compute`. A standalone file starts with `options.prelude`, by
+/// default [`DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`].
+///
+/// # Errors
+///
+/// - The errors of [`KripkeCountermodel::check`](crate::ordinary::KripkeCountermodel::check):
+///   a model that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+///   for a text past `limits.derivation_bytes`, before anything is
+///   written, [`Refusal::Work`](crate::Refusal::Work) past `limits.work`
+///   steps of listing the worlds above each world, and
+///   [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked.
+/// - [`Error::Unsupported`] with [`Unsupported::LargeModel`] for a model
+///   past [`MOST_DOMAIN`] elements in a domain, [`MOST_ENTRIES`] entries
+///   in a list, or numbers that add up to more than 1 048 576.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+pub fn write_kripke_structure(
+    countermodel: &crate::ordinary::KripkeCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::ordinary::rocq_models::kripke_structure(countermodel, logic, options, limits, out, stop)
 }
 
 /// Writes the certificate that a modal sequent is valid, from its

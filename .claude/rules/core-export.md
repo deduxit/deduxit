@@ -1008,6 +1008,77 @@ for NanoYalla. What the code relies on:
   `not_valid_kripke_lk.v`; the `rocq-deduxit` check compiles four the
   command writes (two by `prove`, one by `check` of an outcome, one of a
   model given) and refuses one with a valuation that shrinks.
+- **First-order countermodels' certificates** (`rocq::write_structure`,
+  `write_kripke_structure`, `ordinary/rocq_models.rs`): checked first
+  (`FiniteCountermodel::check`, `KripkeCountermodel::check`), then
+  written for rocq-deduxit's first-order `Deduxit.Intuitionistic`
+  (`DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`, `FirstOrderCheck`): classical
+  logic `~ lk (symbol := string) true [Γ] [Δ]` by
+  `fo_classical_refutation` from `{| size; functions; predicates |}`
+  (a Kripke model of one world goes the same way), intuitionistic and
+  minimal `~ lj (symbol := string) {| Calculus.explosion := …;
+  Calculus.cut := true |} [Γ] C` by `fo_kripke_refutation` from `{|
+  later; sizes; tables; facts; absurd |}` and the world (a structure as
+  its one world). **The statements name the calculi with cut**: the
+  theorems hold for every choice, and deduxit's checker takes `Cut` and
+  an empty right side's `WR` in LJ, which the cut-free `lj` derives
+  only by cut elimination, unproved in the library (the argument
+  panel's point; the propositional certificate still states the
+  cut-free calculus). **A symbol listed twice has its last table**, as
+  the checks read it (`map.insert`). **A model too large for Rocq is
+  `Unsupported::LargeModel`** (`Bounded::number`, `Bounded::entries`):
+  a domain past `rocq::MOST_DOMAIN` (4 096; Rocq warns of a number
+  from 5 000 on, and a certificate compiles in silence), a list past
+  `rocq::MOST_ENTRIES` (8 192: a table's values, a world's facts or
+  tables, a tuple, the worlds), or numbers adding up past `MOST_WEIGHT`
+  (2²⁰, each counted as its value plus one). The Rust check takes any
+  `u32` size where no quantifier ranges over it and any table it can
+  hold, but Rocq's numbers are unary (2³² took 8 GB; a table of 20 000
+  values of 19 999 took 7.4 GB, one of 8 192 values of 500 3.2 GB) and its reader of a list literal
+  recursive (a stack overflow at 24 000 entries). The stop is asked
+  once per world in each loop. Within those bounds Rocq's work follows
+  the Rust check's but for its list lookups (a table or a fact is found
+  by a scan), so a sequent of thousands of function symbols compiles
+  slowly. A table is
+  `("f", arity, values)`, a constant `("a", 0, [e])` at every world;
+  **only the symbols the sequent applies get a table** (`applied`): the
+  library compares every table it is given along the order, the Rust
+  check only those, so an unused table that disagrees would make a
+  certificate Rocq refuses. Facts are every predicate's tuples (the Rust
+  check checks every predicate's growth). The text is built in a
+  `Bounded` buffer (refused past `limits.derivation_bytes` before `out`
+  sees a byte); terms on a stack of their own (`terms`, `Piece`). The
+  closure of the arrows is `ordinary::rocq::Closure`, now over a slice
+  of arrow lists. Snapshots `deduxit/countermodel_fo_*.v` and
+  `deduxit/structure_*.v`; the `rocq-deduxit` check compiles three the
+  command writes and refuses a model whose facts shrink.
+- **First-order countermodels' drawings** (`export/models.rs`, `Laid`):
+  one layout for every target, checked first, each world with its
+  domain, values (constants, then each function's table read back to
+  tuples by the sequent's arities) and facts, at most `models::SHOWN`
+  (16) of each and the rest counted, refused past
+  `limits.derivation_bytes` by an estimate charged as each piece is
+  laid out and before the sequent is printed; the stop asked per
+  world. What the integers panel found, all answered there: a symbol of
+  more than `SHOWN` arguments is counted, not shown (its arity is the
+  sequent's word, and `vec![0; arity]` took 8 GB), a tuple is cut at
+  `SHOWN` elements, a domain is never listed in full (`domain`, and the
+  SVG's words say `0 to N`), lookups are by map (a scan per table was
+  quadratic: 48 s at a 1 s limit), and a table is shown only where
+  its length is `size^arity` (the sequent's arity, or for a symbol the
+  sequent does not name the one the length gives; the check does not
+  hold such a table to a shape, and read as unary it showed `h(0)`
+  twice). SVG (`svg::structure`, `svg::kripke_structure`) is
+  `kripke::draw` with `Contents` (each box's markup and the
+  description's words, a header in place of the propositional one);
+  `{`, `}`, `=` and `(` are in every font's table, `…` is not, so the
+  domain's cut is `...`. LaTeX and Typst (`latex::structure`,
+  `kripke_structure`, the same in `typst`) write a table, a row per
+  world (world, above, domain, functions, facts; a structure without the
+  first two), the model's world bold; Typst puts a space between a
+  multi-letter name's `italic("…")` and its `(`. Snapshots
+  `kripke_fo_*` and `structure_*` in `.svg`, `.tex`, `.typ`, which the
+  `export` check renders and compiles.
 - **Modal certificates** (`rocq::write_labelled`, `write_modal_countermodel`,
   `modal/rocq.rs`; features `rocq` and `serialize`), for the library's
   `Deduxit.Modal` whatever the kernel option: the derivation is checked

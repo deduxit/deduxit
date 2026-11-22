@@ -22,7 +22,6 @@ use crate::export::rocq::{
     CLASSICAL_PRELUDE, DEDUXIT_KRIPKE_PRELUDE, Options, Unsupported, identifiers,
 };
 use crate::hash::HashMap;
-use crate::kripke::Model;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::{Classical, Disproof, Refutation};
@@ -702,7 +701,10 @@ pub(crate) fn countermodel(
         Logic::Intuitionistic => "intuitionistic",
         Logic::Minimal => "minimal",
     };
-    let mut closure = Closure::new(model, limits);
+    let mut closure = Closure::new(
+        model.worlds.iter().map(|w| w.arrows.as_slice()).collect(),
+        limits,
+    );
     // The bytes of the text, counted before any of it is written.
     let formulas = sequent.formulas();
     let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
@@ -835,9 +837,9 @@ pub(crate) fn countermodel(
 
 /// The worlds above each world of a model, by a search along its arrows
 /// from that world, within a bound of steps.
-struct Closure<'a> {
-    /// The model.
-    model: &'a Model,
+pub(super) struct Closure<'a> {
+    /// Each world's arrows.
+    arrows: Vec<&'a [u32]>,
     /// The search that last reached each world.
     seen: Vec<u32>,
     /// The current search's mark, never 0.
@@ -847,9 +849,9 @@ struct Closure<'a> {
     /// The worlds above the last world asked, in order.
     above: Vec<u32>,
     /// The steps left, or `None` without a bound.
-    left: Option<u64>,
+    pub(super) left: Option<u64>,
     /// The bound of steps.
-    limit: Option<u64>,
+    pub(super) limit: Option<u64>,
     /// The steps taken.
     steps: u64,
 }
@@ -858,11 +860,12 @@ impl<'a> Closure<'a> {
     /// The steps between two polls of the stop.
     const POLL: u64 = 1024;
 
-    /// Returns the search over this model, bounded by `limits.work`.
-    fn new(model: &'a Model, limits: &Limits) -> Self {
+    /// Returns the search over the worlds with these arrows, bounded by
+    /// `limits.work`.
+    pub(super) fn new(arrows: Vec<&'a [u32]>, limits: &Limits) -> Self {
         Self {
-            model,
-            seen: vec![0; model.worlds.len()],
+            seen: vec![0; arrows.len()],
+            arrows,
             mark: 0,
             stack: Vec::new(),
             above: Vec::new(),
@@ -875,7 +878,7 @@ impl<'a> Closure<'a> {
     /// Returns the worlds strictly above `w`, in increasing order; the
     /// model's arrows were checked to go round nowhere. `stop` is asked
     /// every [`Self::POLL`] steps, since one world's search may be long.
-    fn above(
+    pub(super) fn above(
         &mut self,
         w: usize,
         stop: &mut impl FnMut(Progress) -> bool,
@@ -892,7 +895,7 @@ impl<'a> Closure<'a> {
         self.stack.clear();
         self.stack.push(w as u32);
         while let Some(u) = self.stack.pop() {
-            for &v in &self.model.worlds[u as usize].arrows {
+            for &v in self.arrows[u as usize] {
                 self.steps += 1;
                 if self.steps.is_multiple_of(Self::POLL)
                     && stop(Progress::new(Phase::Write, Self::POLL, self.steps))
@@ -963,6 +966,6 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
 }
 
 /// Returns an atom's name as a Rocq string, `"` doubled.
-fn string(name: &str) -> String {
+pub(super) fn string(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }

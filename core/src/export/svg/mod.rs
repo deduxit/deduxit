@@ -14,6 +14,8 @@
 //! | a step of cut elimination on a proof net | [`net_step`] |
 //! | a proof structure with `!`-boxes, or a step on one | [`mell_net`], [`mell_net_step`] |
 //! | a Kripke countermodel of an ordinary sequent | [`countermodel`] |
+//! | a finite structure that refutes a first-order sequent | [`structure`] |
+//! | a Kripke model with growing domains that refutes one | [`kripke_structure`] |
 //! | a Kripke countermodel of a modal sequent | [`modal_countermodel`] |
 //!
 //! `Style::default()` draws black on a transparent background in the
@@ -1861,9 +1863,189 @@ pub fn countermodel(
     let mut polls = 0u64;
     kripke::draw(
         &countermodel.model,
+        None,
         kripke::Arrows::Order,
         &title,
         &last,
+        style,
+        limits,
+        || {
+            polls += 1;
+            stop(crate::limits::Progress::new(
+                crate::limits::Phase::Write,
+                1,
+                polls,
+            ))
+        },
+    )
+}
+
+/// Returns a finite structure that refutes a first-order sequent as an
+/// SVG document, after checking it in `logic` under `limits`: one box with
+/// the structure's domain, the values of its constants and function
+/// symbols and its true facts. Its title names the sequent, and with
+/// [`Style::description`] a `<desc>` reads the structure and says why the
+/// sequent fails. At most 16 values and 16 facts are shown, and the rest
+/// counted.
+///
+/// # Errors
+///
+/// - The errors of [`FiniteCountermodel::check`](crate::ordinary::FiniteCountermodel::check):
+///   a structure that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a drawing estimated
+///   past `limits.derivation_bytes`, before anything is laid out.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+pub fn structure(
+    countermodel: &crate::ordinary::FiniteCountermodel,
+    logic: crate::ordinary::Logic,
+    style: &Style,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    let laid = super::models::structure(countermodel, logic, limits, &mut stop)?;
+    first_order_model(&laid, style, limits, &mut stop)
+}
+
+/// Returns a Kripke model with growing domains that refutes a
+/// first-order sequent as an SVG document, after checking it in `logic`
+/// under `limits`: each world a box with its domain, the values of its
+/// constants and function symbols and its true facts (`⊥` where it forces
+/// it), its number `wₙ` beside it and an arrow up to each world directly
+/// above it, the model's world outlined in the
+/// [`highlight`](Style::highlight) colour, laid out as
+/// [`countermodel`]'s worlds are. Its title names the sequent, and with
+/// [`Style::description`] a `<desc>` reads each world and says why the
+/// sequent fails at the model's world. At most 16 values and 16 facts are
+/// shown per world, and the rest counted.
+///
+/// # Errors
+///
+/// - The errors of [`KripkeCountermodel::check`](crate::ordinary::KripkeCountermodel::check):
+///   a model that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a drawing estimated
+///   past `limits.derivation_bytes`, before anything is laid out.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked,
+///   once per world.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+pub fn kripke_structure(
+    countermodel: &crate::ordinary::KripkeCountermodel,
+    logic: crate::ordinary::Logic,
+    style: &Style,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    let laid = super::models::kripke(countermodel, logic, limits, &mut stop)?;
+    first_order_model(&laid, style, limits, &mut stop)
+}
+
+/// Draws a first-order model laid out: each world's box shows its domain,
+/// values and facts.
+fn first_order_model(
+    laid: &super::models::Laid,
+    style: &Style,
+    limits: &crate::Limits,
+    stop: &mut dyn FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    use super::models::{domain, numbers};
+    let model = crate::kripke::Model::new(
+        laid.worlds
+            .iter()
+            .map(|w| crate::kripke::World::new(Vec::new(), false, w.arrows.clone()))
+            .collect(),
+        laid.world,
+    );
+    let contents: Vec<kripke::Contents> = laid
+        .worlds
+        .iter()
+        .map(|world| {
+            let mut markup = domain(world.size);
+            let mut words = match world.size {
+                1 => "has the element 0".to_owned(),
+                2 => "has the elements 0 and 1".to_owned(),
+                size => format!("has the elements 0 to {}", size - 1),
+            };
+            let applied = |name: &str, args: &[u32], italics: bool| {
+                let mut out = String::new();
+                if italics {
+                    italic(&mut out, name).expect("a string takes the text");
+                } else {
+                    out.push_str(name);
+                }
+                if !args.is_empty() {
+                    out.push('(');
+                    out.push_str(&numbers(args));
+                    out.push(')');
+                }
+                out
+            };
+            let values = |italics: bool| {
+                let mut list: Vec<String> = world
+                    .values
+                    .iter()
+                    .map(|(name, args, value)| {
+                        format!("{} = {value}", applied(name, args, italics))
+                    })
+                    .collect();
+                if world.more_values > 0 {
+                    list.push(format!("and {} more", world.more_values));
+                }
+                list.join(", ")
+            };
+            let facts = |italics: bool, bot: bool| {
+                let mut list: Vec<String> = world
+                    .facts
+                    .iter()
+                    .map(|(name, args)| applied(name, args, italics))
+                    .collect();
+                if world.more_facts > 0 {
+                    list.push(format!("and {} more", world.more_facts));
+                }
+                if bot && world.falsity {
+                    list.push("⊥".to_owned());
+                }
+                list.join(", ")
+            };
+            if !world.values.is_empty() {
+                markup.push_str("; ");
+                markup.push_str(&values(true));
+                words.push_str(", where ");
+                words.push_str(&values(false));
+            }
+            let forced = facts(true, true);
+            if !forced.is_empty() {
+                markup.push_str("; ");
+                markup.push_str(&forced);
+            }
+            let said = facts(false, true);
+            if said.is_empty() {
+                words.push_str(", and forces nothing");
+            } else {
+                words.push_str(", and forces ");
+                words.push_str(&said);
+            }
+            kripke::Contents { markup, words }
+        })
+        .collect();
+    let header = if laid.kripke {
+        let n = laid.worlds.len();
+        format!(
+            "A Kripke model of {n} world{} with growing domains. An arrow points from a world \
+             to a world above it, which has every element of the world below and forces \
+             everything it forces.",
+            if n == 1 { "" } else { "s" }
+        )
+    } else {
+        "A finite structure, drawn as one world.".to_owned()
+    };
+    let mut polls = 0u64;
+    kripke::draw(
+        &model,
+        Some((&header, &contents)),
+        kripke::Arrows::Order,
+        &laid.title,
+        &laid.last,
         style,
         limits,
         || {
@@ -1958,6 +2140,7 @@ pub fn modal_countermodel(
     let mut polls = 0u64;
     kripke::draw(
         &countermodel.model,
+        None,
         kripke::Arrows::Relation,
         &title,
         &last,

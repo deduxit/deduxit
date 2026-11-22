@@ -3119,3 +3119,351 @@ fn typing_derivations() {
         }))
     ));
 }
+
+/// Named Kripke models with growing domains, each with its logic.
+type KripkeModels = Vec<(
+    &'static str,
+    deduxit::ordinary::Logic,
+    deduxit::ordinary::KripkeCountermodel,
+)>;
+
+/// Named finite structures, each with its logic.
+type Structures = Vec<(
+    &'static str,
+    deduxit::ordinary::Logic,
+    deduxit::ordinary::FiniteCountermodel,
+)>;
+
+/// The first-order countermodels of the tests below, each with its logic:
+/// Kripke models with a growing domain, a function table and minimal
+/// logic's `⊥`, and finite structures with and without functions.
+fn first_order_models() -> (KripkeModels, Structures) {
+    use deduxit::ordinary::{
+        FiniteCountermodel, KripkeCountermodel, KripkeStructure, KripkeWorld, Logic, Sequent,
+        Structure,
+    };
+    let world = |size: u32,
+                 functions: &[(&str, &[u32])],
+                 facts: &[(&str, &[&[u32]])],
+                 falsity: bool,
+                 arrows: &[u32]| {
+        KripkeWorld::new(
+            size,
+            functions
+                .iter()
+                .map(|&(f, t)| (f.to_owned(), t.to_vec()))
+                .collect(),
+            facts
+                .iter()
+                .map(|&(p, ts)| (p.to_owned(), ts.iter().map(|t| t.to_vec()).collect()))
+                .collect(),
+            falsity,
+            arrows.to_vec(),
+        )
+    };
+    let kripke = |input: &str, worlds: Vec<KripkeWorld>, constants: &[(&str, u32)]| {
+        let sequent: Sequent = input.parse().unwrap();
+        let constants = constants.iter().map(|&(c, e)| (c.to_owned(), e)).collect();
+        KripkeCountermodel::new(sequent, KripkeStructure::new(worlds, constants, 0))
+    };
+    let structure = |input: &str,
+                     size: u32,
+                     constants: &[(&str, u32)],
+                     functions: &[(&str, &[u32])],
+                     facts: &[(&str, &[&[u32]])]| {
+        let sequent: Sequent = input.parse().unwrap();
+        let mut structure = Structure::new(
+            size,
+            constants.iter().map(|&(c, e)| (c.to_owned(), e)).collect(),
+            facts
+                .iter()
+                .map(|&(p, ts)| (p.to_owned(), ts.iter().map(|t| t.to_vec()).collect()))
+                .collect(),
+        );
+        structure.functions = functions
+            .iter()
+            .map(|&(f, t)| (f.to_owned(), t.to_vec()))
+            .collect();
+        FiniteCountermodel::new(sequent, structure)
+    };
+    (
+        vec![
+            // World 1 adds the element 1 and makes p(0) true.
+            (
+                "not_forall",
+                Logic::Intuitionistic,
+                kripke(
+                    "~(forall x. p(x)) |- exists x. ~p(x)",
+                    vec![
+                        world(1, &[], &[], false, &[1]),
+                        world(2, &[], &[("p", &[&[0]])], false, &[]),
+                    ],
+                    &[],
+                ),
+            ),
+            // A function table at each world, the later one keeping f(0).
+            (
+                "function",
+                Logic::Intuitionistic,
+                kripke(
+                    "|- ~~p(f(a)) -> p(f(a))",
+                    vec![
+                        world(1, &[("f", &[0])], &[], false, &[1]),
+                        world(2, &[("f", &[0, 1])], &[("p", &[&[0]])], false, &[]),
+                    ],
+                    &[("a", 0)],
+                ),
+            ),
+            // Minimal logic: world 1 forces ⊥ and not p(a).
+            (
+                "minimal",
+                Logic::Minimal,
+                kripke(
+                    "|- ~~(false -> p(a))",
+                    vec![
+                        world(1, &[], &[], false, &[1]),
+                        world(1, &[], &[], true, &[]),
+                    ],
+                    &[("a", 0)],
+                ),
+            ),
+        ],
+        vec![
+            (
+                "exists_forall",
+                Logic::Classical,
+                structure(
+                    "exists x. p(x) |- forall x. p(x)",
+                    2,
+                    &[],
+                    &[],
+                    &[("p", &[&[0]])],
+                ),
+            ),
+            // f swaps the two elements; r is false.
+            (
+                "function",
+                Logic::Classical,
+                structure(
+                    "p(a) |- p(f(a)), r",
+                    2,
+                    &[("a", 0)],
+                    &[("f", &[1, 0])],
+                    &[("p", &[&[0]])],
+                ),
+            ),
+            // The structure as one world of intuitionistic logic.
+            (
+                "intuitionistic",
+                Logic::Intuitionistic,
+                structure(
+                    "forall x. (p(x) \\/ q(x)) |- exists x. p(x)",
+                    1,
+                    &[],
+                    &[],
+                    &[("q", &[&[0]])],
+                ),
+            ),
+        ],
+    )
+}
+
+/// A first-order countermodel has a certificate for deduxit's library,
+/// pinned as `deduxit/countermodel_fo_*.v` and `deduxit/structure_*.v`,
+/// which the `rocq-deduxit` check compiles. A model that does not refute,
+/// a text past the bound and a stop write nothing.
+#[test]
+fn first_order_countermodel_certificates() {
+    use deduxit::ordinary::Logic;
+    let options = rocq::Options::default().with_form(Form::Standalone);
+    let defaults = Limits::default();
+    let (kripke, structures) = first_order_models();
+    for (name, logic, model) in &kripke {
+        let mut out = String::new();
+        rocq::write_kripke_structure(model, *logic, &options, &defaults, &mut out, |_| false)
+            .unwrap();
+        snapshot(&format!("deduxit/countermodel_fo_{name}.v"), &out);
+    }
+    for (name, logic, model) in &structures {
+        let mut out = String::new();
+        rocq::write_structure(model, *logic, &options, &defaults, &mut out, |_| false).unwrap();
+        snapshot(&format!("deduxit/structure_{name}.v"), &out);
+    }
+    // A symbol listed twice has its last table, the one the check reads.
+    {
+        use deduxit::ordinary::{KripkeCountermodel, KripkeStructure, KripkeWorld};
+        let twice = KripkeCountermodel::new(
+            "|- p(f(a)) \\/ ~p(f(a))".parse().unwrap(),
+            KripkeStructure::new(
+                vec![
+                    KripkeWorld::new(
+                        1,
+                        vec![("f".to_owned(), vec![7, 7, 7]), ("f".to_owned(), vec![0])],
+                        Vec::new(),
+                        false,
+                        vec![1],
+                    ),
+                    KripkeWorld::new(
+                        1,
+                        vec![("f".to_owned(), vec![0])],
+                        vec![("p".to_owned(), vec![vec![0]])],
+                        false,
+                        Vec::new(),
+                    ),
+                ],
+                vec![("a".to_owned(), 0)],
+                0,
+            ),
+        );
+        let mut out = String::new();
+        rocq::write_kripke_structure(
+            &twice,
+            Logic::Intuitionistic,
+            &options,
+            &defaults,
+            &mut out,
+            |_| false,
+        )
+        .unwrap();
+        assert!(
+            out.contains(r#"tables := [[("a", 0, [0]); ("f", 1, [0])]; "#),
+            "{out}"
+        );
+    }
+    // A domain Rocq's unary numbers cannot hold has no certificate; its
+    // drawing says the domain without listing it.
+    {
+        use deduxit::ordinary::{FiniteCountermodel, Structure};
+        let large = FiniteCountermodel::new(
+            "|- p(a)".parse().unwrap(),
+            Structure::new(u32::MAX, vec![("a".to_owned(), 0)], Vec::new()),
+        );
+        let mut out = String::new();
+        assert!(matches!(
+            rocq::write_structure(
+                &large,
+                Logic::Classical,
+                &options,
+                &defaults,
+                &mut out,
+                |_| false
+            ),
+            Err(Error::Unsupported(Unsupported::LargeModel))
+        ));
+        assert_eq!(out, "");
+        // And so does a table of more values than Rocq reads in a list.
+        let mut long = Structure::new(100, vec![("a".to_owned(), 0)], Vec::new());
+        long.functions = vec![("g".to_owned(), vec![0; 10_000])];
+        let long = FiniteCountermodel::new("|- p(g(a, a))".parse().unwrap(), long);
+        assert!(matches!(
+            rocq::write_structure(
+                &long,
+                Logic::Classical,
+                &options,
+                &defaults,
+                &mut out,
+                |_| false
+            ),
+            Err(Error::Unsupported(Unsupported::LargeModel))
+        ));
+        assert_eq!(out, "");
+        let drawn = svg::structure(
+            &large,
+            Logic::Classical,
+            &Style::default(),
+            &defaults,
+            |_| false,
+        )
+        .unwrap();
+        assert!(
+            drawn.contains("has the elements 0 to 4294967294"),
+            "{drawn}"
+        );
+    }
+    let (_, _, not_forall) = &kripke[0];
+    let mut out = String::new();
+    // The minimal model's ⊥ in intuitionistic logic, and a model refused
+    // for its size.
+    let (_, _, minimal) = &kripke[2];
+    assert!(matches!(
+        rocq::write_kripke_structure(
+            minimal,
+            Logic::Intuitionistic,
+            &options,
+            &defaults,
+            &mut out,
+            |_| false
+        ),
+        Err(Error::Structure { .. })
+    ));
+    assert!(matches!(
+        rocq::write_kripke_structure(
+            not_forall,
+            Logic::Intuitionistic,
+            &options,
+            &Limits::default().with_derivation_bytes(Some(100)),
+            &mut out,
+            |_| false
+        ),
+        Err(Error::Refused(Refusal::Output { .. }))
+    ));
+    assert!(matches!(
+        rocq::write_kripke_structure(
+            not_forall,
+            Logic::Intuitionistic,
+            &options,
+            &defaults,
+            &mut out,
+            |_| true
+        ),
+        Err(Error::Refused(Refusal::Stopped { .. }))
+    ));
+    assert_eq!(out, "");
+}
+
+/// A first-order countermodel is drawn in SVG as boxes and in LaTeX and
+/// Typst as a table, pinned as `kripke_fo_*` and `structure_*`, which the
+/// `export` check renders and compiles.
+#[test]
+fn first_order_countermodel_drawings() {
+    let defaults = Limits::default();
+    let latex_options = latex::Options::default().with_form(Form::Standalone);
+    let typst_options = typst::Options::default().with_form(Form::Standalone);
+    let (kripke, structures) = first_order_models();
+    for (name, logic, model) in &kripke {
+        let drawn =
+            svg::kripke_structure(model, *logic, &Style::default(), &defaults, |_| false).unwrap();
+        snapshot(&format!("kripke_fo_{name}.svg"), &drawn);
+        let tex =
+            latex::kripke_structure(model, *logic, &latex_options, &defaults, |_| false).unwrap();
+        snapshot(&format!("kripke_fo_{name}.tex"), &tex);
+        let typ =
+            typst::kripke_structure(model, *logic, &typst_options, &defaults, |_| false).unwrap();
+        snapshot(&format!("kripke_fo_{name}.typ"), &typ);
+    }
+    let (_, logic, function) = &kripke[1];
+    let drawn =
+        svg::kripke_structure(function, *logic, &Style::default(), &defaults, |_| false).unwrap();
+    assert!(drawn.contains(
+        "World 0, the model's world, has the element 0, where a = 0, f(0) = 0, and forces nothing; \
+         world 1 is above it."
+    ));
+    for (name, logic, model) in &structures {
+        let drawn = svg::structure(model, *logic, &Style::default(), &defaults, |_| false).unwrap();
+        snapshot(&format!("structure_{name}.svg"), &drawn);
+        let tex = latex::structure(model, *logic, &latex_options, &defaults, |_| false).unwrap();
+        snapshot(&format!("structure_{name}.tex"), &tex);
+        let typ = typst::structure(model, *logic, &typst_options, &defaults, |_| false).unwrap();
+        snapshot(&format!("structure_{name}.typ"), &typ);
+    }
+    assert!(matches!(
+        svg::kripke_structure(
+            function,
+            *logic,
+            &Style::default(),
+            &Limits::default().with_derivation_bytes(Some(100)),
+            |_| false
+        ),
+        Err(Error::Refused(Refusal::Output { .. }))
+    ));
+}

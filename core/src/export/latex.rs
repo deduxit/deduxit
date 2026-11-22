@@ -9,6 +9,8 @@
 //! | a proof tree | [`to_string`] |
 //! | a proof tree, written into your own buffer with a stop | [`write()`] |
 //! | a sequent alone | [`sequent`] |
+//! | a finite structure that refutes a first-order sequent, as a table | [`structure`] |
+//! | a Kripke model with growing domains that refutes one, as a table | [`kripke_structure`] |
 //!
 //! [`Options`] holds the choices: a fragment or a whole document, the rule
 //! labels, how an open goal looks, and the preamble.
@@ -505,6 +507,129 @@ pub fn sequent(
     limits: &crate::Limits,
 ) -> Result<String, Error> {
     super::math(sequent, mode, PER_OCCURRENCE, limits, &NOTATION).map(|out| formed(out, options))
+}
+
+/// Returns a finite structure that refutes a first-order sequent as a
+/// LaTeX table, after checking it in `logic` under `limits`: one row with
+/// the structure's domain, the values of its constants and function
+/// symbols, and its true facts. At most 16 values and 16 facts are shown,
+/// and the rest counted. The output is a fragment or a document, as
+/// [`Options::form`] says.
+///
+/// # Errors
+///
+/// - The errors of [`FiniteCountermodel::check`](crate::ordinary::FiniteCountermodel::check):
+///   a structure that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a table estimated
+///   past `limits.derivation_bytes`, before anything is written.
+pub fn structure(
+    countermodel: &crate::ordinary::FiniteCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &Options,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    let laid = super::models::structure(countermodel, logic, limits, &mut stop)?;
+    Ok(formed(model_table(&laid), options))
+}
+
+/// Returns a Kripke model with growing domains that refutes a
+/// first-order sequent as a LaTeX table, after checking it in `logic`
+/// under `limits`: a row per world with the worlds directly above it, its
+/// domain, the values of its constants and function symbols, and its true
+/// facts (`⊥` where it forces it), the model's world in bold. At most 16
+/// values and 16 facts are shown per world, and the rest counted. The
+/// output is a fragment or a document, as [`Options::form`] says.
+///
+/// # Errors
+///
+/// - The errors of [`KripkeCountermodel::check`](crate::ordinary::KripkeCountermodel::check):
+///   a model that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a table estimated
+///   past `limits.derivation_bytes`, before anything is written.
+pub fn kripke_structure(
+    countermodel: &crate::ordinary::KripkeCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &Options,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    let laid = super::models::kripke(countermodel, logic, limits, &mut stop)?;
+    Ok(formed(model_table(&laid), options))
+}
+
+/// Writes a first-order model laid out as a `tabular`.
+fn model_table(laid: &super::models::Laid) -> String {
+    use super::models::{domain, numbers};
+    let applied = |out: &mut String, name: &str, args: &[u32]| {
+        out.push('$');
+        atom(out, name).expect("a string takes any text");
+        if !args.is_empty() {
+            out.push('(');
+            out.push_str(&numbers(args));
+            out.push(')');
+        }
+    };
+    let mut out = String::new();
+    if laid.kripke {
+        out.push_str(
+            "\\begin{tabular}{lllll}\nworld & above & domain & functions & facts \\\\\n\\hline\n",
+        );
+    } else {
+        out.push_str("\\begin{tabular}{lll}\ndomain & functions & facts \\\\\n\\hline\n");
+    }
+    for (w, world) in laid.worlds.iter().enumerate() {
+        if laid.kripke {
+            if w == laid.world as usize {
+                write!(out, "$\\mathbf{{w_{{{w}}}}}$ & ").expect("a string takes any text");
+            } else {
+                write!(out, "$w_{{{w}}}$ & ").expect("a string takes any text");
+            }
+            let above: Vec<String> = world
+                .arrows
+                .iter()
+                .map(|v| format!("$w_{{{v}}}$"))
+                .collect();
+            out.push_str(&above.join(", "));
+            out.push_str(" & ");
+        }
+        let set = domain(world.size)
+            .replace('{', "\\{")
+            .replace('}', "\\}")
+            .replace("...", "\\dots");
+        write!(out, "${set}$ & ").expect("a string takes any text");
+        let mut cells: Vec<String> = Vec::new();
+        for (name, args, value) in &world.values {
+            let mut cell = String::new();
+            applied(&mut cell, name, args);
+            write!(cell, " = {value}$").expect("a string takes any text");
+            cells.push(cell);
+        }
+        if world.more_values > 0 {
+            cells.push(format!("and {} more", world.more_values));
+        }
+        out.push_str(&cells.join(", "));
+        out.push_str(" & ");
+        let mut cells: Vec<String> = Vec::new();
+        for (name, args) in &world.facts {
+            let mut cell = String::new();
+            applied(&mut cell, name, args);
+            cell.push('$');
+            cells.push(cell);
+        }
+        if world.more_facts > 0 {
+            cells.push(format!("and {} more", world.more_facts));
+        }
+        if world.falsity {
+            cells.push("$\\bot$".to_owned());
+        }
+        out.push_str(&cells.join(", "));
+        out.push_str(" \\\\\n");
+    }
+    out.push_str("\\end{tabular}");
+    out
 }
 
 /// Writes a derivation as an ebproof `prooftree` environment into `out`,

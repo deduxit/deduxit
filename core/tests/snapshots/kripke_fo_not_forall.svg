@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="109.92" height="105.6" viewBox="0 0 6870 6600" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of ¬(∀x. p(x)) ⊢ ∃x. ¬p(x)</title>
+<desc>A Kripke model of 2 worlds with growing domains. An arrow points from a world to a world above it, which has every element of the world below and forces everything it forces.
+World 0, the model's world, has the element 0, and forces nothing; world 1 is above it.
+World 1 has the elements 0 and 1, and forces p(0).
+World 0 forces each formula left of ⊢ and not the one right of it, so ¬(∀x. p(x)) ⊢ ∃x. ¬p(x) is not valid in intuitionistic logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M3974 4800L3974 1800"/>
+<path d="M4088 1990L3974 1800L3860 1990"/>
+<rect id="w0" x="3080" y="4800" width="1789" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="300" width="5191" height="1500" rx="200"/>
+</g>
+<g>
+<text x="2001" y="5890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="2650" y="6010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<text x="3380" y="5890" textLength="1189" lengthAdjust="spacing">{0}</text>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1679" y="1390" textLength="4591" lengthAdjust="spacing">{0, 1}; 𝑝(0)</text>
+</svg>

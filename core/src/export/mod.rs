@@ -81,6 +81,9 @@
 
 #[cfg(feature = "latex")]
 pub mod latex;
+/// A first-order countermodel laid out for the drawings.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+pub(crate) mod models;
 /// The symbol tables and the printers the targets share.
 #[cfg(any(
     feature = "latex",

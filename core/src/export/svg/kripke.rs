@@ -99,11 +99,23 @@ impl Placed {
     }
 }
 
+/// What a world's box shows, and what the description says of it, where
+/// they are not a propositional world's atoms: a first-order world's
+/// domain, values and facts.
+pub(super) struct Contents {
+    /// The box's text, in the drawing's markup.
+    pub(super) markup: String,
+    /// The description's words after `World N`.
+    pub(super) words: String,
+}
+
 /// Returns a Kripke model drawn as an SVG document titled `title`, whose
 /// description reads each world and ends with `last`, a sentence on the
 /// model's world. The model is taken as it is: read as an order, its
 /// arrows must go round nowhere, which the caller's check of the model
-/// ensures.
+/// ensures. With `contents`, each world's box shows its entry's markup in
+/// place of its atoms, and the description starts with the header given
+/// and says each entry's words.
 ///
 /// # Errors
 ///
@@ -111,8 +123,13 @@ impl Placed {
 ///   `limits.derivation_bytes`, before anything is laid out.
 /// - [`Refusal::Stopped`] where `stop` asked, which is once per world.
 /// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the model, what its boxes show, its reading, its words, and how it is drawn and bounded"
+)]
 pub(super) fn draw(
     model: &Model,
+    contents: Option<(&str, &[Contents])>,
     arrows: Arrows,
     title: &str,
     last: &str,
@@ -123,20 +140,29 @@ pub(super) fn draw(
     style.check()?;
     let worlds = &model.worlds;
     within(limits, || {
-        worlds.iter().fold(
-            (title.len() as u64)
-                .saturating_add(last.len() as u64)
-                .saturating_mul(2)
-                .saturating_add(1000),
-            |sum, world| {
-                let atoms = world.atoms.iter().fold(0u64, |sum, a| {
-                    sum.saturating_add((a.len() as u64 + 2).saturating_mul(ATOM))
-                });
-                sum.saturating_add(WORLD)
-                    .saturating_add(atoms)
-                    .saturating_add((world.arrows.len() as u64).saturating_mul(ARROW))
-            },
-        )
+        worlds
+            .iter()
+            .fold(
+                (title.len() as u64)
+                    .saturating_add(last.len() as u64)
+                    .saturating_mul(2)
+                    .saturating_add(1000),
+                |sum, world| {
+                    let atoms = world.atoms.iter().fold(0u64, |sum, a| {
+                        sum.saturating_add((a.len() as u64 + 2).saturating_mul(ATOM))
+                    });
+                    sum.saturating_add(WORLD)
+                        .saturating_add(atoms)
+                        .saturating_add((world.arrows.len() as u64).saturating_mul(ARROW))
+                },
+            )
+            .saturating_add(contents.map_or(0, |(header, contents)| {
+                contents.iter().fold(header.len() as u64, |sum, c| {
+                    sum.saturating_add(
+                        (c.markup.len() as u64 + c.words.len() as u64).saturating_mul(ATOM),
+                    )
+                })
+            }))
     })?;
     let halt = |stop: &mut dyn FnMut() -> bool| -> Result<(), Error> {
         if stop() {
@@ -202,6 +228,9 @@ pub(super) fn draw(
         .enumerate()
         .map(|(w, world)| {
             let mut forced = String::new();
+            if let Some((_, contents)) = contents {
+                forced.push_str(&contents[w].markup);
+            }
             for (k, atom) in world.atoms.iter().enumerate() {
                 if k > 0 {
                     forced.push_str(", ");
@@ -275,7 +304,7 @@ pub(super) fn draw(
     );
     let description = style
         .description
-        .then(|| describe(model, arrows, &above, last));
+        .then(|| describe(model, contents, arrows, &above, last));
     let stroke = i64::from(style.stroke_width);
     let mut drawn = Ok(());
     let svg = document(style, title, description.as_deref(), size, |out| {
@@ -371,8 +400,35 @@ pub(super) fn draw(
 
 /// Returns the description of a model: its size, then a sentence per
 /// world on what it forces and the worlds its arrows go to, then `last`.
-fn describe(model: &Model, arrows: Arrows, above: &[Vec<usize>], last: &str) -> String {
+fn describe(
+    model: &Model,
+    contents: Option<(&str, &[Contents])>,
+    arrows: Arrows,
+    above: &[Vec<usize>],
+    last: &str,
+) -> String {
     let n = model.worlds.len();
+    if let Some((header, contents)) = contents {
+        let mut out = header.to_owned();
+        for (w, entry) in contents.iter().enumerate() {
+            write!(out, "\nWorld {w}").unwrap();
+            if w == model.world as usize {
+                out.push_str(", the model's world,");
+            }
+            write!(out, " {}", entry.words).unwrap();
+            match above[w].split_last() {
+                None => out.push('.'),
+                Some((only, [])) => write!(out, "; world {only} is above it.").unwrap(),
+                Some((last, rest)) => {
+                    let rest: Vec<String> = rest.iter().map(usize::to_string).collect();
+                    write!(out, "; worlds {} and {last} are above it.", rest.join(", ")).unwrap();
+                }
+            }
+        }
+        out.push('\n');
+        out.push_str(last);
+        return out;
+    }
     let mut out = format!(
         "A Kripke model of {n} world{}. {}",
         if n == 1 { "" } else { "s" },

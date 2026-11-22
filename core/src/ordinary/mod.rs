@@ -100,6 +100,9 @@ pub mod resolution;
 /// The certificates over `Prop`.
 #[cfg(feature = "rocq")]
 pub(crate) mod rocq;
+/// The certificates of first-order countermodels for deduxit's library.
+#[cfg(feature = "rocq")]
+pub(crate) mod rocq_models;
 #[cfg(feature = "sat")]
 pub mod sat;
 /// Finite structures, the countermodels of first-order sequents.
@@ -790,7 +793,12 @@ impl Formulas {
     }
 
     /// Returns the nodes, each after its subformulas.
-    #[cfg(any(feature = "serialize", feature = "svg"))]
+    #[cfg(any(
+        feature = "serialize",
+        feature = "svg",
+        feature = "latex",
+        feature = "typst"
+    ))]
     pub(crate) fn nodes(&self) -> &[Node] {
         &self.nodes
     }

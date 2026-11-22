@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="127.52" height="105.6" viewBox="0 0 7970 6600" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of ⊢ ¬¬(⊥ → p(a))</title>
+<desc>A Kripke model of 2 worlds with growing domains. An arrow points from a world to a world above it, which has every element of the world below and forces everything it forces.
+World 0, the model's world, has the element 0, where a = 0, and forces nothing; world 1 is above it.
+World 1 has the element 0, where a = 0, and forces ⊥.
+World 0 forces each formula left of ⊢ and not the one right of it, so ⊢ ¬¬(⊥ → p(a)) is not valid in minimal logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M4524 4800L4524 1800"/>
+<path d="M4638 1990L4524 1800L4410 1990"/>
+<rect id="w0" x="2090" y="4800" width="4868" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="300" width="6291" height="1500" rx="200"/>
+</g>
+<g>
+<text x="1011" y="5890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="1660" y="6010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<text x="2390" y="5890" textLength="4268" lengthAdjust="spacing">{0}; 𝑎 = 0</text>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1679" y="1390" textLength="5691" lengthAdjust="spacing">{0}; 𝑎 = 0; ⊥</text>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="92.432" height="33.6" viewBox="0 0 5777 2100" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of ∀x. (p(x) ∨ q(x)) ⊢ ∃x. p(x)</title>
+<desc>A finite structure, drawn as one world.
+World 0, the model's world, has the element 0, and forces q(0).
+The structure makes every formula left of ⊢ true and every formula right of it false, so ∀x. (p(x) ∨ q(x)) ⊢ ∃x. p(x) is not valid in intuitionistic logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<rect id="w0" x="1379" y="300" width="4098" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+</g>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<text x="1679" y="1390" textLength="3498" lengthAdjust="spacing">{0}; 𝑞(0)</text>
+</svg>

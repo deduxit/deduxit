@@ -1163,6 +1163,13 @@ The countermodels of intuitionistic and minimal logic at first order
   Glivenko's failure at first order (`¬¬∀x (p(x) ∨ ¬p(x))`, the
   double-negation shift) stays unknown: `kripke_models_decided_by_hand`
   pins it.
+- **Drawn and certified** (`core-export.md`): a structure or a model
+  is the data of rocq-deduxit's `fo_classical_refutation` and
+  `fo_kripke_refutation`, whose checks agree with `refutes` on what
+  matters: domains `0 .. size`, tables indexed first argument most
+  significant, growth, agreement along the order on the smaller
+  domain's tuples, `⊥` only in minimal logic. A change of either check
+  changes the library's in the same step.
 - **The dispatch**: the library's default after the embedding runs
   `models::decide`, which in intuitionistic and minimal logic includes
   this search; the command races it beside the embedding

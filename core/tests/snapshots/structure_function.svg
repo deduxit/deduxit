@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="290.544" height="33.6" viewBox="0 0 18159 2100" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of p(a) ⊢ p(f(a)), r</title>
+<desc>A finite structure, drawn as one world.
+World 0, the model's world, has the elements 0 and 1, where a = 0, f(0) = 1, f(1) = 0, and forces p(0).
+The structure makes every formula left of ⊢ true and every formula right of it false, so p(a) ⊢ p(f(a)), r is not valid in classical logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<rect id="w0" x="1379" y="300" width="16480" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+</g>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<text x="1679" y="1390" textLength="15880" lengthAdjust="spacing">{0, 1}; 𝑎 = 0, 𝑓(0) = 1, 𝑓(1) = 0; 𝑝(0)</text>
+</svg>
