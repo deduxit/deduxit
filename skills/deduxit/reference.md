@@ -1435,7 +1435,15 @@ and the check decides that the clauses hold wherever the sequent is
 false (the new atoms as defined) and that the sequent is false wherever
 the clauses hold. `--form-limit N|none` (`limits.form_occurrences`,
 10000 by default) refuses a form or a step past N occurrences, exit
-status 2. Exit 0 where the check holds, 3 where a limit stopped it.
+status 2. Exit 0 where the check holds, 3 where a limit stopped it. At
+first order `--to nnf`, `prenex` (every quantifier in front),
+`miniscope` (every quantifier as far in as it goes), `skolem` (the
+negation's `∃`s replaced by terms of new symbols `sk1`, …), `herbrand`
+(the sequent's strong quantifiers replaced) and `clausal` (the Skolem
+form's clauses, each closed by `∀`s) apply; each equivalence step's law
+is checked by its own derivation (of LJ where it holds there), and a
+Skolem term's symbol is checked new and applied to exactly the free
+variables of its quantifier.
 
 ```console
 $ deduxit seq normalize --to dnf '(a \/ b) /\ ~c'
@@ -1445,10 +1453,11 @@ Disjunctive normal form: ⊢ (a ∧ ¬c) ∨ (b ∧ ¬c)
 every formula is equivalent to its normal form: valid, a checked clausal proof
 ```
 
-`--format json` writes a document at wire level 21: `{"version",
-"deduxit", "form", "promise", "checked", "sequent", "result", "steps",
-"checks"}`, each step's `before` and `after` numbers of the result's
-`formulas`.
+`--format json` writes a document at wire level 21 (25 at first order):
+`{"version", "deduxit", "form", "promise", "checked", "sequent",
+"result", "steps", "checks"}`, each step's `before` and `after` numbers
+of the result's `formulas`, a Skolem step's `term` a number of its
+terms, a law's check with its `step`.
 
 ### Resolution and DPLL
 

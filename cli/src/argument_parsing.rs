@@ -1758,6 +1758,18 @@ pub(crate) enum FormArg {
     /// Plaisted and Greenbaum's clauses: Tseitin's, each definition in the
     /// direction its subformula's polarity needs
     PlaistedGreenbaum,
+    /// Prenex normal form: every quantifier in front
+    Prenex,
+    /// Miniscope form: every quantifier moved as far in as it goes
+    Miniscope,
+    /// Skolem normal form: the sequent's negation, each ∃ replaced by a
+    /// term of new function symbols
+    Skolem,
+    /// Herbrand normal form: the sequent, each strong quantifier replaced
+    /// by a term of new function symbols
+    Herbrand,
+    /// Clausal normal form: the Skolem form's clauses, each closed by ∀s
+    Clausal,
 }
 
 impl From<FormArg> for deduxit::ordinary::normal::Form {
@@ -1767,6 +1779,11 @@ impl From<FormArg> for deduxit::ordinary::normal::Form {
             FormArg::Cnf => Self::Cnf,
             FormArg::Dnf => Self::Dnf,
             FormArg::Tseitin => Self::Tseitin,
+            FormArg::Prenex => Self::Prenex,
+            FormArg::Miniscope => Self::Miniscope,
+            FormArg::Skolem => Self::Skolem,
+            FormArg::Herbrand => Self::Herbrand,
+            FormArg::Clausal => Self::Clausal,
             FormArg::PlaistedGreenbaum => Self::PlaistedGreenbaum,
         }
     }

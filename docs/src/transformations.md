@@ -105,6 +105,11 @@ the leftmost place it fits, outermost first.
 | `dnf` | a disjunction of conjunctions of literals, by distribution | each formula's meaning |
 | `tseitin` | Tseitin's clauses of the sequent's negation | whether the sequent is valid |
 | `plaisted-greenbaum` | Plaisted and Greenbaum's clauses | whether the sequent is valid |
+| `prenex` | every quantifier in front | each formula's meaning |
+| `miniscope` | negation normal form, every quantifier as far in as it goes | each formula's meaning |
+| `skolem` | the sequent's negation, each `∃` replaced by a term of new symbols | whether the sequent is valid |
+| `herbrand` | the sequent, each strong quantifier replaced by a term of new symbols | whether the sequent is valid |
+| `clausal` | the Skolem form's clauses, each closed by `∀`s in front | whether the sequent is valid |
 
 ```console
 $ deduxit seq normalize --to dnf '(a \/ b) /\ ~c'
@@ -148,9 +153,62 @@ wherever the clauses hold, the sequent is false: valid, a checked clausal proof
 The new atoms are `t1`, `t2`, …, or `t_1`, … where the sequent has an
 atom named `t` and a number.
 
+### At first order
+
+`nnf`, `prenex`, `miniscope`, `skolem`, `herbrand` and `clausal` take
+first-order sequents; the other forms take propositional ones. Prenex
+form pulls each quantifier out of the formula as written, one law per
+step:
+
+```console
+$ deduxit seq normalize --to prenex '(forall x. p(x)) -> exists y. q(y)'
+Prenex normal form: ⊢ ∃x. ∃y. (p(x) → q(y))
+1. (∀x. A) → B ≡ ∃x. (A → B), x not free in B, at (∀x. p(x)) → (∃y. q(y)):
+   ⊢ ∃x. (p(x) → (∃y. q(y)))
+2. A → ∃x. B ≡ ∃x. (A → B), x not free in A:
+   ⊢ ∃x. ∃y. (p(x) → q(y))
+the law of rewrite 1: valid, a checked derivation of LK (26 inferences)
+the law of rewrite 2: valid, a checked derivation of LK (27 inferences)
+every formula is equivalent to its normal form: valid, a checked derivation of LK (34 inferences)
+```
+
+Each step's law is checked on its own: a derivation of LJ where the law
+holds in intuitionistic logic, of LK where only classical logic proves
+it (both laws above), each variable the subformula leaves free taken as
+a new constant. A step that rewrites a subformula under a quantifier
+shows the sequent after it but not the subformula, whose variable is
+bound outside it.
+
+The Skolem and clausal forms replace each `∃` of the sequent's negation
+by a new function symbol (`sk1`, `sk2`, …) applied to the variables free
+in it; equal formulas share their symbol. The result is valid exactly
+when the input is:
+
+```console
+$ deduxit seq normalize --to clausal 'forall x. exists y. r(x, y) |- exists z. r(a, z)'
+Clausal normal form: ∀x. r(x, sk1(x)), ∀z. ¬r(a, z) ⊢
+1. ∃z. r(a, z) moves left of ⊢ as ¬(∃z. r(a, z))
+2. ¬∃x. A ≡ ∀x. ¬A, at ¬(∃z. r(a, z)):
+   ∀x. ∃y. r(x, y), ∀z. ¬r(a, z) ⊢
+3. ∃y. A becomes A[f(x̄)/y], f a new function symbol over the variables x̄ free in ∃y. A: satisfiable exactly when the input is:
+   ∀x. r(x, sk1(x)), ∀z. ¬r(a, z) ⊢
+the law of rewrite 2: valid, a checked derivation of LJ (15 inferences)
+wherever the clauses hold, the sequent is false: valid, a checked derivation of LK (7 inferences)
+```
+
+One direction of the promise has a derivation: the clauses imply the
+sequent's negation, each Skolem term a witness of its `∃`. The other,
+that a model of the negation gives one of the clauses, needs a choice of
+witnesses and has no derivation; deduxit checks the construction it
+rests on instead: every symbol is new and applied to exactly the
+variables free in its quantifier. `herbrand` keeps the sides and
+replaces each strong quantifier (an `∃` left of `⊢`, a `∀` right of it),
+and checks that the input implies the result.
+
 Before it prints a form, deduxit checks what the form keeps, deciding
 each claim by its SAT solver, whose clausal proof deduxit's checker
-accepts. For CNF, DNF and NNF the claim is that each formula is
+accepts, or at first order by the logic's default method, as above. For
+CNF, DNF and NNF the claim is that each formula is
 equivalent to its normal form. For an encoding there are two claims:
 wherever the sequent is false, the clauses hold once each new atom takes
 the value of what it names; and wherever the clauses hold, the sequent
@@ -215,12 +273,13 @@ not valid, 3 where a search stopped at a limit (by default after 2 s,
 ## JSON output
 
 `--format json` writes the whole answer as one document. `seq
-normalize` writes it at wire level 21: `{"version", "deduxit", "form",
-"promise", "checked", "sequent", "result", "steps", "checks"}`, the input
-and the normal form, each step's `rule`, `law`, `before` and `after`
-(numbers of the result's `formulas`), the formulas on each side after
-it and the clauses it `added`, and each claim with its sequent and
-outcome. The other two write level 16. `seq translate` writes `{"version", "deduxit", "translation",
+normalize` writes it at wire level 21 (25 at first order): `{"version",
+"deduxit", "form", "promise", "checked", "sequent", "result", "steps",
+"checks"}`, the input and the normal form, each step's `rule`, `law`,
+`before` and `after` (numbers of the result's `formulas`), the formulas
+on each side after it, the clauses it `added` and a Skolem step's `term`
+(a number of the result's terms), and each claim with its sequent and
+outcome, a law's with its `step`. The other two write level 16. `seq translate` writes `{"version", "deduxit", "translation",
 "target", "agreement", "sequent", "translated", "classical",
 "decided"}`: both sequents, both outcomes with their derivations or
 countermodels, and `agreement`, which is `valid`, `not_valid` or
@@ -235,5 +294,6 @@ In a program, `deduxit::ordinary::normal::normalize`,
 and the web bindings' `ordinary_translate` and `ordinary_interpolate`
 answer the same JSON as the command for the other two. The protocol's
 operations `ordinary.nnf`, `ordinary.cnf`, `ordinary.dnf`,
-`ordinary.tseitin` and `ordinary.plaisted_greenbaum` make the normal
-forms in a [workspace](workspace.md).
+`ordinary.tseitin`, `ordinary.plaisted_greenbaum`, `ordinary.prenex`,
+`ordinary.miniscope`, `ordinary.skolem`, `ordinary.herbrand` and
+`ordinary.clausal` make the normal forms in a [workspace](workspace.md).

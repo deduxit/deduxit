@@ -110,6 +110,11 @@ promises something of its output and says what checking that costs.
 | `ordinary.dnf` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
 | `ordinary.tseitin` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
 | `ordinary.plaisted_greenbaum` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
+| `ordinary.prenex` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
+| `ordinary.miniscope` | `ordinary.sequent` | `ordinary.sequent` | equivalent |
+| `ordinary.skolem` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
+| `ordinary.herbrand` | `ordinary.sequent` | `ordinary.sequent` | equivalid |
+| `ordinary.clausal` | `ordinary.sequent` | `ordinary.sequent` | equisatisfiable |
 | `ordinary.resolve` | `ordinary.sequent` | `ordinary.resolution` | decides |
 | `ordinary.term` | a session or a derivation | `term` | renders |
 | `ordinary.draw` | a session, a derivation or an outcome | `drawing` | renders |
@@ -153,6 +158,7 @@ defaults, its plain name, how its output relates to its inputs once made
 | interpolates | the interpolant's atoms occur in both parts, and both halves are valid | two searches |
 | equivalent | each formula of the output is equivalent to the input's in its place | one search |
 | equisatisfiable | the output's clauses can be satisfied exactly when the input can be false | two searches |
+| equivalid | the output is valid exactly when the input is, its sides kept | one search |
 | well typed | each term is well typed, of the type asked | instant |
 | renders | the drawing or text shows its input | nothing to check |
 | certifies | Rocq accepts the certificate | Rocq checks it |

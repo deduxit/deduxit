@@ -196,6 +196,9 @@ run lambda_inhabitants-at-least 3 "$deduxit" term enumerate "${t[@]}" --format j
 # Normal forms: an equivalent one and an encoding.
 run normal_form-cnf 0 "$deduxit" seq normalize "${t[@]}" --format json '~(a -> b /\ c)'
 run normal_form-tseitin 0 "$deduxit" seq normalize "${t[@]}" --to tseitin --format json 'a /\ b |- a'
+run normal_form-prenex 0 "$deduxit" seq normalize "${t[@]}" --to prenex --format json '(forall x. p(x)) -> exists y. q(y)'
+run normal_form-clausal 0 "$deduxit" seq normalize "${t[@]}" --to clausal --format json 'forall x. exists y. r(x, y) |- exists z. r(a, z)'
+run normal_form-herbrand 0 "$deduxit" seq normalize "${t[@]}" --to herbrand --format json 'exists x. p(x) |- exists y. forall z. q(y, z)'
 # A tableau written by hand, reviewed: closed, open with the countermodel
 # its branch gives, and wrong at a line.
 printf '1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  x 4, 5\n- 6 T q 1\n  x 3, 6\n' >closed.txt

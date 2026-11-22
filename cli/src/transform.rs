@@ -163,7 +163,15 @@ fn steps_text(made: &NormalForm, deadline: &Deadline) -> Result<String> {
                 writeln!(text, "{n}. {after} names {before}: {}", clauses.join(", "))?;
             }
             _ => {
-                writeln!(text, "{n}. {}, at {before}:", step.rule.law())?;
+                // A subformula under a quantifier may hold its variable,
+                // which prints as `#` and its index: the sequent after the
+                // step shows it in place.
+                let at = before.to_string();
+                if at.contains('#') {
+                    writeln!(text, "{n}. {}:", step.rule.law())?;
+                } else {
+                    writeln!(text, "{n}. {}, at {at}:", step.rule.law())?;
+                }
                 writeln!(
                     text,
                     "   {}",
@@ -174,12 +182,11 @@ fn steps_text(made: &NormalForm, deadline: &Deadline) -> Result<String> {
         added.extend_from_slice(&step.added);
     }
     for check in &made.checks {
-        writeln!(
-            text,
-            "{}: {}",
-            check.claim.description(),
-            verdict(&check.outcome, deadline)
-        )?;
+        let claim = match check.step {
+            Some(k) => format!("the law of rewrite {}", k + 1),
+            None => check.claim.description().to_owned(),
+        };
+        writeln!(text, "{claim}: {}", verdict(&check.outcome, deadline))?;
     }
     Ok(text.trim_end().to_owned())
 }
