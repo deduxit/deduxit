@@ -1603,3 +1603,163 @@ findings, all fixed:
 - `nix flake check` under the machine lock at the report's commit
   (21:07 to 21:29), on `main@origin` (`luxmwxss`, 78a's code with it):
   every check passed. Only this line changed after.
+
+## Session fixup-24: the shift's spelling and Herbrand's bounds
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58a-610ed3`
+(the conversation of 75b, 75d, 76a to 76c and 77c), cores 7 to 9, from
+`/tmp/linlog-handoff/start-fixup-24.md`: 77c's note on rocq-deduxit's
+comments and 78b's panel's two items "not fixed, recorded". Nothing was
+pushed.
+
+### What landed
+
+- rocq-deduxit `vxkypqzt` (1ff01e02): **the comments write the
+  double-negation shift with its brackets**, `(∀x. ¬¬p(x)) → ¬¬(∀x.
+  p(x))`, in `FirstOrderKripke.v`'s module header and `Chain` section,
+  README and CHANGELOG (Unreleased); `.claude/rules/rocq.md` says why
+  (deduxit's syntax reads the unbracketed spelling as another formula).
+  No statement or proof changed. The planning session pushes it and
+  moves deduxit's lock.
+- `uqtvmqxv`: **Herbrand's instance search and its read-back keep to
+  the memory bound** (`herbrand.rs`, shared by `herbrand` and
+  first-order `resolve`).
+  - The read-back charges the arena it grows (`ArenaSize`, `NODE` 192
+    bytes a formula, measured about 160 with the maps), after each
+    instance and each inference's replacement, the whole arena at the
+    start; each inference (twice its size for the list's doubling, each
+    vector with the allocator's header and rounding); and the frames
+    waiting on its stacks.
+  - The instance search charges each instance and the arena it grows
+    (8⁸ instances of an eight-variable clause ran past 4 GB under the
+    default 1 GiB, counted only against the occurrences, in the base
+    too).
+  - The solver and the read-back get the bound less what the instances
+    and the arena hold (`Search::rest`), the solver also less the
+    propositional copy it reads; a memory refusal names the bound the
+    caller gave.
+  - `sides` allocates each side exactly: collected from a filter, the
+    sides held up to twice their length (119 MB of a 173 MB peak, by
+    massif).
+  - Test `the_read_back_keeps_to_the_memory_bound` (300 nested `∀`: a
+    derivation by default, the clausal proof under 4 MiB), and
+    `a_bound_or_the_stop_ends_the_search_for_its_reason` now checks the
+    bound named at fourteen bounds (it failed with the share named).
+- `rtvzszsy`: **a witness set per quantifier** (`Build::given`, cached
+  per formula). A kept ground instance gives a `∀` hypothesis's or `∃`
+  goal's variable the values all its atoms agree on (`match_terms`); an
+  instance with an atom the body cannot match comes from another
+  formula. The step order: the given witnesses, then a rule of two
+  premises that closes one at once, then every other witness, then the
+  other rules of two premises. The given values are among the uniform
+  set, which follows them, so a short or wrong set costs order only.
+  The manual's resolution example and the guide's Herbrand example show
+  the shorter derivations (15 to 11 and 5 to 3 inferences). Test
+  `each_quantifier_takes_the_witnesses_its_instances_give`;
+  `the_read_back_asks_the_stop` in `first_order.rs` stops at the third
+  step now (its six instances close in six).
+- `xqpwqumk`: the lock's two first-order outputs, whose derivations are
+  shorter (verdicts, instances and refutations unchanged), a commit of
+  its own.
+
+### Measurements
+
+Peak RSS (the process starts at 11 MB), release builds of the base
+`nwnrnrsu` and the head:
+
+| input | command, bound | base | head |
+|---|---|---|---|
+| 1 500 nested `∀` over one atom (78b's witness) | `herbrand`, 128 MiB | 261 MB, derivation | 91 MB, clausal proof |
+| the same | `resolve`, 128 MiB | 263 MB | 93 MB |
+| the same | `herbrand`, default | 261 MB, 3 001 inferences | 262 MB, the same |
+| 300 hypotheses `∀x. pᵢ(x)` | `herbrand`, 128 MiB | 93 MB, derivation | 96 MB, derivation |
+| six nested `∀` over six constants | `herbrand`, 128 MiB | (not run) | 131 MB, clausal proof |
+| `q(c1..c40), ∀x1 x2 x3. p(x1,x2,x3)` (64 040 instances, kept whole) | `herbrand`, 128 MiB | 205 MB | 162 MB |
+| `q(c1..c20), ∀x1..x4. p(x1..x4)` | `herbrand`, 80 MiB | 143 MB | 105 MB, unknown at 80 MiB |
+
+The last two stay above the bound by 10 to 17 MB past the process's
+base: the solver's own accounting and the parts of the arena charged by
+estimate. Neither is a regression.
+
+The witness set, on nested quantifiers over constants (inferences, or
+time):
+
+| input | base | head |
+|---|---|---|
+| three nested `∀` over three constants, `herbrand` | 175 | 34 |
+| four, `herbrand` (kept set whole, past `MOST_CUT`) | 1 729 | 1 729 |
+| six over six, `resolve` | 60 s | 0.01 s |
+
+ILTP's first-order problems through `herbrand` (`--timeout 2s`, three
+at a time on cores 7 to 9): 2 670 problems, of which 1 840 end in the
+reader's parse error (`!`, `=`) in both runs, the same set.
+
+| verdict | base | head |
+|---|---|---|
+| valid, derivation read back | 326 | 346 |
+| valid, clausal proof only | 139 | 119 |
+| unknown | 365 | 366 |
+| error | 1 840 | 1 839 |
+
+No valid verdict and no derivation lost; 20 derivations gained. The 326
+derived in both take 12.4 s instead of 15.7 s and 1 147 354 inferences
+instead of 2 854 730, none slower nor longer. The one move between
+unknown and error is SYN428+1, in the normal form at the 2 s boundary
+(an error at 2 039 ms, the time limit at 2 051 ms).
+
+A first order, with every rule of two premises before the uniform
+witnesses, lost SYN549+1's derivation (4 872 inferences in 0.06 s
+became a refusal at 598 MB): early splits made every branch repeat the
+instances. Only a split that closes a premise at once goes first now,
+and SYN549+1 reads back in 2 439 inferences.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`) on the three commits: no answer
+changes to a wrong one; item 1 and item 3 hold (`match_terms` right for
+nested terms and repeated variables; 4 300 generated first-order
+sequents through `herbrand` and `resolve` against the base: no verdict
+or derivation lost, 48 read-backs gained, one base read-back error
+fixed). Three findings in item 2, all fixed in `uqtvmqxv`:
+- **An unknown at the memory bound named the share**, not the bound
+  given (`the memory limit of 9891254 B` under `--memory-limit 80MiB`),
+  against `core-search.md`'s rule: `Search::decide` puts the caller's
+  bound back, in the outcome and in a refusal.
+- **The solver phase overspent**: its propositional copy was uncharged.
+  Its share is the rest less the copy now (124 to 105 MB on the
+  reviewer's witness under 80 MiB).
+- **The doubled inference charge rested on a copy that is not made**,
+  and refused 300 hypotheses' derivation under 128 MiB though the
+  process held 93 MB. Massif found what the factor had covered by
+  accident: the sides' spare capacity. `sides` is exact now, and the
+  charge counts the list's doubling and the allocator's blocks; the
+  derivation is built under 128 MiB again.
+
+### Checks
+
+- rocq-deduxit: `nix flake check` at `vxkypqzt` passed.
+- `cargo clippy --workspace --all-targets -- --deny warnings`, `cargo
+  test --workspace` (through the gate) after each change.
+- The gate passed on the chain before the rebase (the ratchet under its
+  ceilings, `ordinary-pigeons` -0.82 %); clippy and `cargo test
+  --workspace` again after the rebase onto `main@origin` (`luxmwxss`,
+  78a's equality with it), without a conflict.
+- `nix flake check` under the machine lock at the report's commit: the
+  first run (21:54 to 22:14) failed in `msrv` alone, an `if let` guard
+  in `Search::decide` past the `rust-version` 1.92 (rewritten as a plain
+  arm in `uqtvmqxv`); the second run (22:15 to 22:37) passed every
+  check. Then the chain was rebased onto `zrpoxqsw` (fixup-23's
+  defaults, `decide.rs`, the CLI and the manual; only this report
+  conflicted, both sections kept), and clippy and `cargo test
+  --workspace` passed there again.
+
+### For the planning session
+
+- **The clausal normal form overruns its bounds on many hypotheses**
+  (77a's `normal::rewrite`, outside this fixup): 1 500 hypotheses
+  reached 54 GB in 100 s under `seq normalize --to clausal` (an
+  uncapped run of mine), 300 reached 561 MB under
+  `--memory-limit 256MiB`, and `herbrand` on 1 500 took 67 s under
+  `--timeout 10s` there. A fixup's worth.
+- ILTP's first-order problems with `=` parsed only after 78a; the
+  measurement above is on the base without it.
