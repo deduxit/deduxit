@@ -107,7 +107,8 @@ pub(super) enum Why {
         /// The bound.
         size: u32,
     },
-    /// The finite model search tried every Kripke model within its bounds.
+    /// The finite model search tried every Kripke model of its kind within
+    /// its bounds.
     KripkeSize {
         /// The bound on worlds.
         worlds: u32,

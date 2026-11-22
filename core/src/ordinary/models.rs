@@ -89,9 +89,12 @@ pub struct Statistics {
 
 /// Whether a count is zero, which the JSON form leaves out.
 #[cfg(feature = "serialize")]
-#[expect(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "serde's skip_serializing_if passes a reference"
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde's skip_serializing_if passes a reference"
+    )
 )]
 const fn is_zero(count: &u64) -> bool {
     *count == 0

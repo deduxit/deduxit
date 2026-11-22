@@ -783,12 +783,17 @@ exit 1
 
 By default `prove` runs this search beside the embedding in
 intuitionistic and minimal logic, on a thread of its own, the first to
-answer winning. A finite model never refutes `¬¬A` where `A` is valid
-classically, since every world of a finite model sees a world with none
-above it, where intuitionistic and classical forcing agree. So the
-failure of Glivenko's theorem at first order shows only on infinite
-models: `¬¬∀x. (p(x) ∨ ¬p(x))` is valid classically and not
-intuitionistically, and the search answers unknown on it.
+answer winning. In intuitionistic logic a finite model never refutes
+`¬¬A` where `A` is valid classically, since every world of a finite
+model sees a world with none above it, where intuitionistic and
+classical forcing agree. So the failure of Glivenko's theorem at first
+order shows only on infinite models: `¬¬∀x. (p(x) ∨ ¬p(x))` is valid
+classically and not intuitionistically, and the search answers unknown
+on it. (In minimal logic a world with none above it may force `⊥`, so
+there finite models refute such formulas, `¬¬(⊥ → p(a))` among them.)
+The search's domains are initial segments of one numbering of the
+elements, so two worlds that are not ordered add the same new elements;
+models over a tree, which suffice for completeness, lose nothing by it.
 
 `--stats` prints the largest structure tried, the worlds of the last
 Kripke model tried, the atoms and formulas of the last formula, and the

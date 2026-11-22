@@ -1146,14 +1146,20 @@ The countermodels of intuitionistic and minimal logic at first order
   memoised by the values of the innermost variables the node reads
   (`needs`, computed in arena order). Every principal term is made at
   every world at once, so a table entry no principal term reached is 0
-  everywhere and agreement holds. The read-off takes the covering pairs
+  everywhere and agreement holds. Prefix domains are a restriction: two
+  worlds not ordered add the same new elements, so a diamond whose
+  middle worlds add different elements below a common top needs its
+  unravelling into a tree (which loses nothing for completeness), and
+  `Reason::KripkeSize` says "the search found no …". The read-off takes the covering pairs
   of `le` as arrows and keeps a world's tuples within its domain.
 - **The order of sizes** (`models::run`): for L = 1, 2, …: the classical
   structures of L elements, then the Kripke pair (min(L, worlds),
   min(L, size)) where K ≥ 2, or K ≥ 1 in minimal logic (one world with
   `falsity` is no classical structure); a model fits every larger pair.
-- **No finite model refutes `¬¬A` for a classically valid `A`** (every
-  world of a finite frame sees a maximal one, which is classical), so
+- **In intuitionistic logic no finite model refutes `¬¬A` for a
+  classically valid `A`** (every world of a finite frame sees a maximal
+  one, which is classical; in minimal logic a maximal world may force
+  `⊥`, and `¬¬(⊥ → p(a))` is refuted, the reviewer's witness), so
   Glivenko's failure at first order (`¬¬∀x (p(x) ∨ ¬p(x))`, the
   double-negation shift) stays unknown: `kripke_models_decided_by_hand`
   pins it.

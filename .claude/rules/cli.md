@@ -1410,7 +1410,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   from grounding), more than one thread: the model search
   (`models::decide`, finite structures and Kripke models, a quarter of
   the memory bound) on a scoped thread beside the embedding's search
-  (three quarters), a refutation stopping the search (`found` in its
+  (three quarters, and one thread fewer: the reviewer measured a long
+  theorem 12 to 17 % slower with the model thread on top of `--jobs`), a refutation stopping the search (`found` in its
   `passed`), a proof stopping the model search; the model search's "not
   valid" is written by `write_native`. The batch does not race yet.
   `--model-worlds N|none` (key `search.model_worlds`); an unknown at
@@ -1419,7 +1420,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   with `check_structure`). Its
   "not valid" is `not_valid`'s structure line, the structure (function
   tables among it) printed after it; an unknown at its bound names
-  `--model-size` (`advice`); `native_statistics` prints five counters.
+  `--model-size` (`advice`); `native_statistics` prints six counters,
+  the worlds only where a Kripke model was tried.
 - **`interact --logic` with quantifiers**: `apply G F RULE TERM…` reads
   the words after `∀L` or `∃R` as the witness
   (`ordinary::Interactive::witness`), none leaving it open (`$1`), and

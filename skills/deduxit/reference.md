@@ -1232,10 +1232,11 @@ while the time limit lasts).
   there.
 - It never answers `valid`: past the bound the sequent is `unknown` with
   the reason `model_size` (classical) or `kripke_size` (the others), at
-  the time limit `stopped`. A finite model never refutes `¬¬A` for a
-  classically valid `A`.
-- `--stats` prints `largest structure tried, elements`, `atoms`,
-  `formulas`, `solver calls` and `conflicts`.
+  the time limit `stopped`. In intuitionistic logic a finite model never
+  refutes `¬¬A` for a classically valid `A` (in minimal logic it may).
+- `--stats` prints `largest structure tried, elements`, `worlds of the
+  last Kripke model tried` (where it tried one), `atoms`, `formulas`,
+  `solver calls` and `conflicts`.
 - `--stats` prints `elements`, `ground atoms`, `formulas of the ground
   sequent`, `solver calls`, `conflicts` and `proof steps`.
 

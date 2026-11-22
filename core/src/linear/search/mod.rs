@@ -3567,9 +3567,12 @@ pub enum Reason {
         /// The bound.
         size: u32,
     },
-    /// The finite model search tried every Kripke model within its bounds
-    /// on worlds ([`Options::model_worlds`]) and elements a world
+    /// The finite model search tried every Kripke model of its kind within
+    /// its bounds on worlds ([`Options::model_worlds`]) and elements a world
     /// ([`Options::model_size`]) and found none that refutes the sequent.
+    /// Its kind: every world's domain an initial segment of one numbering of
+    /// the elements, so two worlds that are not ordered add the same new
+    /// elements (models over a tree lose nothing by it).
     KripkeSize {
         /// The bound on worlds.
         worlds: u32,
@@ -3702,7 +3705,8 @@ impl Display for Reason {
             }
             Reason::KripkeSize { worlds, size } => write!(
                 f,
-                "no Kripke model of up to {worlds} worlds, each of up to {size} elements, refutes it"
+                "the search found no Kripke model of up to {worlds} worlds, each of up to {size} \
+                 elements, that refutes it"
             ),
         }
     }

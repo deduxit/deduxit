@@ -334,6 +334,15 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let options = &settings.search;
     let limits = settings.limits;
     let threads = Threads::of(&settings);
+    // A race's model search takes one of the threads, so that it slows the
+    // embedding's search no more than a thread fewer does.
+    let threads = match &race {
+        Some(_) => Threads {
+            jobs: threads.jobs.saturating_sub(1).max(1),
+            ..threads
+        },
+        None => threads,
+    };
     let deepens = options.copies.is_none() && sequent.fragment().has_exponentials();
     let quiet = args.output.quiet;
     let show = Show::new(&args.output, &settings)?;

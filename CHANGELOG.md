@@ -166,9 +166,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   reason `Reason::KripkeSize` (`search::Options::model_worlds`,
   `--model-worlds N|none`, by default 4 in the library and none in the
   command). The library's default asks it after the embedding, the
-  command beside it on a thread of its own. A finite model never refutes
-  `¬¬A` for a classically valid `A`, so Glivenko's failure at first
-  order stays unknown.
+  command beside it on a thread of its own, which takes one of the
+  command's threads. In intuitionistic logic a finite model never
+  refutes `¬¬A` for a classically valid `A`, so Glivenko's failure at
+  first order stays unknown.
 - **Finite structures interpret function symbols**
   (`Structure::functions`, `Structure::with_functions`): each function
   symbol of one argument or more with its table, the values of its
