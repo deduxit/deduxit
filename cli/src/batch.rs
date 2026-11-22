@@ -715,7 +715,10 @@ impl Shared {
                 } else {
                     text
                 };
-                Ok(Loaded::Ordinary(ordinary::sequent_in(&text, format, most)?))
+                Ok(Loaded::Ordinary(ordinary::with_equality(
+                    ordinary::sequent_in(&text, format, most)?,
+                    most,
+                )?))
             } else if format == InputFormat::Tptp {
                 bail!("--input-format tptp holds ordinary logic, which --logic reads");
             } else {

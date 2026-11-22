@@ -90,7 +90,10 @@ pub(super) fn interact(
         (Some(state), _) => state,
         (None, Some(logic)) => {
             no_standard_input(args)?;
-            let sequent = args.input.ordinary(&limits)?;
+            let sequent = crate::ordinary::with_equality(
+                args.input.ordinary(&limits)?,
+                crate::io::Most::of(&limits),
+            )?;
             Interactive::within(&sequent, logic.into(), &limits)
                 .map_err(|e| refused(e, Most::of(&limits)))?
         }

@@ -56,10 +56,23 @@ pub(crate) fn sequent_in(
             "--logic reads text (one sequent, or one per line with --input-format lines) or TPTP problems"
         ),
     };
-    // A sequent with `=` is decided, and proved by hand, with the equality
-    // axioms as its last hypotheses, so that every method decides the one
-    // sequent and every derivation shows them.
-    Ok(ordinary::equality::with_axioms(&sequent, &within)
+    Ok(sequent)
+}
+
+/// Returns `sequent` with the equality axioms as its last hypotheses where
+/// it uses `=`, within `most`: `prove`, its batch, `interact` and `grade`
+/// decide, prove by hand and grade the one sequent so, and every
+/// derivation shows them. The transformations and `resolve` take the
+/// sequent as written.
+///
+/// # Errors
+///
+/// The axioms past `most`.
+pub(crate) fn with_equality(
+    sequent: ordinary::Sequent,
+    most: crate::io::Most,
+) -> Result<ordinary::Sequent> {
+    Ok(ordinary::equality::with_axioms(&sequent, &bound(most))
         .map_err(|e| refused(e, most))?
         .unwrap_or(sequent))
 }

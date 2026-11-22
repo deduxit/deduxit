@@ -321,7 +321,11 @@ fn proved(args: &ProveArgs, given: &Given) -> Result<Status> {
     let ordinary = match ordinary {
         Some(options) => {
             crate::ordinary::method_given(args, &options)?;
-            let read = deadline.within(move || input.ordinary(&limits))?;
+            let read = deadline.within(move || {
+                input.ordinary(&limits).and_then(|sequent| {
+                    crate::ordinary::with_equality(sequent, crate::io::Most::of(&limits))
+                })
+            })?;
             let Some(sequent) = read else {
                 let limit = deadline.limit().expect("only a limit passes");
                 return unread_into(args, &unread(limit));

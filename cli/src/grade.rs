@@ -129,7 +129,8 @@ pub(crate) fn grade(args: &GradeArgs, given: &Given) -> Result<Status> {
     // The problem, and its sequent as text for the checks that read it so:
     // a model's and a derivation's in a calculus given as data.
     let (problem, text) = if let Some(logic) = args.logic {
-        let sequent = input.ordinary(&limits)?;
+        let sequent =
+            crate::ordinary::with_equality(input.ordinary(&limits)?, crate::io::Most::of(&limits))?;
         let text = sequent.to_string();
         (Problem::Ordinary(Box::new(sequent), logic.into()), text)
     } else if let Some(system) = args.system {
@@ -371,10 +372,13 @@ fn document(
                 _ => None,
             };
             match about {
-                Some(about) if !same_sides(&sides(sequent), &about, *logic) => {
+                Some(about) if !same_sides(sequent, &about, *logic) => {
                     return Ok(Graded::incorrect(
                         "outcome",
-                        format!("the outcome is not of the problem's sequent, {sequent}"),
+                        format!(
+                            "the outcome is not of the problem's sequent, {sequent}{}",
+                            axioms_expected(sequent)
+                        ),
                     ));
                 }
                 Some(_) => {}
@@ -407,10 +411,13 @@ fn document(
                 texts(derivation.formulas(), left),
                 texts(derivation.formulas(), right),
             );
-            if !same_sides(&sides(sequent), &about, *logic) {
+            if !same_sides(sequent, &about, *logic) {
                 return Ok(Graded::incorrect(
                     "derivation",
-                    format!("the derivation is not of the problem's sequent, {sequent}"),
+                    format!(
+                        "the derivation is not of the problem's sequent, {sequent}{}",
+                        axioms_expected(sequent)
+                    ),
                 ));
             }
             kept(
@@ -731,13 +738,20 @@ fn sides(sequent: &ordinary::Sequent) -> (Vec<String>, Vec<String>) {
 
 /// Returns whether an answer's sides are the problem's, read as
 /// multisets; outside classical logic a problem with nothing right of `⊢`
-/// is `Γ ⊢ ⊥`, as the logic decides it.
+/// is `Γ ⊢ ⊥`, as the logic decides it. A problem with `=` has the
+/// equality axioms as its last hypotheses, and an answer may hold any of
+/// them beside the problem's own.
 fn same_sides(
-    problem: &(Vec<String>, Vec<String>),
+    sequent: &ordinary::Sequent,
     answer: &(Vec<String>, Vec<String>),
     logic: Logic,
 ) -> bool {
-    if problem.0 != answer.0 {
+    let problem = sides(sequent);
+    let left = sequent.left();
+    let axioms = ordinary::equality::axiom_count(sequent.formulas(), left);
+    let own = texts(sequent.formulas(), &left[..left.len() - axioms]);
+    let axioms = texts(sequent.formulas(), &left[left.len() - axioms..]);
+    if problem.0 != answer.0 && !own_and_some(&own, &axioms, &answer.0) {
         return false;
     }
     if problem.1 == answer.1 {
@@ -745,6 +759,42 @@ fn same_sides(
     }
     let falsum = falsum();
     logic != Logic::Classical && problem.1.is_empty() && answer.1 == [falsum]
+}
+
+/// Returns what a refusal of an answer adds for a problem with `=`: that
+/// its last hypotheses are the equality axioms, of which the answer may
+/// hold any.
+fn axioms_expected(sequent: &ordinary::Sequent) -> String {
+    match ordinary::equality::axiom_count(sequent.formulas(), sequent.left()) {
+        0 => String::new(),
+        n => format!(
+            " (its last {n} hypotheses are the equality axioms, of which a derivation may hold any)"
+        ),
+    }
+}
+
+/// Returns whether `answer`, a sorted multiset of formulas, is `own` with
+/// some of `axioms` beside it, both sorted too.
+fn own_and_some(own: &[String], axioms: &[String], answer: &[String]) -> bool {
+    let mut rest: Vec<&String> = Vec::with_capacity(answer.len());
+    let mut mine = own.iter().peekable();
+    for formula in answer {
+        if mine.peek() == Some(&formula) {
+            mine.next();
+        } else {
+            rest.push(formula);
+        }
+    }
+    if mine.next().is_some() {
+        return false;
+    }
+    let mut pool = axioms.iter().peekable();
+    rest.into_iter().all(|formula| {
+        while pool.peek().is_some_and(|a| *a < formula) {
+            pool.next();
+        }
+        pool.next_if(|a| *a == formula).is_some()
+    })
 }
 
 /// Returns `⊥` as an ordinary formula is printed.
