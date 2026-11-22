@@ -15,7 +15,9 @@
 //! an outcome that holds one (at level 12), `wire/level-22.txt` two
 //! refutations by resolution and `wire/level-23.txt` four lambda-terms,
 //! as 0.7.0 wrote them, and `wire/level-25.txt` a first-order ordinary
-//! sequent and derivation as the first release with them writes them;
+//! sequent and derivation as the first release with them writes them,
+//! and `wire/level-26.txt` two outcomes of the finite model search, one
+//! whose structure has a function table;
 //! none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
@@ -540,4 +542,26 @@ fn the_twenty_fifth_level_reads() {
             other => panic!("no form {other}"),
         }
     }
+}
+
+/// The forms level 26 added, two outcomes of the finite model search (a
+/// structure with a function table, and an unknown at the bound on its
+/// size), read and write the same bytes again, and the structure still
+/// refutes its sequent. Never rewritten, as `wire/level-1.txt` is not.
+#[cfg(feature = "sat")]
+#[test]
+fn the_twenty_sixth_level_reads() {
+    use deduxit::ordinary;
+    let lines = include_str!("wire/level-26.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        again::<ordinary::Outcome>(name, json);
+        let outcome: ordinary::Outcome = read(name, json);
+        if let Some(structure) = &outcome.structure {
+            structure
+                .check(ordinary::Logic::Classical, &Limits::default(), |_| false)
+                .unwrap();
+        }
+    }
+    assert_eq!(lines.lines().count(), 2);
 }
