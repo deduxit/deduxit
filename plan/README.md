@@ -7999,3 +7999,12 @@ move (D26).
   with a test. Its check on `ci/fixup-15`, then `main`. In its worker: **fixup-16**, the iLeanCoP
   glue's GPL header and TPTP files not in UTF-8. 76a waited on an author's permission prompt from
   01:59 (a Bash command in its own session; not answered here).
+- 2026-11-22, about 03:15: **fixup-16 reviewed; fixup-17 started.** fixup-16 (Opus, high; the
+  reviewer on Fable): `modules/_provers/ileancop_main.pl` is `GPL-3.0-or-later` (leanCoP's archive
+  says "GNU General Public License" without a version), benchmark glue in no crate; the
+  `conventions` check now reads `.pl` and `.ml` headers and names this one file's licence line.
+  TPTP files whose `%` comments hold bytes that are not UTF-8 are read (such a byte stands as
+  U+FFFD; one outside a comment is refused with its line), in the command and the harness: all 107
+  such ILTP problems read. The reviewer's two false texts fixed. Its check on `ci/fixup-16`, then
+  `main`. **Decided unattended** (its API recommendation): a public `ordinary::read_tptp_bytes`,
+  shared by the command, the harness and library users; that is **fixup-17**, in the same worker.
