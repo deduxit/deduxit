@@ -1,0 +1,6 @@
+$ deduxit prove --logic classical --quiet --szs 'a = b, p(a) |- p(b)'
+--- status 0
+--- stdout
+valid (classical logic by the connection prover), its last 4 hypotheses the equality axioms
+% SZS status Theorem for sequent
+--- stderr

@@ -824,6 +824,53 @@ const CASES: &[Case] = &[
             "forall x. (p(x) -> p(f(x))), p(a) |- p(f(f(f(f(a)))))",
         ],
     ),
+    // Equality: valid with its axioms as the last hypotheses of the
+    // derivation, refuted by a structure of identity (and its JSON), and
+    // the SZS line of each verdict.
+    call(
+        "ordinary-equality",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--tree",
+            "always",
+            "a = b |- b = a",
+        ],
+    ),
+    call(
+        "ordinary-equality-refuted-json",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "json",
+            "a = b, p(a) |- p(c)",
+        ],
+    ),
+    call(
+        "ordinary-szs-theorem",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--quiet",
+            "--szs",
+            "a = b, p(a) |- p(b)",
+        ],
+    ),
+    call(
+        "ordinary-szs-satisfiable",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--quiet",
+            "--szs",
+            "a = b, p(a) |-",
+        ],
+    ),
     // Grounding: a refutation by default with its structure, its JSON, a
     // valid sequent's clausal proof, a refutation in intuitionistic logic,
     // and the two unknowns: outside the classes, and valid classically

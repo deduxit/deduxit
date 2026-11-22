@@ -1,0 +1,6 @@
+$ deduxit prove --logic classical --quiet --szs 'a = b, p(a) |-'
+--- status 1
+--- stdout
+not valid (classical logic by grounding): a checked finite structure of 1 element refutes it
+% SZS status Satisfiable for sequent
+--- stderr
