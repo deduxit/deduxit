@@ -4,9 +4,10 @@
 
 # The comparison of deduxit with the other provers (bench/TOOLS.md): every
 # problem of the LLTP library (intuitionistic and classical), qcover's
-# coverability problems and the generated families, run by every tool whose
-# fragment covers it, each run measured by BenchExec's runexec under one
-# time and memory limit. The same script runs on the author's machine and
+# coverability problems, the generated families, and the ILTP library's
+# propositional and first-order problems of ordinary logic (classical and
+# intuitionistic), run by every tool whose fragment covers it, each run
+# measured by BenchExec's runexec under one time and memory limit. The same script runs on the author's machine and
 # in the CI job; nothing in it is specific to a machine.
 #
 #   bench/comparison.sh [--out DIR] [--shard K/N] [--cores LIST]
@@ -30,8 +31,8 @@
 #                taking whole shapes; with --quick the first two sizes of
 #                each growing set
 #
-# It builds the flake's `comparison' package (and `lltp' and `qcover' for
-# the libraries), runs the streams side by side, joins their rows into
+# It builds the flake's `comparison' package (and `lltp', `qcover', `iltp'
+# and `iltp-first-order' for the libraries), runs the streams side by side, joins their rows into
 # DIR/runs.csv, and writes DIR/ranking.md (`deduxit-bench ranking') and
 # DIR/figures/ (bench/plots.py; with --growing also the time against size).
 # A stream's file is resumed when the script runs again on the same DIR.
@@ -89,6 +90,8 @@ tools=$(build comparison)
 if [ -z "$growing" ]; then
   lltp=$(build lltp)
   qcover=$(build qcover)
+  iltp=$(build iltp)
+  iltp_first_order=$(build iltp-first-order)
 fi
 export PATH="$tools/bin:$PATH"
 export DEDUXIT_COMPARISON_TOOLS="$tools/share/deduxit-comparison/tools.json"
@@ -96,9 +99,15 @@ export DEDUXIT_COMPARISON_TOOLS="$tools/share/deduxit-comparison/tools.json"
 export DEDUXIT_COMMIT=${DEDUXIT_COMMIT:-${GITHUB_SHA:-}}
 
 sequential=deduxit,maude-ill,maude-cll,click-and-collect,llprover-cll,llprover-ill,lintap,linearone,sympli,lolli,apll-ll,apll-ill
-# Each stream runs two passes: the small sets first, then the
+# The tools of ordinary logic, which read TPTP, and the logics: the ILTP
+# pass's.
+ordinary=deduxit,intuit,intuitr,leancop,nanocop,nanocopi,ileancop
+logics=classical,intuitionistic
+# Each stream runs three passes: the small sets first, then the
 # intuitionistic library, whose Petri nets come last, so that a night that
-# ends early leaves Petri nets for the next.
+# ends early leaves Petri nets for the next, then ILTP's problems of
+# ordinary logic (none with --growing).
+iltp_pass=()
 if [ -n "$growing" ]; then
   small=(--growing)
   large=()
@@ -114,9 +123,15 @@ if [ -n "$growing" ]; then
 else
   small=(--lltp "$lltp/CLL" --spec "$qcover/stable/benchmarks" --all-families)
   large=(--lltp "$lltp/ILL")
+  # Every tool finds a first-order problem's includes above it; $TPTP
+  # names the library's root as well, by TPTP's convention.
+  iltp_pass=(--tptp "$iltp/Problems" --tptp "$iltp_first_order/Problems"
+    --logics "$logics")
   if [ -n "$quick" ]; then
     small=(--lltp "$lltp/CLL/misc" --spec "$qcover/stable/benchmarks/mist" --family mix=4 --family chain=16)
     large=(--lltp "$lltp/ILL/ILLTP-SYJ-01/SYJ101+1.p" --lltp "$lltp/ILL/ILLTP-SYN-01")
+    iltp_pass=(--tptp "$iltp/Problems/SYJ/SYJ101+1.p" --tptp "$iltp_first_order/Problems/SYN/SYN036+1.p"
+      --logics "$logics")
   fi
 fi
 # The job's shard of N, which its streams split once more.
@@ -129,13 +144,20 @@ IFS=/ read -ra defaults <<<"$default_cores"
 # pinned to cores. Shard i·n + k of count·n is every (count·n)-th problem
 # from that place: together the parts are the share, whatever the count.
 stream() {
-  local name=$1 cpus=$2 tools=$3 index=$4 count=$5 pass
-  for pass in small large; do
-    local file="$out/$name-$pass.csv" resume=() sources
+  local name=$1 cpus=$2 tools=$3 index=$4 count=$5 ordinary_tools=$6 pass
+  for pass in small large iltp; do
+    local file="$out/$name-$pass.csv" resume=() sources with=$tools
     [ -s "$file" ] && resume=(--append --resume)
-    if [ "$pass" = small ]; then sources=("${small[@]}"); else sources=("${large[@]}"); fi
+    case $pass in
+    small) sources=("${small[@]}") ;;
+    large) sources=("${large[@]}") ;;
+    iltp)
+      sources=("${iltp_pass[@]}")
+      with=$ordinary_tools
+      ;;
+    esac
     [ ${#sources[@]} = 0 ] && continue
-    taskset -c "$cpus" deduxit-bench run --tools "$tools" "${sources[@]}" \
+    TPTP=${iltp_first_order:-} taskset -c "$cpus" deduxit-bench run --tools "$with" "${sources[@]}" \
       --shard "$((index * n + k))/$((count * n))" \
       --timeout "$timeout" --memory-limit "$memory" \
       --output "$file" "${resume[@]}" --work "$out/work-$name" 2>>"$out/$name.log"
@@ -144,11 +166,11 @@ stream() {
 
 pids=()
 for i in "${!streams[@]}"; do
-  stream "seq-$k-$((i + 1))" "${streams[$i]}" "$sequential" "$i" "${#streams[@]}" &
+  stream "seq-$k-$((i + 1))" "${streams[$i]}" "$sequential" "$i" "${#streams[@]}" "$ordinary" &
   pids+=($!)
 done
 for i in "${!defaults[@]}"; do
-  stream "default-$k-$((i + 1))" "${defaults[$i]}" deduxit-default "$i" "${#defaults[@]}" &
+  stream "default-$k-$((i + 1))" "${defaults[$i]}" deduxit-default "$i" "${#defaults[@]}" deduxit-default &
   pids+=($!)
 done
 status=0

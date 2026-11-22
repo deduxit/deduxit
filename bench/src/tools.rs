@@ -76,6 +76,9 @@ pub struct Driver {
 pub struct Ordinary {
     /// Whether it decides a problem in this logic.
     pub decides: fn(Logic) -> bool,
+    /// Whether it reads first-order problems: a propositional tool is
+    /// refused one for its fragment, where it would answer a parse error.
+    pub first_order: bool,
     /// The arguments after the program, given the file, the logic, the time
     /// limit in seconds and the memory limit in bytes.
     pub arguments: fn(&Path, Logic, f64, u64) -> Vec<String>,
@@ -288,6 +291,7 @@ const fn cop(name: &'static str, summary: &'static str, decides: fn(Logic) -> bo
         checks: false,
         ordinary: Some(Ordinary {
             decides,
+            first_order: true,
             arguments: cop_arguments,
             read: cop_read,
         }),
@@ -391,6 +395,7 @@ pub const DRIVERS: &[Driver] = &[
         checks: true,
         ordinary: Some(Ordinary {
             decides: every_logic,
+            first_order: true,
             arguments: deduxit_ordinary_one,
             read: deduxit_answer,
         }),
@@ -408,6 +413,7 @@ pub const DRIVERS: &[Driver] = &[
         checks: true,
         ordinary: Some(Ordinary {
             decides: every_logic,
+            first_order: true,
             arguments: deduxit_ordinary,
             read: deduxit_answer,
         }),
@@ -644,6 +650,7 @@ pub const DRIVERS: &[Driver] = &[
         checks: false,
         ordinary: Some(Ordinary {
             decides: |logic| logic == Logic::Intuitionistic,
+            first_order: false,
             arguments: |file, _, _, _| vec![file.display().to_string()],
             read: intuit_read,
         }),
@@ -662,6 +669,7 @@ pub const DRIVERS: &[Driver] = &[
         checks: false,
         ordinary: Some(Ordinary {
             decides: |logic| logic == Logic::Intuitionistic,
+            first_order: false,
             arguments: |file, _, _, _| vec![file.display().to_string()],
             read: intuit_read,
         }),
@@ -1060,7 +1068,12 @@ fn one_ordinary(
         "expected",
         crate::ordinary::expected(problem.status, logic).to_owned(),
     )];
-    let Some(tool) = driver.ordinary.as_ref().filter(|o| (o.decides)(logic)) else {
+    let first_order = problem.sequent.formulas().is_first_order();
+    let Some(tool) = driver
+        .ordinary
+        .as_ref()
+        .filter(|o| (o.decides)(logic) && (o.first_order || !first_order))
+    else {
         let mut row = row;
         row.extend([("verdict", "refused".into()), ("reason", "fragment".into())]);
         return Ok(row);

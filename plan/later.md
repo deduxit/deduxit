@@ -1892,28 +1892,27 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
 
 Left by step 54s (`plan/reports/54s-sat-engines.md`):
 
-- **The pigeonhole formulas' derivations pass the derivation limit, not
-  the search** (session 54s-c3): on ILTP's SYJ202 (Cook's pigeonhole
-  formulas) the SAT solver finds the intuitionistic "valid" in 27
-  conflicts at size 4, and its derivation of LJ has 14 036 inferences
-  (0.9 MB as JSON; 164 903 at size 5, 2 017 284 at size 6, about twelve
-  times per size). Built and checked with `--derivation-limit none` it
-  takes 2.8 ms at size 4 and 28 ms at size 5. But every inference
-  repeats the sequent's twenty-odd hypotheses, so the estimate of the
-  drawn text passes the default 64 MiB, and the read-back is refused
-  before the verdict; LJT's derivation likewise, so the default gives
-  way and the embedding decides nothing from size 4. intuit and intuitR,
-  which give no derivation, solve sizes 4 to 9 within 10 s. Two ways,
-  each the author's to choose: bound the derivation that is built and
-  checked by its inferences (or the memory) and keep `derivation_bytes`
-  for what is drawn, so that `-q` and JSON get the verdict and a drawing
-  is refused as too large; or a derivation with shared subderivations
-  and a checker that checks each once (the DAG read-back above), which
-  changes the checker, so the panel's.
-- **`comparison.sh` has no ILTP pass**: the comparison of 2026-11-14
-  (`bench/comparison/2026-11-14-iltp/`) ran `deduxit-bench run --tools`
-  by hand. A pass of its own, beside the LLTP ones, would rerun it with
-  the baseline.
+- **The pigeonhole formulas' derivations are large, not wrong** (session
+  54s-c3; the first way landed in fixup-19): ILTP's SYJ202 has
+  derivations of LJ that repeat its twenty-odd hypotheses per inference
+  (20 223 inferences at size 4, 164 903 at 5, 2 017 284 at 6, about
+  twelve times per size). Since fixup-19 they are built and checked
+  within the memory bound and `--derivation-limit` bounds only their
+  drawing, so `-q` and JSON give the checked "valid" up to size 6 at the
+  default bounds (size 6's JSON is 136 MB). What is left is the second
+  way: a derivation with shared subderivations and a checker that checks
+  each once (the DAG read-back above), which changes the checker, so
+  the panel's; intuit and intuitR, which give no derivation, solve sizes
+  4 to 9 within 10 s.
+- **The intuitionistic default's preference for LJT can spend the
+  time limit** (found by fixup-19's review, older than it): where the
+  SAT solver decides at once, `decide_preferring_ljt` still runs LJT's
+  search for a derivation it may prefer, and that search has no bound
+  of its own. SYJ202+1.005: the solver 28 ms, LJT 1 019 980 sequents in
+  5 s, so `prove -q` answers at the 2 s limit (valid since fixup-19,
+  unknown before). Bound LJT's search there by work, as the classical
+  default bounds the embedding's evidence (`EVIDENCE_WORK`), measured on
+  ILTP so that no derivation LJT gives today within 2 s is lost.
 
 ## The web front end: a two-sided presentation of classical derivations
 

@@ -586,7 +586,7 @@ serde_json, which the CLI and the core's tests already have.
   `ordinary::expected`'s, as the child's. intuit and intuitR have no
   linear part: `covers` is `nothing`, and their linear fields are never
   called. The ranking files the rows as the group "ILTP (ordinary
-  logic)". `bench/comparison.sh` does not run ILTP yet.
+  logic)". `bench/comparison.sh` runs ILTP as its third pass (below).
 - **Every run is measured by BenchExec's `runexec`** (`--no-container`,
   a wall-time limit of the time limit and a second, the memory limit as
   the cgroup's): `time_ms` is its wall time of the whole process (start,
@@ -775,12 +775,23 @@ serde_json, which the CLI and the core's tests already have.
   solved verdict or its time changed.
 - **`bench/comparison.sh`** is the one script of the published numbers
   and of the CI job (`.github/workflows/comparison.yml`): it builds
-  `.#comparison`, `.#lltp` and `.#qcover`, runs the streams (`--cores`,
-  one sequential stream per core; `--default-cores`, CPU lists by `/`),
-  joins `runs.csv`, writes `ranking.md` and `figures/`. Each stream runs
-  two passes, the small sets (CLL, qcover, the families) and then the
-  intuitionistic library, whose Petri nets sort last, so that a night
-  cut short leaves Petri nets for the next. On the author's
+  `.#comparison`, `.#lltp`, `.#qcover`, `.#iltp` and
+  `.#iltp-first-order`, runs the streams (`--cores`, one sequential
+  stream per core; `--default-cores`, CPU lists by `/`), joins
+  `runs.csv`, writes `ranking.md` and `figures/`. Each stream runs three
+  passes, the small sets (CLL, qcover, the families), the intuitionistic
+  library, whose Petri nets sort last, so that a night cut short leaves
+  Petri nets for the next, and ILTP's propositional and first-order
+  problems in classical and intuitionistic logic (`iltp`, none under
+  `--growing`) with the tools of ordinary logic (`ordinary`: deduxit,
+  intuit, intuitR and the four connection provers; the default's stream
+  with `deduxit-default`), `$TPTP` set to the first-order package by
+  TPTP's convention (every tool finds the includes above a problem
+  without it);
+  intuit and intuitR are refused a first-order problem for their
+  fragment (`Ordinary::first_order`), where they answered a parse error
+  (the dry run's finding). The runs of 2026-11-14 and 75d's were made
+  by hand before it. On the author's
   machine it runs in the night slot as a user unit, the sequential
   streams on 6–11 and the default on 12–15.
 
