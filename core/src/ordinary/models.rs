@@ -37,6 +37,8 @@
 //! ([`Reason::ModelSize`]).
 
 use super::grounding::{self, G, Nnf, Term};
+use super::kripke_search;
+use super::kripke_structure::KripkeCountermodel;
 use super::sat;
 use super::structure::{FiniteCountermodel, Structure};
 use super::{Formulas, Logic, Node, NodeId, Sequent, Verdict};
@@ -71,6 +73,11 @@ const MEMO_BYTES: u64 = grounding::MEMO_BYTES;
 pub struct Statistics {
     /// The largest domain tried, in elements.
     pub size: u64,
+    /// The most worlds of the last Kripke model tried, in intuitionistic
+    /// and minimal logic; 0 where only finite structures were tried (and
+    /// then left out of the JSON form).
+    #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "is_zero"))]
+    pub worlds: u64,
     /// The atoms of the last domain's formula: the predicates' and the
     /// terms' values.
     pub atoms: u64,
@@ -78,6 +85,16 @@ pub struct Statistics {
     pub nodes: u64,
     /// What the SAT solver's search on the last domain cost.
     pub sat: sat::Statistics,
+}
+
+/// Whether a count is zero, which the JSON form leaves out.
+#[cfg(feature = "serialize")]
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde's skip_serializing_if passes a reference"
+)]
+const fn is_zero(count: &u64) -> bool {
+    *count == 0
 }
 
 /// What the finite model search found.
@@ -93,20 +110,30 @@ pub struct Outcome {
     /// The finite structure that refutes a sequent that is not valid,
     /// checked by [`FiniteCountermodel::check`].
     pub structure: Option<FiniteCountermodel>,
+    /// The Kripke model with growing domains that refutes a sequent that is
+    /// not valid in intuitionistic or minimal logic where no finite
+    /// structure does, checked by [`KripkeCountermodel::check`].
+    pub kripke: Option<KripkeCountermodel>,
     /// What the search cost.
     pub statistics: Statistics,
 }
 
 /// Looks for a finite structure that refutes `sequent`, on domains of 1,
-/// 2, … elements up to `options.model_size`, within `limits`, asking
-/// `stop` as it goes.
+/// 2, … elements up to `options.model_size`, and in intuitionistic and
+/// minimal logic for a Kripke model with growing domains beside it, of
+/// up to `options.model_worlds` worlds, within `limits`, asking `stop` as
+/// it goes. For L = 1, 2, … it tries the structures of L elements, then
+/// the Kripke models of L worlds (or the bound) of up to L elements a
+/// world (or the bound): a model fits every larger pair.
 ///
 /// The verdict is not valid with a checked [`Structure`] (in every logic:
-/// a classical countermodel is a Kripke model of one world), or unknown:
-/// [`Reason::ModelSize`] past the bound, the reason of the bound or the
-/// stop that ended the search, and [`Reason::Incomplete`] for a sequent
-/// over a derivation's arena that names an eigenvariable or an open
-/// witness, which no structure interprets. Each domain is written within
+/// a classical countermodel is a Kripke model of one world) or a checked
+/// [`KripkeStructure`](super::KripkeStructure), or unknown:
+/// [`Reason::ModelSize`] past the bound in classical logic and
+/// [`Reason::KripkeSize`] past both in the others, the reason of the
+/// bound or the stop that ended the search, and [`Reason::Incomplete`] for
+/// a sequent over a derivation's arena that names an eigenvariable or an
+/// open witness, which no structure interprets. Each domain is written within
 /// `limits.occurrences` formulas and `limits.memory_bytes`, and the
 /// solver gets `limits.work` on each.
 ///
@@ -122,14 +149,20 @@ pub fn decide(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, options.model_size, limits, &mut stop)
+    run(
+        sequent,
+        logic,
+        (options.model_size, options.model_worlds),
+        limits,
+        &mut stop,
+    )
 }
 
-/// [`decide`] with the bound alone and the stop as a trait object.
+/// [`decide`] with the bounds alone and the stop as a trait object.
 fn run(
     sequent: &Sequent,
     logic: Logic,
-    bound: Option<u32>,
+    (bound, worlds_bound): (Option<u32>, Option<u32>),
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
@@ -144,6 +177,7 @@ fn run(
             verdict: Verdict::Unknown(reason),
             logic,
             structure: None,
+            kripke: None,
             statistics,
         })
     };
@@ -154,7 +188,31 @@ fn run(
     };
     let signature = Signature::of(&nnf, root);
     let most = bound.unwrap_or(u32::MAX);
-    for size in 1..=most {
+    let worlds = match logic {
+        Logic::Classical => 1,
+        Logic::Intuitionistic | Logic::Minimal => worlds_bound.unwrap_or(u32::MAX).max(1),
+    };
+    // Minimal logic's `⊥` makes a model of one world more than a finite
+    // structure, which forces it nowhere.
+    let least = match logic {
+        Logic::Minimal => 1,
+        Logic::Classical | Logic::Intuitionistic => 2,
+    };
+    for level in 1..=most.max(worlds) {
+        // A Kripke model, on a pair not tried yet.
+        let (k, n) = (level.min(worlds), level.min(most));
+        if k >= least && level > most {
+            match kripke(sequent, logic, (k, n), &mut statistics, limits, &mut *stop) {
+                Ok(Some(outcome)) => return Ok(outcome),
+                Ok(None) => continue,
+                Err(Ok(reason)) => return unknown(reason, statistics),
+                Err(Err(error)) => return Err(error),
+            }
+        }
+        if level > most {
+            continue;
+        }
+        let size = level;
         statistics.size = u64::from(size);
         let expansion = match Expansion::new(&nnf, root, &signature, size, limits, &mut *stop) {
             Ok(expansion) => expansion,
@@ -171,6 +229,14 @@ fn run(
         statistics.sat = solved;
         let true_atoms = match found {
             Ok(Some(atoms)) => atoms,
+            Ok(None) if k >= least => {
+                match kripke(sequent, logic, (k, n), &mut statistics, limits, &mut *stop) {
+                    Ok(Some(outcome)) => return Ok(outcome),
+                    Ok(None) => continue,
+                    Err(Ok(reason)) => return unknown(reason, statistics),
+                    Err(Err(error)) => return Err(error),
+                }
+            }
             Ok(None) => continue,
             Err(Reason::MemoryLimit { limit_bytes }) => {
                 let limit_bytes = limits.memory_bytes.unwrap_or(limit_bytes);
@@ -189,6 +255,7 @@ fn run(
                 verdict: Verdict::NotValid,
                 logic,
                 structure: Some(countermodel),
+                kripke: None,
                 statistics,
             }),
             // The verdict rests on the structure alone, so a check that a
@@ -199,7 +266,65 @@ fn run(
             Err(error) => unknown(unknown_for(error, limits)?, statistics),
         };
     }
-    unknown(Reason::ModelSize { size: most }, statistics)
+    let reason = if logic != Logic::Classical {
+        Reason::KripkeSize { worlds, size: most }
+    } else {
+        Reason::ModelSize { size: most }
+    };
+    unknown(reason, statistics)
+}
+
+/// Looks for a Kripke model of `worlds` worlds with domains of at most
+/// `size` elements that refutes the sequent, and checks the one found:
+/// the outcome where one refutes it, `None` where none does, the reason
+/// (`Err(Ok(…))`) where a bound or the stop ends the search, and an error
+/// (`Err(Err(…))`) for a model that fails its check, a defect, or another
+/// refusal.
+fn kripke(
+    sequent: &Sequent,
+    logic: Logic,
+    (worlds, size): (u32, u32),
+    statistics: &mut Statistics,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Option<Outcome>, Result<Reason, Error>> {
+    statistics.worlds = u64::from(worlds);
+    statistics.size = u64::from(size);
+    let written = kripke_search::write(sequent, logic, worlds, size, limits, &mut *stop)
+        .map_err(|error| unknown_for(error, limits))?;
+    statistics.atoms = written.atoms();
+    statistics.nodes = written.sequent.formulas().len() as u64;
+    let rest =
+        limits.with_memory_bytes(limits.memory_bytes.map(|m| m.saturating_sub(written.bytes)));
+    let (found, solved) = sat::falsify(&written.sequent, &rest, &mut *stop);
+    statistics.sat = solved;
+    let true_atoms = match found {
+        Ok(Some(atoms)) => atoms,
+        Ok(None) => return Ok(None),
+        Err(Reason::MemoryLimit { limit_bytes }) => {
+            let limit_bytes = limits.memory_bytes.unwrap_or(limit_bytes);
+            return Err(Ok(Reason::MemoryLimit { limit_bytes }));
+        }
+        Err(reason) => return Err(Ok(reason)),
+    };
+    let model = written
+        .model(sequent, &true_atoms, limits)
+        .map_err(|error| unknown_for(error, limits))?;
+    drop(written);
+    let countermodel = KripkeCountermodel::new(sequent.clone(), model);
+    match countermodel.check(logic, limits, &mut *stop) {
+        Ok(()) => Ok(Some(Outcome {
+            verdict: Verdict::NotValid,
+            logic,
+            structure: None,
+            kripke: Some(countermodel),
+            statistics: *statistics,
+        })),
+        Err(Error::Structure { reason }) => Err(Err(Error::Countermodel {
+            reason: format!("the Kripke model the model search found is wrong: {reason}"),
+        })),
+        Err(error) => Err(unknown_for(error, limits)),
+    }
 }
 
 /// Returns the reason the stop or a bound on work or memory leaves the
@@ -976,11 +1101,84 @@ mod tests {
         let outcome = crate::ordinary::decide(&valid, &Options::default()).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Valid(_)));
         let named = Options::default().with_method(Some(Method::Models));
-        let outcome = crate::ordinary::decide(&valid, &named).unwrap();
+        let outcome = crate::ordinary::decide(&valid, &named.with_logic(Logic::Classical)).unwrap();
         assert!(matches!(
             outcome.verdict,
             Verdict::Unknown(Reason::ModelSize { size: 6 })
         ));
+        let outcome =
+            crate::ordinary::decide(&valid, &named.with_logic(Logic::Intuitionistic)).unwrap();
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Unknown(Reason::KripkeSize { worlds: 4, size: 6 })
+        ));
+    }
+
+    /// Searches `text` in `logic` with bounds on elements and worlds.
+    fn kripke(text: &str, logic: Logic, size: u32, worlds: u32) -> super::Outcome {
+        let sequent: Sequent = text.parse().unwrap();
+        let options = search::Options::default()
+            .with_model_size(Some(size))
+            .with_model_worlds(Some(worlds));
+        decide(&sequent, logic, &options, &Limits::default(), |_| false)
+            .unwrap_or_else(|e| panic!("{text}: {e}"))
+    }
+
+    /// Sequents valid classically and not intuitionistically get a checked
+    /// Kripke model of at most the worlds and elements expected; minimal logic's
+    /// `⊥` is forced where it must be; the double-negation shift and the
+    /// double negation of excluded middle at first order, which only
+    /// infinite models refute, are unknown at the bounds.
+    #[test]
+    fn kripke_models_decided_by_hand() {
+        let refuted = [
+            ("|- p(a) \\/ ~p(a)", Logic::Intuitionistic, 2, 1),
+            ("|- forall x. (p(x) \\/ ~p(x))", Logic::Intuitionistic, 2, 2),
+            ("~~p(a) |- p(a)", Logic::Intuitionistic, 2, 1),
+            ("forall x. ~~p(x) |- p(f(a))", Logic::Intuitionistic, 2, 1),
+            (
+                "(forall x. p(x)) -> q |- exists x. (p(x) -> q)",
+                Logic::Intuitionistic,
+                2,
+                2,
+            ),
+            ("false |- p(a)", Logic::Minimal, 1, 1),
+            ("|- ~p(a) \\/ ~~p(a)", Logic::Minimal, 3, 3),
+        ];
+        for (text, logic, worlds, size) in refuted {
+            let outcome = kripke(text, logic, 4, 3);
+            assert!(
+                matches!(outcome.verdict, Verdict::NotValid),
+                "{text}: {:?}",
+                outcome.verdict
+            );
+            let countermodel = outcome.kripke.expect("a Kripke model");
+            assert!(countermodel.model.worlds.len() <= worlds, "{text}");
+            let most = countermodel.model.worlds.iter().map(|w| w.size).max();
+            assert!(most <= Some(size), "{text}");
+            countermodel
+                .check(logic, &Limits::default(), |_| false)
+                .unwrap();
+            if logic == Logic::Intuitionistic {
+                countermodel
+                    .check(Logic::Minimal, &Limits::default(), |_| false)
+                    .unwrap();
+            }
+        }
+        for text in [
+            "forall x. ~~p(x) |- ~~forall x. p(x)",
+            "|- ~~forall x. (p(x) \\/ ~p(x))",
+        ] {
+            let outcome = kripke(text, Logic::Intuitionistic, 3, 3);
+            assert!(
+                matches!(
+                    outcome.verdict,
+                    Verdict::Unknown(Reason::KripkeSize { worlds: 3, size: 3 })
+                ),
+                "{text}: {:?}",
+                outcome.verdict
+            );
+        }
     }
 
     /// The stop ends the search as unknown, and a sequent with two goals
@@ -1094,6 +1292,14 @@ mod tests {
                 assert!(!valid, "{text}");
                 refuted += 1;
                 let countermodel = ours.structure.expect("a structure");
+                // The structure as a Kripke model of one world says the same.
+                assert_eq!(
+                    crate::ordinary::KripkeStructure::from(countermodel.structure.clone())
+                        .refutes(&sequent, Logic::Classical, &limits, |_| false)
+                        .unwrap(),
+                    Evaluation::Refutes,
+                    "{text}"
+                );
                 assert_eq!(
                     countermodel
                         .structure
@@ -1105,5 +1311,62 @@ mod tests {
             }
         }
         assert!(refuted > 200 && proved > 10, "{refuted} {proved}");
+    }
+
+    /// On generated intuitionistic sequents with function symbols, the
+    /// model search never refutes what the embedding proves, and every
+    /// Kripke model it gives refutes its sequent.
+    #[test]
+    fn kripke_models_agree_with_the_embedding() {
+        use crate::ordinary::{Method, Options};
+        let mut rng = Rng::new(7_602);
+        let limits = Limits {
+            work: Some(1 << 16),
+            ..Limits::default()
+        };
+        let options = search::Options::default()
+            .with_model_size(Some(2))
+            .with_model_worlds(Some(3));
+        let (mut kripke, mut proved) = (0, 0);
+        for _ in 0..200 {
+            let hypotheses: Vec<String> = (0..rng.below(3))
+                .map(|_| formula(&mut rng, 3, &mut Vec::new()))
+                .collect();
+            let goal = formula(&mut rng, 3, &mut Vec::new());
+            // Half the goals are classically valid: excluded middle or
+            // double negation elimination of a generated formula.
+            let goal = match rng.below(4) {
+                0 => format!("({goal}) \\/ ~({goal})"),
+                1 => format!("~~({goal}) -> ({goal})"),
+                _ => goal,
+            };
+            let text = format!("{} |- {goal}", hypotheses.join(", "));
+            let sequent: Sequent = text.parse().unwrap();
+            let ours = decide(&sequent, Logic::Intuitionistic, &options, &limits, |_| {
+                false
+            })
+            .unwrap_or_else(|e| panic!("{text}: {e}"));
+            let embedded = crate::ordinary::decide_within(
+                &sequent,
+                &Options::default()
+                    .with_logic(Logic::Intuitionistic)
+                    .with_method(Some(Method::Embedding)),
+                &search::Options::default(),
+                &limits,
+                |_| false,
+            );
+            let valid = matches!(embedded.map(|o| o.verdict), Ok(Verdict::Valid(_)));
+            proved += usize::from(valid);
+            if matches!(ours.verdict, Verdict::NotValid) {
+                assert!(!valid, "{text}");
+            }
+            if let Some(countermodel) = ours.kripke {
+                kripke += 1;
+                countermodel
+                    .check(Logic::Intuitionistic, &limits, |_| false)
+                    .unwrap_or_else(|e| panic!("{text}: {e}"));
+            }
+        }
+        assert!(kripke > 50 && proved > 5, "{kripke} {proved}");
     }
 }

@@ -21,6 +21,7 @@ use deduxit::{
     linear::{Atom, CheckError, Forest, Sequent, Term, sequents::Visit},
 };
 use std::fmt::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -275,6 +276,15 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         None => None,
     };
     let translates = ordinary.is_some();
+    // The default of a first-order sequent in intuitionistic or minimal
+    // logic races the model search beside the embedding.
+    let race = match &ordinary {
+        Some((options, sequent)) if solved.is_none() => {
+            crate::ordinary::races_the_embedding(options, sequent, &settings.search)
+                .then(|| (*options, sequent.clone()))
+        }
+        Some(_) | None => None,
+    };
     // The classical default's answer, written where the embedding gives no
     // evidence for it.
     let write_solved = |outcome: &deduxit::ordinary::Outcome, start: Instant| {
@@ -335,22 +345,88 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
             .as_ref()
             .map_or_else(Instant::now, |(_, start)| *start);
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), deepens));
-        // Both conditions are flags, so every poll asks both.
-        let passed = || deadline.passed();
-        // The classical default's evidence is searched for within a bound.
-        let within = match &solved {
-            Some(_) => crate::ordinary::bounded(&limits),
-            None => limits,
+        // Both conditions are flags, so every poll asks both; a model the
+        // race's search found ends the embedding's search too.
+        let found = AtomicBool::new(false);
+        let passed = || deadline.passed() || found.load(Ordering::Relaxed);
+        // The classical default's evidence is searched for within a bound;
+        // a race leaves the model search a quarter of the memory bound.
+        let within = match (&solved, &race) {
+            (Some(_), _) => crate::ordinary::bounded(&limits),
+            (None, Some(_)) => limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4 * 3)),
+            (None, None) => limits,
         };
-        let outcome = searched(
-            Goal::conclusion(&forest),
-            mode,
-            options,
-            &within,
-            threads,
-            (deadline.limit(), &passed),
-        );
+        let (outcome, modelled) = std::thread::scope(|scope| {
+            let model = race.as_ref().and_then(|(options, sequent)| {
+                let quarter = limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4));
+                let (found, deadline, search) = (&found, &deadline, &settings.search);
+                std::thread::Builder::new()
+                    .name("model search".into())
+                    .spawn_scoped(scope, move || {
+                        let start = Instant::now();
+                        let modelled = deduxit::ordinary::models::decide(
+                            sequent,
+                            options.logic,
+                            search,
+                            &quarter,
+                            |_| interrupted() || deadline.passed() || found.load(Ordering::Relaxed),
+                        );
+                        let refuted = matches!(
+                            &modelled,
+                            Ok(deduxit::ordinary::models::Outcome {
+                                verdict: deduxit::ordinary::Verdict::NotValid,
+                                ..
+                            })
+                        );
+                        if refuted {
+                            found.store(true, Ordering::Relaxed);
+                        }
+                        (modelled, start.elapsed())
+                    })
+                    .ok()
+            });
+            let outcome = searched(
+                Goal::conclusion(&forest),
+                mode,
+                options,
+                &within,
+                threads,
+                (deadline.limit(), &passed),
+            );
+            // A proof ends the model search; anything else waits for it.
+            let proved = matches!(
+                &outcome,
+                Ok(Outcome {
+                    verdict: Verdict::Proved(_),
+                    ..
+                })
+            );
+            let modelled = model.and_then(|model| {
+                if proved {
+                    found.store(true, Ordering::Relaxed);
+                }
+                match model.join() {
+                    Ok((Ok(m), elapsed)) if !proved => Some((m, elapsed)),
+                    Ok(_) => None,
+                    Err(panic) => std::panic::resume_unwind(panic),
+                }
+            });
+            (outcome, modelled)
+        });
         drop(notice);
+        // The model search refuted the sequent first: its answer is the
+        // command's.
+        if let Some((m, elapsed)) = modelled
+            && matches!(m.verdict, deduxit::ordinary::Verdict::NotValid)
+        {
+            let ended = Ended {
+                stop: stopped(&deadline),
+                elapsed,
+                after_search: false,
+            };
+            let refuted = deduxit::ordinary::Outcome::from(m);
+            return crate::ordinary::write_native(args, &settings, &refuted, &ended, &deadline);
+        }
         let outcome = match (outcome, &solved) {
             (Ok(outcome), _) => outcome,
             (Err(_), Some((solved, start))) => return write_solved(solved, *start),
@@ -733,6 +809,10 @@ pub(crate) fn advice(reason: Reason, at: &str, ended: &Ended) -> String {
         (Reason::PathLength { .. }, _) => format!(
             "{reason} {after}{at}; raise it with --path-length N, or lift it with --path-length \
              none to deepen it while the time limit lasts"
+        ),
+        (Reason::KripkeSize { .. }, _) => format!(
+            "{reason} {after}{at}; raise the bounds with --model-worlds N and --model-size N, or \
+             lift them with none to try larger models while the time limit lasts"
         ),
         (Reason::ModelSize { .. }, _) => format!(
             "{reason} {after}{at}; raise the bound with --model-size N, or lift it with \

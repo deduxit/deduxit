@@ -151,8 +151,11 @@ run ordinary_outcome-connection 0 "$deduxit" prove "${t[@]}" --logic classical -
 run ordinary_outcome-grounding-valid 0 "$deduxit" prove "${t[@]}" --logic classical --method grounding --format json 'forall x. (p(x) -> q(x)), p(a) |- q(a)'
 run ordinary_outcome-grounding-structure 1 "$deduxit" prove "${t[@]}" --logic classical --format json 'exists x. p(x), q |- forall x. p(x)'
 run ordinary_outcome-models-structure 1 "$deduxit" prove "${t[@]}" --logic classical --method models --format json 'p(a) |- p(f(a))'
+run ordinary_outcome-models-kripke 1 "$deduxit" prove "${t[@]}" --logic intuitionistic --method models --format json '(forall x. p(x)) -> q |- exists x. (p(x) -> q)'
+run ordinary_outcome-models-kripke-unknown 3 "$deduxit" prove "${t[@]}" --logic intuitionistic --method models --model-size 2 --model-worlds 2 --format json 'forall x. p(x) |- p(f(a))'
 run ordinary_outcome-models-unknown 3 "$deduxit" prove "${t[@]}" --logic classical --method models --model-size 2 --format json 'forall x. p(x) |- p(f(a))'
 run checked-ordinary 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-ljt-valid.json"
+run checked-kripke-structure 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-models-kripke.json"
 run checked-structure-functions 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-models-structure.json"
 run checked-structure 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-grounding-structure.json"
 echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' >model.json

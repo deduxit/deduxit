@@ -707,6 +707,26 @@
               "$ref": "#/$defs/index"
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "worlds",
+            "size"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "kripke_size"
+            },
+            "worlds": {
+              "$ref": "#/$defs/index"
+            },
+            "size": {
+              "$ref": "#/$defs/index"
+            }
+          }
         }
       ]
     },
@@ -2844,11 +2864,14 @@
       ]
     },
     "models_statistics": {
-      "description": "What the finite model search cost (level 26): the largest number of elements it tried, the atoms and formulas of that size's formula, and the SAT solver's statistics on it.",
+      "description": "What the finite model search cost (level 26): the largest number of elements it tried, the most worlds of the last Kripke model it tried (level 27, left out where it tried none), the atoms and formulas of the last formula, and the SAT solver's statistics on it.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "size": {
+          "$ref": "#/$defs/count"
+        },
+        "worlds": {
           "$ref": "#/$defs/count"
         },
         "atoms": {
@@ -3415,6 +3438,116 @@
             }
           }
         },
+        "kripke_structure": {
+          "description": "The Kripke model with growing domains that refutes a first-order sequent found not valid by the model search in intuitionistic or minimal logic (level 27), with the sequent it refutes: each world's domain size (its elements are 0 to size − 1, no fewer in a world above), its function tables over its own domain in the lexicographic order of the arguments (agreeing with the world below on that world's tuples), its predicates' tuples (growing along the arrows), whether it forces ⊥ (minimal logic, growing), and the worlds directly above it; each constant's element, in every world's domain; and the world refuted (0 where left out). A key a world has none of is left out. `check` checks the model and evaluates the sequent in it again.",
+          "type": "object",
+          "required": [
+            "sequent",
+            "model"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sequent": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "model": {
+              "type": "object",
+              "required": [
+                "worlds"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "worlds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "size"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "size": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4294967295
+                      },
+                      "functions": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "prefixItems": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/$defs/index"
+                              }
+                            }
+                          ],
+                          "items": false,
+                          "minItems": 2
+                        }
+                      },
+                      "predicates": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "prefixItems": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/$defs/index"
+                                }
+                              }
+                            }
+                          ],
+                          "items": false,
+                          "minItems": 2
+                        }
+                      },
+                      "falsity": {
+                        "type": "boolean"
+                      },
+                      "arrows": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/index"
+                        }
+                      }
+                    }
+                  }
+                },
+                "constants": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/$defs/index"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2
+                  }
+                },
+                "world": {
+                  "$ref": "#/$defs/index"
+                }
+              }
+            }
+          }
+        },
         "lambda": {
           "$ref": "#/$defs/lambda"
         }
@@ -3533,7 +3666,7 @@
       ]
     },
     "ordinary_outcome": {
-      "description": "The outcome of deciding an ordinary sequent (level 12, `prove --logic … --format json`): the verdict (`unknown` with a `reason`), the logic, the search tagged by its method, and the evidence: a valid outcome's `derivation`, its `clausal_proof` (the SAT solver in classical logic) or neither where the image's proof or the table stands alone; a not-valid outcome's `countermodel` or, from grounding, its `structure` where one was found. `--lambda` adds `lambda`.",
+      "description": "The outcome of deciding an ordinary sequent (level 12, `prove --logic … --format json`): the verdict (`unknown` with a `reason`), the logic, the search tagged by its method, and the evidence: a valid outcome's `derivation`, its `clausal_proof` (the SAT solver in classical logic) or neither where the image's proof or the table stands alone; a not-valid outcome's `countermodel`, or from grounding and the model search its `structure`, or from the model search in intuitionistic and minimal logic its `kripke_structure`, where one was found. `--lambda` adds `lambda`.",
       "$ref": "#/$defs/ordinary_outcome_keys",
       "required": [
         "version",

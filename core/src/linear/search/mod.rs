@@ -3027,6 +3027,14 @@ pub struct Options {
     /// that found no structure that refutes the sequent is not "valid" but
     /// unknown with [`Reason::ModelSize`]. Only that search reads it.
     pub model_size: Option<u32>,
+    /// The most worlds of a Kripke model the finite model search tries in
+    /// intuitionistic and minimal logic, or `None` for no bound.
+    ///
+    /// The search tries models of 1, 2, … worlds beside 1, 2, … elements
+    /// a domain. One that found no model that refutes the sequent within
+    /// both bounds is unknown with [`Reason::KripkeSize`]. Only that search
+    /// reads it.
+    pub model_worlds: Option<u32>,
     /// The thread pools a parallel search borrows instead of starting
     /// threads of its own. `None`, the default, is a pool built for the
     /// search and dropped with it.
@@ -3061,8 +3069,9 @@ impl Default for Options {
     /// - the connection prover's bound
     ///   [`DEFAULT_PATH_LENGTH`](Self::DEFAULT_PATH_LENGTH), and full
     ///   backtracking;
-    /// - the finite model search's bound
-    ///   [`DEFAULT_MODEL_SIZE`](Self::DEFAULT_MODEL_SIZE).
+    /// - the finite model search's bounds
+    ///   [`DEFAULT_MODEL_SIZE`](Self::DEFAULT_MODEL_SIZE) and
+    ///   [`DEFAULT_MODEL_WORLDS`](Self::DEFAULT_MODEL_WORLDS).
     fn default() -> Self {
         Self {
             engine: None,
@@ -3081,6 +3090,7 @@ impl Default for Options {
             path_length: Some(Self::DEFAULT_PATH_LENGTH),
             restricted_backtracking: false,
             model_size: Some(Self::DEFAULT_MODEL_SIZE),
+            model_worlds: Some(Self::DEFAULT_MODEL_WORLDS),
             #[cfg(feature = "parallel")]
             pool: None,
         }
@@ -3140,6 +3150,10 @@ impl Options {
     /// lifts it ([`model_size`](Self::model_size)).
     pub const DEFAULT_MODEL_SIZE: u32 = 6;
 
+    /// The finite model search's most worlds of a Kripke model in the
+    /// default options ([`model_worlds`](Self::model_worlds)).
+    pub const DEFAULT_MODEL_WORLDS: u32 = 4;
+
     /// The most threads the options name: more are taken as this many.
     ///
     /// A pool beyond it has no known use, and a count without a bound
@@ -3189,6 +3203,16 @@ impl Options {
     #[must_use]
     pub fn with_model_size(self, model_size: Option<u32>) -> Self {
         Self { model_size, ..self }
+    }
+
+    /// Returns the options with another bound on the finite model search's
+    /// [`model_worlds`](Self::model_worlds), `None` for none.
+    #[must_use]
+    pub fn with_model_worlds(self, model_worlds: Option<u32>) -> Self {
+        Self {
+            model_worlds,
+            ..self
+        }
     }
 
     /// Returns the options with restricted backtracking in the connection
@@ -3543,6 +3567,15 @@ pub enum Reason {
         /// The bound.
         size: u32,
     },
+    /// The finite model search tried every Kripke model within its bounds
+    /// on worlds ([`Options::model_worlds`]) and elements a world
+    /// ([`Options::model_size`]) and found none that refutes the sequent.
+    KripkeSize {
+        /// The bound on worlds.
+        worlds: u32,
+        /// The bound on elements a world.
+        size: u32,
+    },
 }
 
 impl Reason {
@@ -3561,6 +3594,7 @@ impl Reason {
         "incomplete",
         "path_length",
         "model_size",
+        "kripke_size",
     ];
 
     /// Returns the reason's word, its `kind` in the JSON form.
@@ -3578,6 +3612,7 @@ impl Reason {
             Self::Incomplete => "incomplete",
             Self::PathLength { .. } => "path_length",
             Self::ModelSize { .. } => "model_size",
+            Self::KripkeSize { .. } => "kripke_size",
         }
     }
 
@@ -3620,6 +3655,7 @@ impl Reason {
             Self::Instances { .. } => Some("search.instances"),
             Self::PathLength { .. } => Some("search.path_length"),
             Self::ModelSize { .. } => Some("search.model_size"),
+            Self::KripkeSize { .. } => Some("search.model_worlds"),
         }
     }
 }
@@ -3664,6 +3700,10 @@ impl Display for Reason {
             Reason::ModelSize { size } => {
                 write!(f, "no structure of up to {size} elements refutes it")
             }
+            Reason::KripkeSize { worlds, size } => write!(
+                f,
+                "no Kripke model of up to {worlds} worlds, each of up to {size} elements, refutes it"
+            ),
         }
     }
 }
@@ -3916,6 +3956,7 @@ mod tests {
             Reason::Incomplete,
             Reason::PathLength { length: 1 },
             Reason::ModelSize { size: 1 },
+            Reason::KripkeSize { worlds: 1, size: 1 },
         ];
         // No wildcard: a new reason fails to compile here until listed.
         let at = |reason: &Reason| match reason {
@@ -3931,6 +3972,7 @@ mod tests {
             Reason::Incomplete => 9,
             Reason::PathLength { .. } => 10,
             Reason::ModelSize { .. } => 11,
+            Reason::KripkeSize { .. } => 12,
         };
         assert_eq!(reasons.len(), Reason::NAMES.len());
         for (i, reason) in reasons.iter().enumerate() {

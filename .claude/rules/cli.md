@@ -1403,7 +1403,20 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   limit), then the model search only where the prover stopped there,
   under the caller's stop, which the first-order share ends.
   `decide_natively` takes that deadline, the `Sync` halt and the stop
-  from `prove` and the batch. Its
+  from `prove` and the batch.
+- **The race beside the embedding** (`races_the_embedding`, `prove.rs`):
+  a first-order sequent in intuitionistic or minimal logic with no
+  method or translation given (the embedding decides it, or takes over
+  from grounding), more than one thread: the model search
+  (`models::decide`, finite structures and Kripke models, a quarter of
+  the memory bound) on a scoped thread beside the embedding's search
+  (three quarters), a refutation stopping the search (`found` in its
+  `passed`), a proof stopping the model search; the model search's "not
+  valid" is written by `write_native`. The batch does not race yet.
+  `--model-worlds N|none` (key `search.model_worlds`); an unknown at
+  `kripke_size` names both flags (`advice`); `check` of an outcome with
+  a Kripke model is `check_kripke_structure` (`write_refuted`, shared
+  with `check_structure`). Its
   "not valid" is `not_valid`'s structure line, the structure (function
   tables among it) printed after it; an unknown at its bound names
   `--model-size` (`advice`); `native_statistics` prints five counters.

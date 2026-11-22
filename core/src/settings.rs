@@ -162,6 +162,7 @@ impl Default for Settings {
                 .with_copies(None)
                 .with_path_length(None)
                 .with_model_size(None)
+                .with_model_worlds(None)
                 .with_jobs(Jobs::Auto),
             view: ViewOptions::default(),
             styles: Styles::default(),

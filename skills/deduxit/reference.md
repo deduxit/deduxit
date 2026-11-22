@@ -447,8 +447,8 @@ search `witness_depth`, `instances` and `incomplete` (an ordinary
 first-order sequent whose image has no proof: the embedding may miss
 proofs there; or one the connection prover searched to the end with
 variables in it), the connection prover's `path_length` (raise it
-with `--path-length N`), and the model search's `model_size` (raise it
-with `--model-size N`).
+with `--path-length N`), and the model search's `model_size` and
+`kripke_size` (raise them with `--model-size N` and `--model-worlds N`).
 
 ```console
 $ deduxit prove -q --copies 1 "!(A & B) |- A * B"
@@ -485,6 +485,7 @@ recursion, witnesses or instances is unknown (exit status 3).
 | `--instances N` | `65536` | the instances of quantified formulas a first-order search holds at once |
 | `--path-length N` | `none` | the longest active path the connection prover searches with; `none` deepens while the time limit lasts |
 | `--model-size N` | `none` | the most elements of a structure the model search tries; `none` tries larger ones while the time limit lasts |
+| `--model-worlds N` | `none` | the most worlds of a Kripke model the model search tries in intuitionistic and minimal logic; `none` tries more while the time limit lasts |
 | `--derivation-limit SIZE` | `64MiB` | the derivation drawn: a linear proof's is not built above it, and a derivation of LK or LJ is built and checked within `--memory-limit` and not drawn above it (the tableau method builds its tableau within it); the verdict stands either way |
 | `--occurrence-limit N` | `50000000` | the sequent's subformula occurrences; a larger sequent is refused, exit status 2 |
 | `--term-limit N` | `50000000` | the first-order terms the sequent's atoms unfold to, and a proof's instance table; past it, refused |
@@ -1220,8 +1221,19 @@ while the time limit lasts).
   `g: (0, 0) ↦ 1, …`, `f: always 0`); JSON adds `"functions": [["f", [1,
   0]]]` to the structure (the values in lexicographic order of the
   arguments).
+- In intuitionistic and minimal logic it also tries Kripke models with
+  growing domains (`--model-worlds N`): `not valid` then comes with a
+  checked model, printed a line per world (`world 0 (the model's world):
+  domain {0}; below 1`, `world 1: domain {0, 1}; p: {0}`, `⊥` where a
+  world forces it in minimal logic); JSON `"kripke_structure":
+  {"sequent": …, "model": {"worlds": [{"size", "functions",
+  "predicates", "falsity", "arrows"}], "constants", "world"}}`, which
+  `check` checks again. By default `prove` runs it beside the embedding
+  there.
 - It never answers `valid`: past the bound the sequent is `unknown` with
-  the reason `model_size`, at the time limit `stopped`.
+  the reason `model_size` (classical) or `kripke_size` (the others), at
+  the time limit `stopped`. A finite model never refutes `¬¬A` for a
+  classically valid `A`.
 - `--stats` prints `largest structure tried, elements`, `atoms`,
   `formulas`, `solver calls` and `conflicts`.
 - `--stats` prints `elements`, `ground atoms`, `formulas of the ground

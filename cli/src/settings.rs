@@ -170,6 +170,9 @@ impl SearchArgs {
         if apply.set("model_size") {
             search.model_size = self.model_size.0;
         }
+        if apply.set("model_worlds") {
+            search.model_worlds = self.model_worlds.0;
+        }
         if apply.set("restricted_backtracking") {
             search.restricted_backtracking = self.restricted_backtracking;
         }
@@ -793,6 +796,7 @@ mod tests {
             --instances 4           /search/instances          3                 4
             --path-length 4         /search/path_length        3                 4
             --model-size 4          /search/model_size         3                 4
+            --model-worlds 4        /search/model_worlds       3                 4
             --restricted-backtracking /search/restricted_backtracking false true
             --test-period 3         /search/test_period        2                 3
             --schedule auto         /search/schedule           "turns"           "auto"

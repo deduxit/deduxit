@@ -594,6 +594,10 @@ pub(crate) fn check_ordinary(
                 let structure = outcome.structure.as_ref().expect("a structure");
                 check_structure(structure, logic, &show, quiet, deadline, &mut out)?
             }
+            (ordinary::Verdict::NotValid, None) if outcome.kripke.is_some() => {
+                let kripke = outcome.kripke.as_ref().expect("a Kripke model");
+                check_kripke_structure(kripke, logic, &show, quiet, deadline, &mut out)?
+            }
             (ordinary::Verdict::NotValid, None) => {
                 let by = match outcome.method() {
                     ordinary::Method::Sat => "the SAT solver",
@@ -933,17 +937,77 @@ fn check_structure(
 ) -> Result<(Status, bool)> {
     let over = || interrupted() || deadline.passed() || io::closed();
     let result = countermodel.check(logic, &show.limits, |_| over());
+    let structure = &countermodel.structure;
+    let model = format!(
+        "a finite structure of {}",
+        crate::eliminate::counted(structure.size as usize, "element", "elements")
+    );
+    let refuted = Refuted {
+        sequent: &countermodel.sequent,
+        model,
+        text: structure.to_string(),
+    };
+    write_refuted(&refuted, result, logic, show, quiet, out)
+}
+
+/// Checks that an outcome's Kripke model with growing domains refutes its
+/// first-order sequent, and writes the verdict and the model, or the
+/// verdict as `check`'s JSON; returns the status (0 for a valid
+/// refutation, 1 for an invalid one, 3 for a check a bound or the time
+/// limit gave up) and whether the output is to be finished.
+fn check_kripke_structure(
+    countermodel: &ordinary::KripkeCountermodel,
+    logic: ordinary::Logic,
+    show: &Show,
+    quiet: bool,
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let result = countermodel.check(logic, &show.limits, |_| over());
+    let model = format!(
+        "a Kripke model of {}",
+        crate::eliminate::counted(countermodel.model.worlds.len(), "world", "worlds")
+    );
+    let refuted = Refuted {
+        sequent: &countermodel.sequent,
+        model,
+        text: countermodel.model.to_string(),
+    };
+    write_refuted(&refuted, result, logic, show, quiet, out)
+}
+
+/// A first-order refutation by a model, as `check` writes it.
+struct Refuted<'a> {
+    /// The sequent refuted.
+    sequent: &'a ordinary::Sequent,
+    /// The model in words: `a finite structure of 2 elements`.
+    model: String,
+    /// The model as text, written after the verdict.
+    text: String,
+}
+
+/// Writes the verdict of a checked first-order refutation by a model and
+/// the model, or the verdict as `check`'s JSON; returns the status and
+/// whether the output is to be finished.
+fn write_refuted(
+    refuted: &Refuted<'_>,
+    result: Result<(), deduxit::Error>,
+    logic: ordinary::Logic,
+    show: &Show,
+    quiet: bool,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
     let status = match &result {
         Ok(()) => Status::Yes,
         Err(error) if error.is_refusal() => Status::Unknown,
         Err(_) => Status::No,
     };
-    let sequent = abbreviated(&countermodel.sequent, show.abbreviate, 0);
-    let structure = &countermodel.structure;
+    let sequent = abbreviated(refuted.sequent, show.abbreviate, 0);
     let line = match &result {
         Ok(()) => format!(
-            "valid refutation of {sequent} ({logic} logic): a finite structure of {} refutes it",
-            crate::eliminate::counted(structure.size as usize, "element", "elements"),
+            "valid refutation of {sequent} ({logic} logic): {} refutes it",
+            refuted.model
         ),
         Err(error) if status == Status::No => {
             format!("invalid refutation of {sequent} ({logic} logic): {error}")
@@ -976,7 +1040,7 @@ fn check_structure(
     show.open(out, line.as_deref())?;
     let keep = show.close(out, Shown::Nothing, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
-        show.after(out, &structure.to_string(), false)?;
+        show.after(out, &refuted.text, false)?;
     }
     Ok((status, keep))
 }

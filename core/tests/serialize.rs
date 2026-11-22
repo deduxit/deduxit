@@ -823,7 +823,7 @@ fn options_json_format() {
          \"forward_copies\":30,\"memo_limit\":1048576,\"test_period\":\"auto\",\"jobs\":1,\
          \"schedule\":\"auto\",\"check\":true,\"classical_work\":67108864,\
          \"witness_depth\":64,\"instances\":65536,\"path_length\":8,\
-         \"restricted_backtracking\":false,\"model_size\":6}"
+         \"restricted_backtracking\":false,\"model_size\":6,\"model_worlds\":4}"
     );
     let read: Options = serde_json::from_str("{}").unwrap();
     assert_eq!(read, Options::default());

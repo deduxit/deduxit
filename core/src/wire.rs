@@ -42,6 +42,7 @@
 //! | 24 | a type's terms listed and counted, and whether a type has a term (written only): `{"count": {"kind": "exactly", "count": 2}, "terms": [term, …]}` and `{"verdict": "inhabited", "term": term}` | [`lambda::Inhabitants`](crate::lambda::Inhabitants), [`lambda::Inhabitation`](crate::lambda::Inhabitation) |
 //! | 25 | the first-order forms of ordinary logic: the formulas `{"∀": a}` and `{"∃": a}`, the names of their variables as `binders`, and the first-order sequent's `symbols`, `fo` and predicate atoms `{"P": [symbol, [terms]]}` | a sequent or derivation of [`ordinary`](crate::ordinary) whose formulas have a binder or a predicate with arguments |
 //! | 26 | the finite model search: its search `{"method": "models", "statistics": {…}}`, its reason `{"kind": "model_size", "size": 6}`, and a finite structure's function tables, `"functions": [["f", [1, 0]]]`, each function symbol with arguments by name with the values of its argument tuples in lexicographic order | an ordinary outcome of that search, one unknown for that reason, and one whose structure interprets a function symbol with arguments |
+//! | 27 | a Kripke model with growing domains, `"kripke_structure": {"sequent": {…}, "model": {"worlds": [{"size": 1, "functions": […], "predicates": […], "falsity": true, "arrows": [1]}], "constants": […], "world": 0}}`, and the reason `{"kind": "kripke_size", "worlds": 4, "size": 6}` | an ordinary outcome refuted by one, or unknown for that reason |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -299,7 +300,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 26;
+pub const LEVEL: u32 = 27;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
@@ -491,6 +492,12 @@ pub(crate) const ORDINARY_TERMS: u32 = 25;
 /// (`model_size`), and a finite structure that interprets function
 /// symbols (its `functions`).
 pub(crate) const MODELS: u32 = 26;
+
+/// The level of an ordinary outcome refuted by a Kripke model with
+/// growing domains (its `kripke_structure`), or unknown at the bound on a
+/// Kripke model's worlds (`kripke_size`), which a reader of level 26
+/// refuses.
+pub(crate) const KRIPKE_STRUCTURES: u32 = 27;
 
 /// The level of an ordinary outcome: its search tagged by its method,
 /// the image's outcome nested under the embedding.

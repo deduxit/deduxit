@@ -281,7 +281,7 @@ impl Structure {
 /// The bytes a constant or a tuple holds in a structure and in the
 /// evaluator's tables beside 4 bytes an element: its vector and its entry
 /// in a set.
-const ENTRY_BYTES: u64 = 48;
+pub(super) const ENTRY_BYTES: u64 = 48;
 
 /// A step of the evaluation.
 enum Step {
@@ -627,79 +627,108 @@ impl std::fmt::Display for Structure {
     /// of a table or tuples of a predicate the rest are counted (`, … (448
     /// more)`).
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.size {
-            0 => write!(f, "domain: {{}}")?,
-            1..=8 => {
-                let items: Vec<String> = (0..self.size).map(|e| e.to_string()).collect();
-                write!(f, "domain: {{{}}}", items.join(", "))?;
-            }
-            n => write!(f, "domain: {{0, …, {}}}", n - 1)?,
-        }
+        write!(f, "domain: ")?;
+        write_domain(f, self.size)?;
         for (name, e) in &self.constants {
             write!(f, "\n{name} = {e}")?;
         }
         for (name, table) in &self.functions {
-            if let Some(&first) = table.first()
-                && table.iter().all(|&v| v == first)
-            {
-                write!(f, "\n{name}: always {first}")?;
-                continue;
-            }
-            // The arity: the tuples are `size^arity`, and a table of two
-            // values or more needs two elements or more.
-            let n = u64::from(self.size.max(2));
-            let mut arity = 0u32;
-            let mut cells = 1u64;
-            while cells < table.len() as u64 {
-                cells = cells.saturating_mul(n);
-                arity += 1;
-            }
-            write!(f, "\n{name}: ")?;
-            for (i, v) in table.iter().enumerate().take(SHOWN) {
-                let mut tuple = Vec::with_capacity(arity as usize);
-                let mut rest = i as u64;
-                for _ in 0..arity {
-                    tuple.push((rest % n).to_string());
-                    rest /= n;
-                }
-                tuple.reverse();
-                let comma = if i == 0 { "" } else { ", " };
-                match tuple.len() {
-                    1 => write!(f, "{comma}{} ↦ {v}", tuple[0])?,
-                    _ => write!(f, "{comma}({}) ↦ {v}", tuple.join(", "))?,
-                }
-            }
-            if table.len() > SHOWN {
-                write!(f, ", … ({} more)", table.len() - SHOWN)?;
-            }
+            writeln!(f)?;
+            write_function(f, name, table, self.size)?;
         }
         for (name, tuples) in &self.predicates {
-            if tuples.is_empty() {
-                continue;
+            if !tuples.is_empty() {
+                writeln!(f)?;
+                write_predicate(f, name, tuples)?;
             }
-            if tuples.iter().all(Vec::is_empty) {
-                write!(f, "\n{name}: true")?;
-                continue;
-            }
-            let items: Vec<String> = tuples
-                .iter()
-                .take(SHOWN)
-                .map(|tuple| {
-                    let elements: Vec<String> = tuple.iter().map(u32::to_string).collect();
-                    match elements.len() {
-                        1 => elements.join(""),
-                        _ => format!("({})", elements.join(", ")),
-                    }
-                })
-                .collect();
-            let more = match tuples.len().saturating_sub(SHOWN) {
-                0 => String::new(),
-                k => format!(", … ({k} more)"),
-            };
-            write!(f, "\n{name}: {{{}{more}}}", items.join(", "))?;
         }
         Ok(())
     }
+}
+
+/// Writes a domain of `size` elements: `{0, 1}`, past eight elements
+/// `{0, …, 41}`.
+pub(super) fn write_domain(f: &mut std::fmt::Formatter<'_>, size: u32) -> std::fmt::Result {
+    match size {
+        0 => write!(f, "{{}}"),
+        1..=8 => {
+            let items: Vec<String> = (0..size).map(|e| e.to_string()).collect();
+            write!(f, "{{{}}}", items.join(", "))
+        }
+        n => write!(f, "{{0, …, {}}}", n - 1),
+    }
+}
+
+/// Writes a function's table over a domain of `size` elements: `f: 0 ↦ 1,
+/// 1 ↦ 0`, `g: (0, 1) ↦ 0, …`, or `f: always 0` where every value is one
+/// element; past [`SHOWN`] entries the rest are counted.
+pub(super) fn write_function(
+    f: &mut std::fmt::Formatter<'_>,
+    name: &str,
+    table: &[u32],
+    size: u32,
+) -> std::fmt::Result {
+    if let Some(&first) = table.first()
+        && table.iter().all(|&v| v == first)
+    {
+        return write!(f, "{name}: always {first}");
+    }
+    // The arity: the tuples are `size^arity`, and a table of two values or
+    // more needs two elements or more.
+    let n = u64::from(size.max(2));
+    let mut arity = 0u32;
+    let mut cells = 1u64;
+    while cells < table.len() as u64 {
+        cells = cells.saturating_mul(n);
+        arity += 1;
+    }
+    write!(f, "{name}: ")?;
+    for (i, v) in table.iter().enumerate().take(SHOWN) {
+        let mut tuple = Vec::with_capacity(arity as usize);
+        let mut rest = i as u64;
+        for _ in 0..arity {
+            tuple.push((rest % n).to_string());
+            rest /= n;
+        }
+        tuple.reverse();
+        let comma = if i == 0 { "" } else { ", " };
+        match tuple.len() {
+            1 => write!(f, "{comma}{} ↦ {v}", tuple[0])?,
+            _ => write!(f, "{comma}({}) ↦ {v}", tuple.join(", "))?,
+        }
+    }
+    if table.len() > SHOWN {
+        write!(f, ", … ({} more)", table.len() - SHOWN)?;
+    }
+    Ok(())
+}
+
+/// Writes a predicate as the set it holds of: `p: {0}`, `r: {(0, 1)}`, a
+/// nullary one `q: true`; past [`SHOWN`] tuples the rest are counted.
+pub(super) fn write_predicate(
+    f: &mut std::fmt::Formatter<'_>,
+    name: &str,
+    tuples: &[Vec<u32>],
+) -> std::fmt::Result {
+    if tuples.iter().all(Vec::is_empty) {
+        return write!(f, "{name}: true");
+    }
+    let items: Vec<String> = tuples
+        .iter()
+        .take(SHOWN)
+        .map(|tuple| {
+            let elements: Vec<String> = tuple.iter().map(u32::to_string).collect();
+            match elements.len() {
+                1 => elements.join(""),
+                _ => format!("({})", elements.join(", ")),
+            }
+        })
+        .collect();
+    let more = match tuples.len().saturating_sub(SHOWN) {
+        0 => String::new(),
+        k => format!(", … ({k} more)"),
+    };
+    write!(f, "{name}: {{{}{more}}}", items.join(", "))
 }
 
 #[cfg(all(test, feature = "parse"))]

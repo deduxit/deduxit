@@ -107,6 +107,13 @@ pub(super) enum Why {
         /// The bound.
         size: u32,
     },
+    /// The finite model search tried every Kripke model within its bounds.
+    KripkeSize {
+        /// The bound on worlds.
+        worlds: u32,
+        /// The bound on elements a world.
+        size: u32,
+    },
 }
 
 impl From<Reason> for Why {
@@ -125,6 +132,7 @@ impl From<Reason> for Why {
             Reason::Incomplete => Why::Incomplete,
             Reason::PathLength { length } => Why::PathLength { length },
             Reason::ModelSize { size } => Why::ModelSize { size },
+            Reason::KripkeSize { worlds, size } => Why::KripkeSize { worlds, size },
         }
     }
 }
@@ -145,6 +153,7 @@ impl From<Why> for Reason {
             Why::Incomplete => Reason::Incomplete,
             Why::PathLength { length } => Reason::PathLength { length },
             Why::ModelSize { size } => Reason::ModelSize { size },
+            Why::KripkeSize { worlds, size } => Reason::KripkeSize { worlds, size },
         }
     }
 }
@@ -1073,6 +1082,7 @@ mod tests {
             Reason::Incomplete,
             Reason::PathLength { length: 8 },
             Reason::ModelSize { size: 6 },
+            Reason::KripkeSize { worlds: 4, size: 6 },
         ] {
             let json = serde_json::to_string(&reason).unwrap();
             assert_eq!(

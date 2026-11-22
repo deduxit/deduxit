@@ -561,6 +561,31 @@ struct OutcomeForm<'a> {
     /// `not_valid` by grounding.
     #[serde(skip_serializing_if = "Option::is_none")]
     structure: Option<StructureForm>,
+    /// The Kripke model with growing domains that refutes a first-order
+    /// sequent, for `not_valid` by the model search.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kripke_structure: Option<KripkeStructureForm>,
+}
+
+/// The serialized form of a Kripke countermodel with growing domains: the
+/// sequent refuted and the model.
+#[derive(Serialize, Deserialize)]
+pub(super) struct KripkeStructureForm {
+    /// The sequent refuted.
+    sequent: SequentForm,
+    /// The model.
+    model: crate::ordinary::KripkeStructure,
+}
+
+impl KripkeStructureForm {
+    /// Returns the written form of a Kripke countermodel with growing
+    /// domains.
+    fn of(c: &crate::ordinary::KripkeCountermodel) -> Self {
+        Self {
+            sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
+            model: c.model.clone(),
+        }
+    }
 }
 
 /// The serialized form of a countermodel: the sequent refuted and the
@@ -765,6 +790,23 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
     } else {
         version
     };
+    // A Kripke model with growing domains, the bound on its worlds, and
+    // the statistics of a search that tried one are read from level 27 on.
+    #[cfg(feature = "sat")]
+    let tried_kripke =
+        matches!(&outcome.search, Search::Models(statistics) if statistics.worlds > 0);
+    #[cfg(not(feature = "sat"))]
+    let tried_kripke = false;
+    let version = if outcome.kripke.is_some()
+        || tried_kripke
+        || matches!(
+            outcome.verdict,
+            Verdict::Unknown(crate::linear::search::Reason::KripkeSize { .. })
+        ) {
+        version.max(wire::KRIPKE_STRUCTURES)
+    } else {
+        version
+    };
     let countermodel = outcome.countermodel.as_ref().map(CountermodelForm::of);
     // A reader of level 12 may ignore the countermodel without
     // misreading the verdict, so it raises no level.
@@ -785,6 +827,7 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
         },
         countermodel,
         structure: outcome.structure.as_deref().map(StructureForm::of),
+        kripke_structure: outcome.kripke.as_deref().map(KripkeStructureForm::of),
     }
 }
 
@@ -882,6 +925,10 @@ struct OutcomeRead {
     /// `not_valid`.
     #[serde(default)]
     structure: Option<StructureForm>,
+    /// The Kripke model with growing domains that refutes a first-order
+    /// sequent, for `not_valid`.
+    #[serde(default)]
+    kripke_structure: Option<KripkeStructureForm>,
 }
 
 impl OutcomeRead {
@@ -1000,12 +1047,27 @@ impl OutcomeRead {
                 return Err(refuse("a structure beside a verdict other than not_valid"));
             }
         };
+        let kripke = match (self.kripke_structure, &verdict) {
+            (None, _) => None,
+            (Some(form), Verdict::NotValid) => {
+                Some(Box::new(crate::ordinary::KripkeCountermodel::new(
+                    sequent(form.sequent, limits)?,
+                    form.model,
+                )))
+            }
+            (Some(_), _) => {
+                return Err(refuse(
+                    "a Kripke structure beside a verdict other than not_valid",
+                ));
+            }
+        };
         Ok(Outcome {
             verdict,
             logic: self.logic,
             search,
             countermodel,
             structure,
+            kripke,
         })
     }
 }

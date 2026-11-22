@@ -221,7 +221,10 @@ in use.
   models`, MACE's method through the SAT solver) refutes a first-order
   sequent with function symbols in every logic, with a checked
   structure; in classical logic it runs beside the connection prover,
-  and it refutes 210 of ILTP's first-order problems at 2 seconds. The other methods refuse them by name. A
+  and it refutes 210 of ILTP's first-order problems at 2 seconds. In
+  intuitionistic and minimal logic it also finds Kripke models with
+  growing domains, checked by the forcing relation, beside the
+  embedding. The other methods refuse them by name. A
   [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)
   runs them beside leanCoP, nanoCoP, nanoCoP-i and iLeanCoP on ILTP's
   first-order problems.

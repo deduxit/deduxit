@@ -917,6 +917,17 @@ pub(crate) struct SearchArgs {
     /// refutes is unknown (exit status 3).
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
     pub(crate) model_size: Count<u32>,
+    /// The most worlds of a Kripke model the model search tries in
+    /// intuitionistic and minimal logic, or `none` for no bound
+    /// (search.model_worlds)
+    ///
+    /// Beside structures of 1, 2, … elements the model search (--method
+    /// models) tries Kripke models of 1, 2, … worlds, each world's domain
+    /// of up to as many elements as a structure. By default it goes on
+    /// until it finds one or the time limit passes; with bounds, a sequent
+    /// no model within them refutes is unknown (exit status 3).
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
+    pub(crate) model_worlds: Count<u32>,
     /// Keep the connection prover's first solution of each literal, never
     /// trying another (search.restricted_backtracking)
     ///

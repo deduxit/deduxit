@@ -1102,6 +1102,62 @@ MACE's and Paradox's method (the design is
   last size's atoms and formulas, the solver's statistics), written at
   level 26.
 
+## Kripke models with growing domains (`kripke_structure.rs`, `kripke_search.rs`)
+
+The countermodels of intuitionistic and minimal logic at first order
+(design §6, §7 and §10). The check is the trust; the search behind
+`sat` is untrusted.
+
+- **The type**: `KripkeStructure { worlds, constants, world }`, each
+  `KripkeWorld { size, functions, predicates, falsity, arrows }`;
+  domains are prefixes `0 .. size`; constants once, in every world's
+  domain; tables per world over its own domain. JSON derived with
+  `deny_unknown_fields` and empty keys left out; the outcome's key
+  `kripke_structure` (`KripkeStructureForm`), wire level 27
+  (`wire::KRIPKE_STRUCTURES`), also for `Reason::KripkeSize`.
+  `From<Structure>` is the one-world model.
+- **The check** (`KripkeStructure::refutes`, `KripkeCountermodel::check`):
+  the arrows in range and acyclic (Kahn), the worlds at or above each
+  world (closure lists, charged), growth along every arrow (domain size,
+  `falsity`, predicates' tuples), `falsity` only in minimal logic,
+  constants in every domain, every function the sequent applies with a
+  table of `size^arity` values in its domain at every world, agreeing
+  along every arrow on the smaller domain's tuples; then forcing by its
+  definition on a stack of its own (`Forcing`: `→`, `¬`, `↔`, `∀` over
+  the worlds above, `∃` over the world's domain, `⊥` as `falsity`),
+  each evaluation and each function application a `tick` (work bound,
+  stop every 4 096). It does not rely on persistence. In classical logic
+  it refuses a model with worlds above the refuted one; with nothing
+  right of `⊢` it refuses `falsity` at the refuted world (minimal
+  logic's `⊥`). A test runs it beside `Structure::refutes` on one world.
+- **The search** (`kripke_search::write`, called by `models::kripke`):
+  per (K worlds, N elements) one propositional sequent over the
+  original formula (forcing has no negation normal form): `le(v, u)` for
+  `v < u` (transitive, the root below all: any finite rooted poset has
+  such a numbering), prefix domains growing, predicate atoms growing,
+  value atoms per world and principal term (exactly one on the domain,
+  in it, agreeing along `le`), constants once with Paradox's symmetry
+  formulas (they permute the root's domain only, which every prefix
+  domain holds), `falsity` atoms in minimal logic growing; `Φ(v, A, ē)`
+  memoised by the values of the innermost variables the node reads
+  (`needs`, computed in arena order). Every principal term is made at
+  every world at once, so a table entry no principal term reached is 0
+  everywhere and agreement holds. The read-off takes the covering pairs
+  of `le` as arrows and keeps a world's tuples within its domain.
+- **The order of sizes** (`models::run`): for L = 1, 2, …: the classical
+  structures of L elements, then the Kripke pair (min(L, worlds),
+  min(L, size)) where K ≥ 2, or K ≥ 1 in minimal logic (one world with
+  `falsity` is no classical structure); a model fits every larger pair.
+- **No finite model refutes `¬¬A` for a classically valid `A`** (every
+  world of a finite frame sees a maximal one, which is classical), so
+  Glivenko's failure at first order (`¬¬∀x (p(x) ∨ ¬p(x))`, the
+  double-negation shift) stays unknown: `kripke_models_decided_by_hand`
+  pins it.
+- **The dispatch**: the library's default after the embedding runs
+  `models::decide`, which in intuitionistic and minimal logic includes
+  this search; the command races it beside the embedding
+  (`races_the_embedding`, `prove.rs`).
+
 ## The SAT engine (`sat/`, behind `sat`)
 
 intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts

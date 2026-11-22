@@ -38,6 +38,7 @@ entries' ([Decide many sequents at once](batch.md)).
 | `--instances N` | `65536` | the instances of quantified formulas a first-order search holds at once |
 | `--path-length N` | `none` | the connection prover's active path (`--method connection`); with `none` the bound deepens while the time limit lasts |
 | `--model-size N` | `none` | the most elements of a structure the model search tries (`--method models`); with `none` it tries larger ones while the time limit lasts |
+| `--model-worlds N` | `none` | the most worlds of a Kripke model the model search tries in intuitionistic and minimal logic; with `none` it tries more while the time limit lasts |
 | `--derivation-limit SIZE` | `64MiB` | the derivation drawn: a linear proof's is not built above it, and a derivation of LK or LJ is built and checked within `--memory-limit` and not drawn above it (the tableau method builds its tableau within it); the verdict stands either way |
 | `--occurrence-limit N` | `50000000` | the sequent's subformula occurrences |
 | `--term-limit N` | `50000000` | the first-order terms the sequent's atoms unfold to, and a proof's instance table |

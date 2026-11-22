@@ -155,6 +155,20 @@ second number (0.1.x to 0.2.0), anything else the third.
   ILTP's first-order problems it refutes 210 classically at 2 s, among
   them all of grounding's 77 and nanoCoP's 84. `deduxit-bench run
   --engines models` runs it.
+- **Kripke models with growing domains** (`ordinary::KripkeStructure`,
+  `KripkeWorld`, `KripkeCountermodel`, `Outcome::kripke`): in
+  intuitionistic and minimal logic the model search also tries Kripke
+  models of 1, 2, … worlds with domains growing along the order, each a
+  propositional sequent for the SAT solver (the order, the domains, the
+  predicates and `⊥` growing, the function tables agreeing, forcing by
+  its definition), and checks the model it finds by the forcing relation
+  before "not valid"; past both bounds the answer is unknown with the new
+  reason `Reason::KripkeSize` (`search::Options::model_worlds`,
+  `--model-worlds N|none`, by default 4 in the library and none in the
+  command). The library's default asks it after the embedding, the
+  command beside it on a thread of its own. A finite model never refutes
+  `¬¬A` for a classically valid `A`, so Glivenko's failure at first
+  order stays unknown.
 - **Finite structures interpret function symbols**
   (`Structure::functions`, `Structure::with_functions`): each function
   symbol of one argument or more with its table, the values of its
@@ -265,6 +279,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   6}`), and one whose structure has function tables (`"functions":
   [["f", [1, 0]]]`, left out where there are none). The search options
   have the key `model_size`.
+- **Level 27**: an ordinary outcome refuted by a Kripke model with
+  growing domains (`"kripke_structure": {"sequent": …, "model":
+  {"worlds": […], "constants": […], "world": 0}}`), or unknown at its
+  bounds (`{"kind": "kripke_size", "worlds": 4, "size": 6}`); the model
+  search's statistics have `worlds` where it tried a Kripke model. The
+  search options have the key `model_worlds`.
 
 ## [0.7.0] - 2026-11-20
 

@@ -483,7 +483,10 @@ copies they had are gone (F103, F104).
   `--path-length`). `model_size` (`DEFAULT_MODEL_SIZE` 6, `None` in
   `Settings::default()`) is the ordinary finite model search's, its
   unknown `Reason::ModelSize { size }` (`search.model_size`,
-  `--model-size`), the last variant.
+  `--model-size`); `model_worlds` (`DEFAULT_MODEL_WORLDS` 4, `None` in
+  `Settings::default()`) its Kripke models' worlds, unknown
+  `Reason::KripkeSize { worlds, size }` (`search.model_worlds`,
+  `--model-worlds`), the last variant.
 - **An ordered mode at the front door** (`prepare`, `read`): `Mode::check`
   first (`OrderedMode`), then a fragment beyond unit-free MLL is
   `OrderedFragment` (before the dispatch, so that it is named and not

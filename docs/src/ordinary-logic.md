@@ -736,8 +736,8 @@ refuted only by infinite structures, such as a strict order without a
 greatest element.
 
 ```console
-$ deduxit prove --logic intuitionistic --method models --model-size 2 'forall x. p(x) |- p(f(a))'; echo "exit $?"
-unknown (intuitionistic logic by the model search): no structure of up to 2 elements refutes it after …; raise the bound with --model-size N, or lift it with --model-size none to try larger structures while the time limit lasts
+$ deduxit prove --logic classical --method models --model-size 2 'forall x. p(x) |- p(f(a))'; echo "exit $?"
+unknown (classical logic by the model search): no structure of up to 2 elements refutes it after …; raise the bound with --model-size N, or lift it with --model-size none to try larger structures while the time limit lasts
 exit 3
 ```
 
@@ -763,8 +763,36 @@ p: {0}
 exit 1
 ```
 
-`--stats` prints the largest structure tried, the atoms and formulas of
-its formula, and the solver's counters.
+In intuitionistic and minimal logic the search also tries Kripke models
+with growing domains: worlds ordered by arrows, each with a domain that
+no world above shrinks, the predicates growing along the arrows, and in
+minimal logic `⊥` forced where the model says. For 1, 2, … it tries the
+structures of that many elements, then the models of that many worlds
+(`--model-worlds N` bounds them) with domains of up to that many
+elements (`--model-size N`). The model is checked before the answer,
+and printed with a line per world, its arrows to the worlds directly
+above it after `below`:
+
+```console
+$ deduxit prove --logic intuitionistic --method models '(forall x. p(x)) -> q |- exists x. (p(x) -> q)'; echo "exit $?"
+not valid (intuitionistic logic by the model search): a checked Kripke model of 2 worlds with growing domains refutes it
+world 0 (the model's world): domain {0}; below 1
+world 1: domain {0, 1}; p: {0}
+exit 1
+```
+
+By default `prove` runs this search beside the embedding in
+intuitionistic and minimal logic, on a thread of its own, the first to
+answer winning. A finite model never refutes `¬¬A` where `A` is valid
+classically, since every world of a finite model sees a world with none
+above it, where intuitionistic and classical forcing agree. So the
+failure of Glivenko's theorem at first order shows only on infinite
+models: `¬¬∀x. (p(x) ∨ ¬p(x))` is valid classically and not
+intuitionistically, and the search answers unknown on it.
+
+`--stats` prints the largest structure tried, the worlds of the last
+Kripke model tried, the atoms and formulas of the last formula, and the
+solver's counters.
 
 The translation into linear logic may lose a first-order proof: the
 classical image cannot use a hypothesis twice. So where the image is

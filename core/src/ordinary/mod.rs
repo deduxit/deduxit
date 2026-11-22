@@ -80,6 +80,11 @@ pub mod interpolant;
 /// The invertible rules of LK and LJ, applied by the goal state.
 #[cfg(feature = "interactive")]
 mod invert;
+/// The propositional sequent of a Kripke model's search.
+#[cfg(feature = "sat")]
+mod kripke_search;
+/// Kripke models of first-order sequents with growing domains.
+mod kripke_structure;
 pub mod ljt;
 /// The check of a Kripke model.
 mod model;
@@ -114,6 +119,7 @@ pub use derivation::{Derivation, Inference, Rule, Side};
 pub(crate) use interactive::Parts;
 #[cfg(feature = "interactive")]
 pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Step, StepError};
+pub use kripke_structure::{KripkeCountermodel, KripkeStructure, KripkeWorld};
 pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp, tptp_text};

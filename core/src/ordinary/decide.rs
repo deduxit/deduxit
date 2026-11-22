@@ -77,6 +77,12 @@ pub struct Outcome {
     /// logic, a classical structure being a Kripke model of one world.
     /// `None` for every other verdict and method.
     pub structure: Option<Box<super::FiniteCountermodel>>,
+    /// The Kripke model with growing domains that refutes a first-order
+    /// sequent that is not valid in intuitionistic or minimal logic,
+    /// checked by [`KripkeCountermodel::check`](super::KripkeCountermodel::check):
+    /// the model search's ([`Method::Models`]) where no finite structure
+    /// was found. `None` for every other verdict and method.
+    pub kripke: Option<Box<super::KripkeCountermodel>>,
 }
 
 /// How an ordinary sequent was searched, by its [`Method`].
@@ -146,6 +152,7 @@ impl From<super::sat::Outcome> for Outcome {
             search: Search::Sat(outcome.statistics),
             countermodel: outcome.model,
             structure: None,
+            kripke: None,
         }
     }
 }
@@ -161,6 +168,7 @@ impl From<super::grounding::Outcome> for Outcome {
             search: Search::Grounding(outcome.statistics),
             countermodel: None,
             structure: outcome.structure.map(Box::new),
+            kripke: None,
         }
     }
 }
@@ -176,6 +184,7 @@ impl From<super::models::Outcome> for Outcome {
             search: Search::Models(outcome.statistics),
             countermodel: None,
             structure: outcome.structure.map(Box::new),
+            kripke: outcome.kripke.map(Box::new),
         }
     }
 }
@@ -190,6 +199,7 @@ impl From<super::connection::Outcome> for Outcome {
             search: Search::Connection(outcome.statistics),
             countermodel: None,
             structure: None,
+            kripke: None,
         }
     }
 }
@@ -203,6 +213,7 @@ impl From<ljt::Outcome> for Outcome {
             search: Search::Ljt(outcome.statistics),
             countermodel: None,
             structure: None,
+            kripke: None,
         }
     }
 }
@@ -243,6 +254,7 @@ fn by_grounding(
             search: Search::Grounding(super::grounding::Statistics::default()),
             countermodel: None,
             structure: None,
+            kripke: None,
         }),
         Err(error) => Err(error),
     };
@@ -468,6 +480,7 @@ fn with_evidence(
         },
         countermodel,
         structure: None,
+        kripke: None,
     })
 }
 
@@ -546,6 +559,7 @@ impl super::Image {
             },
             countermodel,
             structure: None,
+            kripke: None,
         })
     }
 
@@ -840,6 +854,7 @@ fn within(
         },
         countermodel,
         structure: None,
+        kripke: None,
     })
 }
 

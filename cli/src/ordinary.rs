@@ -199,6 +199,23 @@ pub(crate) fn connection_share(
     }
 }
 
+/// Returns whether the command races the model search beside the
+/// embedding: a first-order sequent in intuitionistic or minimal logic with
+/// no method and no translation given (the embedding decides it, or takes
+/// over from grounding), on more than one thread (`--jobs 1` and
+/// `--deterministic` leave the embedding alone).
+pub(crate) fn races_the_embedding(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    search: &deduxit::linear::search::Options,
+) -> bool {
+    options.method.is_none()
+        && options.translation.is_none()
+        && options.logic != Logic::Classical
+        && sequent.formulas().is_first_order()
+        && search.jobs.count() > 1
+}
+
 /// Returns whether the default's first-order method stopped at its share of
 /// the time limit, not at the limit or Ctrl-C: the embedding then decides
 /// with the time left.
@@ -839,6 +856,13 @@ pub(crate) fn write_native(
     {
         show.after(&mut out, &structure.structure.to_string(), drawn)?;
     }
+    // The model search's Kripke model, likewise.
+    if let (ordinary::Verdict::NotValid, Some(kripke), Format::Text, false) =
+        (&outcome.verdict, &outcome.kripke, format, args.output.quiet)
+        && show.tree != Tree::Never
+    {
+        show.after(&mut out, &kripke.model.to_string(), drawn)?;
+    }
     if args.stats {
         show.after(&mut out, &native_statistics(outcome, ended.elapsed), drawn)?;
     }
@@ -957,6 +981,16 @@ fn not_valid(outcome: &ordinary::Outcome, method: Method, context: &str) -> Stri
             "not valid ({context}): a checked finite structure of {elements} refutes it"
         );
     }
+    if let Some(kripke) = &outcome.kripke {
+        let worlds = match kripke.model.worlds.len() {
+            1 => "1 world".to_owned(),
+            n => format!("{n} worlds"),
+        };
+        return format!(
+            "not valid ({context}): a checked Kripke model of {worlds} with growing domains \
+             refutes it"
+        );
+    }
     if outcome.countermodel.is_some() {
         return format!("not valid ({context}): a checked countermodel refutes it");
     }
@@ -1021,6 +1055,7 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
         ],
         ordinary::Search::Models(s) => &[
             ("largest structure tried, elements", s.size),
+            ("worlds of the last Kripke model tried", s.worlds),
             ("atoms", s.atoms),
             ("formulas", s.nodes),
             ("solver calls", s.sat.calls),
@@ -1039,7 +1074,11 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
         ],
         _ => &[],
     };
-    for (label, value) in counters {
+    // A finite structure's search tried no Kripke model.
+    for (label, value) in counters
+        .iter()
+        .filter(|&&(label, value)| value > 0 || !label.starts_with("worlds of"))
+    {
         writeln!(lines, "{label}: {value}").expect("a string takes it");
     }
     // LJT's search, where it gave the SAT solver's derivation.

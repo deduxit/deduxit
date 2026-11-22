@@ -332,6 +332,7 @@ pub(super) fn decide(
         search: super::Search::Table(Box::new(table)),
         countermodel,
         structure: None,
+        kripke: None,
     })
 }
 
