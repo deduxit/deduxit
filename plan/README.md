@@ -8296,3 +8296,12 @@ move (D26).
   `e3eecb30`, then deduxit's tag `v0.8.0`, then the crates.io approval; the opam submission can go
   now, theirs. fixup-25 and fixup-26 fold their entries into 0.8.0's section if they land before
   deduxit's tag. Per the author, nothing new starts.
+- 2026-11-23, about 02:05: **fixup-25 reviewed and pushed.** (Opus, high; the reviewer on Fable.) The
+  clausal normal form keeps to its bounds: each law's claim is checked in an arena of its own (it
+  copied the whole growing arena per step, cubic in memory: the 54 GB), the printer keeps no setup per
+  formula (cubic in time: `herbrand` on 1 500 hypotheses 119 s to 3.2 s), the read-back charges the
+  instances it adds, and the CLI's step listing stops at the time and memory limits. 300 hypotheses
+  711 MB to 179 MB; 1 500 ends unknown at the limit in 125 MB where it hit a 4 GB cap. ILTP through
+  `herbrand`: no answer or derivation lost. Its changelog entry is in 0.8.0's section. Full check
+  passed on the release chain; pushed (`rpxqkmlz`). **For later:** the clausal form's claims decided
+  through Herbrand's instances (300 hypotheses: 54 s by the connection prover, 0.4 s by `herbrand`).
