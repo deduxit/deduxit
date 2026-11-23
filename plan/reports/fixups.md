@@ -1932,3 +1932,157 @@ old output.
   the whole-sequent claims through Herbrand's instances and the SAT
   solver (`herbrand` decides the same 300 hypotheses in 0.4 s) would be
   the next step.
+
+## Session fixup-26: the connection prover's setup within its bounds
+
+Opus 5.5 at `high`, keeping the conversation of 78a and 78c, in the
+workspace `../deduxit-wt-step-78a-94ff76`, cores 4 to 6, from the brief
+`/tmp/linlog-handoff/start-fixup-26.md` on `opqvwylk`. Nothing was
+pushed.
+
+### The cause
+
+Profiled with callgrind on smaller witnesses of the same shape (perf
+could open no event here):
+- **The classical read-back, not the matrix, held the congruence
+  witness.** The prover proves a congruence axiom of 1 000 arguments in
+  about 0.1 s; the read-back then builds the derivation of LK. It expands
+  a branch before making its inference, so a branch of quantifier steps
+  (a congruence of 3 000 arguments is a nest of 6 000) was expanded
+  whole, each step an instance as large as the rest of the nest, before
+  the first `push` asked the stop; and only the inferences were charged,
+  not the arena the instances grew (nodes, terms, argument lists of
+  3 000 terms, atoms' keys): 20 s and 2.5 GB under `--timeout 2s` and
+  the default 1 GiB.
+- **The matrix build** asked the stop in its unfolding and every 65 536
+  nodes of `free_slots`; `literals_of` and `build` never asked, and
+  `literals_of` walked the binder chain once per bound variable,
+  quadratic in the nest. `free_slots` polled by node index, so a few
+  thousand nodes, each a list of thousands of slots, asked once.
+- **The default's test of whether grounding applies** (`grounds`, six
+  times a command) was most of the predicate witness's 1.3 s at 0.1 s:
+  its normal form counted a node made as one unit, though making a
+  quantifier's node copies its body's free variables (thousands long
+  in such a nest), and `literal` walked the scopes once per variable.
+  2²¹ of those units took about 0.2 s per test.
+- The intuitionistic prover's set-up (the same matrix, its prefixes) and
+  its read-back, which charges its arena already, kept to the limits on
+  both witnesses; it proves neither congruence.
+
+### What landed
+
+- `ouylvzkp`: the read-back asks the stop at every branch it expands
+  (`account`, in `expand` and `push`) and charges its arena
+  (`arena_bytes`: nodes, terms and lists with their indices, argument
+  lists twice, atoms with their keys, every figure twice an entry's size
+  for the tables' doubling) and the sides of an inference waiting for its
+  premises. The matrix's `literals_of`, `build` and `free_slots` ask the
+  stop by the work they do (`free_slots` charges the lists it keeps and
+  counts the per-clause ones as work alone), and a variable's binder
+  comes from the literal's chain, found once per literal. Tests:
+  `the_read_back_asks_the_stop_and_charges_its_arena` (at least as many
+  polls as the nest is deep before the first inference; unknown at the
+  memory bound under 4 MiB where it proves at the default) and
+  `the_matrix_asks_the_stop_by_its_work`.
+- `zvwkzyxn`: grounding's normal form polls by `Nnf::work`, `literal`
+  reads the scopes through a chain found once per literal, and
+  `GROUNDS_WORK` is 2¹⁸ (ILTP's problems in the classes take at most
+  25 683 units under the new counting, those outside 755 233; none
+  reaches the bound). Test: `the_grounding_test_ends_at_its_work_bound`
+  (a predicate's congruence of 500 arguments lies in the class but
+  passes the bound; a small sequent still grounds).
+- `ponlwnzr`: the rows below (`bench/defaults/connection-setup-iltp-*.csv`),
+  the rules notes (`core-ordinary.md`, `bench.md`) and the changelog.
+
+### Measurements
+
+The two witnesses, time and peak RSS, on core 5 under a 4 GiB scope:
+
+| witness | before | after |
+|---|---|---|
+| congruence 3 000, `--method connection --timeout 2s` | 20.05 s, 2 530 MiB | 2.09 s, 164 MiB |
+| the same, intuitionistic | 2.05 s, 293 MiB | 2.07 s, 293 MiB |
+| the same, `--timeout 120s --memory-limit 1GiB` | (20 s, 2.5 GB at 2 s) | 6.53 s, 958 MiB, unknown at the bound |
+| the same, `--memory-limit 256MiB` | | 2.81 s, 269 MiB, unknown at the bound |
+| predicate 4 000, default, `--timeout 0.1s` | 1.29 s, 185 MiB | 0.20 s, 19 MiB |
+| the same, `--method connection --timeout 0.1s` | 0.25 s, 141 MiB | 0.11 s, 97 MiB |
+| the same, `--method connection --timeout 2s` | 2.03 s, 278 MiB | 2.03 s, 263 MiB |
+
+A congruence of 1 000 arguments still proves (2.9 s, 574 MiB, where it
+took 4.5 s). The figures are the final build's, after the review's
+fixes. What is left past 0.1 s on the predicate's default is the
+six grounding tests (some milliseconds each) and the reading; on a
+congruence of 1 000 arguments at 0.1 s, one stretch of about 50 ms
+inside a search step.
+
+**ILTP's 2 670 first-order problems through `--engines connection`**,
+2 s, classical and intuitionistic, three shards on cores 4 to 6, the
+builds one after the other:
+
+| logic | build | proved | not valid | unknown | error |
+|---|---|--:|--:|--:|--:|
+| classical | before | 935 | 1 | 1 730 | 4 |
+| classical | after | 937 | 1 | 1 728 | 4 |
+| intuitionistic | before | 249 | 0 | 2 417 | 4 |
+| intuitionistic | after | 249 | 0 | 2 417 | 4 |
+
+No verdict lost, none against a status; the two gained (SET591+3,
+SET201+3) are theorems proved just under 2 s, timing. The four errors
+are GEJ056 and GEJ057's reader errors, in both builds. Every row
+decided alike has the same `nodes` and `work` in both builds, so the
+search is the same. On those rows the time is 58.0 s before and 54.4 s
+after classically (CPU 56.1 s and 52.8 s, the median row 1.004 times)
+and 4.62 s and 4.58 s intuitionistically (median 1.009): the set-up's
+polls cost nothing measurable. The after rows are the final build's
+(the pass ran again after the review's fixes; the first after pass
+gave the same verdicts and counters).
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `high`), on the chain to `ponlwnzr`. The
+chains compute the binders and scopes the old walks did; the ILTP rows
+have equal counters on every row decided alike; the witnesses as
+measured. Four findings, all fixed in `lxyxzllr`:
+- **A regression: the inferences that close a branch were charged no
+  sides** (high). `push` had stopped charging an inference's sides,
+  since `expand` charged them as the step was taken, but the axiom's
+  weakenings and `⊤R`/`⊥L`, which `close` pushes itself, never went
+  through `expand`: `q0, …, q29999, p ⊢ p` proved at a peak of 1 752 MiB
+  under the default 1 GiB, where the base refused at the bound. `push`
+  charges every inference's sides again and the `Emit` frame gives back
+  what `expand` charged while they waited. Test
+  `the_read_back_charges_the_sides_of_an_axiom_s_weakenings`; the
+  witness ends at the bound in 0.5 s (1 054 MiB).
+- **The matrix still passed the bounds in three places** (medium, as in
+  the base). A node's slots were a union per child, each copying the
+  growing list: a clause of 200 000 elements ran 33 s at `--timeout
+  1s`; now the children's lists are joined, sorted and deduplicated once
+  (0.37 s). The slots barred for a matrix kept, per clause, the union of
+  the elements after each one, quadratic in memory and counted as work
+  alone (791 MiB under `--memory-limit 64MiB`); now a count per slot
+  tells which another element has (30 MiB). One literal of 10 000 Skolem
+  terms made its patterns before its poll (971 MiB under 64 MiB); it is
+  polled per argument now (60 MiB, unknown at the bound).
+- **The matrix test did not pin `free_slots`' polls** (low): with them
+  reverted it still passed. It now counts a hundred literals under 3 000
+  binders (20 polls; with `free_slots` silenced 2, which fails it) and a
+  literal of 1 000 Skolem terms (9).
+- **The figures of `GROUNDS_WORK` were not the measure it compares**
+  (low): `done` counts the normal form and miniscoping together, at most
+  52 154 in ILTP's classes (SYJ212+1.010), up to 2 355 202 outside; the
+  bound is five times the most, not ten. The docs and the rules say so;
+  `grounds` agreed with the unbounded test on all 2 666 problems that
+  read.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings`, the
+  ordinary suite's tests (203), the new tests.
+- The gate on the chain before the review: passed (the ratchet's
+  journeys none over a ceiling). After the review's fixes and the
+  rebase onto `main@origin` (`wxwmmvuy`, 0.8.0's release chain and
+  fixup-25): passed again.
+- The changelog's entry is in 0.8.0's section, a sentence each in the
+  entries of the connection prover and of grounding, both new in 0.8.0.
+- `nix flake check` under the machine lock at the report's commit
+  (`uorkokwz`): every check passed. Only this line changed after.
