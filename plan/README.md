@@ -8324,3 +8324,9 @@ move (D26).
   full check, the docs on Pages, the GitHub release). **deduxit `v0.8.0`**: a signed tag object at
   `b3c7fcd3`, verified; the release workflow runs, its publish waiting for the author's approval in
   `crates-io`. The payloads and tag objects are kept in `~/Projects/own/deduxit-release-0.8.0/`.
+- 2026-11-23, about 09:50: **0.8.0 released.** deduxit's release workflow passed every job (the tag,
+  the checks, the archives and packages, `cargo publish` after the author's approval, the GitHub
+  release with 17 assets); `deduxit` and `deduxit-cli` 0.8.0 are on crates.io; `install.yml` runs on
+  the release's files. Per the author, nothing new starts until they say go; next by the plan: the
+  planning step that re-surveys `later.md` and research, step 79 with the author's redesign, the opam
+  submission when the author chooses.
