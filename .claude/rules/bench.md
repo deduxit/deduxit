@@ -992,6 +992,13 @@ serde_json, which the CLI and the core's tests already have.
   kept the share out of the library: it gained 36 theorems and lost 28,
   since neither the prover's steps nor its polled units track its time
   (step 78's report).
+- **`defaults/connection-setup-iltp-LOGIC-{before,after}.csv`** are
+  ILTP's 2 670 first-order problems through `--engines connection` at
+  2 s, classical and intuitionistic, before and after the connection
+  prover's set-up and read-back were held to their bounds (fixup-26),
+  three shards pinned to cores 4 to 6, the two builds one after the
+  other: no verdict lost, the time of the rows decided alike within 1 %
+  in the median (`plan/reports/fixups.md`).
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the

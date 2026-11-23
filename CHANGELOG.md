@@ -145,7 +145,10 @@ program's patterns go on compiling. What a program may notice is under
   `search::Options::restricted_backtracking`
   (`--restricted-backtracking`) keeps each literal's first solution,
   never answering "not valid". `deduxit-bench run --engines connection`
-  runs it.
+  runs it. Building its matrix and its derivation keep to `--timeout`
+  and `--memory-limit` too: a congruence axiom of 3 000 arguments ends
+  at a limit of 2 s and at the memory bound, where its derivation alone
+  took 20 s and 2.5 GB.
 
 - **The connection prover decides intuitionistic logic** (`prove --logic
   intuitionistic --method connection`): nanoCoP-i's prefixed calculus,
@@ -174,7 +177,10 @@ program's patterns go on compiling. What a program may notice is under
   classes, goes to the next method. `check` evaluates an outcome's
   structure again, and the new `Error::Structure` (code
   `invalid_structure`, kind invalid) says what a wrong one gets wrong.
-  `deduxit-bench run --engines grounding` runs it.
+  `deduxit-bench run --engines grounding` runs it. The default's test of
+  whether a sequent lies in the classes ends at a bound of work of its
+  own, so a nest of thousands of quantifiers (a congruence axiom of
+  4 000 arguments) costs it milliseconds.
 
 - **The command shares its time limit at first order**: where the
   default of a first-order sequent is grounding or the connection

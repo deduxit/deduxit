@@ -788,7 +788,17 @@ the search, `read_back.rs` the derivation of LK.
   `connection::run` answers a stop or the memory bound there as unknown
   (`Stopped`, `MemoryLimit`), and every table is checked against the
   `u32` indices (`indexed`, `Refusal::Index`; the occurrences past the
-  indices where `limits.occurrences` is larger).
+  indices where `limits.occurrences` is larger). The literals
+  (`literals_of`), the build (`build`) and `free_slots` poll by the work
+  they do, not by the occurrence or node: a nest of thousands of
+  quantifiers has few nodes, each with a list of slots as long as the
+  nest, and polled every `POLL` nodes `free_slots` asked the stop once
+  (`the_matrix_asks_the_stop_by_its_work`). `free_slots` charges the
+  lists it keeps and counts the per-clause ones as work alone. A bound
+  variable's binder comes from the literal's chain of binders (`chain`,
+  found once per literal as far as its variables reach): a walk per
+  variable was quadratic, a tenth of a second on a predicate of 4 000
+  arguments.
 - **The read-back is an oracle construction** (`read_back.rs`): from
   the literals used (each in its copy) it takes the occurrences above
   them (`relevant`; `⊤` right and `⊥` left count, since they close with
@@ -821,6 +831,19 @@ the search, `read_back.rs` the derivation of LK.
   was quadratic in the depth of a nest of quantifiers (77 s for 30 000);
   it asks the stop every 1 024 literals. A branch nothing closes is `Error::ReadBack`, a defect;
   the derivation is checked by `Derivation::check` in `decide`.
+  **The construction asks the stop at every branch it expands**
+  (`account`, in `expand` and in `push`): a branch is expanded before
+  its inference is made, so a long branch of quantifier steps (a
+  congruence axiom of 3 000 arguments is a nest of 6 000), each an
+  instance as large as the rest of the nest, ran 20 s past `--timeout
+  2s` when only `push` asked. The same check charges the derivation's
+  arena to the memory bound (`arena_bytes`: nodes, terms and argument
+  lists with their indices, atoms with their keys, each figure twice an
+  entry's size for the tables' doubling; at their lengths the estimate
+  was 1.5 to 1.8 times short of the resident memory, 2.5 GB under the
+  default 1 GiB), beside the inferences and the sides of an inference
+  waiting for its premises (charged when the step is taken)
+  (`the_read_back_asks_the_stop_and_charges_its_arena`).
 - **Shared terms are walked as graphs** (`terms::Seen`): a binding is a
   pattern read in a copy, so terms share parts, and `f(x, x)` bound
   again and again is exponential as a tree. `occurs`, `unify`, `equal`
@@ -1123,17 +1146,22 @@ the clausal proof's checker is the trust for "valid".
   grew to gigabytes and was killed. The bindings are never freed during
   the walk (a leak bounded by the work, charged). `grounds` (the
   default's class test in `method_for`, run several times per command)
-  is bounded by `GROUNDS_NODES` and by `GROUNDS_WORK`, 2²¹ units of the
+  is bounded by `GROUNDS_NODES` and by `GROUNDS_WORK`, 2¹⁸ units of the
   normal form's work, its own stop (it takes none of the caller's): a
   congruence axiom of thousands of arguments is a nest of thousands of
-  `∀` whose miniscoping is quadratic (100 s at 4 000 arguments before).
-  ILTP's problems in the classes take at most 21 538 units, those
-  outside 754 814 (78c's measurement): a lower bound would send some to
-  the connection prover. Miniscoping counts its work in `Nnf::work`
-  (each node made, its operands and their free variables read) and asks
-  the stop through `poll_by`; the ground walk and the model search's
-  expansion weigh each step by the free variables it looks up, a walk
-  of the bindings each.
+  `∀` whose normal form is quadratic (100 s at 4 000 arguments before
+  78c). ILTP's problems in the classes take at most 25 683 units, those
+  outside 755 233 (measured after fixup-26's counting; a lower bound
+  would send some in the classes to the connection prover). The normal
+  form and miniscoping count their work in `Nnf::work` (each node made,
+  its operands and their free variables read) and ask the stop through
+  `poll_by` by it: the normal form's loop counted a task as one unit,
+  though making a quantifier's node copies its body's free variables,
+  and 2²¹ of those units took 0.2 s per test, six tests a command. A
+  literal's variables are read through the chain of scopes around it,
+  found once per literal (`literal`'s `chain`): a walk per variable was
+  quadratic. The ground walk and the model search's expansion weigh each
+  step by the free variables it looks up, a walk of the bindings each.
 - **The default** (`decide.rs`, `by_grounding`): grounds within
   `grounding::DEFAULT_NODES` (2²¹; ILTP's largest grounding decided
   within 2 s has 65 540 atoms, and SYJ020's grew until the time limit,
