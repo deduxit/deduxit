@@ -794,11 +794,18 @@ the search, `read_back.rs` the derivation of LK.
   quantifiers has few nodes, each with a list of slots as long as the
   nest, and polled every `POLL` nodes `free_slots` asked the stop once
   (`the_matrix_asks_the_stop_by_its_work`). `free_slots` charges the
-  lists it keeps and counts the per-clause ones as work alone. A bound
-  variable's binder comes from the literal's chain of binders (`chain`,
-  found once per literal as far as its variables reach): a walk per
-  variable was quadratic, a tenth of a second on a predicate of 4 000
-  arguments.
+  lists it keeps. A node's slots are its children's lists joined, sorted
+  and deduplicated once (a union per child copied the growing list:
+  33 s at `--timeout 1s` on a clause of 200 000 elements), and the slots
+  barred for a matrix are those another element of its clause has, told
+  by a count per slot (`counts`): the unions of the elements after each
+  one, kept per clause, held a number of slots quadratic in its width,
+  791 MiB under `--memory-limit 64MiB`. `literals_of` polls per
+  argument: one literal of 10 000 Skolem terms makes 50 million patterns.
+  A bound variable's binder comes from the literal's chain of binders
+  (`chain`, found once per literal as far as its variables reach): a walk
+  per variable was quadratic, a tenth of a second on a predicate of
+  4 000 arguments.
 - **The read-back is an oracle construction** (`read_back.rs`): from
   the literals used (each in its copy) it takes the occurrences above
   them (`relevant`; `⊤` right and `⊥` left count, since they close with
@@ -1150,9 +1157,11 @@ the clausal proof's checker is the trust for "valid".
   normal form's work, its own stop (it takes none of the caller's): a
   congruence axiom of thousands of arguments is a nest of thousands of
   `∀` whose normal form is quadratic (100 s at 4 000 arguments before
-  78c). ILTP's problems in the classes take at most 25 683 units, those
-  outside 755 233 (measured after fixup-26's counting; a lower bound
-  would send some in the classes to the connection prover). The normal
+  78c). ILTP's problems in the classes take at most 52 154 units of the
+  measure the bound compares (`done`, the normal form's and
+  miniscoping's together; SYJ212+1.010), those outside up to 2 355 202
+  unbounded (fixup-26's reviewer, over the 2 666 problems that read:
+  `grounds` agrees with the unbounded test on every one). The normal
   form and miniscoping count their work in `Nnf::work` (each node made,
   its operands and their free variables read) and ask the stop through
   `poll_by` by it: the normal form's loop counted a task as one unit,
