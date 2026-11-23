@@ -1763,3 +1763,172 @@ fixed). Three findings in item 2, all fixed in `uqtvmqxv`:
   `--timeout 10s` there. A fixup's worth.
 - ILTP's first-order problems with `=` parsed only after 78a; the
   measurement above is on the base without it.
+
+## Session fixup-25: the clausal normal form within its bounds
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-58b-8c0bbc`
+(the conversation that wrote `normal::rewrite`), cores 10 to 12, from
+`/tmp/linlog-handoff/start-fixup-25.md`: fixup-24's note that the
+clausal form overran its bounds on many hypotheses. Nothing was pushed.
+
+### The cause
+
+Three costs, none of them the rewriting itself (1 % of `herbrand`'s
+time on 1 500 hypotheses, by callgrind):
+- **Each law's claim copied the whole result arena** (`law_claim`
+  cloned it per equivalence step to build `⊢ C ↔ C'`). The arena grows
+  with every step, since each step rebuilds the path to its redex, so
+  the check of `n` hypotheses held `n` copies of an arena of `n²`
+  nodes: cubic in memory, the 54 GB of 1 500.
+- **The first-order printer's setup was per formula**
+  (`write_first_order`): a set of every symbol, and `eigen_names`, a
+  scan of every term, for each formula printed. The step listing prints
+  every step's whole sequent, `n` formulas times `n` steps, so it was
+  cubic in time; it ran after the search, outside every bound: the
+  base's `herbrand` on 1 500 took 119 s under `--timeout 10s`.
+- **The embedding's read-back charged its inferences but not the
+  formulas its instances add** to the derivation's arena. A law's claim
+  over a deep nest of binders (50 `∀` over a conjunction) held 1.9 GB
+  under the default 1 GiB.
+
+### What landed
+
+- `ppomsqvu`: **the printer keeps no per-formula setup.** A clash is a
+  lookup in the interner's symbol map (`Formulas::has_symbol`); the
+  eigenvariables' names are kept in the interner (`Interner::eigens`),
+  computed at the first print and dropped by `Formulas::interner`, the
+  one way ordinary code changes the tables (a new interner starts
+  without them). The cache sits in the boxed interner: inline in
+  `Formulas` it tipped `lambda::Inhabitation`'s variants past Clippy's
+  `large_enum_variant`. Test `eigenvariable_names_follow_the_tables`.
+- `kuppuuzy`: **the read-back charges the instances it builds**, by
+  `ArenaSize` (herbrand's measured estimate, moved to `derivation.rs`),
+  after each inference of the first-order path; the propositional loop
+  is untouched. Test `the_read_back_charges_the_instances_it_builds`,
+  which fails with the charge removed.
+- `ynmmkusu`: **the check keeps to its bounds.**
+  - A law's claim is built in an arena of its own holding its two
+    formulas (`copy_formulas`: nodes and terms operands first on
+    explicit stacks, binders with their names, atoms through
+    `predicate_atom`, so their keys are made again).
+  - The stop is asked before each claim; each decision gets the memory
+    the kept checks leave (`left_over`, `checked_bytes` by
+    `ArenaSize`), and the kept checks are refused past the bound
+    (`kept_within`).
+  - A refusal or an unknown at the memory bound names the bound the
+    caller gave, with what the kept checks held added to the need
+    (`given_refusal`, `given_bound`): the first version kept the
+    decision's own need and said "53759984 bytes, more than the memory
+    limit of 1073741824 bytes".
+  - A memory or work refusal of the LJ attempt gives way to LK, as its
+    unknown does: refused, it ended the whole check.
+  - Tests `a_law_s_claim_copies_its_formulas_alone` (each claim's arena
+    within the nodes its two formulas reach, plus the `↔`) and
+    `the_clausal_form_keeps_to_its_bounds` (work and memory in the
+    rewriting, memory and the stop in the check).
+- `zrtuyvyl`: **the CLI's step listing is bounded**: `steps_text`
+  stops at the time limit, at Ctrl-C, or once its text passes
+  `--memory-limit`, with `(the steps are cut short after K of N: …)`,
+  the claims' lines and the verdict after it; `seq normalize` and
+  `herbrand` answer a memory or work refusal as unknown naming the flag,
+  as `resolve` does. Test `the_clausal_form_keeps_to_the_memory_limit`.
+  The steps hold about as much as their text on hypotheses with short
+  names, so the cut fires mostly on long names (the test's 200-letter
+  predicates).
+- `.claude/rules/core-ordinary.md` (the printer, the read-back, the
+  check) and `cli.md` (the listing) record the reasons.
+
+The work bound: the rewriting charges its passes to it (as before);
+each claim's decision gets it whole, as the propositional claims do.
+What is left of the check's time is the claims' search itself: on 300
+hypotheses 54 s, 99.8 % in the connection prover (callgrind on 25), the
+last claim's derivation 91 200 inferences. It is bounded by the time and
+the stop.
+
+### Measurements
+
+Release builds of the base (`uwuwmwxo`) and the head, each run in a
+scope capped at 4 GB on cores 10 to 12 (peak RSS; the process starts
+at 11 MB):
+
+| witness | command, bound | base | head |
+|---|---|---|---|
+| 300 hypotheses `∀x. pᵢ(x)` | `seq normalize --to clausal`, 256 MiB | 56.4 s, 711 MB, checked | 54.0 s, 179 MB, checked |
+| the same | the same, default | 56.3 s, 711 MB | 54.3 s, 180 MB |
+| the same | `herbrand`, `--timeout 10s` | 1.20 s, 95 MB | 0.37 s, 95 MB |
+| 1 500 hypotheses | `seq normalize --to clausal`, 256 MiB, 120 s | killed at the 4 GB cap after 109 s | unknown at 120 s, 125 MB |
+| the same | the same, default | killed at the cap after 110 s | unknown at 120 s, 127 MB |
+| the same | `herbrand`, `--timeout 10s` | 119 s, 907 MB, valid | 3.2 s, 907 MB, valid |
+| `∀x₀…x₁₄₉₉. (q(x₀) ∧ … ∧ q(x₁₄₉₉)) ⊢ q(a)` | `seq normalize`, 256 MiB or default, 120 s | unknown at 120 s, 146 MB | the same |
+| the same | `herbrand`, `--timeout 10s` | unknown at 10 s, 22 MB | the same |
+| `∀x₀…x₁₄₉₉. p(x₀,…,x₁₄₉₉) ⊢ p(a,…,a)` (78b's witness) | `seq normalize`, 256 MiB or default | 4.1 s, 185 MB, checked | the same |
+| the same | `herbrand`, `--timeout 10s` | 1.7 s, 262 MB | 2.0 s, 261 MB |
+
+`herbrand` on 1 500 hypotheses holds 907 MB in both builds under the
+default 1 GiB: the instance search's charge, within the bound. The text
+it prints is 114 MB, under the bound, so it is not cut; under
+`--memory-limit 256MiB` the process peaks at 310 MB, the text beside
+the library's charge.
+
+The deep nest under the head (`∀x₀…x₄₉`, a conjunction body), `seq
+normalize --to clausal`: 1.9 GB under the default before the read-back
+charge, then 546 MB; under 256 MiB 149 MB, unknown at the bound named.
+
+ILTP's first-order problems through `herbrand` (`--timeout 2s`), both
+builds per problem on one core, three shards on cores 10 to 12 (both
+builds on `uwuwmwxo`, before 78c):
+
+| verdict | base | head |
+|---|---|---|
+| valid, derivation read back | 543 | 543 |
+| unknown | 1 861 | 1 860 |
+| error | 266 | 267 |
+
+No answer lost, no derivation lost. The 543 valid in both take 394 s
+instead of 452 s, none slower by more than 0.2 s. The one move is
+SYN428+1, at the 2 s boundary in both (the time limit at 2.04 s, the
+form's bound at 2.01 s), as in fixup-24's run.
+
+### Fresh review
+
+`fresh-reviewer` (Fable 5.2, `medium`) on the four commits, reading
+only: no correctness finding (the cache has no stale path, `copy_formulas`
+keeps binders, indices, atoms, `=` and refuses eigenvariables as
+`transfer` already did, no claim is recorded checked without its
+decision, the CLI's arms and the claims' lines after a cut hold). Two
+requirements:
+- **The report was missing**: this section.
+- **The read-back's charge had no test**: the bound tests passed on
+  `kept_within` alone. `the_read_back_charges_the_instances_it_builds`
+  now pins it (a bound above the inferences, the linear derivation and
+  the view's own least bound, below the instances' growth; it fails
+  with the charge removed), folded into `kuppuuzy`.
+
+Its question: a stop during the check now drops the steps (`seq
+normalize` under `--timeout` prints only `unknown: …`), where the base
+printed them with the remaining claims unknown. Intended: `cli.md`
+allows it, the claims would all be unknown, and no example shows the
+old output.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and the
+  tests after each change.
+- The gate passed on the chain before the rebase: the ratchet under
+  every ceiling (largest rise +1.61 % on `search-spec-chain`, journeys
+  the chain does not touch; `ordinary-pigeons` −0.80 %).
+- Rebased onto `main@origin` (`mrlkmlxy`, 78c with it) without a
+  conflict.
+- Rebased again onto `qoltpvxo` (0.8.0's release chain), the changelog
+  entry folded into 0.8.0's normal forms entry, without a conflict.
+- `nix flake check` under the machine lock at the report's commit (01:40
+  to 02:02): every check passed. Only this line changed after.
+
+### For the planning session
+
+- **The claims' decision of a long clausal form is the check's cost**:
+  300 hypotheses take 54 s, almost all of it the connection prover
+  deriving the last claim (91 200 inferences). Bounded now; deciding
+  the whole-sequent claims through Herbrand's instances and the SAT
+  solver (`herbrand` decides the same 300 hypotheses in 0.4 s) would be
+  the next step.
