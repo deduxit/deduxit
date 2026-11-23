@@ -296,6 +296,11 @@ struct Ropes {
 }
 
 impl Ropes {
+    /// Returns the bytes the ropes hold, by capacity.
+    fn held_bytes(&self) -> usize {
+        self.ropes.capacity() * size_of::<Rope>() + self.counts.capacity() * size_of::<u64>()
+    }
+
     /// Adds a rope and returns its index.
     fn push(&mut self, rope: Rope, count: u64) -> u32 {
         self.ropes.push(rope);
@@ -390,14 +395,14 @@ impl Matrix {
             by_predicate: HashMap::default(),
         };
         matrix.unfold(sequent, limits, &mut budget)?;
-        matrix.literals_of(sequent.formulas());
+        matrix.literals_of(sequent.formulas(), &mut budget)?;
         let terms = &sequent.formulas().first_order().terms;
         matrix.opaque = matrix
             .symbols
             .iter()
             .map(|s| matches!(s, Symbol::Parameter(t) if matches!(terms[t.index()], FoTerm::Meta(_))))
             .collect();
-        matrix.build();
+        matrix.build(&mut budget)?;
         indexed(matrix.nodes.len(), Space::Node)?;
         indexed(matrix.pats.len(), Space::Term)?;
         matrix.free_slots(&mut budget)?;
@@ -565,8 +570,14 @@ impl Matrix {
         env
     }
 
-    /// Makes the literal of every atom occurrence, its terms as patterns.
-    fn literals_of(&mut self, formulas: &Formulas) {
+    /// Makes the literal of every atom occurrence, its terms as patterns,
+    /// asking the stop and the memory bound every [`POLL`] units of work (a
+    /// term walked, a binder passed).
+    ///
+    /// # Errors
+    ///
+    /// [`Refusal::Stopped`] and [`Refusal::Memory`] from `budget`.
+    fn literals_of(&mut self, formulas: &Formulas, budget: &mut Budget<'_>) -> Result<(), Error> {
         let tables = formulas.first_order();
         let first_order = formulas.is_first_order();
         let loose = tables.loose();
@@ -581,6 +592,11 @@ impl Matrix {
         let mut closed: Vec<u32> = vec![NONE; tables.terms.len()];
         let mut skolems: Vec<u32> = vec![NONE; self.skolem_occ.len()];
         let mut local: HashMap<FoTermId, u32> = HashMap::default();
+        // The binders around the literal, innermost first, as far as its
+        // terms reach: each found once per literal, where a walk per bound
+        // variable was quadratic in a nest of thousands of quantifiers.
+        let mut chain: Vec<u32> = Vec::new();
+        let mut work = 0u64;
         for o in 0..self.occs.len() {
             let Kind::Atom(_) = self.occs[o].kind else {
                 continue;
@@ -596,6 +612,8 @@ impl Matrix {
                 (atom, Vec::new())
             };
             local.clear();
+            chain.clear();
+            let before = self.pats.len();
             let start = self.lit_args.len() as u32;
             for &t in &args {
                 let p = self.pattern(
@@ -603,9 +621,16 @@ impl Matrix {
                     &loose,
                     o as u32,
                     t,
+                    &mut chain,
                     (&mut closed, &mut local, &mut parameters, &mut skolems),
                 );
                 self.lit_args.push(p);
+            }
+            let walked = self.pats.len() - before + chain.len() + args.len() + 1;
+            let crossed = (work + walked as u64) / POLL as u64 != work / POLL as u64;
+            work = work.saturating_add(walked as u64);
+            if crossed {
+                budget.poll(POLL as u64, self.held_bytes())?;
             }
             let index = self.literals.len() as u32;
             self.literals.push(Literal {
@@ -621,17 +646,21 @@ impl Matrix {
                 .or_default()
                 .push(index);
         }
+        Ok(())
     }
 
     /// Returns the pattern of the arena's term `t` in an atom at
     /// occurrence `occ`: a bound variable becomes its binder's slot, or
-    /// for a δ-formula its Skolem term. Walks on a stack of its own.
+    /// for a δ-formula its Skolem term. Walks on a stack of its own;
+    /// `chain` holds the binders around `occ` found so far, innermost
+    /// first, and grows as a bound variable reaches further.
     fn pattern(
         &mut self,
         formulas: &Formulas,
         loose: &[u32],
         occ: u32,
         t: FoTermId,
+        chain: &mut Vec<u32>,
         (closed, local, parameters, skolems): Memo<'_>,
     ) -> u32 {
         let tables = formulas.first_order();
@@ -651,10 +680,14 @@ impl Matrix {
             let made = match tables.terms[u.index()] {
                 FoTerm::Bound(index) => {
                     // The binder `index` binders out from the atom.
-                    let mut b = self.occs[occ as usize].binder;
-                    for _ in 0..index {
-                        b = self.occs[b as usize].binder;
+                    while chain.len() <= index as usize {
+                        let b = match chain.last() {
+                            Some(&inner) => self.occs[inner as usize].binder,
+                            None => self.occs[occ as usize].binder,
+                        };
+                        chain.push(b);
                     }
+                    let b = chain[index as usize];
                     match self.occs[b as usize].kind {
                         Kind::Gamma(slot) => self.pat(Pat::Var(slot)),
                         Kind::Delta(k) => self.skolem(k, skolems),
@@ -723,13 +756,21 @@ impl Matrix {
         p
     }
 
-    /// Builds the matrix from the occurrences.
-    fn build(&mut self) {
+    /// Builds the matrix from the occurrences, asking the stop and the
+    /// memory bound every [`POLL`] occurrences and nodes.
+    ///
+    /// # Errors
+    ///
+    /// [`Refusal::Stopped`] and [`Refusal::Memory`] from `budget`.
+    fn build(&mut self, budget: &mut Budget<'_>) -> Result<(), Error> {
         let mut ropes = Ropes::default();
         // Per occurrence, its clauses and its elements.
         let mut clauses = vec![0u32; self.occs.len()];
         let mut elements = vec![0u32; self.occs.len()];
         for o in (0..self.occs.len()).rev() {
+            if o.is_multiple_of(POLL) {
+                budget.poll(POLL as u64, self.held_bytes() + ropes.held_bytes())?;
+            }
             let occ = self.occs[o];
             let [a, b] = occ.children;
             let pass = |x: u32| (clauses[x as usize], elements[x as usize]);
@@ -802,6 +843,9 @@ impl Matrix {
         let mut parents: Vec<u32> = Vec::new();
         while let Some((item, parent)) = stack.pop() {
             let index = self.nodes.len() as u32;
+            if (index as usize).is_multiple_of(POLL) {
+                budget.poll(POLL as u64, self.held_bytes() + ropes.held_bytes())?;
+            }
             let (shape, below): (Shape, Vec<Item>) = match item {
                 Item::Sub(r) => (Shape::Matrix, ropes.items(r)),
                 Item::Clause(r) => (Shape::Clause, ropes.items(r)),
@@ -852,6 +896,7 @@ impl Matrix {
                 Shape::Matrix => kids.iter().any(|&k| self.nodes[k as usize].positive),
             };
         }
+        Ok(())
     }
 
     /// Returns the children of node `n`.
@@ -875,12 +920,19 @@ impl Matrix {
         // The bytes the lists below hold, which deep nests of quantifiers
         // make quadratic: each literal has every slot around it.
         let mut held = self.held_bytes();
-        let mut account = |budget: &mut Budget<'_>, added: usize, i: usize| {
-            held = held.saturating_add(added.saturating_mul(size_of::<u32>()));
-            if i.is_multiple_of(POLL) {
-                budget.poll(POLL as u64, held)
-            } else {
+        // Each list made is work as long as it is: polled by the node, a few
+        // thousand nodes each with a list of thousands of slots asked the
+        // stop once.
+        // A list kept is charged; one that lives for a clause is work alone.
+        let mut work = 0usize;
+        let mut account = |budget: &mut Budget<'_>, made: usize, kept: usize| {
+            held = held.saturating_add(kept.saturating_mul(size_of::<u32>()));
+            let before = work / POLL;
+            work = work.saturating_add(made.max(1));
+            if work / POLL == before {
                 Ok(())
+            } else {
+                budget.poll(POLL as u64, held)
             }
         };
         // The slots below each node, sorted.
@@ -900,7 +952,7 @@ impl Matrix {
                     set
                 }
             };
-            account(budget, set.len(), i)?;
+            account(budget, set.len(), set.len())?;
             below[i] = set;
         }
         // The slots no clause of a matrix may rename, top-down: those of
@@ -915,18 +967,21 @@ impl Matrix {
             let mut after: Vec<Vec<u32>> = vec![Vec::new(); kids.len() + 1];
             for j in (0..kids.len()).rev() {
                 after[j] = union(&after[j + 1], &below[kids[j] as usize]);
+                account(budget, after[j].len(), 0)?;
             }
             let mut before = barred[i].clone();
             for (j, &k) in kids.iter().enumerate() {
                 if self.nodes[k as usize].shape != Shape::Matrix {
                     before = union(&before, &below[k as usize]);
+                    account(budget, before.len(), 0)?;
                     continue;
                 }
                 let set = union(&before, &after[j + 1]);
                 before = union(&before, &below[k as usize]);
+                account(budget, set.len().saturating_add(before.len()), 0)?;
                 // The matrix's clauses inherit what is barred for it.
                 for &c in self.kids(k) {
-                    account(budget, set.len(), c as usize)?;
+                    account(budget, set.len(), set.len())?;
                     barred[c as usize].clone_from(&set);
                 }
             }

@@ -36,6 +36,25 @@ use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
 
+// The arena's tables and indices grow by doubling, so each figure below is
+// twice what an entry takes: with them at their lengths the estimate was
+// 1.5 to 1.8 times short of the resident memory a read-back refused at.
+
+/// The bytes the arena holds a node, a first-order term or an argument
+/// list: the entry and its share of the index that makes each once.
+const ARENA_NODE_BYTES: u64 = 96;
+
+/// The bytes the arena holds an argument of a list: the table's and the
+/// index's copy.
+const ARGUMENT_BYTES: u64 = 16;
+
+/// The bytes the arena holds an atom beside its key's text.
+const ARENA_ATOM_BYTES: u64 = 128;
+
+/// The bytes an atom's key takes per term its arguments unfold to: a name
+/// and a separator, about, in the atom table and in its index.
+const KEY_BYTES: u64 = 12;
+
 /// A formula on a branch: its occurrence, its side, the formula as the
 /// instances made it, the witnesses of the γ-formulas around it and,
 /// for a γ-formula, the witnesses it was instantiated with.
@@ -499,25 +518,10 @@ impl ReadBack<'_, '_> {
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
-        }
-        // The derivation is bounded by the memory it holds;
-        // `limits.derivation_bytes` bounds what is drawn.
-        let held =
-            size_of::<Inference>() + (left.len() + right.len() + premises.len()) * size_of::<u32>();
+        // The sides were charged when the step was taken.
+        let held = size_of::<Inference>() + premises.len() * size_of::<u32>();
         self.bytes = self.bytes.saturating_add(held as u64);
-        if let Some(limit) = self.limits.memory_bytes
-            && self.bytes > limit
-        {
-            return Err(Error::Refused(Refusal::Memory {
-                phase: Phase::ReadBack,
-                limit_bytes: limit,
-                needed_bytes: None,
-            }));
-        }
+        self.account(stop)?;
         let id = u32::try_from(n).map_err(|_| {
             Error::Refused(Refusal::Index {
                 what: Space::Inference,
@@ -536,6 +540,44 @@ impl ReadBack<'_, '_> {
         Ok(InfId::new(id))
     }
 
+    /// Asks the stop, and refuses where the derivation's inferences and its
+    /// arena (the instances' nodes, terms and atoms' keys) pass the memory
+    /// bound.
+    fn account(&mut self, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
+        let n = self.inferences.len() as u64;
+        if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
+            return Err(Error::Refused(Refusal::Stopped {
+                phase: Phase::ReadBack,
+            }));
+        }
+        // The derivation is bounded by the memory it holds;
+        // `limits.derivation_bytes` bounds what is drawn.
+        if let Some(limit) = self.limits.memory_bytes
+            && self.bytes.saturating_add(self.arena_bytes()) > limit
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: limit,
+                needed_bytes: None,
+            }));
+        }
+        Ok(())
+    }
+
+    /// Returns the bytes the derivation's arena holds, by its estimate: a
+    /// node or a term with its share of the index, an argument list twice
+    /// (the table and the index's key), an atom with its key, which writes
+    /// every argument out.
+    fn arena_bytes(&self) -> u64 {
+        let tables = self.formulas.first_order();
+        let entries = (self.formulas.len() + tables.terms.len() + tables.lists.len()) as u64;
+        entries
+            .saturating_mul(ARENA_NODE_BYTES)
+            .saturating_add((tables.args.len() as u64).saturating_mul(ARGUMENT_BYTES))
+            .saturating_add((tables.atoms.len() as u64).saturating_mul(ARENA_ATOM_BYTES))
+            .saturating_add(self.budget.held().saturating_mul(KEY_BYTES))
+    }
+
     /// Closes the branch if it can, else applies the first rule its order
     /// gives, pushing the inference and its premises.
     fn expand(
@@ -545,6 +587,10 @@ impl ReadBack<'_, '_> {
         results: &mut Vec<InfId>,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
+        // A branch is expanded before its inference is made, so a long
+        // branch of quantifier steps, each an instance as large as the
+        // formula, asks the stop and the memory bound here.
+        self.account(stop)?;
         if let Some(id) = self.close(&branch, stop)? {
             results.push(id);
             return Ok(());
@@ -556,6 +602,9 @@ impl ReadBack<'_, '_> {
             });
         };
         let (left, right) = sides(&branch);
+        // The inference waits for its premises with its sides.
+        let sides_bytes = (left.len() + right.len()) * size_of::<NodeId>();
+        self.bytes = self.bytes.saturating_add(sides_bytes as u64);
         frames.push(Frame::Emit {
             left,
             right,

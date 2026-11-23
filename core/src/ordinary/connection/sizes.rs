@@ -48,6 +48,12 @@ impl TermBudget {
         budget
     }
 
+    /// Returns the atoms' arguments unfolded, summed over the atoms counted:
+    /// the length of their keys, about.
+    pub(super) const fn held(&self) -> u64 {
+        self.held
+    }
+
     /// Counts the atoms the arena gained since the last count.
     pub(super) fn count(&mut self, formulas: &Formulas) {
         let tables = formulas.first_order();

@@ -327,6 +327,82 @@ fn the_bounds_hold_where_steps_are_dear() {
     ));
 }
 
+/// The read-back of a congruence axiom of many arguments instantiates a
+/// nest of quantifiers one step at a time, each instance as large as the
+/// rest of the nest, before it makes any inference: it asks the stop at
+/// every step of that branch, and its arena is charged to the memory
+/// bound, which answers unknown where the search alone fits.
+#[test]
+fn the_read_back_asks_the_stop_and_charges_its_arena() {
+    let n = 200;
+    let left = vec!["a"; n].join(", ");
+    let right = vec!["a"; n - 1].join(", ");
+    let text = format!("p(f({left})), a = b |- p(f(b, {right}))");
+    let sequent: Sequent = text.parse().unwrap();
+    let mut early = 0;
+    let outcome = decide(
+        &sequent,
+        Logic::Classical,
+        &search::Options::default(),
+        &Limits::default(),
+        |progress| {
+            // A poll of the read-back before its first inference.
+            if progress.phase == crate::Phase::ReadBack && progress.work == 1 && progress.done == 1
+            {
+                early += 1;
+            }
+            false
+        },
+    )
+    .unwrap();
+    assert!(
+        matches!(outcome.verdict, Verdict::Valid(_)),
+        "{:?}",
+        outcome.verdict
+    );
+    assert!(early >= n, "{early} polls before the first inference");
+    let limits = Limits {
+        memory_bytes: Some(4 << 20),
+        ..Limits::default()
+    };
+    let outcome = decide(
+        &sequent,
+        Logic::Classical,
+        &search::Options::default(),
+        &limits,
+        |_| false,
+    )
+    .unwrap();
+    assert!(
+        matches!(
+            outcome.verdict,
+            Verdict::Unknown(Reason::MemoryLimit { .. })
+        ),
+        "{:?}",
+        outcome.verdict
+    );
+}
+
+/// The matrix's set-up asks the stop by the work it does, not by the
+/// nodes it lays out: a nest of thousands of quantifiers over a few
+/// literals has few nodes, each with a list of slots as long as the nest,
+/// and each literal's variable lies thousands of binders out.
+#[test]
+fn the_matrix_asks_the_stop_by_its_work() {
+    let k = 3_000;
+    let binders: String = (0..k).map(|i| format!("forall x{i}. ")).collect();
+    let body: Vec<String> = (0..40).map(|j| format!("q{j}(x0)")).collect();
+    let text = format!("{binders}({}) |- r", body.join(" /\\ "));
+    let sequent: Sequent = text.parse().unwrap();
+    let mut polls = 0;
+    let built = super::matrix::Matrix::of(&sequent, &Limits::default(), &mut |_| {
+        polls += 1;
+        false
+    });
+    assert!(built.is_ok());
+    assert!(polls >= 4, "{polls} polls");
+}
+
 /// A chain of witnesses `f(x, x)`, each bound to the one before, shares
 /// its parts: walked as trees, its terms are exponential in its length.
 /// A short chain is proved classically; a long one is refused in both
