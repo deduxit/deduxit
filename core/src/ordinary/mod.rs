@@ -682,9 +682,10 @@ fn grounds(sequent: &Sequent) -> bool {
 
 /// The most work of the normal form in which the default asks whether
 /// grounding decides a first-order sequent, in grounding's units (a node
-/// made, an operand or a free variable read): 2¹⁸, about ten times the
-/// most an ILTP problem in the classes takes (25 683) and some
-/// milliseconds, while a congruence axiom of thousands of arguments, a
+/// made, an operand or a free variable read, by the normal form and then
+/// miniscoping): 2¹⁸, about five times the most an ILTP problem in the
+/// classes takes (52 154, SYJ212+1.010) and some milliseconds, while a
+/// congruence axiom of thousands of arguments, a
 /// nest of thousands of quantifiers whose normal form is quadratic, took
 /// minutes. The command asks several times per sequent.
 #[cfg(feature = "sat")]

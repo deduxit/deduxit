@@ -613,9 +613,11 @@ impl Matrix {
             };
             local.clear();
             chain.clear();
-            let before = self.pats.len();
             let start = self.lit_args.len() as u32;
+            // Polled per argument: one argument can make thousands of
+            // patterns (a Skolem term takes every slot around it).
             for &t in &args {
+                let before = self.pats.len() + chain.len();
                 let p = self.pattern(
                     formulas,
                     &loose,
@@ -625,12 +627,12 @@ impl Matrix {
                     (&mut closed, &mut local, &mut parameters, &mut skolems),
                 );
                 self.lit_args.push(p);
-            }
-            let walked = self.pats.len() - before + chain.len() + args.len() + 1;
-            let crossed = (work + walked as u64) / POLL as u64 != work / POLL as u64;
-            work = work.saturating_add(walked as u64);
-            if crossed {
-                budget.poll(POLL as u64, self.held_bytes())?;
+                let walked = (self.pats.len() + chain.len()).saturating_sub(before) + 1;
+                let crossed = (work + walked as u64) / POLL as u64 != work / POLL as u64;
+                work = work.saturating_add(walked as u64);
+                if crossed {
+                    budget.poll(POLL as u64, self.held_bytes())?;
+                }
             }
             let index = self.literals.len() as u32;
             self.literals.push(Literal {
@@ -922,8 +924,8 @@ impl Matrix {
         let mut held = self.held_bytes();
         // Each list made is work as long as it is: polled by the node, a few
         // thousand nodes each with a list of thousands of slots asked the
-        // stop once.
-        // A list kept is charged; one that lives for a clause is work alone.
+        // stop once. A list kept is charged; one that lives for a clause is
+        // work alone.
         let mut work = 0usize;
         let mut account = |budget: &mut Budget<'_>, made: usize, kept: usize| {
             held = held.saturating_add(kept.saturating_mul(size_of::<u32>()));
@@ -944,11 +946,17 @@ impl Matrix {
                     env.sort_unstable();
                     env
                 }
+                // The children's lists joined and sorted once: a union per
+                // child copied the growing list, quadratic in a node of
+                // thousands of elements.
                 Shape::Matrix | Shape::Clause => {
                     let mut set = Vec::new();
                     for &k in self.kids(i as u32) {
-                        set = union(&set, &below[k as usize]);
+                        set.extend_from_slice(&below[k as usize]);
+                        account(budget, below[k as usize].len(), 0)?;
                     }
+                    set.sort_unstable();
+                    set.dedup();
                     set
                 }
             };
@@ -956,34 +964,55 @@ impl Matrix {
             below[i] = set;
         }
         // The slots no clause of a matrix may rename, top-down: those of
-        // the other elements of every clause above it.
+        // the other elements of every clause above it. How many of a
+        // clause's elements have each slot tells which another element
+        // has, where the unions of the elements after each one held a
+        // number of slots quadratic in the clause's width.
+        let mut counts = vec![0u32; self.slot_occ.len()];
+        account(budget, counts.len(), counts.len())?;
         let mut barred: Vec<Vec<u32>> = vec![Vec::new(); n];
         for i in 0..n {
             if self.nodes[i].shape != Shape::Clause {
                 continue;
             }
             let kids = self.kids(i as u32).to_vec();
-            // The slots of the elements before and after each one.
-            let mut after: Vec<Vec<u32>> = vec![Vec::new(); kids.len() + 1];
-            for j in (0..kids.len()).rev() {
-                after[j] = union(&after[j + 1], &below[kids[j] as usize]);
-                account(budget, after[j].len(), 0)?;
+            if !kids
+                .iter()
+                .any(|&k| self.nodes[k as usize].shape == Shape::Matrix)
+            {
+                continue;
             }
-            let mut before = barred[i].clone();
-            for (j, &k) in kids.iter().enumerate() {
+            let mut here: Vec<u32> = Vec::new();
+            for &k in &kids {
+                for &s in &below[k as usize] {
+                    if counts[s as usize] == 0 {
+                        here.push(s);
+                    }
+                    counts[s as usize] += 1;
+                }
+                account(budget, below[k as usize].len(), 0)?;
+            }
+            here.sort_unstable();
+            for &k in &kids {
                 if self.nodes[k as usize].shape != Shape::Matrix {
-                    before = union(&before, &below[k as usize]);
-                    account(budget, before.len(), 0)?;
                     continue;
                 }
-                let set = union(&before, &after[j + 1]);
-                before = union(&before, &below[k as usize]);
-                account(budget, set.len().saturating_add(before.len()), 0)?;
+                let own = &below[k as usize];
+                let others: Vec<u32> = here
+                    .iter()
+                    .copied()
+                    .filter(|&s| counts[s as usize] > u32::from(own.binary_search(&s).is_ok()))
+                    .collect();
+                let set = union(&barred[i], &others);
+                account(budget, here.len().saturating_add(set.len()), 0)?;
                 // The matrix's clauses inherit what is barred for it.
                 for &c in self.kids(k) {
                     account(budget, set.len(), set.len())?;
                     barred[c as usize].clone_from(&set);
                 }
+            }
+            for &s in &here {
+                counts[s as usize] = 0;
             }
         }
         for i in 0..n {

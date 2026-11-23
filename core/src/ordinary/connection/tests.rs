@@ -384,23 +384,68 @@ fn the_read_back_asks_the_stop_and_charges_its_arena() {
 }
 
 /// The matrix's set-up asks the stop by the work it does, not by the
-/// nodes it lays out: a nest of thousands of quantifiers over a few
-/// literals has few nodes, each with a list of slots as long as the nest,
-/// and each literal's variable lies thousands of binders out.
+/// nodes it lays out: under a nest of thousands of quantifiers each of a
+/// hundred literals has a list of slots as long as the nest, though the
+/// matrix has a few hundred nodes; and a literal whose terms are Skolem
+/// terms, each over every slot around it, makes its patterns between two
+/// polls no more.
 #[test]
 fn the_matrix_asks_the_stop_by_its_work() {
-    let k = 3_000;
-    let binders: String = (0..k).map(|i| format!("forall x{i}. ")).collect();
-    let body: Vec<String> = (0..40).map(|j| format!("q{j}(x0)")).collect();
-    let text = format!("{binders}({}) |- r", body.join(" /\\ "));
+    // Polled by the node or once per literal, as before, each made at most
+    // five polls (the unfolding's, the build's two, one more).
+    const POLLS_OF_SLOTS: usize = 10;
+    const POLLS_OF_SKOLEMS: usize = 7;
+    let polls = |text: &str| {
+        let sequent: Sequent = text.parse().unwrap();
+        let mut polls = 0;
+        let built = super::matrix::Matrix::of(&sequent, &Limits::default(), &mut |_| {
+            polls += 1;
+            false
+        });
+        assert!(built.is_ok());
+        polls
+    };
+    let binders: String = (0..3_000).map(|i| format!("forall x{i}. ")).collect();
+    let body: Vec<String> = (0..100).map(|j| format!("q{j}(c)")).collect();
+    let slots = polls(&format!("{binders}({}) |- r", body.join(" /\\ ")));
+    assert!(slots >= POLLS_OF_SLOTS, "{slots} polls");
+    let nest: String = (0..1_000)
+        .map(|i| format!("forall x{i}. exists y{i}. "))
+        .collect();
+    let ys: Vec<String> = (0..1_000).map(|i| format!("y{i}")).collect();
+    let skolems = polls(&format!("{nest}p({}) |- r", ys.join(", ")));
+    assert!(skolems >= POLLS_OF_SKOLEMS, "{skolems} polls");
+}
+
+/// The inferences that close a branch keep their sides, which the read-back
+/// charges to the memory bound: an axiom under thousands of hypotheses is
+/// as many weakenings, each a sequent one formula longer.
+#[test]
+fn the_read_back_charges_the_sides_of_an_axiom_s_weakenings() {
+    let hypotheses: Vec<String> = (0..3_000).map(|i| format!("q{i}")).collect();
+    let text = format!("{}, p |- p", hypotheses.join(", "));
     let sequent: Sequent = text.parse().unwrap();
-    let mut polls = 0;
-    let built = super::matrix::Matrix::of(&sequent, &Limits::default(), &mut |_| {
-        polls += 1;
-        false
-    });
-    assert!(built.is_ok());
-    assert!(polls >= 4, "{polls} polls");
+    let decided = |limits: &Limits| {
+        decide(
+            &sequent,
+            Logic::Classical,
+            &search::Options::default(),
+            limits,
+            |_| false,
+        )
+        .unwrap()
+        .verdict
+    };
+    assert!(matches!(decided(&Limits::default()), Verdict::Valid(_)));
+    let limits = Limits {
+        memory_bytes: Some(8 << 20),
+        ..Limits::default()
+    };
+    let verdict = decided(&limits);
+    assert!(
+        matches!(verdict, Verdict::Unknown(Reason::MemoryLimit { .. })),
+        "{verdict:?}"
+    );
 }
 
 /// A chain of witnesses `f(x, x)`, each bound to the one before, shares

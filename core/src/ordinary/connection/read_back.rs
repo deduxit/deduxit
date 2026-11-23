@@ -493,6 +493,10 @@ impl ReadBack<'_, '_> {
                     premises,
                 } => {
                     let premises = results.split_off(results.len() - premises);
+                    // `push` charges the sides it keeps, which `expand`
+                    // charged while they waited.
+                    let waited = (left.len() + right.len()) * size_of::<NodeId>();
+                    self.bytes = self.bytes.saturating_sub(waited as u64);
                     let id = self.push(left, right, rule, principal, term, premises, stop)?;
                     results.push(id);
                 }
@@ -518,8 +522,8 @@ impl ReadBack<'_, '_> {
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        // The sides were charged when the step was taken.
-        let held = size_of::<Inference>() + premises.len() * size_of::<u32>();
+        let held =
+            size_of::<Inference>() + (left.len() + right.len() + premises.len()) * size_of::<u32>();
         self.bytes = self.bytes.saturating_add(held as u64);
         self.account(stop)?;
         let id = u32::try_from(n).map_err(|_| {
