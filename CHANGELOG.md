@@ -266,6 +266,10 @@ program's patterns go on compiling. What a program may notice is under
   variables free in its quantifier (`normal::Step::term`), and the
   result is checked to imply the input's negation (Skolem, clausal) or
   to follow from the input (Herbrand, `normal::Promise::Equivalid`).
+  The rewriting and the checks keep to `--timeout`, `--memory-limit` and
+  `--work-limit`: at a limit the answer is unknown and names the flag.
+  The steps `seq normalize` and `herbrand` list stop at the time limit
+  or once their text passes the memory limit, with a line that says so.
 
 - **Herbrand's theorem**: `deduxit herbrand SEQUENT` makes the clausal
   form of a first-order sequent, puts closed terms for its variables up
