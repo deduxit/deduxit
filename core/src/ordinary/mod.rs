@@ -682,13 +682,13 @@ fn grounds(sequent: &Sequent) -> bool {
 
 /// The most work of the normal form in which the default asks whether
 /// grounding decides a first-order sequent, in grounding's units (a node
-/// made, an operand or a free variable read): 2²¹, about a hundred times
-/// the most an ILTP problem in the classes takes (21 538) and a few tens
-/// of milliseconds, while a congruence axiom of thousands of arguments, a
-/// nest of thousands of quantifiers whose miniscoping is quadratic, took
+/// made, an operand or a free variable read): 2¹⁸, about ten times the
+/// most an ILTP problem in the classes takes (25 683) and some
+/// milliseconds, while a congruence axiom of thousands of arguments, a
+/// nest of thousands of quantifiers whose normal form is quadratic, took
 /// minutes. The command asks several times per sequent.
 #[cfg(feature = "sat")]
-const GROUNDS_WORK: u64 = 1 << 21;
+const GROUNDS_WORK: u64 = 1 << 18;
 
 /// The most nodes of the normal form in which the default asks whether
 /// grounding decides a first-order sequent: 2²⁰, far above ILTP's
@@ -1786,6 +1786,35 @@ mod tests {
             Verdict::Unprovable(_) => Some(false),
             Verdict::Unknown(_) => None,
         }
+    }
+
+    /// The default's test of whether grounding decides a sequent ends at
+    /// its bound on work: a congruence axiom of a predicate of 500
+    /// arguments lies in the Bernays–Schönfinkel class, but its normal
+    /// form is a nest of a thousand quantifiers whose making is quadratic,
+    /// past the bound, so the default takes another method; a sequent of
+    /// the class of ordinary size still grounds.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn the_grounding_test_ends_at_its_work_bound() {
+        let small: Sequent = "forall x. (p(x) -> q(x)), p(a) |- q(a)".parse().unwrap();
+        assert!(grounds(&small));
+        let n = 500;
+        let xs: Vec<String> = (0..n).map(|i| format!("x{i}")).collect();
+        let ys: Vec<String> = (0..n).map(|i| format!("y{i}")).collect();
+        let equal: Vec<String> = (0..n).map(|i| format!("e(x{i}, y{i})")).collect();
+        let text = format!(
+            "forall {} {}. ({} /\\ p({}) -> p({})) |- r",
+            xs.join(" "),
+            ys.join(" "),
+            equal.join(" /\\ "),
+            xs.join(", "),
+            ys.join(", "),
+        );
+        let wide: Sequent = text.parse().unwrap();
+        assert!(!grounds(&wide));
+        let unbounded = crate::Limits::default().with_occurrences(Some(GROUNDS_NODES));
+        assert!(grounding::applies(&wide, &unbounded).unwrap());
     }
 
     /// Every logic and translation reads back from its name, an unknown

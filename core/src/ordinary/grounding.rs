@@ -783,8 +783,14 @@ pub(super) fn normal_form(
     };
     let mut steps: u64 = 0;
     let memory = limits.memory_bytes.unwrap_or(u64::MAX);
+    // A node made reads its operands' free variables, which a nest of
+    // thousands of quantifiers makes thousands long: the stop is told that
+    // work, as miniscoping's is.
+    let mut counted = nnf.work;
     while let Some(task) = stack.pop() {
-        poll(&mut steps, stop)?;
+        let weight = usize::try_from(nnf.work.saturating_sub(counted)).unwrap_or(usize::MAX);
+        counted = nnf.work;
+        poll_by(&mut steps, weight, stop)?;
         nnf.within(memory)?;
         if nnf.nodes.len() as u64 > most {
             return Err(Error::Refused(Refusal::Occurrences {
@@ -970,14 +976,18 @@ fn literal(
     let Some(&(symbol, args)) = tables.atoms.get(a as usize) else {
         return Ok(Some((a, Vec::new())));
     };
-    let bound = |index: u32| -> Option<Term> {
+    // The scopes around the atom, the innermost first, found as far as its
+    // variables reach and once for the atom: a walk per variable was
+    // quadratic in a nest of thousands of quantifiers.
+    let mut chain: Vec<u32> = vec![scope];
+    let mut bound = |index: u32| -> Option<Term> {
         // A variable no quantifier binds is outside the class
         // (`Sequent::new` refuses one already).
-        let mut s = scope;
-        for _ in 0..index {
-            s = scopes.get(s as usize)?.1;
+        while chain.len() <= index as usize {
+            let outer = scopes.get(*chain.last()? as usize)?.1;
+            chain.push(outer);
         }
-        Some(Term::Var(scopes.get(s as usize)?.0))
+        Some(Term::Var(scopes.get(chain[index as usize] as usize)?.0))
     };
     let mut terms = Vec::new();
     for &t in tables.list(args) {
