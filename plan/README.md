@@ -8316,3 +8316,11 @@ move (D26).
   test that did not pin its polls, a misstated figure) fixed. Its changelog in 0.8.0's section. Full
   check passed on `wxwmmvuy`; the push (`uorkokwz`) waits for the keys. **0.8.0's content is complete
   with it; the tags wait for the author.**
+- 2026-11-23, about 09:20: **0.8.0 tagged** (the author's yes to each). The warm loop had ended at
+  gpg-agent's 24 h cap at 21:30 and I did not restart it after the author's unlock at 22:45, so the
+  keys lapsed overnight and fixup-26's push waited until the morning (restarted at once after the
+  unlock now; recorded). fixup-26 pushed (`rvttzrzy`), CI green on `b3c7fcd3`. **rocq-deduxit
+  `v0.8.0`**: a signed tag object at `e3eecb30`, verified; its release workflow passed (the tag, the
+  full check, the docs on Pages, the GitHub release). **deduxit `v0.8.0`**: a signed tag object at
+  `b3c7fcd3`, verified; the release workflow runs, its publish waiting for the author's approval in
+  `crates-io`. The payloads and tag objects are kept in `~/Projects/own/deduxit-release-0.8.0/`.

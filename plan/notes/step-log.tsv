@@ -134,3 +134,4 @@ fixup-25	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 22:55	20
 78	step	-	-	-	-	-	2026-11-23 00:05	complete: equality by axioms and paramodulation, first-order resolution, cnf and SZS
 80	release	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-23 00:05	2026-11-23 01:00	the release of 0.8.0, prepared
 fixup-26	small	opus-5-5	high	reviewer (fable)	local_f223ef15	2026-11-23 00:10	2026-11-23 05:05	connection setup within its bounds
+80	step	-	-	-	-	-	2026-11-23 09:20	complete: 0.8.0 tagged, first-order ordinary logic
