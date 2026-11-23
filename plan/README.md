@@ -8305,3 +8305,14 @@ move (D26).
   `herbrand`: no answer or derivation lost. Its changelog entry is in 0.8.0's section. Full check
   passed on the release chain; pushed (`rpxqkmlz`). **For later:** the clausal form's claims decided
   through Herbrand's instances (300 hypotheses: 54 s by the connection prover, 0.4 s by `herbrand`).
+- 2026-11-23, about 05:05: **fixup-26 reviewed.** (Opus, high; the reviewer on Fable.) The connection
+  prover's setup and read-back keep to the stop and the memory bound: the classical read-back
+  expanded a whole branch of quantifier steps before asking the stop and charged only its
+  inferences (congruence of 3 000 arguments at `--timeout 2s`: 20 s and 2.5 GB, now 2.1 s and
+  164 MB); the matrix's walks ask the stop by their work and lose a quadratic pass; grounding's test
+  counts its work truly (predicate of 4 000 at 0.1 s: 1.3 s to 0.2 s). ILTP through `--engines
+  connection`, both logics: no verdict lost, equal counters on every row decided alike. The
+  reviewer's four findings (an axiom's weakenings uncharged, three quadratic spots in the matrix, a
+  test that did not pin its polls, a misstated figure) fixed. Its changelog in 0.8.0's section. Full
+  check passed on `wxwmmvuy`; the push (`uorkokwz`) waits for the keys. **0.8.0's content is complete
+  with it; the tags wait for the author.**
