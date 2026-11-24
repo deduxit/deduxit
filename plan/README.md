@@ -8338,3 +8338,17 @@ move (D26).
   `design/redesign.md` there; the old design (D1 to D60) is background only. The brief is
   `plan/web/redesign-brief.md`. The app could not start a session in `deduxit.github.io` (no session
   opened there yet), so the author opens it. Step 79's prompt comes from its result.
+- 2026-11-24, about 11:30: **deduxit-orchestrator-2 stands in as the planning session** (Opus,
+  high; the author's word, from `plan/notes/handoff-2026-11-24.md`); no step or fixup starts until
+  the author's go. **Zenodo**: both `v0.8.0` releases joined their concepts (deduxit 24459532
+  under 23448588, rocq-deduxit 24458946 under 23899109), and both concept DOIs resolve to them.
+  **The install check**: the re-run of the scheduled run of 2026-11-23 (run 45237004118, attempt
+  2) passed every job, the macOS x86_64 archives included; the first failure was the runner.
+  **Housekeeping**: 23 empty workspaces of finished steps removed (deduxit's `wt-jovial-jones` and
+  `wt-step-54s-b2`, rocq-deduxit's five `step*`, the client's sixteen `step*`, `ci-fix` and
+  `fixband`; only build caches in them); the workers' four kept, and the client's
+  `wt-redesign-9876bc` (empty, from the first attempt at the redesign session) kept until the
+  author says that session is gone; the probe `uworquvp` abandoned. **The web redesign** started at
+  the author's request: session `web-redesign` (`local_580488fc`, Fable 5.2 at high, started on
+  Opus and switched before its brief), in the client's workspace `wt-redesign-291b11` on
+  `main@origin`, brief `plan/web/redesign-brief.md`; the author leads it.
