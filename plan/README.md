@@ -8330,3 +8330,11 @@ move (D26).
   the release's files. Per the author, nothing new starts until they say go; next by the plan: the
   planning step that re-surveys `later.md` and research, step 79 with the author's redesign, the opam
   submission when the author chooses.
+- 2026-11-24: **The web redesign, from scratch** (the author: "I'd like to start kind of from
+  scratch"). Claude Design now lives in Claude as the Design artifact type (standalone
+  claude.ai/design closes on 14 December 2026), so the design is done in a Claude Code session of
+  its own in the client repository, which the author leads: users and problems first, directions
+  as Design artifacts, the core interaction prototyped in the real client, the decisions in
+  `design/redesign.md` there; the old design (D1 to D60) is background only. The brief is
+  `plan/web/redesign-brief.md`. The app could not start a session in `deduxit.github.io` (no session
+  opened there yet), so the author opens it. Step 79's prompt comes from its result.
