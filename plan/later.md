@@ -119,8 +119,8 @@ may be taken by that step and closed here, said in its report.
 | applications-9 | kept | with applications-2 |
 | natural-deduction-2 | kept | translation from LK and LJ, after 62 |
 | natural-deduction-3 | kept | normalisation and linear natural deduction, after 62 |
-| lambda-calculi-4 | kept | inference, after 71 |
-| lambda-calculi-5 | kept | a reduction stepper, after 71 |
+| lambda-calculi-4 | kept | inference, after 71; with the untyped calculi (2026-11-25, below) |
+| lambda-calculi-5 | kept | a reduction stepper, after 71; with the untyped calculi (2026-11-25, below) |
 | lambda-calculi-7 | kept | a Rocq checker for typing derivations, after 71 |
 | modal-logics-4 | kept | nested sequents, after 66 |
 | modal-logics-7 | kept | multimodal and epistemic, after 65 |
@@ -2808,3 +2808,45 @@ step that takes it.
   off for the trials. A few refusals (`binding`, `witness`,
   `step_refused`) carry a sentence, not fields, which the page can show
   but not reword; the call should give them fields.
+
+## Untyped lambda calculi as a second axis (the redesign, 2026-11-25)
+
+Asked by the author for after 0.8.0, from the web redesign ("aren't all
+of them simply typed? What about untyped as a separate axis to add?").
+`lambda::Calculus` (`core/src/lambda/mod.rs`) is `Linear`, `Affine` and
+`Simple`, all Church-style: every `λ` carries its type, the reader
+refuses one without (`plan/notes/typed-lambda-design.md` §3), and the
+three differ only in how often a variable is used. No term stands
+without a type, and a term is reduced only as cut elimination on its
+proof. The wish is typed or untyped beside the use of variables, so
+six calculi: untyped unrestricted, linear and affine beside the three.
+
+What the page would want of the library, as the redesign session reads
+it (the author settles it at the planning step that takes it):
+- read and write a term whose `λ` carries no type;
+- check the use of its variables in the linear and the affine calculus,
+  with the refusal's reason;
+- reduce it step by step (β), naming each step's redex, within a bound,
+  ending in "normal form" or "not finished at the bound";
+- find its principal simple type, or say it has none.
+
+It joins two kept items of the research (`plan/notes/research/next/
+lambda-calculi.md`), which the planning step should take together with
+it: lambda-calculi-4 (type inference by unification: the principal type
+of an untyped term is that item's STLC half) and lambda-calculi-5 (a β
+stepper, which the research wrote for typed terms and tied to cut
+elimination). Two points for that step:
+- **Untyped unrestricted terms need not normalise** (`(λx. x x)(λx. x x)`
+  reduces to itself), so the stepper's bound is a real answer there,
+  and the outcome says "not finished at the bound", never "no normal
+  form". Untyped linear and affine terms always normalise: a β step
+  shrinks the term.
+- **The research found the untyped stepper space crowded** (small tools
+  and Tromp's diagrams) and saw deduxit's value in the tie to proofs.
+  An untyped term has no proof to tie to until it is typed, so the
+  untyped calculi are teaching material: the page's lessons on the
+  difference typing makes.
+
+The redesign draws it as a proposal (board D12), marked in its
+`design/redesign.md` as needing the library. An API change, so the
+author's.
