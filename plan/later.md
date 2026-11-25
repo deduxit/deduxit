@@ -2775,3 +2775,36 @@ model search (`races_the_embedding`, `prove.rs`), for an intuitionistic
 first-order sequent with `=`, the first proof stopping the others, then
 the same 1 730 problems before and after (no verdict lost, the time per
 row). Source: step 78's report, session 78c.
+
+## Every candidate rule with why it is refused (the redesign, 2026-11-25)
+
+Asked by the author for after 0.8.0, from the web redesign: the new page
+greys a rule that is not a legal step on the chosen formula and says why
+on hover. An API change, so its shape is the author's at the planning
+step that takes it.
+
+- **The call:** one per formula of a goal, returning every candidate
+  rule of the calculus as "applies", "needs input" (a split, a witness,
+  a cut formula, natural deduction's values) or "refused" with the
+  step's refusal as the library writes it (`code`, `kind`, `details`),
+  in the linear suite, the ordinary suite (LK, LJ, LM, first order) and
+  natural deduction, and through the bindings to the page.
+- **Legal steps only:** the author narrowed it on 2026-11-25. A rule is
+  refused only where the step is not legal on the goal as it stands. A
+  legal step whose goal has no proof is neither greyed nor warned of, so
+  the call does not judge whether a split can close (the page drops
+  "Passes" and "Cannot close").
+- **What each suite has today (0.8.0):** the linear `rules` lists by
+  connective and mode and over-offers (`apply` refuses the rest:
+  `NoDual`, `NotAlone`, …; the 53a note under "Follow-ups: interactive
+  proving" kept it so, as no client asked); the ordinary `rules` leaves
+  out what does not apply and gives no reason; the rules suite's `rules`
+  (`core/src/rules/interactive.rs`) tries every rule on a clone and
+  drops the refusal (`Err(Unplanned::Error(_)) => {}`), so there it is
+  the cheapest.
+- **Until it exists** the page tries each rule through `apply` (no state
+  change on a refusal, but one full call per rule, which replays the
+  session and builds the view; unmeasured) with `interactive.invertible`
+  off for the trials. A few refusals (`binding`, `witness`,
+  `step_refused`) carry a sentence, not fields, which the page can show
+  but not reword; the call should give them fields.
