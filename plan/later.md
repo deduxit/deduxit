@@ -149,7 +149,7 @@ may be taken by that step and closed here, said in its report.
 | cyclic-proofs-3 | kept | D30 (μMALL first if any) |
 | cyclic-proofs-4 | kept | D30 |
 | cyclic-proofs-5 | kept | D30 |
-| lambda-calculi-6 | kept | D30: System F as checking only, later |
+| lambda-calculi-6 | kept | D30: System F as checking only, later; the author's maybe beside the untyped calculi (2026-11-25, below) |
 | logics-4 | kept | research projects (BV, pomset nets) |
 | logics-5 | kept | research beyond μMALL |
 | logics-3 | kept | ordered cut, then Lambek with modalities |
@@ -2850,3 +2850,18 @@ elimination). Two points for that step:
 The redesign draws it as a proposal (board D12), marked in its
 `design/redesign.md` as needing the library. An API change, so the
 author's.
+
+**System F, a possibility beside it** (the author, 2026-11-25: "Maybe
+System F would also be interesting for the 'lambda terms'"; a maybe,
+not a decision). On the page it would be a third value of the same
+axis: simple types (what deduxit has), System F, untyped; the use of
+variables stays the other axis. It is the kept item lambda-calculi-6
+(D30: Church-style checking only), whose research says what bounds the
+offer: checking a term whose type abstractions and applications are
+written is decidable, but type inference (Wells) and inhabitation are
+not, so an untyped term's System F type is never offered, and a search
+for an inhabitant can only answer "found" or "unknown"; second-order
+linear logic is undecidable even without exponentials, so linear and
+affine System F would be checking alone too. Its cost there: a binder
+over types in the term and type syntaxes, substitution of types, the
+rules and views (about three sessions).
