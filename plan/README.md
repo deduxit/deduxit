@@ -8375,3 +8375,13 @@ move (D26).
   planning session pushes rocq-deduxit and deduxit as each is ready, deduxit after `push-ci`. **The
   client's dependency updates go to its `main` when verified** (the author: "Push them when ready"),
   the one exception to the freeze; step 79's chain is rebased onto them when it lands.
+- 2026-11-25, about 23:55: **The client follows the author's stack spec**
+  (`~/Projects/own/website-stack/stack-spec.md`, the author's request). It already does on every
+  point (Astro 7, Solid 1.9, Tailwind 4 through Vite, TypeScript 6, Biome 2, Vitest 5 with
+  fast-check, Playwright from nixpkgs, `importNpmLock`, the `.npmrc` settings, the `style` and CSP
+  hash checks, crane for the module) but hosting: **it stays on GitHub Pages** (the author), recorded
+  as the client's §5.1 in its new `docs/stack-spec.md` (client change `uxtxusrn`, unpushed, to go
+  with fixup-27's client push): the CSP stays a `<meta>` element, CI deploys. The client's
+  references moved from `website/docs/stack-spec.md` to `website-stack`. `lucide-solid` leaves in
+  step 79 (§1.6; the guide draws its own icons), added to its prompt and sent to 79a; fixup-27 runs
+  the spec's Solid 2.0 check at the client's update.

@@ -84,6 +84,13 @@ countermodels) works on it, which step 79 was first planned for.
   guide says (the Unlicense). It changes the client's rule "No
   third-party file is committed" (CLAUDE.md, "Licences"): 79e changes
   the rule and the licences check with the file.
+- **The stack is the author's stack spec**
+  (`~/Projects/own/website-stack/stack-spec.md`), with the client's own
+  decisions as §5 in its `docs/stack-spec.md` (hosting stays on GitHub
+  Pages, the author's word of 2026-11-25). Read §1, §2, §3.4 (Solid
+  1.x, the island rule) and §4 before adding anything. In particular:
+  as few npm packages as practical (§1.6), so `lucide-solid` leaves once
+  the guide's own icons replace it; no `style` attribute (§4.4).
 - **Fonts** come from npm through the lock, as the client's fonts do:
   Gentium Book Plus and Ysabeau Office are new (SIL OFL 1.1; check that
   the client's licences check and `src/integrations/licences.ts` list
