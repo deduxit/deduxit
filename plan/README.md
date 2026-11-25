@@ -8385,3 +8385,8 @@ move (D26).
   references moved from `website/docs/stack-spec.md` to `website-stack`. `lucide-solid` leaves in
   step 79 (§1.6; the guide draws its own icons), added to its prompt and sent to 79a; fixup-27 runs
   the spec's Solid 2.0 check at the client's update.
+- 2026-11-26, about 00:05: **fixup-27's rocq-deduxit part pushed**: `main@origin` is `uytplsqq`
+  (20b1a20f): shfmt's two-space indent and `-s` written out (treefmt-nix's new defaults are tabs),
+  `flake.lock: Update` (nixpkgs to 2026-11-22, treefmt-nix), `install-nix-action` v31.11.5 (released
+  2026-11-11, past the age gate). Its `nix flake check` passed at the lock, actionlint and treefmt at
+  the head; CI runs on the push.
