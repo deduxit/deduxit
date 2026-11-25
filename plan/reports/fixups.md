@@ -2086,3 +2086,162 @@ measured. Four findings, all fixed in `lxyxzllr`:
   entries of the connection prover and of grounding, both new in 0.8.0.
 - `nix flake check` under the machine lock at the report's commit
   (`uorkokwz`): every check passed. Only this line changed after.
+
+## Session fixup-27: every dependency updated
+
+Opus 5.5 at `high`, in the workspace `../deduxit-wt-step-fixup-27-9c5358`
+(cores 10 to 15), from the brief `/tmp/linlog-handoff/start-fixup-27.md`
+and the `update-deps` skill, in deduxit, rocq-deduxit
+(`../rocq-deduxit-fixup27`) and the client (`../deduxit.github.io-fixup27`).
+I pushed nothing; the planning session pushed rocq-deduxit and deduxit
+as each was ready.
+
+### What landed
+
+rocq-deduxit, on `zxknsvsx` (0.8.0), pushed as `main` at `uytplsqq`
+(`20b1a20f`):
+- `unszlzrl` keeps shfmt's two-space indent and `-s` explicitly. The new
+  treefmt-nix made tabs and no `-s` shfmt's defaults (its `shfmt.nix`
+  between `0d6d739a` and `b7b56d3c`), which failed `treefmt` on
+  `scripts/opam-install.sh`; the settings are the old defaults written
+  out, valid on either lock.
+- `xlmlqsws` "flake.lock: Update": nixpkgs 2026-11-06 -> 2026-11-22
+  (`4fe25e12` -> `619c39f6`), treefmt-nix 2026-10-13 -> 2026-11-25.
+  NanoYalla (`6b1c25ff`) and Yalla (`a1384376`) are their upstream heads
+  already. Rocq stays 9.1.1 (the package `rocq9.1-deduxit-0.8.0`).
+- `uytplsqq` cachix/install-nix-action v31.11.3 -> v31.11.5.
+
+deduxit, on `tmosnvps`, pushed as `main` at `urzxlzqy` (`a5118a71`) after
+the full check on GitHub's runners (run 45721959978):
+- `mvkktoxo` "Cargo update": anyhow 1.0.104 -> 1.0.105, clap and
+  clap_builder 4.6.7 -> 4.6.10, clap_derive 4.6.7 -> 4.6.9, clap_lex
+  1.1.1 -> 1.1.2, ctrlc 3.5.2 -> 3.5.3 (taking nix 0.31.3 -> 0.32.0),
+  cc 1.11.2 -> 1.11.3, crc32fast 1.5.5 -> 1.5.6, hashbrown 0.17.1 ->
+  0.17.2, pin-project-lite 0.2.17 -> 0.2.18, smallvec 1.16.5 -> 1.16.6,
+  walkdir 2.5.0 -> 2.5.1, zlib-rs 0.6.8 -> 0.6.9. The direct
+  dependencies among them are anyhow and clap (the command's and the
+  harness's) and ctrlc (the command's); the core crate's moved none.
+  Every version builds on 1.92 (cargo locked "to highest Rust 1.92
+  compatible versions"); `cargo deny check advisories`: ok.
+- `xklllltq` keeps shfmt's settings explicitly, as in rocq-deduxit,
+  before the lock that needs it.
+- `swmolmkm` "flake.lock: Update": crane 2026-11-04 -> 2026-11-18,
+  nixpkgs 2026-11-12 -> 2026-11-22 (`2074cc67` -> `619c39f6`),
+  rocq-deduxit `e3eecb30` -> `20b1a20f`, rust-overlay 2026-11-14 ->
+  2026-11-25, treefmt-nix 2026-10-13 -> 2026-11-25.
+- `xrsvquvl` the fuzz nightly 2026-11-13 -> 2026-11-25 (rustc
+  1.102.0-nightly `739adecd4`).
+- `xwxzvokq` the fuzz workspace's Cargo update: cc 1.11.2 -> 1.11.3;
+  `cargo check --bins` on the nightly passed, its advisories ok.
+- `urzxlzqy` cachix/install-nix-action v31.11.3 -> v31.11.5 in all seven
+  workflows.
+
+rustc is 1.100.0 before and after: rust-overlay's `stable` is still
+1.100.0. wasm-bindgen 0.2.130 is the newest release and the
+newest `wasm-bindgen-cli_0_2_130` of the new nixpkgs, so its exact pins
+stay. Kani 0.68.0 is its latest release, with CBMC 6.11.0 as nixpkgs has
+it. `cargo-fuzz` is nixpkgs' 0.13.2.
+
+### Verified
+
+- rocq-deduxit: `nix flake check` at `xlmlqsws` (with the shfmt settings
+  under it) passed: the library and its tests on Rocq 9.0 to 9.3, the
+  bridges, treefmt, conventions, typos, deadnix, actionlint. `actionlint`
+  and `treefmt` again at `uytplsqq`.
+- deduxit: the gate passed at the Cargo update and again at the flake
+  update (both on cores 10 to 15). At the flake update (with the fuzz and
+  actions edits in the tree), 22 flake checks built clean under the lock:
+  clippy-core, test-core, doc, wasm, msrv, web-package, web-wasm-tests,
+  web-core-wasm32, web-bindgen, budget, features, ratchet, treefmt,
+  actionlint, deny, shear, rocq, rocq-deduxit, rocq-deduxit-library,
+  export, check-certificate, manual. The full check ran on GitHub's
+  runners at `urzxlzqy` and passed.
+- The ratchet: no journey over its ceiling before or after either bump.
+  Its cache model notes misses moved by more than 5 % and 10 000 on
+  search-chain-128 and check-qbf-20-2 in both gates, the Cargo update's
+  as well as the flake update's, so neither bump moved them; the note is
+  not a failure, and nothing was timed for it.
+
+### Held back
+
+- **resvg** 0.47 (0.50 out): krilla-svg 0.8.1, the newest, still uses
+  usvg 0.47, and the PDF path hands resvg's tree to it.
+- **skrifa** 0.42.1 (0.50 out): the core crate's dev-dependency that
+  `every_table_is_its_font_s` reads the font files with, kept at the
+  version krilla 0.8.2 locks (`core-export.md`).
+- **minicov** 0.3.8 (0.3.9 out): wasm-bindgen-test 0.3.80 pins it with
+  `=0.3.8`, and moves with wasm-bindgen's pin.
+- No other major release is open: none of the engines' crates moved, so
+  no target set was needed.
+- **cachix/install-nix-action v32** (2026-11-20) and v32.1.0
+  (2026-11-23) are younger than the fourteen days; v31.11.5
+  (2026-11-11) is the newest past them. Every other action is at its
+  latest release.
+
+### The client
+
+On `uxtxusrn` (the stack spec's record), not pushed by me:
+- `uspuuuyq` the npm dependencies, each at its newest release at least
+  fourteen days old (cut-off 2026-11-11 23:10 UTC): astro 7.4.4 ->
+  7.4.11, @astrojs/solid-js 7.1.2 -> 7.1.5, solid-js 1.9.18 -> 1.9.19,
+  lucide-solid 1.66.0 -> 1.72.0, tailwindcss and @tailwindcss/vite
+  4.3.3 -> 4.3.5, vitest 5.0.5 -> 5.1.0, then `npm update` for the
+  packages under them and `npm dedupe`. Without the dedupe `npm update`
+  raised @axe-core/playwright's peer `playwright-core` (`>= 1.0.0`) to
+  1.65.0 beside @playwright/test's 1.64.1, and `typecheck` failed on two
+  `Page` types (`tests/accessibility.spec.ts:135`); deduped, one
+  playwright-core 1.64.1 remains, as before (363 -> 358 packages).
+- `rmzrxzrn` cachix/install-nix-action v31.11.3 -> v31.11.5.
+- `tnvosplw` shfmt's settings written out, as in the other two
+  repositories (the client follows deduxit's treefmt-nix).
+- `nix flake check` passed at `rmzrxzrn` (the npm and actions changes
+  together, on the client's current lock); `treefmt` at `tnvosplw`.
+
+Held in the client:
+- **The flake update** (deduxit `c3d80cfa` -> `a5118a71`, and with it
+  nixpkgs 2026-11-12 -> 2026-11-22): every check passes but `unit`
+  (`nix flake check --keep-going`), whose test "offers the forms deduxit
+  lists" (`src/lib/clausal.test.ts`) fails: deduxit's `about` now lists
+  the five first-order normal forms (prenex, miniscope, skolem,
+  herbrand, clausal; `yptmxuux`, `pvqsnwxz`, step 77) and the page's
+  `FORMS` (`src/lib/clausal.ts`) the five propositional ones. Offering
+  them is new page behaviour with its own words, and step 77's prompt
+  makes the page's side step 79's, so it waits for 79a or the author;
+  the lock was backed out (`jj restore flake.lock`). The lock that
+  passes is one `nix flake update` away once `FORMS` has them.
+- **Dropping the Biome override** (`modules/biome.nix`) waits with that
+  lock: Biome 2.6.8 of the new nixpkgs is on cache.nixos.org
+  (`nix path-info --store https://cache.nixos.org
+  /nix/store/5f5f2yvryd768jc4pp2qpvbffyw26gw7-biome-2.6.8` prints it).
+  The test the module and `.claude/rules/flake.md` give, `nix path-info
+  --store https://cache.nixos.org --inputs-from . nixpkgs#biome`, does
+  not answer that question: it tries to copy the derivation to the
+  binary cache and failed with HTTP 404 although the output is there. The command to write there is the store path's lookup above
+  (`nix eval --raw --inputs-from . nixpkgs#biome.outPath` gives it).
+- **@playwright/test** stays 1.64.1: the new nixpkgs' `playwright-driver`
+  is still 1.64.1. **@types/node** stays 24.19.2 (24.19.3 and 24.19.4 are
+  from 2026-11-25), **typescript** 6.0.3 (6.x's newest), **fast-check**
+  4.10.2 (4.10.3 is from 2026-11-18), **@axe-core/playwright** 4.14.0
+  (4.14.1 from 2026-11-24); the fontsource packages, @astrojs/check and
+  yaml are at their newest.
+- **Solid 2.0** (the stack spec's §3.4 check): condition 1 fails,
+  `solid-js`'s `latest` is 2.0.4, a stable 2.x, but from 2026-11-25
+  (2.0.0 from 2026-11-17), under fourteen days; condition 2 fails,
+  @astrojs/solid-js 7.1.6 (its `latest`) peers `solid-js ^1.9.13`. No
+  port. No package moved past a version line of §2 (Astro 7.x,
+  Tailwind 4.3, TypeScript 6, Vitest 5, Biome 2, npm 11.19.1, Node.js
+  24.22.2), and `.npmrc` is as §3.8 has it.
+- The client's `flake.nix` says its followed inputs are "all of them
+  past the fourteen days an update waits"; deduxit's lock takes
+  treefmt-nix and rust-overlay at their newest (2026-11-25), and neither
+  repository's skill gates flake inputs by age. A question for the
+  author: either the comment goes or deduxit's update holds those
+  inputs back too.
+
+### For the author
+
+- The client's flake update and the Biome override's removal wait for
+  the page to offer the first-order normal forms (step 79).
+- The client's chain (`uspuuuyq`, `rmzrxzrn`, `tnvosplw` on
+  `uxtxusrn`) was handed to the planning session to push.
+- The fourteen days and the flake inputs, above.
