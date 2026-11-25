@@ -8369,3 +8369,9 @@ move (D26).
   review frees the slot, and a fixup a review finds starts when its brief is ready. Still waiting
   for the author's own word: the planning re-survey of `later.md`, opam, the baseline night, the
   tags, and the client's `main`, which moves only when the author approves the built page.
+- 2026-11-25, about 23:40: **fixup-27 started** (`local_2063af4c`, Opus 5.5 at high, cores 10 to 15,
+  brief `/tmp/linlog-handoff/start-fixup-27.md`): every dependency of deduxit, rocq-deduxit and the
+  client by `update-deps`, at the author's request ("a comprehensive dependency update"). The
+  planning session pushes rocq-deduxit and deduxit as each is ready, deduxit after `push-ci`. **The
+  client's dependency updates go to its `main` when verified** (the author: "Push them when ready"),
+  the one exception to the freeze; step 79's chain is rebased onto them when it lands.
