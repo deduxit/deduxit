@@ -108,7 +108,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 76 | Countermodels at first order: finite models of classical logic found through the SAT engine (MACE's method) and finite Kripke models with growing domains for intuitionistic and minimal logic, each checked against the sequent, drawn, and certified by lemmas of the Rocq library; "not valid" where a finite model shows it, "unknown" where none is found within the bound (two to three sessions) | `76-first-order-countermodels.md` (written at the review of 75) | Opus 5.5 (Fable 5.2 at `high` for the Rocq lemma only if Opus visibly falls short); the panel's argument on Fable 5.2 | high, with the panel | 55, 75 |
 | 77 | Transformations at first order, each checked: prenex form and its inverse (miniscoping), Skolemization and Herbrandization (equisatisfiable, the certificate covering it), clausal form, Herbrand's theorem with the ground instances found by the SAT engine as a certificate, the negative translations at first order (Kuroda's and Gödel and Gentzen's, and the formula on which Glivenko's theorem fails), Craig interpolants of LK and LJ at first order; in the command, the library and on the page, every step shown (two to three sessions) | `77-first-order-transformations.md` (written 2026-11-22, beside 76) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 63t, 70, 74, 75 (76b for Glivenko's failure only) |
 | 78 | Equality and first-order resolution: `=` as axioms in the image first, and a native rule only where measurement asks for it (more-logics-1); resolution with unification step by step, factoring and a refutation checker at teaching scale (resolution-2); TPTP `cnf` input and SZS status lines (resolution-4, interop-5) (three to four sessions) | `78-equality-resolution.md` (written 2026-11-22, beside 76 and 77) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 70, 75 (77a's clausal form for resolution only) |
-| 79 | First order on the page: the ordinary tab and the linear tab at first order, witnesses and eigenvariables chosen as the linear page chooses them, countermodels drawn, the transformations shown, Learn's and Practice's lessons on quantifiers (two to three sessions, in the client) | `79-first-order-page.md` (written at the review of 78) | Opus 5.5; a fresh-context reviewer per client session | high | 63, 76, 77 |
+| 79 | The page rebuilt to the author's redesign (`design/redesign.md` in the client), first order on it: the frame, proving by hand, first order, the other views, export, packs and settings (five sessions, 79a to 79e, in the client; 79c adds a bindings call); Learn and Practice wait for a later step | `79-page-redesign.md` (written 2026-11-25 from the settled redesign) | Opus 5.5; `fresh-reviewer` per session | high | 63, 76, 77, the redesign |
 | 80 | The release of 0.8.0 (one session) | `80-release-0.8.0.md` (written 2026-11-23, at the review of 78) | Opus 5.5 | high | 74, 75, 76, 77, 78 (79 after 0.8.0: the author holds the website) |
 
 A step has a whole number, one prompt file named after it, one report
@@ -8352,3 +8352,13 @@ move (D26).
   the author's request: session `web-redesign` (`local_580488fc`, Fable 5.2 at high, started on
   Opus and switched before its brief), in the client's workspace `wt-redesign-291b11` on
   `main@origin`, brief `plan/web/redesign-brief.md`; the author leads it.
+- 2026-11-25: **The redesign is settled** (session `web-redesign`, `local_580488fc`, Fable 5.2):
+  `design/redesign.md`, the guide of 807 lines with 28 boards on one canvas, and its working notes,
+  on the client's change `ottzpzmk` in `wt-redesign-291b11`, unpushed (87 commits, unsigned until
+  the key is unlocked). Three wishes of the author's from it went to `later.md`: a call that lists
+  every candidate rule with why it is refused (legal steps only), untyped lambda calculi as a
+  second axis, and System F as a maybe beside them. **Step 79's prompt** written at the author's
+  request, `plan/79-page-redesign.md`: five sessions on the redesign's chain, the site unchanged
+  until the author approves the built page; it drops the guide's line that a split says whether
+  its premises can close (the author's narrowing). No session started: the author's go is still
+  awaited.
