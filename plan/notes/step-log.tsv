@@ -136,3 +136,4 @@ fixup-25	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-22 22:55	20
 fixup-26	small	opus-5-5	high	reviewer (fable)	local_f223ef15	2026-11-23 00:10	2026-11-23 05:05	connection setup within its bounds
 80	step	-	-	-	-	-	2026-11-23 09:20	complete: 0.8.0 tagged, first-order ordinary logic
 web-redesign	design	fable-5-2	high	-	local_580488fc	2026-11-24 11:26		the web page redesigned from scratch, led by the author (plan/web/redesign-brief.md)
+79a	client	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-25 23:17		the page's new frame: the scale, the frame, window sizes, keys, the new tab view, restore; LK and linear views moved in
