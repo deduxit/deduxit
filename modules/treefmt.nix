@@ -30,7 +30,13 @@
           # Configured by taplo.toml, which `taplo fmt' reads as well.
           taplo.enable = true;
 
-          shfmt.enable = true;
+          # The scripts' style, two spaces and `-s'; treefmt-nix's defaults
+          # are tabs and no `-s'.
+          shfmt = {
+            enable = true;
+            indent_size = 2;
+            simplify = true;
+          };
           shellcheck.enable = true;
 
           ruff-format.enable = true;
