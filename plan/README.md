@@ -8362,3 +8362,10 @@ move (D26).
   until the author approves the built page; it drops the guide's line that a split says whether
   its premises can close (the author's narrowing). No session started: the author's go is still
   awaited.
+- 2026-11-25, about 23:20: **Session 79a started** (`step-79a`, `local_9dfa5c8f`, Opus 5.5 at high,
+  cores 4 to 9, brief `/tmp/linlog-handoff/start-79a.md`), at the author's go, on the client's
+  redesign chain (`ottzpzmk`). **The author's standing go**: "You have my go to start the remaining
+  steps (including fixups) as soon as they're ready". So 79b to 79e start one after another as each
+  review frees the slot, and a fixup a review finds starts when its brief is ready. Still waiting
+  for the author's own word: the planning re-survey of `later.md`, opam, the baseline night, the
+  tags, and the client's `main`, which moves only when the author approves the built page.
