@@ -8390,3 +8390,11 @@ move (D26).
   `flake.lock: Update` (nixpkgs to 2026-11-22, treefmt-nix), `install-nix-action` v31.11.5 (released
   2026-11-11, past the age gate). Its `nix flake check` passed at the lock, actionlint and treefmt at
   the head; CI runs on the push.
+- 2026-11-26, about 00:50: **The author hands over unattended** ("continue as planned; consider
+  yourself unattended"). **fixup-27's deduxit part pushed**: `main@origin` is `urzxlzqy` (a5118a71)
+  after the full check on GitHub passed (run 45721959978): `Cargo update` (28 crates within their
+  majors), shfmt's settings written out, `flake.lock: Update` (crane, nixpkgs to 2026-11-22,
+  rust-overlay, treefmt-nix, rocq-deduxit at `uytplsqq`; rustc stays 1.100.0), the fuzz nightly
+  2026-11-25 and its lock, `install-nix-action` v31.11.5. No major release taken: `resvg` 0.50 waits
+  for `krilla-svg`, `skrifa` 0.50 for `krilla`, `minicov` is `wasm-bindgen-test`'s exact pin.
+  79a nudged to commit in units (72 files uncommitted after 80 minutes).
