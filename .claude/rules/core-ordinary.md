@@ -2101,6 +2101,22 @@ factored out of the two until the kernel crate is.
   - `undo` keeps the nodes a step built, as for an instance (the arena
     only grows), so the document after an `apply` and an `undo` may hold
     more formulas than before it; the state is the same otherwise.
+- **Every candidate rule with its status** (`Interactive::candidates`;
+  `Candidate`, `Status`): the axiom first, which acts on any formula,
+  then `Rule::ALL` filtered by `shape` (so a rule the logic lacks, `WR`
+  in LJ, is no candidate, as `rules` never offers it), each judged with
+  the default input (a shared context, a witness left open): `expand`
+  alone for a propositional step, `apply` and `undo` on one clone for a
+  quantifier step and for the axiom once witnesses exist, since those
+  build instances or bind. A binary rule or `∀L`/`∃R` that passes is
+  `NeedsInput`. `candidates_agree_with_apply` holds each status to
+  `apply` and every rule `rules` offers to a candidate not refused.
+- **A refusal's fields** (`WitnessFault`, at the root and shared with
+  the linear session; `BindingFault`): the `Display` keeps the sentence
+  the refusal had, and the JSON's `details` hold the fault flattened
+  under `"fault"`. `bound_met` turns an error of building from the
+  proof's own arena into its `Refusal`: every id is the arena's and
+  every witness closed by then, so no other error is reachable.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.

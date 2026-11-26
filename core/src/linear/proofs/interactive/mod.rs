@@ -509,6 +509,44 @@ pub struct Applicable {
     pub needs: Needs,
 }
 
+/// A rule that acts on a formula of a goal, and whether a step of it is
+/// legal on the goal as it stands, as [`Interactive::candidates`] lists
+/// them.
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Candidate {
+    /// The rule, named as the session records it.
+    pub rule: Named,
+    /// Whether a step of it is legal.
+    pub status: Status,
+}
+
+/// Whether a step of a candidate rule is legal on the goal as it stands.
+/// Whether the goals it opens can be closed is not judged.
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Status {
+    /// The step applies as it is.
+    Applies,
+    /// The step takes input the caller chooses, and some choice is legal:
+    /// a split for `⊗` and Mix, a witness (or none, to leave it open) for
+    /// `∃R` and `∀L`.
+    #[non_exhaustive]
+    NeedsInput {
+        /// What it takes.
+        needs: Needs,
+    },
+    /// No step of the rule is legal. The refusal is
+    /// [`apply`](Interactive::apply)'s, of the step without input: for
+    /// `⊗` and Mix every other formula going to the right premise, for a
+    /// witness one left open.
+    Refused(StepError),
+}
+
 /// What [`Interactive::close`] did: the search's outcome, and whether the
 /// derivation of the proof it found was grafted onto the goal.
 ///
@@ -1949,5 +1987,131 @@ mod tests {
                 .all(|(_, c)| c.as_ref().is_ok_and(|c| c.grafted.is_ok()))
         );
         assert!(s.is_complete());
+    }
+
+    /// Every candidate's status is what `apply` says of its step, and a
+    /// rule that takes a split is refused only where no split is allowed:
+    /// on generated sequents of every mode and a few with quantifiers,
+    /// each goal of a random walk, every split of a goal of at most nine
+    /// formulas tried.
+    #[test]
+    fn candidates_agree_with_apply() {
+        use crate::linear::search::generate::{self, IllRules, Rng, Rules};
+        let limits = Limits::default();
+        let mut cases: Vec<(String, Mode)> = vec![
+            ("forall x. p(x) |- exists y. p(y)".into(), Mode::CLASSICAL),
+            (
+                "p(a), q(b) |- exists x. p(x) * q(x)".into(),
+                Mode::CLASSICAL,
+            ),
+            (
+                "forall x. p(x) |- forall y. p(y)".into(),
+                Mode::INTUITIONISTIC,
+            ),
+            ("a, b, c |- d".into(), Mode::CLASSICAL.with_mix()),
+            ("a |- a".into(), Mode::CLASSICAL.with_mix().with_affine()),
+        ];
+        for (i, rules) in Rules::ALL.into_iter().enumerate() {
+            let mut rng = Rng::new(8100 + i as u64);
+            for mode in [Mode::CLASSICAL, Mode::CLASSICAL.with_affine()] {
+                let mode = if rules.mix { mode.with_mix() } else { mode };
+                let budget = 2 + rng.below(8);
+                let provable = generate::provable(&mut rng, rules, 3, budget);
+                cases.push((generate::sequent(&provable.formulas), mode));
+            }
+        }
+        for (i, rules) in IllRules::ALL.into_iter().enumerate() {
+            let mut rng = Rng::new(8200 + i as u64);
+            for mode in [Mode::INTUITIONISTIC, Mode::INTUITIONISTIC.with_affine()] {
+                let budget = 2 + rng.below(8);
+                let ill = generate::ill(&mut rng, rules, 3, budget);
+                cases.push((generate::two_sided(&ill.hypotheses, &ill.goal), mode));
+            }
+        }
+        let mut rng = Rng::new(8300);
+        for k in 0..24 {
+            let budget = 2 + rng.below(6);
+            let (hypotheses, goal) = generate::lambek(&mut rng, 3, budget, k % 2 == 1);
+            let text = generate::lambek_text(&hypotheses, &goal);
+            let lambek = match k % 3 {
+                0 => Mode::LAMBEK,
+                1 => Mode::LAMBEK.with_empty_antecedents(),
+                _ => Mode::CYCLIC,
+            };
+            cases.push((text, lambek));
+        }
+        // Every split of a goal of `len` formulas, the formula at
+        // `position` aside.
+        let splits = |len: usize, position: usize| {
+            let others: Vec<usize> = (0..len).filter(|&p| p != position).collect();
+            (0..1usize << others.len()).map(move |mask| {
+                (others.iter().enumerate())
+                    .filter(|&(bit, _)| mask >> bit & 1 == 1)
+                    .map(|(_, &p)| p)
+                    .collect::<Vec<usize>>()
+            })
+        };
+        let (mut judged, mut refused_splits) = (0, 0);
+        for (text, mode) in cases {
+            let sequent = Sequent::parse_ordered(&text, mode.order(), &limits)
+                .unwrap_or_else(|e| panic!("{text:?}: {e}"));
+            let Ok(mut state) = Interactive::new(&sequent, mode) else {
+                continue;
+            };
+            for _ in 0..10 {
+                let goals: Vec<GoalId> = state.goals().collect();
+                if goals.is_empty() {
+                    break;
+                }
+                let goal = goals[rng.below(goals.len())];
+                let len = state.goal(goal).unwrap().len();
+                let mut legal = Vec::new();
+                for position in 0..len {
+                    for Candidate { rule, status } in state.candidates(goal, position).unwrap() {
+                        judged += 1;
+                        let plain = Step::new(position, rule);
+                        let tried = |step: &Step| state.clone().apply(goal, step);
+                        match status {
+                            Status::Applies
+                            | Status::NeedsInput {
+                                needs: Needs::Witness,
+                            } => {
+                                tried(&plain).unwrap_or_else(|e| panic!("{rule} in {text}: {e}"));
+                                legal.push(plain);
+                            }
+                            Status::NeedsInput {
+                                needs: Needs::Split,
+                            } if len <= 9 => {
+                                let left = splits(len, position)
+                                    .find(|left| tried(&plain.clone().left(left)).is_ok())
+                                    .unwrap_or_else(|| panic!("no split of {rule} in {text}"));
+                                legal.push(plain.left(&left));
+                            }
+                            Status::NeedsInput { .. } => {}
+                            Status::Refused(error) => {
+                                assert_eq!(tried(&plain).unwrap_err(), error, "{rule} in {text}");
+                                if matches!(rule.rule, Rule::Tensor | Rule::Mix) && len <= 9 {
+                                    refused_splits += 1;
+                                    assert!(
+                                        splits(len, position)
+                                            .all(|left| tried(&plain.clone().left(&left)).is_err()),
+                                        "a split of {rule} in {text} is allowed"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                if legal.is_empty() {
+                    break;
+                }
+                let step = &legal[rng.below(legal.len())];
+                state.apply(goal, step).unwrap();
+            }
+        }
+        assert!(
+            judged > 1_000 && refused_splits > 20,
+            "{judged} {refused_splits}"
+        );
     }
 }

@@ -4,7 +4,9 @@
 //! The steps of a session: the rules a formula admits, a rule applied and
 //! expanded into its premises, undo, and a goal closed by the search.
 
-use super::{Applicable, Closed, GoalId, Interactive, Needs, Step, StepError, Witness};
+use super::{
+    Applicable, Candidate, Closed, GoalId, Interactive, Needs, Status, Step, StepError, Witness,
+};
 use crate::errors::describe::{Names, cut};
 use crate::limits::{Limits, Progress};
 use crate::linear::occurrences::instances::{Framing, eigen_names};
@@ -103,6 +105,130 @@ impl Interactive {
                 },
             })
             .collect())
+    }
+
+    /// Returns every rule that acts on the formula at `position` of the
+    /// open goal, as [`rules`](Self::rules) lists them, each with whether a
+    /// step of it is legal on the goal as it stands: it applies, it takes
+    /// a split or a witness and some choice is legal, or it is refused
+    /// with [`apply`](Self::apply)'s reason.
+    ///
+    /// Each rule costs at most one `apply`, and less without quantifiers,
+    /// where the checks run without a step. A rule that takes a split is
+    /// judged by one split the goal allows, found in time linear in the
+    /// goal; one that takes a witness by its witness left open. The
+    /// session does not change.
+    ///
+    /// # Errors
+    ///
+    /// As [`rules`](Self::rules): [`StepError::NoGoal`] for a goal that is
+    /// not open, and [`StepError::NoFormula`] for a position outside its
+    /// sequent.
+    pub fn candidates(&self, goal: GoalId, position: usize) -> Result<Vec<Candidate>, StepError> {
+        let rules = self.rules(goal, position)?;
+        let sequent = self.open(goal)?;
+        let reading = self.reading();
+        // A step at first order makes table entries, so it is taken on a
+        // copy and taken back.
+        let mut trial: Option<Self> = None;
+        let mut candidates = Vec::with_capacity(rules.len());
+        for Applicable { rule, needs } in rules {
+            let step = match needs {
+                Needs::Split => self.allowed_split(reading.as_ref(), &sequent, position, rule),
+                Needs::Nothing | Needs::Witness => Step::new(position, rule),
+            };
+            let judged = if self.fo.is_some() {
+                let trial = trial.get_or_insert_with(|| self.clone());
+                trial.apply(goal, &step).map(|_| {
+                    trial.undo();
+                })
+            } else {
+                step.left_positions(sequent.len()).and_then(|left| {
+                    self.expand(reading.as_ref(), &sequent, position, rule, &left)
+                        .map(drop)
+                })
+            };
+            let status = match (judged, needs) {
+                (Ok(()), Needs::Nothing) => Status::Applies,
+                (Ok(()), needs) => Status::NeedsInput { needs },
+                (Err(error), _) => Status::Refused(error),
+            };
+            candidates.push(Candidate { rule, status });
+        }
+        Ok(candidates)
+    }
+
+    /// Returns a step of `rule`, a `⊗` or Mix on the formula at `position`
+    /// of `sequent`, whose split the goal allows where there is one, else
+    /// the step that sends every other formula to the right premise.
+    ///
+    /// Only the two arcs round from the formula are tried, the left
+    /// premise's last: in an ordered mode they are the only splits, and in
+    /// a commutative one some arc is allowed whenever some split is, since
+    /// what a split must meet (one formula right of `⊢` in each premise, a
+    /// formula left of it in the Lambek calculus without empty
+    /// antecedents, a right premise that is not empty for Mix) counts the
+    /// formulas of each kind on each side, and an arc can put the one
+    /// formula right of `⊢` on either side. The counts are prefix sums, so
+    /// the search is linear in the goal.
+    fn allowed_split(
+        &self,
+        reading: Option<&Reading>,
+        sequent: &[OccId],
+        position: usize,
+        rule: Named,
+    ) -> Step {
+        let f = &self.forest;
+        let o = sequent[position];
+        let round: Vec<usize> = (position + 1..sequent.len()).chain(0..position).collect();
+        let output = |x: OccId| reading.is_some_and(|r| r.position(x) == Side::Output);
+        // What the principal formula adds to each premise: its operands
+        // for `⊗`, itself to the left one for Mix.
+        let (left_own, right_own) = if rule.rule == Rule::Mix {
+            (vec![o], vec![])
+        } else {
+            let operands = (f.left(o), f.right(o));
+            (
+                operands.0.into_iter().collect(),
+                operands.1.into_iter().collect(),
+            )
+        };
+        let count = |list: &[OccId]| {
+            let outputs = list.iter().filter(|&&x| output(x)).count();
+            (outputs, list.len() - outputs)
+        };
+        let (left_out, left_in) = count(&left_own);
+        let (right_out, right_in) = count(&right_own);
+        let outputs: Vec<bool> = round.iter().map(|&p| output(sequent[p])).collect();
+        let total_out = outputs.iter().filter(|&&b| b).count();
+        let total_in = outputs.len() - total_out;
+        let empty_allowed = self.mode.allows_empty_antecedents();
+        // Cut point `k`: the first `k` formulas round go right, the rest
+        // left; `k` = all of them is the step without a split.
+        let mut prefix_out = 0;
+        let mut allowed = None;
+        for k in 0..=round.len() {
+            if k > 0 && outputs[k - 1] {
+                prefix_out += 1;
+            }
+            let prefix_in = k - prefix_out;
+            let (l_out, l_in) = (
+                total_out - prefix_out + left_out,
+                total_in - prefix_in + left_in,
+            );
+            let (r_out, r_in) = (prefix_out + right_out, prefix_in + right_in);
+            let fits = (rule.rule != Rule::Mix || r_out + r_in > 0)
+                && (reading.is_none()
+                    || (l_out == 1 && r_out == 1 && (empty_allowed || (l_in > 0 && r_in > 0))));
+            if fits {
+                allowed = Some(k);
+            }
+        }
+        let step = Step::new(position, rule);
+        match allowed {
+            Some(k) if k < round.len() => step.left(&round[k..]),
+            Some(_) | None => step,
+        }
     }
 
     /// Applies a step to the open goal and returns the goals it opens, in

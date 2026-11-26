@@ -567,6 +567,22 @@ code relies on:
   hypotheses first with `antecedents`, so the reading's choices are
   those of the session) and carries the proof back by the shift.
 
+- **Every candidate rule with its status** (`Interactive::candidates`,
+  `expand.rs`; `Candidate`, `Status`): the candidates are `rules`' list
+  (the formula's connective in the mode, wk only affine, Mix only with
+  Mix), each judged on the goal as it stands, never on whether its goals
+  can close (the author, 2026-11-25). Without quantifiers a rule is
+  judged by `expand` alone, which is complete for `apply` there; at first
+  order by `apply` on one clone and `undo`, since a step makes table
+  entries. `⊗` and Mix are judged by one split `allowed_split` finds,
+  the largest cut point round from the formula that meets the counts
+  (one output per premise, an input per premise in `L`, a right premise
+  for Mix); an arc reaches every count a split can, so a refused split
+  rule has no legal split at all, which
+  `candidates_agree_with_apply` checks by trying every split of a goal
+  of up to nine formulas. A refusal is `apply`'s of the step without
+  input (every other formula to the right premise, a witness open).
+
 ## First-order sessions (`quantified.rs`, `witness.rs`, `handover.rs`)
 
 - **A session of a sequent with a binder has `fo: Some(Quantified)`**,

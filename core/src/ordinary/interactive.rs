@@ -477,6 +477,43 @@ pub enum Needs {
     Witness,
 }
 
+/// A rule that acts on a formula of a goal, and whether a step of it is
+/// legal on the goal as it stands, as [`Interactive::candidates`] lists
+/// them.
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Candidate {
+    /// The rule.
+    pub rule: Rule,
+    /// Whether a step of it is legal.
+    pub status: Status,
+}
+
+/// Whether a step of a candidate rule is legal on the goal as it stands.
+/// Whether the goals it opens can be closed is not judged.
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Status {
+    /// The step applies as it is.
+    Applies,
+    /// The step takes input the caller chooses, and the default is legal:
+    /// a context for two premises (shared, or a split), a witness for
+    /// `∀L` and `∃R` (or none, to leave it open).
+    #[non_exhaustive]
+    NeedsInput {
+        /// What it takes.
+        needs: Needs,
+    },
+    /// The step is not legal. The refusal is
+    /// [`apply`](Interactive::apply)'s, of the step with the default
+    /// input: a shared context, a witness left open.
+    Refused(StepError),
+}
+
 /// What [`Interactive::close`] did: the outcome of deciding the goal, and
 /// whether its derivation, if any, was grafted onto the goal.
 ///
@@ -1166,6 +1203,74 @@ impl Interactive {
             }
         }
         Ok(rules)
+    }
+
+    /// Returns every rule of the logic that acts on the formula at
+    /// `position` of `side` of the open goal, each with whether a step of
+    /// it is legal on the goal as it stands: it applies, it takes a
+    /// context or a witness and the default is legal, or it is refused
+    /// with [`apply`](Self::apply)'s reason.
+    ///
+    /// The rules are the axiom, which acts on any formula, then those of
+    /// the formula's connective on its side and weakening and contraction,
+    /// in the order of [`Rule`]'s variants; a rule the logic does not have
+    /// (`WR` in LJ, say) is no candidate. Each costs at most one `apply`:
+    /// a quantifier step and the axiom of a proof with open witnesses are
+    /// taken on a copy and taken back, every other step is checked without
+    /// being taken. The proof does not change.
+    ///
+    /// # Errors
+    ///
+    /// As [`rules`](Self::rules): [`StepError::NoGoal`] for a goal that is
+    /// not open, and [`StepError::NoFormula`] for a position outside its
+    /// side.
+    pub fn candidates(
+        &self,
+        goal: GoalId,
+        side: Side,
+        position: usize,
+    ) -> Result<Vec<Candidate>, StepError> {
+        let x = formula_at(self.open(goal)?, side, position)?;
+        let mut rules = vec![(Rule::Axiom, Needs::Nothing)];
+        for rule in Rule::ALL {
+            if let Ok(shape) = self.shape(rule, side, position, x) {
+                let needs = match shape {
+                    Shape::Binary(_) => Needs::Context,
+                    Shape::Instance if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) => {
+                        Needs::Witness
+                    }
+                    Shape::Leaf | Shape::Unary(..) | Shape::Instance => Needs::Nothing,
+                };
+                rules.push((rule, needs));
+            }
+        }
+        // A step that builds instances or binds witnesses changes the
+        // formulas, so it is taken on a copy and taken back.
+        let mut trial: Option<Self> = None;
+        Ok(rules
+            .into_iter()
+            .map(|(rule, needs)| {
+                let step = Step::new(side, position, rule);
+                let builds = matches!(
+                    rule,
+                    Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight
+                ) || (rule == Rule::Axiom && self.witnesses.is_some());
+                let judged = if builds {
+                    let trial = trial.get_or_insert_with(|| self.clone());
+                    trial.apply(goal, &step).map(|_| {
+                        trial.undo();
+                    })
+                } else {
+                    self.expand(goal, &step).map(drop)
+                };
+                let status = match (judged, needs) {
+                    (Ok(()), Needs::Nothing) => Status::Applies,
+                    (Ok(()), needs) => Status::NeedsInput { needs },
+                    (Err(error), _) => Status::Refused(error),
+                };
+                Candidate { rule, status }
+            })
+            .collect())
     }
 
     /// Returns whether the formula `x` on `side` of the open goal `id`
@@ -4050,6 +4155,74 @@ mod tests {
                 .map(|g| g.len()),
             Ok(2)
         );
+    }
+
+    /// Every candidate's status is what `apply` says of its step with the
+    /// default input, and every rule `rules` offers is a candidate that is
+    /// not refused: on generated sequents in every logic and a few with
+    /// quantifiers, along random walks.
+    #[test]
+    fn candidates_agree_with_apply() {
+        let mut rng = Rng::new(81);
+        let mut sequents: Vec<Sequent> = [
+            "forall x. p(x) |- exists y. p(y)",
+            "p(a), forall x. (p(x) -> q(x)) |- q(a)",
+            "exists x. p(x) |- forall y. p(y)",
+        ]
+        .iter()
+        .map(|t| t.parse().unwrap())
+        .collect();
+        sequents.extend((0..40).map(|_| super::super::tests::generated_sequent(&mut rng)));
+        let mut judged = 0;
+        for sequent in &sequents {
+            for &logic in Logic::ALL {
+                let Ok(mut s) = Interactive::new(sequent, logic) else {
+                    continue;
+                };
+                for _ in 0..8 {
+                    let goals: Vec<GoalId> = s.goals().collect();
+                    if goals.is_empty() {
+                        break;
+                    }
+                    let goal = goals[rng.below(goals.len())];
+                    let (left, right) = s.goal(goal).unwrap();
+                    let places: Vec<(Side, usize)> = (0..left.len())
+                        .map(|p| (Left, p))
+                        .chain((0..right.len()).map(|p| (Right, p)))
+                        .collect();
+                    let mut legal = Vec::new();
+                    for &(side, position) in &places {
+                        let candidates = s.candidates(goal, side, position).unwrap();
+                        for offered in s.rules(goal, side, position).unwrap() {
+                            assert!(
+                                candidates.iter().any(|c| c.rule == offered.rule
+                                    && !matches!(c.status, Status::Refused(_))),
+                                "{} offered in {sequent} ({logic})",
+                                offered.rule
+                            );
+                        }
+                        for Candidate { rule, status } in candidates {
+                            judged += 1;
+                            let step = Step::new(side, position, rule);
+                            let tried = s.clone().apply(goal, &step);
+                            match status {
+                                Status::Applies | Status::NeedsInput { .. } => {
+                                    assert!(tried.is_ok(), "{rule} in {sequent} ({logic})");
+                                    legal.push(step);
+                                }
+                                Status::Refused(error) => assert_eq!(tried.unwrap_err(), error),
+                            }
+                        }
+                    }
+                    if legal.is_empty() {
+                        break;
+                    }
+                    let step = &legal[rng.below(legal.len())];
+                    s.apply(goal, step).unwrap();
+                }
+            }
+        }
+        assert!(judged > 1_000, "{judged}");
     }
 
     /// On generated sequents in every logic, random steps with random
