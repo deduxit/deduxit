@@ -1553,7 +1553,8 @@ flaky.
 
 ### Before approving the page
 
-What to look at, in the page built from the client's chain at `svusqksw`
+What to look at, in the page built from the client's chain at `ynvuuuyn`
+(fixup-28's head, on `svusqksw`)
 (`nix build` in the client's workspace `step79a`, or `dev` there):
 1. **A proof by hand and the search** (79b): the rule popover with a greyed
    rule's card, a ⊗ split's premises, the goal's menu at ⊢, Hint's ring, Close
@@ -1562,15 +1563,18 @@ What to look at, in the page built from the client's chain at `svusqksw`
    it; the countermodel view `⊭` with a dot pressed.
 3. **The views** (79d): "+ view", a translation with "Prove it in", the
    graph of views, a view out of date with Update.
-4. **Export** (79e): each entry's settings and text, Copy and Save, and a
-   phone's rows of entries.
+4. **Export** (79e, fixup-28): each entry's settings and text, Copy and
+   Save, a phone's rows of entries, and Export of a natural deduction proof
+   (tree and Fitch), a modal decision and a lambda-term.
 5. **A course pack**: made in Export, opened from its link as a student, a
    problem done, the chip's count.
 6. **Settings**: Search per logic, the About rows.
 7. **Narrow windows**: a phone upright and sideways, a small tablet
-   (screenshots under `/tmp/claude-79a/` to `/tmp/claude-79e/`), and the
-   frame's faults the last walk found at medium widths and at 200 % zoom
-   (79e's "Left open"), which wait for a fixup.
+   (screenshots under `/tmp/claude-79a/` to `/tmp/claude-79e/`, and
+   fixup-28's walk at every size in `/tmp/claude-fixup-28/screens/`): the
+   bottom box narrowed beside the zoom at medium widths, the new tab view's
+   logics two by two there, a phone's zoom above a note, and the page at
+   400 % zoom scrolling up and down.
 
 Every departure of 79a to 79e, for the author's decision (each is built as
 described unless the author decides otherwise):
@@ -1598,6 +1602,9 @@ described unless the author decides otherwise):
   press target hidden from assistive technology, not a button; a view out of
   date is drawn in `soft`, not `faint`.
 - 79e: Export's entries wrap in rows in a compact window; the engine is
-  linear logic's alone, for the visit; natural deduction, modal and lambda
-  views have no Export panel of their own; a view that is not a proof
-  exports its proof.
+  linear logic's alone, for the visit; a view that is not a proof exports
+  its proof. (Natural deduction, modal and lambda views have Export's
+  entries since fixup-28.)
+- fixup-28: the new tab view's logics are two by two on a stage narrower
+  than the row of four (a medium window, and an expanded one up to about
+  876 wide), where the guide keeps the row.

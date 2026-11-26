@@ -2245,3 +2245,213 @@ Held in the client:
 - The client's chain (`uspuuuyq`, `rmzrxzrn`, `tnvosplw` on
   `uxtxusrn`) was handed to the planning session to push.
 - The fourteen days and the flake inputs, above.
+
+## Session fixup-28: the redesigned page's frame at every size, and Export for every view
+
+Opus 5.5 at `high`, 2026-11-26, from the brief
+`/tmp/linlog-handoff/start-fixup-28.md`, in the client workspace `step79a`
+(`/home/tux/Projects/own/deduxit.github.io-79a`) on the redesign's head
+`svusqksw`, and in the deduxit workspace `deduxit-wt-step-79a-…` on
+`main@origin` (this report alone), cores 4 to 9. Nothing pushed; the
+client's `main` untouched; no change to the library or the bindings.
+
+### Outcome
+
+The four faults of the frame that 79e's walk left open are gone at their
+cause, and Export writes natural deduction, a modal decision and a
+lambda-term through their own calls. A second walk at 79e's fifteen sizes,
+light and dark, found nothing: no control of the zoom group covered, no
+logic outside the stage, no sheet's close button focusable where it is not
+drawn, More uncovered, no sideways scroll.
+
+The client's commits on the redesign's chain (change ids, oldest first):
+- `lqynnsvr` Keep the bottom box and its notes clear of the zoom group;
+- `uvttxyly` Lay the new tab view's logics two by two where the stage is
+  narrower than the row of four;
+- `rwqnonxp` Keep a sheet's close button out of the tab order where no
+  sheet shows it;
+- `voytrqrn` Let a compact window under 480 high scroll its page, its rows
+  apart;
+- `woywszlv` Walk the frame at the window sizes where its regions met, in
+  the axe and target-size tests;
+- `rozvwqtl` Export natural deduction, modal decisions and lambda-terms
+  through their own calls;
+- `sskwzpwv` Describe the bottom box beside the zoom, the sheets, the short
+  compact frame and Export's views in the client's rules;
+- `okuuzlrq` End a long panel above the bottom box, and hide the zoom under
+  a phone's sheet (found by the walk);
+- `ynvuuuyn` Answer the review (the chain's head).
+
+### Each fault, its cause and its fix
+
+- **The zoom group under the bottom box** (600 to about 890 wide, and with a
+  panel open at 840 and wider). Cause: the box was centred on the stage's
+  region at up to 560 wide, whatever stood at its sides; the zoom (132
+  pixels, at the stage's lower right, 24 from the bottom like the box)
+  shared its band once the region was narrower than about 870, and a panel
+  in an expanded window narrowed the stage (moving the zoom left) while the
+  box stayed centred on the region. Fix: the box is centred where the zoom
+  leaves room and otherwise narrows and moves left, its right edge a gap
+  from the zoom (`--box-clear`, `--box-width` in `app.css`), from the zoom's
+  width, which `Stage.tsx` measures onto the stage's region
+  (`--size-zoom`, none while no zoom shows, so the new tab view's box is
+  centred as before), and from how far a panel moves the drawing aside
+  (`--size-aside`, which the stage's own `right` now takes too). The notes
+  are the box's width, so no note covers the zoom either. A short window
+  keeps the box at the lower left, as narrow as the zoom needs. At 1280 with
+  no panel the box is where it was.
+- **The zoom group under a verdict note in a compact window.** Cause: the
+  stage ends above the box, but the notes rise from the box over the
+  stage's bottom, where the zoom stood 8 from the edge. Fix: the zoom
+  stands a gap above the notes (`--size-bottom`, the notes and the box as
+  the page measures them). That lifted the popovers' sheets with it
+  (`placeOver` put a sheet above the zoom), and axe's walk of a goal's
+  reasons at a phone's width found a goal's formulas under the goal menu's
+  sheet: a sheet now keeps its old place, above where the zoom stands with
+  no note, and the zoom hides while a sheet is open.
+- **Panels over the zoom** (found by this session's walk: Export in a short
+  window, 844x390 and 640x400, and every compact sheet). Fix: a panel of a
+  medium or expanded window ends a gap above the bottom box and its notes
+  and scrolls inside (it lay to 10 from the stage's bottom before), and a
+  compact window's sheet (a panel, the list of views) hides the zoom while
+  it is open, as a popover's sheet does.
+- **The new tab view's logics wider than the stage at 600 to 840.** Cause:
+  four columns of 184 with their gaps and the view's padding need 51rem
+  (816 pixels), and a medium window's stage is 540 to 779 wide (an expanded
+  one's from 780). Fix: a container query on the stage lays them two by two
+  below 51rem, as the compact window does (departs from the design, below).
+- **The sheets' close button focusable where it is not drawn.** Cause:
+  `.sheet-close { display: none }` came before `.tool { display:
+  inline-flex }` in `app.css` with the same weight, so `.tool` won and the
+  button stood in `.panels`' flow under the toggles or a panel. Fix: the
+  rule is `.tool.sheet-close`, which outweighs it; a compact window shows
+  it as before.
+- **More covered at 640x400, rows overlapping at 320x200.** At 640x400 the
+  box and its notes reached under the tools' column; with the box clear of
+  the zoom (whose column is wider than the tools') they no longer do. At
+  320x200 (compact and short) the top row, the views' row, the box and the
+  bar need more than 200 pixels: the app now keeps 30rem of height
+  (`--size-frame-least`) in a compact window under 480 high and the page
+  scrolls up and down, never sideways (WCAG 1.4.10 allows one direction).
+
+### Export for natural deduction, modal and lambda views
+
+The panel tells the view by `kind()` and writes from `subject()`:
+- natural deduction (the ordinary suite's `natural` method, its tree view):
+  the session `Natural.tsx` keeps (`naturalSession`) through `rules_export`,
+  with `view.layout` the tree or the Fitch lines as the toggles show them;
+  SVG, PNG and PDF from that SVG, LaTeX and Typst as text. Its panel's own
+  LaTeX, Typst and SVG buttons are gone, and the file is
+  `deduxit-natural-deduction.tex` (it was `natural-deduction.tex`);
+- a modal decision: LaTeX and Typst of a valid outcome's derivation through
+  `modal_export`; the pictures through `modal_draw`, which draws the
+  derivation or, for a sequent not valid, the countermodel
+  (`deduxit-countermodel.svg`); LaTeX and Typst of a sequent not valid say
+  that only a valid one has a derivation and point to the picture;
+- a lambda-term: LaTeX and Typst of the checked term's typing through
+  `lambda_export`, the pictures through `lambda_draw`
+  (`deduxit-typing.svg`); a type with no term checked says to enter one.
+
+Text, Session and Rocq say for each of the three that deduxit writes it as
+LaTeX, Typst or a picture. The links of a modal or lambda tab hold the
+sequent or term alone, as the address bar's do (they never showed before:
+the link waited on a session these tabs have not). The Export tool and its
+key `E` are open wherever a proof has something to write (`exportable`):
+a session, a modal outcome, a lambda tab's term or type; natural
+deduction's tool was greyed before.
+
+### Decisions where the guide left a choice
+
+- **The box gives way to the zoom, not the zoom to the box**: the guide puts
+  both at the stage's bottom and says nothing of a stage too narrow for
+  both; the box keeps its height, its distance from the bottom and its
+  centre where there is room, and only its width and place change.
+- **A compact window's zoom rises above the notes**, and hides under a sheet:
+  the guide's compact layout gives the zoom no place of its own.
+- **The panel's height** stops above the box and its notes in a medium or
+  expanded window: the guide says a panel lies over the stage there, not
+  over the box.
+- **Natural deduction's Session entry is off**: the page's session file of
+  that proof would hold the sequent, not the natural deduction steps.
+
+### Departures from the design (for the author)
+
+- **The new tab view's logics are two by two on a stage narrower than 51rem**
+  (departs from the design, whose medium window keeps the expanded row of
+  four): the row is wider than a medium window's stage. An expanded window
+  up to about 876 wide lays them two by two too.
+
+### The walk at every size
+
+A Playwright script (`/tmp/claude-fixup-28/walk.mjs`), not a fresh agent: the
+page served from a fresh build, at 320x700, 360x740, 390x844, 599, 600, 700,
+839, 840 (each x900), 1024x768, 1280x800, 1440x900, 1920x1080, 844x390,
+640x400 and 320x200, light and dark, in five states each: the new tab view,
+a proof closed with its verdict, Steps open, Export's LaTeX, and a modal
+decision's Export. In each it checked every zoom button and More for the
+element at their centre, the logics against the stage, every sheet's close
+button for being focusable but not drawn, and sideways scrolling. Its first
+run found the zoom under Export in a short window (844x390, 640x400) and
+under every compact sheet (Steps, Export); fixed in `okuuzlrq`, the second
+run found nothing. Screenshots: `/tmp/claude-fixup-28/screens/` (150, the
+fifteen sizes, five states, both schemes); the runs' logs
+`/tmp/claude-fixup-28/runs/`. Held by eye against the guide at 700 (the
+logics two by two), 600 (the box narrowed beside the zoom), 844x390 (a panel
+ending above the box) and 390x844 (a modal decision's Export sheet).
+
+### Checks
+
+- `nix flake check` in the client under `flock -o /tmp/linlog-machine.lock`
+  with `--max-jobs 2 --cores 6`: "all checks passed!", exit 0, at
+  `okuuzlrq` (Vitest 733, e2e 357 passed, none flaky) and again at the
+  head `ynvuuuyn` (the same counts, none flaky).
+- Before it, on cores 4 to 9 with six workers against a fresh build: the
+  whole Playwright suite 357 passed; Vitest 733; Biome and `tsc` clean. The
+  new window-size walks and frame tests passed six times over in both
+  schemes (48 runs).
+- New tests: `tests/frame.spec.ts` (the zoom uncovered at six sizes and
+  under Steps and Export, a short window's panel, a phone's sheet hiding
+  it; the logics inside the stage at 700, 840 and 1280; the sheet's close
+  hidden in a wide window and shown in a compact one; the 320x200 page's
+  rows apart and its scrolling); `natural.spec.ts`, `modal.spec.ts`,
+  `lambda.spec.ts` (Export of each view, its text, its file, an entry
+  deduxit cannot write). `tests/states.ts`: the walk `windowSizes` (six
+  states, in the axe and target-size tests at a desktop's and a phone's
+  width) and an Export state in the natural deduction, modal and lambda
+  walks.
+- deduxit: no code change; the report alone.
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the chain `lqynnsvr` to
+`okuuzlrq` against the brief, the guide's sections, the client's rules and
+the bindings' export calls; it ran nothing. It found the box's and the
+zoom's arithmetic sound at every size it worked through, the logics, the
+close button and the reflow sound, the three calls given settings they
+read, the sequent proofs' paths unchanged, and no test weakened. Its
+findings and the answers (all in `ynvuuuyn`):
+1. *A modal outcome with neither a derivation nor a countermodel (unknown,
+   or not valid without one) was offered as a countermodel to draw, and
+   `modal_draw` refused the save.* Held: every entry then says deduxit found
+   neither, LaTeX and Typst ask for a derivation, the file is
+   `deduxit-countermodel` only when there is one. Not tested: no sequent was
+   at hand that stops on the budget in the page's search.
+2. *`started`'s doc comment sat on `exportable`.* Held; moved.
+3. *Natural deduction's picture had no test.* Held: the test saves its SVG
+   and reads the Fitch lines in it.
+4. Question: *the rules said every new view's link holds the sequent alone,
+   but natural deduction's holds the ordinary proof's session.* The
+   behaviour is the address bar's (no link holds natural deduction's
+   steps); the rules' sentence now says so.
+5. Question: *More's rows may lie over the zoom* (a short window's column
+   grown by More, a compact bar's third row). Not this chain's: More's
+   rows are open until a tool is pressed; left open below.
+
+### Left open
+
+- More's rows open over the zoom group in a short window, and a compact
+  bar wrapped to a third row, may cover it while open (the reviewer's
+  question; More closes on any tool's press). Not measured.
+- A modal outcome with nothing to draw is handled by reading, not by a test.
+- What 79e left for the author stands, with this session's departure added
+  to "Before approving the page".
