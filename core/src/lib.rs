@@ -407,6 +407,8 @@ pub mod workspace;
 #[cfg(feature = "parse")]
 pub use errors::ParseError;
 
-pub use errors::{Described, Error, ErrorKind, Owner};
+#[cfg(feature = "interactive")]
+pub use errors::WitnessFault;
+pub use errors::{Backwards, Described, Error, ErrorKind, Owner, StepFault};
 pub use limits::{Limits, Phase, Progress, Refusal};
 pub use settings::{Clock, Settings};

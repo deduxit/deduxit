@@ -9,8 +9,8 @@
 use super::calculus::{Calculus, Discipline, Entry, Find, Pattern, Rule};
 use super::derivation::{Derivation, Node, NodeId, ScopeId, Step};
 use super::terms::{Term, TermId, Terms};
-use crate::Error;
 use crate::limits::{Limits, Refusal};
+use crate::{Backwards, Error, StepFault};
 
 /// An open goal of a session, by its place in the session. Its JSON is
 /// that number.
@@ -267,9 +267,9 @@ pub struct Interactive {
 type Sequent = Vec<Vec<TermId>>;
 
 /// Returns the error for a step the calculus does not allow.
-fn refused(reason: impl Into<String>) -> Error {
+fn refused(fault: StepFault) -> Error {
     Error::StepRefused {
-        reason: reason.into(),
+        fault: Box::new(fault),
     }
 }
 
@@ -527,7 +527,7 @@ impl Interactive {
             .checked_sub(1)
             .and_then(|index| places.get(index))
         else {
-            return Err(refused(format!("there is no line {}", line.0)));
+            return Err(refused(StepFault::NoLine { line: line.0 }));
         };
         if self
             .chain(self.nodes[goal.index()].scope)
@@ -535,11 +535,10 @@ impl Interactive {
         {
             Ok(place)
         } else {
-            Err(refused(format!(
-                "line {} is not in force at goal {}: it lies in a subproof that is closed there",
-                line.0,
-                goal.index()
-            )))
+            Err(refused(StepFault::NotInForce {
+                line: line.0,
+                goal: goal.0,
+            }))
         }
     }
 
@@ -548,7 +547,7 @@ impl Interactive {
     fn open(&self, goal: GoalId) -> Result<&Goal, Error> {
         match self.nodes.get(goal.index()) {
             Some(node) if node.done == Done::Open => Ok(node),
-            _ => Err(refused(format!("there is no open goal {}", goal.index()))),
+            _ => Err(refused(StepFault::NoGoal { goal: goal.0 })),
         }
     }
 
@@ -558,19 +557,18 @@ impl Interactive {
         for (zone, members) in self.calculus.zones.iter().zip(sequent) {
             let len = members.len() as u64;
             if len < u64::from(zone.least) || zone.most.is_some_and(|m| len > u64::from(m)) {
-                return Err(refused(format!(
-                    "the zone {:?} would hold {len} members, outside what the calculus allows",
-                    zone.name
-                )));
+                return Err(refused(StepFault::ZoneSize {
+                    zone: zone.name.clone(),
+                    members: len,
+                }));
             }
             if zone.discipline == Discipline::Set {
                 let mut sorted = members.clone();
                 sorted.sort_unstable();
                 if sorted.windows(2).any(|pair| pair[0] == pair[1]) {
-                    return Err(refused(format!(
-                        "the zone {:?} is a set and would hold a member twice",
-                        zone.name
-                    )));
+                    return Err(refused(StepFault::Twice {
+                        zone: zone.name.clone(),
+                    }));
                 }
             }
         }
@@ -711,7 +709,7 @@ impl Interactive {
                 |_| false,
             )
             .map_err(|error| match error {
-                Error::InvalidDerivation { reason, .. } => refused(reason),
+                Error::InvalidDerivation { reason, .. } => refused(StepFault::Check { reason }),
                 other => other,
             })
     }
@@ -723,7 +721,7 @@ impl Interactive {
         derivation
             .check_open(&self.calculus, &self.limits, |_| false)
             .map_err(|error| match error {
-                Error::InvalidDerivation { reason, .. } => refused(reason),
+                Error::InvalidDerivation { reason, .. } => refused(StepFault::Check { reason }),
                 other => other,
             })
     }
@@ -838,7 +836,9 @@ impl Interactive {
     pub fn apply(&mut self, goal: GoalId, step: &Apply<'_>) -> Result<Vec<GoalId>, Error> {
         self.open(goal)?;
         let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(format!("the calculus has no rule {:?}", step.rule)));
+            return Err(refused(StepFault::NoRule {
+                rule: step.rule.to_owned(),
+            }));
         };
         let rule = self.calculus.rules[index as usize].clone();
         let plan = match self.plan(goal, &rule, step) {
@@ -943,22 +943,22 @@ impl Interactive {
     pub fn derive(&mut self, goal: GoalId, step: &Derive<'_>) -> Result<LineId, Error> {
         let scope = self.open(goal)?.scope;
         let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(format!("the calculus has no rule {:?}", step.rule)));
+            return Err(refused(StepFault::NoRule {
+                rule: step.rule.to_owned(),
+            }));
         };
         let rule = self.calculus.rules[index as usize].clone();
         if rule.premises.iter().any(|p| !p.discharges.is_empty()) {
-            return Err(refused(format!(
-                "{} discharges hypotheses: apply it backwards to a goal, which opens its subproof",
-                step.rule
-            )));
+            return Err(refused(StepFault::Discharges {
+                rule: step.rule.to_owned(),
+            }));
         }
         if step.lines.len() != rule.premises.len() {
-            return Err(refused(format!(
-                "{} has {} premises, and the step cites {} lines",
-                step.rule,
-                rule.premises.len(),
-                step.lines.len()
-            )));
+            return Err(refused(StepFault::Cited {
+                rule: step.rule.to_owned(),
+                premises: rule.premises.len(),
+                lines: step.lines.len(),
+            }));
         }
         let places = step
             .lines
@@ -1047,26 +1047,27 @@ impl Interactive {
     pub fn extend(&mut self, goal: GoalId, step: &Apply<'_>) -> Result<GoalId, Error> {
         let before = self.open(goal)?.sequent.clone();
         let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(format!("the calculus has no rule {:?}", step.rule)));
+            return Err(refused(StepFault::NoRule {
+                rule: step.rule.to_owned(),
+            }));
         };
         let rule = self.calculus.rules[index as usize].clone();
-        let backwards = |why: &str| {
-            Err(refused(format!(
-                "{} {why}: apply it backwards to the goal",
-                step.rule
-            )))
+        let backwards = |why: Backwards| {
+            Err(refused(StepFault::Backwards {
+                rule: step.rule.to_owned(),
+                why,
+            }))
         };
         match rule.premises.as_slice() {
-            [] => return backwards("has no premise, so it closes a goal"),
+            [] => return backwards(Backwards::Closes),
             [premise] if !premise.discharges.is_empty() => {
-                return backwards("discharges hypotheses");
+                return backwards(Backwards::Discharges);
             }
             [_] => {}
             premises => {
-                return backwards(&format!(
-                    "has {} premises, and a forward step keeps one goal",
-                    premises.len()
-                ));
+                return backwards(Backwards::Premises {
+                    premises: premises.len(),
+                });
             }
         }
         // A zone by the mark around it, `after ⊢` and `before ⊢`, else
@@ -1090,11 +1091,10 @@ impl Interactive {
                 .iter()
                 .any(|entry| matches!(entry, Entry::Item(_)))
         }) {
-            return backwards(&format!(
-                "acts on members {}, and a forward step acts on members {} alone",
-                zone(z),
-                zone(0)
-            ));
+            return backwards(Backwards::ActsOn {
+                zone: zone(z),
+                first: zone(0),
+            });
         }
         let plan = match self.plan(goal, &rule, step) {
             Ok(plan) => plan,
@@ -1114,26 +1114,26 @@ impl Interactive {
                 }
                 if at == new.len() || new[at] != *member {
                     let shown = self.calculus.show(&self.terms, *member);
-                    return backwards(&format!("drops {shown} from the goal"));
+                    return backwards(Backwards::Drops {
+                        member: shown.to_string(),
+                    });
                 }
                 at += 1;
             }
             if new.len() > old.len() {
                 if z > 0 {
-                    return backwards(&format!(
-                        "adds members {}, and a forward step adds them only {}",
-                        zone(z),
-                        zone(0)
-                    ));
+                    return backwards(Backwards::Adds {
+                        zone: zone(z),
+                        first: zone(0),
+                    });
                 }
                 gained = true;
             }
         }
         if !gained {
-            return Err(refused(format!(
-                "{} derives nothing the goal does not hold already",
-                step.rule
-            )));
+            return Err(refused(StepFault::NothingNew {
+                rule: step.rule.to_owned(),
+            }));
         }
         let opened = self.commit(goal, step.rule, plan)?;
         Ok(opened[0])
@@ -1156,22 +1156,20 @@ impl Interactive {
             .flatten()
             .any(|entry| matches!(entry, Entry::Context { .. }));
         if contexts {
-            return Err(refused(format!(
-                "{} has contexts, which lines cannot tell apart: apply it backwards, or forwards on the goal's members",
-                step.rule
-            ))
+            return Err(refused(StepFault::Contexts {
+                rule: step.rule.to_owned(),
+            })
             .into());
         }
         let mut bindings: Vec<Option<TermId>> = vec![None; self.calculus.variables as usize];
         let mut premise_positions = Vec::new();
         for (k, (premise, line)) in rule.premises.iter().zip(cited).enumerate() {
             let unlike = || {
-                refused(format!(
-                    "line {} is no instance of premise {} of {}",
-                    step.lines[k].0,
-                    k + 1,
-                    step.rule
-                ))
+                refused(StepFault::NoInstance {
+                    line: step.lines[k].0,
+                    premise: k + 1,
+                    rule: step.rule.to_owned(),
+                })
             };
             for (entries, members) in premise.shape.zones.iter().zip(line) {
                 if entries.len() != members.len() {
@@ -1251,7 +1249,7 @@ impl Interactive {
         });
         match found {
             Some(place) => self.close_by(goal, place),
-            None => Err(refused("the goal is no line in force")),
+            None => Err(refused(StepFault::NoLineEqual)),
         }
     }
 
@@ -1266,11 +1264,10 @@ impl Interactive {
         self.open(goal)?;
         let place = self.in_force(goal, line)?;
         if !self.same(self.place_sequent(place), &self.nodes[goal.index()].sequent) {
-            return Err(refused(format!(
-                "line {} is not goal {}",
-                line.0,
-                goal.index()
-            )));
+            return Err(refused(StepFault::NotGoal {
+                line: line.0,
+                goal: goal.0,
+            }));
         }
         self.close_by(goal, place)
     }
@@ -1452,36 +1449,33 @@ impl Interactive {
                     Find::End(p) => members.len().checked_sub(1 + p as usize),
                     Find::Position | Find::Value => {
                         let Some(&number) = at.next() else {
-                            return Err(refused(
-                                "the step names fewer members than the rule acts on",
-                            )
-                            .into());
+                            return Err(refused(StepFault::TooFew).into());
                         };
                         match flat.get(number as usize) {
                             Some(&(z, p)) if z == zone => Some(p),
                             _ => {
-                                return Err(refused(format!(
-                                    "member {number} is not in the zone {:?}, where the rule acts",
-                                    calculus.zones[zone].name
-                                ))
+                                return Err(refused(StepFault::Zone {
+                                    member: number,
+                                    zone: calculus.zones[zone].name.clone(),
+                                })
                                 .into());
                             }
                         }
                     }
                 };
                 let Some(place) = place.filter(|&p| p < members.len()) else {
-                    return Err(refused("the goal has no member where the rule writes one").into());
+                    return Err(refused(StepFault::NoPlace).into());
                 };
                 if calculus.zones[zone].discipline != Discipline::Set && taken[zone][place] {
-                    return Err(
-                        refused("two members the rule writes out stand at one place").into(),
-                    );
+                    return Err(refused(StepFault::SamePlace).into());
                 }
                 if !self.matches(rule, item.root, members[place], &mut bindings) {
-                    return Err(refused(format!(
-                        "{} is no instance of what the rule writes out",
-                        calculus.show(&self.terms, members[place]).limit(200)
-                    ))
+                    return Err(refused(StepFault::Unmatched {
+                        member: calculus
+                            .show(&self.terms, members[place])
+                            .limit(200)
+                            .to_string(),
+                    })
                     .into());
                 }
                 taken[zone][place] = true;
@@ -1501,7 +1495,7 @@ impl Interactive {
             }
         }
         if at.next().is_some() {
-            return Err(refused("the step names more members than the rule acts on").into());
+            return Err(refused(StepFault::TooMany).into());
         }
         self.give(step.given, &mut bindings, &mut contexts)?;
         // The contexts the conclusion determines.
@@ -1533,9 +1527,7 @@ impl Interactive {
             if discipline == Discipline::Sequence {
                 let mut sorted = places[zone].clone();
                 if sorted.windows(2).any(|w| w[0] >= w[1]) {
-                    return Err(
-                        refused("the members the rule writes out stand in another order").into(),
-                    );
+                    return Err(refused(StepFault::Order).into());
                 }
                 let mut from = 0;
                 sorted.push(members.len());
@@ -1573,22 +1565,17 @@ impl Interactive {
                     };
                     let mapped = self.map(&known, under)?;
                     rest = remove(&rest, &mapped, discipline == Discipline::Sequence)
-                        .ok_or_else(|| refused("a given context is not what the goal holds"))?;
+                        .ok_or_else(|| refused(StepFault::Context))?;
                 }
                 match unknown.as_slice() {
                     [] if rest.is_empty() => {}
                     [] => {
-                        return Err(refused(
-                            "the goal holds members the rule does not account for",
-                        )
-                        .into());
+                        return Err(refused(StepFault::Unaccounted).into());
                     }
                     [(variable, under)] => {
                         let value: Option<Vec<TermId>> =
                             rest.iter().map(|&m| self.unmap(m, *under)).collect();
-                        let value = value.ok_or_else(|| {
-                            refused("a member of a context is not under its connective")
-                        })?;
+                        let value = value.ok_or_else(|| refused(StepFault::NotUnder))?;
                         contexts[*variable as usize] = Some(value);
                     }
                     many => needs.extend(
@@ -1712,24 +1699,27 @@ impl Interactive {
                 let term = calculus.parse_term(&mut self.terms, text, &sort, &self.limits)?;
                 match bindings[v] {
                     Some(bound) if bound != term => {
-                        return Err(refused(format!(
-                            "{name} is {} already",
-                            calculus.show(&self.terms, bound).limit(200)
-                        ))
+                        return Err(refused(StepFault::Bound {
+                            name: name.to_owned(),
+                            value: calculus.show(&self.terms, bound).limit(200).to_string(),
+                        })
                         .into());
                     }
                     _ => bindings[v] = Some(term),
                 }
             } else if let Some(c) = calculus.context_names.iter().position(|(n, _)| n == name) {
                 let Some(sort) = calculus.context_names[c].1 else {
-                    return Err(refused(format!("no rule uses the context {name}")).into());
+                    return Err(refused(StepFault::Unused {
+                        name: name.to_owned(),
+                    })
+                    .into());
                 };
                 let members = calculus.parse_list(&mut self.terms, text, sort, &self.limits)?;
                 contexts[c] = Some(members);
             } else {
-                return Err(refused(format!(
-                    "{name:?} is no variable or context of the calculus"
-                ))
+                return Err(refused(StepFault::Unknown {
+                    name: name.to_owned(),
+                })
                 .into());
             }
         }
@@ -1757,10 +1747,9 @@ impl Interactive {
         for &variable in &rule.atomic {
             let bound = bindings[variable as usize];
             if !bound.is_some_and(|t| matches!(self.terms.term(t), Term::Atom { .. })) {
-                return Err(refused(format!(
-                    "{} must be an atom",
-                    calculus.variable_names[variable as usize].0
-                ))
+                return Err(refused(StepFault::NotAtom {
+                    name: calculus.variable_names[variable as usize].0.clone(),
+                })
                 .into());
             }
         }

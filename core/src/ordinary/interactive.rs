@@ -19,12 +19,12 @@ use super::instance::Resolution;
 use super::translate::Extra;
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side};
 use super::{Translation, Verdict, bound, decide_within};
-use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
 use crate::unify::{Clash, Unifier};
+use crate::{Error, WitnessFault};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Why a step does not apply to a goal as asked. Positions are the ones
@@ -130,8 +130,9 @@ pub enum StepError {
     /// goal's scope.
     #[non_exhaustive]
     Witness {
-        /// Why, in words.
-        reason: String,
+        /// What is wrong with it.
+        #[cfg_attr(feature = "serialize", serde(flatten))]
+        fault: WitnessFault,
     },
     /// The axiom's formula unifies with a formula on the other side of `⊢`
     /// only by giving an open witness a term it may not take: an
@@ -139,8 +140,9 @@ pub enum StepError {
     /// left the witness open, or on another branch.
     #[non_exhaustive]
     Binding {
-        /// Why, in words.
-        reason: String,
+        /// What the filling would break.
+        #[cfg_attr(feature = "serialize", serde(flatten))]
+        fault: BindingFault,
     },
     /// The step would make the proof's terms unfold to more symbols
     /// written out than the bound on terms (`Limits::terms`) the proof
@@ -282,9 +284,9 @@ impl Display for StepError {
                 "the rule {rule} takes no witness: only ∀L and ∃R take one, and the session \
                  names the eigenvariable of ∀R and ∃L"
             ),
-            StepError::Witness { reason } => write!(f, "the witness is not a term here: {reason}"),
-            StepError::Binding { reason } => {
-                write!(f, "the axiom cannot fill the open witnesses: {reason}")
+            StepError::Witness { fault } => write!(f, "the witness is not a term here: {fault}"),
+            StepError::Binding { fault } => {
+                write!(f, "the axiom cannot fill the open witnesses: {fault}")
             }
             StepError::Terms { terms, limit } => write!(
                 f,
@@ -297,6 +299,73 @@ impl Display for StepError {
 }
 
 impl std::error::Error for StepError {}
+
+/// Why an axiom cannot fill the open witnesses its formulas unify by
+/// ([`StepError::Binding`]).
+///
+/// # JSON
+///
+/// With the feature `serialize`, a step error's `details` hold it
+/// flattened: `"fault"` names the variant in snake case, beside the
+/// variant's fields.
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize),
+    serde(tag = "fault", rename_all = "snake_case")
+)]
+#[non_exhaustive]
+pub enum BindingFault {
+    /// An open witness would take an eigenvariable that a `∀R` or `∃L`
+    /// introduced after the witness was left open, or on another branch.
+    #[non_exhaustive]
+    Eigenvariable {
+        /// The eigenvariable, as the proof writes it.
+        name: String,
+    },
+    /// An inference that holds the witnesses would break its rule once
+    /// they are filled: an eigenvariable would stand in the conclusion of
+    /// the `∀R` or `∃L` that introduced it.
+    Breaks,
+    /// Building the filled formulas passed a bound of the proof's
+    /// formulas.
+    #[non_exhaustive]
+    Refused {
+        /// The bound.
+        refusal: Refusal,
+    },
+}
+
+impl Display for BindingFault {
+    /// Writes what the filling would break, as a phrase.
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            Self::Eigenvariable { name } => write!(
+                f,
+                "an open witness would take the eigenvariable {name}, which a ∀R or ∃L \
+                 introduced after the witness was left open or on another branch"
+            ),
+            Self::Breaks => f.write_str(
+                "an inference that holds the witnesses would break its rule once they are \
+                 filled: an eigenvariable would stand in the conclusion of the ∀R or ∃L that \
+                 introduced it",
+            ),
+            Self::Refused { refusal } => write!(f, "{refusal}"),
+        }
+    }
+}
+
+/// Returns the refusal of a bound that building formulas or terms of the
+/// proof's own arena met: nothing else fails there, since every id the
+/// steps build from is the arena's and every witness is closed.
+fn bound_met(error: Error) -> Refusal {
+    let Error::Refused(refusal) = error else {
+        unreachable!("building from the proof's own arena failed: {error}")
+    };
+    refusal
+}
 
 /// How a step of a rule with two premises gives them the goal's context,
 /// the formulas the rule does not act on.
@@ -1374,10 +1443,7 @@ impl Interactive {
                 Unbound::Eigen(e) => {
                     let name = self.eigen_name(e);
                     StepError::Binding {
-                        reason: format!(
-                            "an open witness would take the eigenvariable {name}, which a ∀R or \
-                             ∃L introduced after the witness was left open or on another branch"
-                        ),
+                        fault: BindingFault::Eigenvariable { name },
                     }
                 }
                 Unbound::Large(size) => StepError::Terms {
@@ -1426,7 +1492,9 @@ impl Interactive {
         let bindings = w.unifier.metas().iter().map(|m| m.bound).collect();
         let mut resolution = Resolution::new(bindings);
         let full = |error: Error| StepError::Binding {
-            reason: error.to_string(),
+            fault: BindingFault::Refused {
+                refusal: bound_met(error),
+            },
         };
         let built = self.formulas.len();
         let mut changed = crate::hash::HashMap::default();
@@ -1452,10 +1520,7 @@ impl Interactive {
             let premises: Vec<&Inference> = inference.premises.iter().map(|&p| at(p)).collect();
             if check_inference(&self.formulas, self.logic, inference, &premises).is_err() {
                 return Err(StepError::Binding {
-                    reason: "an inference that holds the witnesses would break its rule once \
-                             they are filled: an eigenvariable would stand in the conclusion of \
-                             the ∀R or ∃L that introduced it"
-                        .to_owned(),
+                    fault: BindingFault::Breaks,
                 });
             }
         }
@@ -1528,12 +1593,16 @@ impl Interactive {
             self.formulas
                 .instantiate(body, term)
                 .map_err(|error| StepError::Witness {
-                    reason: error.to_string(),
+                    fault: WitnessFault::Refused {
+                        refusal: bound_met(error),
+                    },
                 })?;
         // An instance may hold an equivalence the arena did not have, whose
         // implications `shape` looks up.
         Extra::add(&mut self.formulas).map_err(|error| StepError::Witness {
-            reason: error.to_string(),
+            fault: WitnessFault::Refused {
+                refusal: bound_met(error),
+            },
         })?;
         if let Some(level) = open {
             let (len, number) = (self.inferences.len(), self.history.len() as u32);
@@ -1628,9 +1697,7 @@ impl Interactive {
     /// eigenvariable in the goal's scope, so that its binding takes none
     /// made after it.
     fn open_witness(&mut self, id: GoalId) -> Result<(FoTermId, u32), StepError> {
-        let fault = |reason: &str| StepError::Witness {
-            reason: reason.to_owned(),
-        };
+        let fault = |fault: WitnessFault| StepError::Witness { fault };
         let terms = &self.formulas.first_order().terms;
         let level = self
             .scope(InfId::new(id.get()))
@@ -1641,12 +1708,10 @@ impl Interactive {
             })
             .max()
             .map_or(Some(0), |e| e.checked_add(1))
-            .ok_or_else(|| fault("an eigenvariable of the goal has the last number"))?;
+            .ok_or_else(|| fault(WitnessFault::Eigenvariables))?;
         let k = self.witnesses.as_ref().map_or(0, |w| w.unifier.next_meta());
         if k == u32::MAX {
-            return Err(fault(
-                "the proof has as many open witnesses as it can number",
-            ));
+            return Err(fault(WitnessFault::Witnesses));
         }
         Ok((self.formulas.interner().term(FoTerm::Meta(k)), level))
     }
@@ -1665,9 +1730,8 @@ impl Interactive {
             .formulas
             .largest_eigenvariable(roots.copied(), terms)
             .map_or(Some(0), |k| k.checked_add(1))
-            .ok_or_else(|| StepError::Witness {
-                reason: "the proof holds an eigenvariable of the last number, so none is fresh"
-                    .to_owned(),
+            .ok_or(StepError::Witness {
+                fault: WitnessFault::Eigenvariables,
             })?;
         Ok(self
             .formulas
@@ -1680,15 +1744,13 @@ impl Interactive {
     /// an open witness, whose eigenvariables are in the goal's scope
     /// ([`scope`](Self::scope)).
     fn held(&self, id: GoalId, t: FoTermId) -> Result<FoTermId, StepError> {
-        let fault = |reason: &str| StepError::Witness {
-            reason: reason.to_owned(),
-        };
+        let fault = |fault: WitnessFault| StepError::Witness { fault };
         let terms = &self.formulas.first_order().terms;
         if t.index() >= terms.len() {
-            return Err(fault("it is no term of the proof"));
+            return Err(fault(WitnessFault::NotATerm));
         }
         if !self.formulas.is_closed(t) || self.formulas.holds_meta(t) {
-            return Err(fault("it holds a variable"));
+            return Err(fault(WitnessFault::Variable));
         }
         let scope = self.scope(InfId::new(id.get()));
         let mut seen = crate::hash::HashSet::default();
@@ -1701,10 +1763,10 @@ impl Interactive {
                 FoTerm::App(_, args) => {
                     stack.extend_from_slice(self.formulas.first_order().list(args))
                 }
-                FoTerm::Eigen(_) if !scope.contains(&u) => {
-                    return Err(fault(
-                        "it holds an eigenvariable that no ∀R or ∃L below the goal introduces",
-                    ));
+                FoTerm::Eigen(e) if !scope.contains(&u) => {
+                    return Err(fault(WitnessFault::OutOfScope {
+                        name: self.eigen_name(e),
+                    }));
                 }
                 FoTerm::Eigen(_) | FoTerm::Bound(_) | FoTerm::Meta(_) => {}
             }
@@ -1746,7 +1808,7 @@ impl Interactive {
     /// eigenvariable outside the goal's scope, or a stray bracket or comma.
     pub fn witness(&mut self, goal: GoalId, text: &str) -> Result<FoTermId, StepError> {
         self.open(goal)?;
-        let fault = |reason: String| StepError::Witness { reason };
+        let fault = |fault: WitnessFault| StepError::Witness { fault };
         let eigens = self.formulas.eigen_names().to_vec();
         let scope = self.scope(InfId::new(goal.get()));
         // The tokens: names, brackets and commas.
@@ -1771,10 +1833,10 @@ impl Interactive {
             .filter(|t| !matches!(t.as_str(), "(" | ")" | ","))
             .count() as u64;
         if names > self.terms {
-            return Err(fault(format!(
-                "it has {names} symbols, more than the bound of {} on terms",
-                self.terms
-            )));
+            return Err(fault(WitnessFault::Symbols {
+                symbols: names,
+                limit: self.terms,
+            }));
         }
         // The open applications wait on a stack with their arguments.
         let mut open: Vec<(String, Vec<FoTermId>)> = Vec::new();
@@ -1783,14 +1845,14 @@ impl Interactive {
         while let Some(token) = tokens.next() {
             match token.as_str() {
                 "(" if done.is_none() => {
-                    return Err(fault("a bracket follows no function symbol".into()));
+                    return Err(fault(WitnessFault::Bracket));
                 }
                 "(" | ")" | "," if done.is_none() => {
-                    return Err(fault(format!("a term is missing before {token:?}")));
+                    return Err(fault(WitnessFault::Missing { before: token }));
                 }
                 "," | ")" => {
                     let (Some((_, args)), Some(arg)) = (open.last_mut(), done.take()) else {
-                        return Err(fault(format!("{token:?} closes no application")));
+                        return Err(fault(WitnessFault::Unopened { token }));
                     };
                     args.push(arg);
                     if token == ")"
@@ -1800,22 +1862,17 @@ impl Interactive {
                     }
                 }
                 _ if done.is_some() => {
-                    return Err(fault(format!("{token:?} follows a term without a comma")));
+                    return Err(fault(WitnessFault::Comma { token }));
                 }
                 word => {
                     let applied = tokens.peek().is_some_and(|t| t == "(");
                     if let Some(&(k, _)) = eigens.iter().find(|(_, n)| n == word) {
                         if applied {
-                            return Err(fault(format!(
-                                "the eigenvariable {word} takes no arguments"
-                            )));
+                            return Err(fault(WitnessFault::Applied { name: word.into() }));
                         }
                         let term = self.formulas.interner().term(FoTerm::Eigen(Eigen::new(k)));
                         if !scope.contains(&term) {
-                            return Err(fault(format!(
-                                "the eigenvariable {word} is not in the goal's scope: no ∀R or \
-                                 ∃L below the goal introduces it"
-                            )));
+                            return Err(fault(WitnessFault::OutOfScope { name: word.into() }));
                         }
                         done = Some(term);
                     } else if applied {
@@ -1828,27 +1885,28 @@ impl Interactive {
             }
         }
         if !open.is_empty() {
-            return Err(fault("a bracket is not closed".into()));
+            return Err(fault(WitnessFault::Unclosed));
         }
-        done.ok_or_else(|| fault("there is no term".into()))
+        done.ok_or_else(|| fault(WitnessFault::Empty))
     }
 
     /// Returns the term of the sequent's function symbol `name` applied to
     /// `args`, or why there is none.
-    fn applied(&mut self, name: &str, args: &[FoTermId]) -> Result<FoTermId, String> {
+    fn applied(&mut self, name: &str, args: &[FoTermId]) -> Result<FoTermId, WitnessFault> {
         let tables = self.formulas.first_order();
         let Some(f) = tables.symbols.iter().position(|(s, _)| s == name) else {
-            return Err(format!("{name} is not a symbol of the sequent"));
+            return Err(WitnessFault::UnknownSymbol { name: name.into() });
         };
         if tables.atoms.iter().any(|&(p, _)| p.index() == f) {
-            return Err(format!("{name} is a predicate, not a term"));
+            return Err(WitnessFault::Predicate { name: name.into() });
         }
-        let arity = tables.symbols[f].1 as usize;
-        if args.len() != arity {
-            return Err(format!(
-                "{name} takes {arity} arguments, not {}",
-                args.len()
-            ));
+        let arity = tables.symbols[f].1;
+        if args.len() != arity as usize {
+            return Err(WitnessFault::Arity {
+                name: name.into(),
+                arity,
+                given: Some(args.len()),
+            });
         }
         let symbol = crate::first_order::Symbol::new(f as u32);
         let interner = self.formulas.interner();
@@ -4866,7 +4924,12 @@ mod tests {
         let (mut s, _) = within("forall x. p(x, x) |- q", 4);
         let error = s.witness(GoalId::new(0), "f(f(f(f(a))))").unwrap_err();
         assert!(
-            matches!(&error, StepError::Witness { reason } if reason.contains("5 symbols")),
+            matches!(
+                &error,
+                StepError::Witness {
+                    fault: WitnessFault::Symbols { symbols: 5, .. }
+                }
+            ),
             "{error}"
         );
         // A sequent past the bound starts no proof.

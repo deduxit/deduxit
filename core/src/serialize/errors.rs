@@ -176,7 +176,8 @@ impl Serialize for Details<'_> {
                 entries!(s; "calculus" => calculus; "reason" => reason)
             }
             Zones { found, zones } => entries!(s; "found" => found; "zones" => zones),
-            StepRefused { reason } | NotFitch { reason } => entries!(s; "reason" => reason),
+            StepRefused { fault } => fault.serialize(s),
+            NotFitch { reason } => entries!(s; "reason" => reason),
             InvalidRefutation { step, reason } => {
                 entries!(s; "step" => step; "reason" => reason)
             }

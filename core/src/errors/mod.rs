@@ -6,11 +6,16 @@ pub(crate) mod describe;
 /// The error type for text that is not a sequent.
 #[cfg(feature = "parse")]
 mod parse;
+/// Why a step of a proof by hand is refused, as fields.
+mod step;
 
 pub(crate) use describe::Subject;
 pub use describe::{Described, Owner};
 #[cfg(feature = "parse")]
 pub use parse::ParseError;
+#[cfg(feature = "interactive")]
+pub use step::WitnessFault;
+pub use step::{Backwards, StepFault};
 
 use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -710,12 +715,13 @@ pub enum Error {
         reason: String,
     },
     /// A step of a proof in progress in a calculus given as data is not
-    /// one the calculus allows, for the reason given.
-    #[error("the step is refused: {reason}")]
+    /// one the calculus allows, or a resolvent of a refutation by hand is
+    /// none, for the reason given.
+    #[error("the step is refused: {fault}")]
     #[non_exhaustive]
     StepRefused {
         /// Why.
-        reason: String,
+        fault: Box<StepFault>,
     },
     /// A refutation of clauses is wrong: a resolvent that is not one, an
     /// addition that does not follow by unit propagation, or no empty
@@ -1494,7 +1500,9 @@ mod tests {
                 reason: message(),
             },
             Error::Zones { found: 1, zones: 2 },
-            Error::StepRefused { reason: message() },
+            Error::StepRefused {
+                fault: Box::new(StepFault::Check { reason: message() }),
+            },
             Error::InvalidRefutation {
                 step: Some(1),
                 reason: message(),

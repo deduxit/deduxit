@@ -124,7 +124,9 @@ pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;
 #[cfg(feature = "interactive")]
-pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Step, StepError};
+pub use interactive::{
+    Applicable, BindingFault, Closed, Context, Hint, Interactive, Needs, Step, StepError,
+};
 pub use kripke_structure::{KripkeCountermodel, KripkeStructure, KripkeWorld};
 pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]

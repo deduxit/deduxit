@@ -5,7 +5,6 @@
 //! expanded into its premises, undo, and a goal closed by the search.
 
 use super::{Applicable, Closed, GoalId, Interactive, Needs, Step, StepError, Witness};
-use crate::Error;
 use crate::errors::describe::{Names, cut};
 use crate::limits::{Limits, Progress};
 use crate::linear::occurrences::instances::{Framing, eigen_names};
@@ -16,6 +15,7 @@ use crate::linear::proofs::{Branch, CheckError, Named, Proof, Rule};
 use crate::linear::search::{self, Options, Verdict, focus};
 use crate::linear::sequents::Kind;
 use crate::unify::Clash;
+use crate::{Error, WitnessFault};
 
 impl Interactive {
     /// Returns the refusal of a rule that does not act on the formula of
@@ -204,9 +204,7 @@ impl Interactive {
                 let q = self.fo.as_ref().expect("a first-order session");
                 match q.limit {
                     Some(limit) if q.too_large() => Err(StepError::Witness {
-                        reason: format!(
-                            "the session would hold or unfold to more than {limit} terms"
-                        ),
+                        fault: WitnessFault::Table { limit },
                     }),
                     _ => Ok(premises),
                 }
@@ -280,8 +278,7 @@ impl Interactive {
                 let q = self.fo.as_mut().expect("a first-order session");
                 let Some((_, a)) = q.fresh_eigen() else {
                     return Err(StepError::Witness {
-                        reason: "the session has made as many eigenvariables as it can number"
-                            .into(),
+                        fault: WitnessFault::Eigenvariables,
                     });
                 };
                 Some(a)

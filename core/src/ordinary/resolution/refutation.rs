@@ -5,8 +5,8 @@
 //! from it, each from two earlier clauses, which the checker checks again.
 
 use super::{Clause, Clauses, Literal};
-use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::{Error, StepFault};
 
 /// A resolvent: the clause resolution derives from two earlier clauses on
 /// an atom. The clauses of a refutation are numbered from 0: first the
@@ -143,23 +143,25 @@ impl Refutation {
     /// [`Error::StepRefused`] for a number of no clause yet, or clauses
     /// that do not hold the atom and its negation.
     pub fn resolve(&mut self, first: usize, second: usize, atom: u32) -> Result<usize, Error> {
-        let refused = |reason: String| Error::StepRefused { reason };
+        let refused = |fault: StepFault| Error::StepRefused {
+            fault: Box::new(fault),
+        };
         let (Some(a), Some(b)) = (self.clause(first), self.clause(second)) else {
-            return Err(refused(format!(
-                "there are clauses 0 to {} only",
-                self.len().saturating_sub(1)
-            )));
+            return Err(refused(StepFault::NoClause {
+                clauses: self.len(),
+            }));
         };
         let Some(named) = self.clauses.atoms().get(atom as usize).cloned() else {
-            return Err(refused(format!(
-                "there are atoms 0 to {} only",
-                self.clauses.atoms().len().saturating_sub(1)
-            )));
+            return Err(refused(StepFault::NoAtom {
+                atoms: self.clauses.atoms().len(),
+            }));
         };
         let (clause, a_first) = resolvent(a, b, atom).ok_or_else(|| {
-            refused(format!(
-                "of clauses {first} and {second}, one must hold {named} and the other ¬{named}"
-            ))
+            refused(StepFault::NoClash {
+                first,
+                second,
+                atom: named.clone(),
+            })
         })?;
         let (first, second) = if a_first {
             (first, second)

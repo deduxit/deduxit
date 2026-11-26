@@ -413,7 +413,9 @@ the commit that lands it rewrites that bullet.
   Inhabitation, Inhabitants}` (added at step 71b); `ordinary::{Evidence, Logic, Method, Options,
   Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
   and `Search` added at step 54s); `ordinary::interactive::{Applicable,
-  Closed, Context, Hint, Needs, Step, StepError}`;
+  BindingFault, Closed, Context, Hint, Needs, Step, StepError}`
+  (`BindingFault` added at step 81); `Backwards`, `StepFault` and
+  `WitnessFault` at the root (added at step 81);
   `ordinary::interpolant::{Interpolant, Interpolation, Partition}` and
   `ordinary::negative::{Agreement, Comparison, Options,
   Translation}` (added at step 63t);

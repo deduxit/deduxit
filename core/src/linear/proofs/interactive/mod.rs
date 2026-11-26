@@ -62,7 +62,6 @@ pub use invert::{Inverted, Options};
 #[cfg(feature = "serialize")]
 pub(crate) use quantified::{PartTerm, Parts};
 
-use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{ClassicalSequent, Forest, Member, OccId, Reading, Side, Written};
@@ -71,6 +70,7 @@ use crate::linear::proofs::size::Size;
 use crate::linear::proofs::{Named, Rule};
 use crate::linear::search::Outcome;
 use crate::linear::sequents::{Eigen, Sequent, Symbol};
+use crate::{Error, WitnessFault};
 use quantified::Quantified;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -203,7 +203,8 @@ pub enum StepError {
     #[non_exhaustive]
     Witness {
         /// What is wrong with it.
-        reason: String,
+        #[cfg_attr(feature = "serialize", serde(flatten))]
+        fault: WitnessFault,
     },
     /// The step breaks the eigenvariable condition. An eigenvariable (the
     /// fresh name a `∀` step introduces; two-sided, a `∀R` or `∃L` step)
@@ -282,7 +283,7 @@ impl Display for StepError {
                  empty antecedents forbids",
             ),
             StepError::NoWitness { rule } => write!(f, "the rule {rule} takes no witness"),
-            StepError::Witness { reason } => write!(f, "the witness is not a term here: {reason}"),
+            StepError::Witness { fault } => write!(f, "the witness is not a term here: {fault}"),
             StepError::Eigenvariable { name } => write!(
                 f,
                 "the eigenvariable {name} cannot be used here: either no step below this goal \

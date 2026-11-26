@@ -5,6 +5,7 @@
 //! table, and held to the eigenvariables in the goal's scope.
 
 use super::{GoalId, Interactive, StepError, TermNode, Witness};
+use crate::WitnessFault;
 use crate::linear::occurrences::Member;
 use crate::linear::occurrences::instances::eigen_names;
 use crate::linear::proofs::Rule;
@@ -29,7 +30,7 @@ impl Interactive {
     /// name, a predicate, a symbol given the wrong number of arguments, or
     /// a stray bracket or comma.
     pub fn witness(&self, text: &str) -> Result<Witness, StepError> {
-        let fault = |reason: String| StepError::Witness { reason };
+        let fault = |fault: WitnessFault| StepError::Witness { fault };
         let fo = &self.forest.sequent().fo;
         let eigens = self
             .fo
@@ -61,12 +62,12 @@ impl Interactive {
         while let Some(token) = tokens.next() {
             match token.as_str() {
                 "(" | ")" | "," if done.is_none() && token != "(" => {
-                    return Err(fault(format!("a term is missing before {token:?}")));
+                    return Err(fault(WitnessFault::Missing { before: token }));
                 }
-                "(" => return Err(fault("a bracket follows no function symbol".into())),
+                "(" => return Err(fault(WitnessFault::Bracket)),
                 "," | ")" => {
                     let (Some((_, args)), Some(arg)) = (open.last_mut(), done.take()) else {
-                        return Err(fault(format!("{token:?} closes no application")));
+                        return Err(fault(WitnessFault::Unopened { token }));
                     };
                     args.push(arg);
                     if token == ")"
@@ -74,37 +75,35 @@ impl Interactive {
                     {
                         let arity = fo.symbols[f.index()].1 as usize;
                         if args.len() != arity {
-                            return Err(fault(format!(
-                                "{} takes {arity} arguments, not {}",
-                                fo.symbols[f.index()].0,
-                                args.len()
-                            )));
+                            return Err(fault(WitnessFault::Arity {
+                                name: fo.symbols[f.index()].0.clone(),
+                                arity: fo.symbols[f.index()].1,
+                                given: Some(args.len()),
+                            }));
                         }
                         done = Some(push(&mut nodes, TermNode::App(f, args)));
                     }
                 }
                 _ if done.is_some() => {
-                    return Err(fault(format!("{token:?} follows a term without a comma")));
+                    return Err(fault(WitnessFault::Comma { token }));
                 }
                 name => {
                     let applied = tokens.peek().is_some_and(|t| t == "(");
                     if let Some((&a, _)) = eigens.iter().find(|(_, n)| n.as_str() == name) {
                         if applied {
-                            return Err(fault(format!(
-                                "the eigenvariable {name} takes no arguments"
-                            )));
+                            return Err(fault(WitnessFault::Applied { name: name.into() }));
                         }
                         done = Some(push(&mut nodes, TermNode::Eigen(a)));
                         continue;
                     }
                     let Some(f) = fo.symbols.iter().position(|(s, _)| s == name) else {
-                        return Err(fault(format!("{name} is not a symbol of the sequent")));
+                        return Err(fault(WitnessFault::UnknownSymbol { name: name.into() }));
                     };
                     // The cast is exact: a sequent has fewer symbols than a
                     // `u32` counts.
                     let f = Symbol::new(f as u32);
                     if predicates.contains(&f) {
-                        return Err(fault(format!("{name} is a predicate, not a term")));
+                        return Err(fault(WitnessFault::Predicate { name: name.into() }));
                     }
                     let arity = fo.symbols[f.index()].1;
                     match (applied, arity) {
@@ -114,17 +113,21 @@ impl Interactive {
                         }
                         (false, 0) => done = Some(push(&mut nodes, TermNode::App(f, Vec::new()))),
                         (false, _) => {
-                            return Err(fault(format!("{name} takes {arity} arguments")));
+                            return Err(fault(WitnessFault::Arity {
+                                name: name.into(),
+                                arity,
+                                given: None,
+                            }));
                         }
                     }
                 }
             }
         }
         if !open.is_empty() {
-            return Err(fault("a bracket is not closed".into()));
+            return Err(fault(WitnessFault::Unclosed));
         }
         if done.is_none() {
-            return Err(fault("there is no term".into()));
+            return Err(fault(WitnessFault::Empty));
         }
         Ok(Witness::Term(nodes))
     }
@@ -138,9 +141,9 @@ impl Interactive {
         goal: GoalId,
         nodes: &[TermNode],
     ) -> Result<FoTermId, StepError> {
-        let fault = |reason: String| StepError::Witness { reason };
+        let fault = |fault: WitnessFault| StepError::Witness { fault };
         if nodes.is_empty() {
-            return Err(fault("there is no term".into()));
+            return Err(fault(WitnessFault::Empty));
         }
         let scope = self.scope(goal.inf());
         let fo = &self.forest.sequent().fo;
@@ -163,27 +166,26 @@ impl Interactive {
                 }
                 TermNode::App(f, args) => {
                     let Some(&(ref name, arity)) = fo.symbols.get(f.index()) else {
-                        return Err(fault(format!(
-                            "symbol {} is not one of the sequent's",
-                            f.get()
-                        )));
+                        return Err(fault(WitnessFault::SymbolIndex { symbol: f.get() }));
                     };
                     if predicates.contains(f) {
-                        return Err(fault(format!("{name} is a predicate, not a term")));
+                        return Err(fault(WitnessFault::Predicate { name: name.clone() }));
                     }
                     if args.len() != arity as usize {
-                        return Err(fault(format!(
-                            "{name} takes {arity} arguments, not {}",
-                            args.len()
-                        )));
+                        return Err(fault(WitnessFault::Arity {
+                            name: name.clone(),
+                            arity,
+                            given: Some(args.len()),
+                        }));
                     }
                     let mut items = Vec::with_capacity(args.len());
                     for &arg in args {
                         let Some(&t) = built.get(arg as usize).filter(|_| (arg as usize) < i)
                         else {
-                            return Err(fault(format!(
-                                "node {i} names node {arg}, which is not before it"
-                            )));
+                            return Err(fault(WitnessFault::NodeOrder {
+                                node: i,
+                                names: arg,
+                            }));
                         };
                         items.push(t);
                     }

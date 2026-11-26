@@ -1676,7 +1676,13 @@ fn a_session_refuses_what_no_step_could_make() {
         )
         .unwrap_err();
     assert!(
-        matches!(&error, StepError::Witness { reason, .. } if reason.contains("unfold")),
+        matches!(
+            &error,
+            StepError::Witness {
+                fault: deduxit::WitnessFault::Table { .. },
+                ..
+            }
+        ),
         "{error}"
     );
     assert_eq!(state.steps(), 0);

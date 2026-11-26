@@ -1227,7 +1227,9 @@ fn a_session_derives_forwards_and_cites_its_lines() {
     // is no instance of its premise, a variable only the conclusion
     // holds, a wrong count of lines.
     let refused = |step: Result<LineId, Error>, words: &str| match step {
-        Err(Error::StepRefused { reason, .. }) => assert!(reason.contains(words), "{reason}"),
+        Err(Error::StepRefused { fault, .. }) => {
+            assert!(fault.to_string().contains(words), "{fault}");
+        }
         other => panic!("expected a refusal about {words:?}, got {other:?}"),
     };
     refused(
@@ -1260,8 +1262,11 @@ fn a_session_derives_forwards_and_cites_its_lines() {
     nested.assume(inner).unwrap();
     let outer = opened[1];
     match nested.derive(outer, &Derive::new("∧E₁").lines(&[line])) {
-        Err(Error::StepRefused { reason, .. }) => {
-            assert!(reason.contains("not in force"), "{reason}");
+        Err(Error::StepRefused { fault, .. }) => {
+            assert!(
+                matches!(*fault, deduxit::StepFault::NotInForce { .. }),
+                "{fault}"
+            );
         }
         other => panic!("a line of a closed subproof was cited: {other:?}"),
     }
