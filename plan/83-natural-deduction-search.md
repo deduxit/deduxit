@@ -38,6 +38,12 @@ the rules suite's own.
   against its rule file before it is answered or grafted.
 - The proof is normal (no introduction followed by an elimination of the
   same connective); a test holds it.
+- Natural deduction's panel (`Natural.tsx` in the client) lists only
+  the rules that apply, by `rules_rules`; step 81 added
+  `rules_candidates` (every rule with its status and reason), which the
+  linear and ordinary rule popover takes. The panel takes it too, so
+  that a rule that does not apply is greyed with its reason, as in the
+  other calculi.
 - Each natural deduction rule file deduxit ships gets the translation of
   its sequent calculus: the intuitionistic and minimal ones from LJ and
   LM, the classical ones from LK with the file's classical rule (`nk`,

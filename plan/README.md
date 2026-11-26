@@ -8550,3 +8550,20 @@ move (D26).
   open: an ordinary first-order proof in another order with other eigenvariable letters stays "Not
   used"; an ordinary Kripke countermodel names the image's engine, not the SAT solver (a bindings
   record).
+- 2026-11-26, about 11:45: **Step 81 reviewed, complete; pushed** (`local_9dfa5c8f`, 08:40 to
+  11:45; report `mmrusqwr`): `Interactive::candidates` in the linear, ordinary and rules sessions
+  (every rule acting on a formula, `Applies`, `NeedsInput` or `Refused` with `apply`'s error; legal
+  steps only), the witness, binding and step refusals with fields (`WitnessFault`, `BindingFault`,
+  `StepFault`; a break, in the changelog), `ordinary::Interactive::opened_term`; the bindings' calls
+  and the page's popover on them, an ordinary replay giving its witnesses. The first full check on
+  GitHub (run 45788019966) failed three ways (a test missing `serialize` in its features, the web
+  module 48 KB over its ceiling, the wasm32 stack exhausted in the connection prover's read-back by
+  larger error frames); fixed by boxing the faults, building every test in every feature set and
+  writing refusals through the text serializer, the ceiling raised by 18.6 KB to 2 900 000 bytes in a
+  commit of its own; run 45797093296 passed and deduxit's `main` went to `xunrokxs`. Measured, press
+  to popover on the 514 stored problems: linear median 13.9 to 12.9 ms (slowest 30.4 to 18.7),
+  ordinary 15.3 to 13.2 ms (28.4 to 16.1), one call per press instead of one per rule.
+  `fresh-reviewer`: three points, all answered. Checked here: the report against the commits and the
+  client's full `nix flake check` at `osruxkzq` (all 16 checks built for that tree, passed). The
+  client's `main` is `osruxkzq`. Left open: natural deduction's panel takes `rules_candidates` (now in
+  step 83's prompt); the calculus checker's own faults are still sentences.
