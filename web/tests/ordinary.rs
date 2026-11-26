@@ -375,6 +375,27 @@ fn a_first_order_goal_gets_a_finite_countermodel() {
     assert_eq!(checked["refutes"], true);
 }
 
+/// A first-order goal is closed by the search, its derivation grafted
+/// and the proof finished; a hint's witness is text the session reads,
+/// so the hint applied as it is takes the step.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_first_order_goal_is_closed_by_the_search() {
+    let sequent = "forall x. (p(x) -> q(x)), p(c) |- exists y. q(y)";
+    let state = session(&ordinary::start(sequent, "intuitionistic", "").unwrap());
+    let closed = value(&ordinary::close(&state, 0, "").unwrap());
+    assert_eq!(closed["outcome"]["verdict"], "valid");
+    assert_eq!(closed["refused"], Value::Null);
+    assert_eq!(closed["view"]["complete"], true);
+    let hint = value(&ordinary::hint(&state, 0, "").unwrap());
+    let step = &hint["steps"][0];
+    assert_eq!(
+        (&step["rule"], &step["witness"]),
+        (&json!("∃R"), &json!("c"))
+    );
+    let stepped = value(&ordinary::apply(&state, 0, &step.to_string(), "").unwrap());
+    assert_eq!(stepped["view"]["goals"][0]["right"][0], "q(c)");
+}
+
 /// A goal found not valid comes with the SAT solver's countermodel in
 /// `close`'s and `hint`'s outcome, which `model_drawing` draws and
 /// `model_certificate` certifies; an outcome without one is refused with

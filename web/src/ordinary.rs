@@ -348,8 +348,9 @@ impl StepForm {
         }
     }
 
-    /// Returns the form of a library's step.
-    fn of(step: &Step) -> Self {
+    /// Returns the form of a library's step on `state`, its witness as
+    /// text the session reads.
+    fn of(step: &Step, state: &Interactive) -> Self {
         let split = match &step.context {
             Context::Split { left, right, .. } => Some(SplitForm {
                 left: left.clone(),
@@ -362,7 +363,7 @@ impl StepForm {
             position: step.position,
             rule: step.rule,
             split,
-            witness: None,
+            witness: step.witness.and_then(|t| state.term_text(t)),
         }
     }
 }
@@ -471,12 +472,13 @@ struct Closing {
 /// `outcome` and `refused`. A goal not valid or undecided stays open, and
 /// the outcome says why.
 ///
-/// The goal is decided through its translation into linear logic, the
-/// one the settings' `ordinary.translation` names, or the logic's default
-/// when that is `null`. A goal of a first-order session is searched for a
-/// finite countermodel instead (`refuted`): the goal state closes
-/// propositional goals only, so such a goal stays open, with a checked
-/// structure where one refutes it.
+/// A propositional goal is decided through its translation into linear
+/// logic, the one the settings' `ordinary.translation` names, or the
+/// logic's default when that is `null`. A goal of a first-order session
+/// is decided by the first-order methods, a proof search and then a
+/// search for a finite countermodel, its eigenvariables constants there:
+/// a derivation found is checked before it is grafted, and a checked
+/// structure refutes the goal.
 ///
 /// # Errors
 ///
@@ -485,17 +487,6 @@ struct Closing {
 pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
-    if state.formulas().is_first_order() {
-        let outcome = refuted(&state, GoalId::new(goal), &settings)?;
-        return changed(
-            &state,
-            &settings,
-            Closing {
-                outcome,
-                refused: None,
-            },
-        );
-    }
     let closed = state
         .close(
             GoalId::new(goal),
@@ -526,7 +517,10 @@ fn with_countermodel(
     goal: GoalId,
     settings: &Settings,
 ) {
-    if !matches!(outcome.verdict, ordinary::Verdict::NotValid) || outcome.countermodel.is_some() {
+    if !matches!(outcome.verdict, ordinary::Verdict::NotValid)
+        || outcome.countermodel.is_some()
+        || state.formulas().is_first_order()
+    {
         return;
     }
     let Ok((left, right)) = state.goal(goal) else {
@@ -540,35 +534,6 @@ fn with_countermodel(
     {
         outcome.countermodel = found.model;
     }
-}
-
-/// Searches a goal of a first-order session for a finite countermodel
-/// (`Method::Models`) within the settings' limits, since the goal state
-/// closes and hints at propositional sequents only: the outcome is not
-/// valid with a checked structure (or a Kripke model with growing
-/// domains), or unknown. A goal that names an eigenvariable or an open
-/// witness is unknown (`incomplete`): no structure interprets one.
-fn refuted(
-    state: &Interactive,
-    goal: GoalId,
-    settings: &Settings,
-) -> Result<ordinary::Outcome, Failure> {
-    let (left, right) = state
-        .goal(goal)
-        .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
-    let sequent = Sequent::new(state.formulas().clone(), left.to_vec(), right.to_vec())
-        .map_err(Failure::from)?;
-    let options = ordinary::Options::default()
-        .with_logic(state.logic())
-        .with_method(Some(Method::Models));
-    ordinary::decide_within(
-        &sequent,
-        &options,
-        &settings.search,
-        &settings.limits,
-        never,
-    )
-    .map_err(Failure::from)
 }
 
 /// What a hint found.
@@ -596,13 +561,6 @@ struct Hint {
 pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    if state.formulas().is_first_order() {
-        let outcome = refuted(&state, GoalId::new(goal), &settings)?;
-        return written(&Hint {
-            steps: Vec::new(),
-            outcome,
-        });
-    }
     let hint = state
         .hint(
             GoalId::new(goal),
@@ -615,7 +573,11 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     let mut outcome = hint.outcome;
     with_countermodel(&mut outcome, &state, GoalId::new(goal), &settings);
     written(&Hint {
-        steps: hint.steps.iter().map(StepForm::of).collect(),
+        steps: hint
+            .steps
+            .iter()
+            .map(|step| StepForm::of(step, &state))
+            .collect(),
         outcome,
     })
 }

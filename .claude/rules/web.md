@@ -296,7 +296,8 @@ for `THIRD-PARTY-NOTICES.txt`.
   from the settings and answer the library's ordinary outcome as it
   writes it, at wire level 12: `search` tagged `{"method":
   "embedding", "translation", "image": {…}}`, the goal's image's outcome
-  nested (the goal state closes through the embedding alone); `export` and `draw` draw with `view.structural`,
+  nested, for a propositional goal (a first-order one is decided by the
+  first-order methods, `search.method` naming the one that answered); `export` and `draw` draw with `view.structural`,
   the view's `inferences` (`derivation_ids`) under the same setting so
   that `i<n>` maps to the goal, and `rocq` is the finished derivation,
   checked, always explicit. `ordinary_model(model, sequent, logic,
@@ -400,16 +401,14 @@ for `THIRD-PARTY-NOTICES.txt`.
   model in intuitionistic and minimal logic, so a `not_valid` outcome
   without one gets the SAT solver's model of the goal (`with_countermodel`,
   `sat::decide` on the goal as a sequent, within the settings' limits;
-  none where it refuses, the outcome as it was). The goal state's `close`
-  and `hint` refuse a first-order session (`first_order`), so in one the
-  bindings search the goal for a finite countermodel instead
-  (`refuted`: `Method::Models` within the settings' limits), answering
-  that outcome (`search.method` `models`, its checked `structure` or
-  `kripke_structure`) with the session unchanged and, for `hint`, no
-  steps: a first-order goal is never closed by the search here, and a
-  goal naming an eigenvariable is unknown (`incomplete`), since no
-  structure interprets one. The page's marking meets the same search
-  within its smaller budget. `ordinary_model_drawing`
+  none where it refuses, the outcome as it was; never in a first-order
+  session, whose outcome has its own countermodels). A first-order
+  goal takes the library's answer (`Interactive::close` and `hint`): a
+  proof grafted, checked, or a finite `structure` or `kripke_structure`,
+  its eigenvariables constants named as the goal prints them, so the
+  goal's text is the structure's sequent; the page's marking meets the
+  same search within its smaller budget. A hint's `∀L`/`∃R` carries its
+  witness as text (`StepForm::of`, `Interactive::term_text`). `ordinary_model_drawing`
   and `ordinary_model_certificate` read that outcome (`wire::upgrade` of
   `ordinary::Outcome`, which carries the countermodel and the logic)
   and answer `svg::countermodel` and `rocq::write_countermodel`; an
