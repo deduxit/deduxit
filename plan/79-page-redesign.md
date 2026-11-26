@@ -91,6 +91,20 @@ countermodels) works on it, which step 79 was first planned for.
   1.x, the island rule) and §4 before adding anything. In particular:
   as few npm packages as practical (§1.6), so `lucide-solid` leaves once
   the guide's own icons replace it; no `style` attribute (§4.4).
+- **The client's `deduxit` input moves in step 79** (fixup-27 held it,
+  2026-11-26): at deduxit's `main` of then, `about` lists the five
+  first-order normal forms (prenex, miniscope, Skolem, Herbrand,
+  clausal) beside the propositional ones, and the client's
+  `src/lib/clausal.test.ts` ("offers the forms deduxit lists") fails
+  until the page offers them. The session that first moves the input
+  (79c, for its bindings call) adds them to the page's forms, with the
+  normal-form view's handling of them left to 79d if 79c's frame has no
+  such view yet, and drops the Biome override in the client's flake
+  (Biome 2.6.8 is in that nixpkgs). The client's `main` moved under the
+  redesign chain meanwhile (npm updates, `tnvosplw`): the planning
+  session rebases the chain onto it at 79a's review, and a conflict in
+  `package-lock.json` is resolved by `npm install --package-lock-only`
+  from the merged `package.json`, never by hand.
 - **Fonts** come from npm through the lock, as the client's fonts do:
   Gentium Book Plus and Ysabeau Office are new (SIL OFL 1.1; check that
   the client's licences check and `src/integrations/licences.ts` list

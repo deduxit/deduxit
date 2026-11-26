@@ -8398,3 +8398,12 @@ move (D26).
   2026-11-25 and its lock, `install-nix-action` v31.11.5. No major release taken: `resvg` 0.50 waits
   for `krilla-svg`, `skrifa` 0.50 for `krilla`, `minicov` is `wasm-bindgen-test`'s exact pin.
   79a nudged to commit in units (72 files uncommitted after 80 minutes).
+- 2026-11-26, about 01:20: **fixup-27's client part pushed**: the client's `main@origin` is
+  `tnvosplw` (deefed62): the stack record (`uxtxusrn`), the npm updates (Astro 7.4.11, Solid 1.9.19,
+  `@astrojs/solid-js` 7.1.5, Tailwind 4.3.5, Vitest 5.1.0, `lucide-solid` 1.72.0), `install-nix-action`
+  v31.11.5, shfmt's settings; its full check passed. **Decided (unattended): the client's flake lock
+  is held for step 79**, since deduxit's `about` now lists the five first-order normal forms and the
+  client's test that the page offers every listed form fails until the page does; 79c moves the
+  input and adds them (step 79's prompt says so). Solid 2.0's two conditions both fail (2.0.0 is
+  under 14 days old; `@astrojs/solid-js` 7.1.6 still peers `^1.9.13`). The redesign chain is rebased
+  onto the client's new `main` at 79a's review.
