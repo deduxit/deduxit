@@ -8443,3 +8443,22 @@ move (D26).
   deduction's `?` with Prove apart alone, "Use its proof" only for the proof made apart, Steps by
   goal number, the engine choice for the visit, a replay keeping every step that holds) and the
   first-time task's points 4 and 5.
+- 2026-11-26, about 04:00: **79c's deduxit part pushed**: `nxtmowyn`, the bindings' call
+  `ordinary_structure` (`FiniteCountermodel::check`, each formula alone by `Structure::refutes`) and
+  `ordinary_close`/`ordinary_hint` answering a first-order goal by `Method::Models` (beyond the
+  brief, accepted: the goal state refuses first-order close and hint, so the page had no structure to
+  start from). Reviewed here, full check on GitHub's runners (run 45745798518), `main@origin`
+  `7e974ff9`.
+- 2026-11-26, about 04:30: **Session 79c reviewed, complete** (`local_9dfa5c8f`, 03:35 to 04:30;
+  report `opryloqq`): the witness box in the rule popover (∃R, ∀L, in the ordinary suite too), the
+  linear replay lettering its witnesses, the countermodel view `⊭` (a finite structure edited and
+  checked formula by formula, Undo and Redo; the propositional and modal models in it), the client's
+  `deduxit` input moved to `nxtmowyn` (`lxsllkyr`) with the five first-order normal forms, the Biome
+  override dropped, the flake rules' cache test and `flake.nix`'s comment corrected; on the redesign
+  chain `ppqqvnlp` to `uprvlrlk`. `fresh-reviewer` found three faults (a structure unchecked after an
+  eigenvariable, a false sentence for a Kripke model with growing domains, the view outliving its
+  sequent), all fixed and tested. Checked here: the report against the commits, the lock's `deduxit`
+  rev, and the client's full `nix flake check` at `uprvlrlk` (all 16 checks built for that tree,
+  passed). **Held for the author**: its departures (the first-order close and hint; a Kripke model
+  with growing domains named, not drawn; an ordinary replay leaving witnesses open, which a library
+  call writing an inference's term would make exact; the modal panel's drawing until 79d).
