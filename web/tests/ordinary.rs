@@ -329,6 +329,52 @@ fn a_model_is_checked_against_a_sequent() {
     assert_eq!(failure(&refused)["code"], "invalid_model");
 }
 
+/// A finite structure is checked against a first-order sequent: the
+/// verdict by the library's check, and each formula's truth alone.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_structure_is_checked_formula_by_formula() {
+    let sequent = "p(a), forall x. (p(x) -> q(x)) |- q(a), exists x. ~p(x)";
+    let refuting = r#"{"size":2,"constants":[["a",0]],"predicates":[["p",[[0]]]]}"#;
+    let checked = value(&ordinary::structure(refuting, sequent, "classical", "").unwrap());
+    let values = |side: &str| -> Vec<bool> {
+        checked[side]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["true"].as_bool().unwrap())
+            .collect()
+    };
+    assert_eq!(
+        (values("left"), values("right")),
+        (vec![true, false], vec![false, true])
+    );
+    assert_eq!(checked["refutes"], false);
+    assert!(checked["reason"].as_str().unwrap().contains("hypothesis"));
+    let model = r#"{"size":1,"constants":[["a",0]],"predicates":[["p",[[0]]],["q",[]]]}"#;
+    let checked = value(&ordinary::structure(model, "p(a) |- q(a)", "intuitionistic", "").unwrap());
+    assert_eq!(
+        checked,
+        json!({"refutes": true, "left": [{"formula": "p(a)", "true": true}], "right": [{"formula": "q(a)", "true": false}]})
+    );
+    let uninterpreted = r#"{"size":1,"constants":[],"predicates":[]}"#;
+    let refused = ordinary::structure(uninterpreted, "p(a) |-", "classical", "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "invalid_structure");
+}
+
+/// A first-order goal the embedding leaves unknown is searched for a
+/// finite structure, which `close` answers and `structure` accepts.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_first_order_goal_gets_a_finite_countermodel() {
+    let sequent = "exists x. p(x) |- forall x. p(x)";
+    let started = ordinary::start(sequent, "classical", "").unwrap();
+    let closed = value(&ordinary::close(&session(&started), 0, "").unwrap());
+    let outcome = &closed["outcome"];
+    assert_eq!(outcome["verdict"], "not_valid");
+    let structure = outcome["structure"]["structure"].to_string();
+    let checked = value(&ordinary::structure(&structure, sequent, "classical", "").unwrap());
+    assert_eq!(checked["refutes"], true);
+}
+
 /// A goal found not valid comes with the SAT solver's countermodel in
 /// `close`'s and `hint`'s outcome, which `model_drawing` draws and
 /// `model_certificate` certifies; an outcome without one is refused with

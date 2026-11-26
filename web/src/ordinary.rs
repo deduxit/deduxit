@@ -392,7 +392,10 @@ struct Closing {
 ///
 /// The goal is decided through its translation into linear logic, the
 /// one the settings' `ordinary.translation` names, or the logic's default
-/// when that is `null`.
+/// when that is `null`. A goal of a first-order session is searched for a
+/// finite countermodel instead (`refuted`): the goal state closes
+/// propositional goals only, so such a goal stays open, with a checked
+/// structure where one refutes it.
 ///
 /// # Errors
 ///
@@ -401,6 +404,17 @@ struct Closing {
 pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
+    if state.formulas().is_first_order() {
+        let outcome = refuted(&state, GoalId::new(goal), &settings)?;
+        return changed(
+            &state,
+            &settings,
+            Closing {
+                outcome,
+                refused: None,
+            },
+        );
+    }
     let closed = state
         .close(
             GoalId::new(goal),
@@ -447,6 +461,35 @@ fn with_countermodel(
     }
 }
 
+/// Searches a goal of a first-order session for a finite countermodel
+/// (`Method::Models`) within the settings' limits, since the goal state
+/// closes and hints at propositional sequents only: the outcome is not
+/// valid with a checked structure (or a Kripke model with growing
+/// domains), or unknown. A goal that names an eigenvariable or an open
+/// witness is unknown (`incomplete`): no structure interprets one.
+fn refuted(
+    state: &Interactive,
+    goal: GoalId,
+    settings: &Settings,
+) -> Result<ordinary::Outcome, Failure> {
+    let (left, right) = state
+        .goal(goal)
+        .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
+    let sequent = Sequent::new(state.formulas().clone(), left.to_vec(), right.to_vec())
+        .map_err(Failure::from)?;
+    let options = ordinary::Options::default()
+        .with_logic(state.logic())
+        .with_method(Some(Method::Models));
+    ordinary::decide_within(
+        &sequent,
+        &options,
+        &settings.search,
+        &settings.limits,
+        never,
+    )
+    .map_err(Failure::from)
+}
+
 /// What a hint found.
 #[derive(Serialize)]
 struct Hint {
@@ -472,6 +515,13 @@ struct Hint {
 pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
+    if state.formulas().is_first_order() {
+        let outcome = refuted(&state, GoalId::new(goal), &settings)?;
+        return written(&Hint {
+            steps: Vec::new(),
+            outcome,
+        });
+    }
     let hint = state
         .hint(
             GoalId::new(goal),
@@ -567,6 +617,98 @@ pub fn model(
     written(&Checked {
         holds: failing.is_none(),
         failing,
+    })
+}
+
+/// What a finite structure makes of a first-order sequent.
+#[derive(Serialize)]
+struct Evaluated {
+    /// Whether the structure refutes the sequent in its logic, by
+    /// `FiniteCountermodel::check`.
+    refutes: bool,
+    /// The check's reason where it does not: the first formula the
+    /// structure gets wrong.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    /// Each formula left of `⊢` and whether the structure makes it true.
+    left: Vec<Valued>,
+    /// Each formula right of `⊢`, likewise.
+    right: Vec<Valued>,
+}
+
+/// A formula of a sequent and its value in a structure.
+#[derive(Serialize)]
+struct Valued {
+    /// The formula, as the page prints formulas.
+    formula: String,
+    /// Whether the structure makes it true.
+    #[serde(rename = "true")]
+    holds: bool,
+}
+
+/// Checks a finite structure, in its JSON form (`{"size", "constants",
+/// "functions", "predicates"}`), against a first-order sequent of `logic`.
+/// Answers `{"refutes", "reason", "left", "right"}`: whether the structure
+/// refutes the sequent, the check's reason where it does not, and each
+/// formula with whether it is true there (`{"formula", "true"}`), each
+/// evaluated as a sequent of that formula alone.
+///
+/// # Errors
+///
+/// A structure or a sequent that cannot be read, an unknown logic, a
+/// structure that cannot interpret the sequent (code
+/// `invalid_structure`, its reason), and the evaluation past the
+/// settings' `limits.work` or `limits.memory_bytes`.
+pub fn structure(
+    structure: &str,
+    sequent: &str,
+    logic: &str,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let logic: Logic = logic.parse().map_err(Failure::from)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let mut document = serde_json::Deserializer::from_str(structure);
+    let structure: ordinary::Structure =
+        serde::Deserialize::deserialize(&mut document).map_err(Failure::json)?;
+    document.end().map_err(Failure::json)?;
+    // Each formula as the one hypothesis of a sequent: the structure
+    // refutes `A ⊢` exactly where it makes `A` true.
+    let true_in = |formula: NodeId| -> Result<Valued, Failure> {
+        let alone = Sequent::new(sequent.formulas().clone(), vec![formula], Vec::new())
+            .map_err(Failure::from)?;
+        let evaluation = structure
+            .refutes(&alone, &settings.limits, never)
+            .map_err(Failure::from)?;
+        Ok(Valued {
+            formula: sequent.formulas().formula(formula).to_string(),
+            holds: evaluation == ordinary::Evaluation::Refutes,
+        })
+    };
+    let left = sequent
+        .left()
+        .iter()
+        .map(|&f| true_in(f))
+        .collect::<Result<_, _>>()?;
+    let right = sequent
+        .right()
+        .iter()
+        .map(|&f| true_in(f))
+        .collect::<Result<_, _>>()?;
+    // Every formula was interpreted above, so a refusal of the check is
+    // the structure not refuting the sequent.
+    let checked =
+        ordinary::FiniteCountermodel::new(sequent, structure).check(logic, &settings.limits, never);
+    let reason = match checked {
+        Ok(()) => None,
+        Err(error @ deduxit::Error::Structure { .. }) => Some(error.to_string()),
+        Err(error) => return Err(Failure::from(error)),
+    };
+    written(&Evaluated {
+        refutes: reason.is_none(),
+        reason,
+        left,
+        right,
     })
 }
 

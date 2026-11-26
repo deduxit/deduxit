@@ -400,12 +400,31 @@ for `THIRD-PARTY-NOTICES.txt`.
   model in intuitionistic and minimal logic, so a `not_valid` outcome
   without one gets the SAT solver's model of the goal (`with_countermodel`,
   `sat::decide` on the goal as a sequent, within the settings' limits;
-  none where it refuses, the outcome as it was). `ordinary_model_drawing`
+  none where it refuses, the outcome as it was). The goal state's `close`
+  and `hint` refuse a first-order session (`first_order`), so in one the
+  bindings search the goal for a finite countermodel instead
+  (`refuted`: `Method::Models` within the settings' limits), answering
+  that outcome (`search.method` `models`, its checked `structure` or
+  `kripke_structure`) with the session unchanged and, for `hint`, no
+  steps: a first-order goal is never closed by the search here, and a
+  goal naming an eigenvariable is unknown (`incomplete`), since no
+  structure interprets one. The page's marking meets the same search
+  within its smaller budget. `ordinary_model_drawing`
   and `ordinary_model_certificate` read that outcome (`wire::upgrade` of
   `ordinary::Outcome`, which carries the countermodel and the logic)
   and answer `svg::countermodel` and `rocq::write_countermodel`; an
   outcome without one is the bindings' refusal `no_countermodel` (kind
   `unsupported`), which the library has no code for.
+- **A finite structure the page gives** (`ordinary_structure(structure,
+  sequent, logic, settings)`): the verdict is the library's
+  `FiniteCountermodel::check`, which names only the first formula a
+  structure gets wrong, so each formula's truth is `Structure::refutes`
+  on a sequent of that formula alone as its one hypothesis (`A ⊢` is
+  refuted exactly where `A` is true), the arena cloned per formula. The
+  formulas are evaluated before the check, so every term is interpreted
+  by then and the check's `Error::Structure` is "does not refute"
+  (`reason`), any other error thrown. The structure is read by serde
+  directly: it has no wire level of its own.
 - **The lambda-term** (`term`, `ordinary_term`) is the session's own
   derivation read back, as the command's session command `lambda` reads
   it, written with the settings' `lambda` (the command's key). What has no

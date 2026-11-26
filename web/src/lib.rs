@@ -352,6 +352,17 @@ mod exports {
         ordinary::model(model, sequent, logic, world, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::structure`].
+    #[wasm_bindgen]
+    pub fn ordinary_structure(
+        structure: &str,
+        sequent: &str,
+        logic: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::structure(structure, sequent, logic, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::table`].
     #[wasm_bindgen]
     pub fn ordinary_table(sequent: &str, settings: &str) -> Result<String, JsValue> {

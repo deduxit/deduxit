@@ -282,6 +282,11 @@ pub const SUITES: [Speaks; 5] = [
                 does: "checks a Kripke model the page gives",
             },
             Extra {
+                export: "ordinary_structure",
+                takes: &["structure", "sequent", "logic", "settings"],
+                does: "checks a finite structure the page gives, formula by formula",
+            },
+            Extra {
                 export: "ordinary_model_drawing",
                 takes: &["outcome", "settings"],
                 does: "draws an outcome's countermodel",
