@@ -12,14 +12,14 @@
 //! its side of `⊢` and its position there.
 
 use crate::Failure;
-use crate::calls::{Automatic, inverting};
+use crate::calls::{Automatic, Judged, inverting};
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative;
 use deduxit::ordinary::{
-    self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side,
-    Step, WrittenTableau,
+    self, Applicable, Candidate, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent,
+    Side, Status, Step, WrittenTableau,
 };
 use deduxit::ordinary::{normal, resolution};
 use deduxit::{Progress, Settings, linear::GoalId, wire};
@@ -67,6 +67,42 @@ struct View {
     /// logic (`Interactive::invertible_steps`), in order: what the page's
     /// undo goes past with `interactive.invertible` on.
     invertible: Vec<GoalId>,
+    /// Every closed quantifier step with the term it took, as taken
+    /// (`Interactive::opened_term`), so that a replay gives each witness
+    /// again: left out for a proof without one.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    opened: Vec<OpenedWith>,
+}
+
+/// A quantifier step of a session and the term it took.
+#[derive(Serialize)]
+struct OpenedWith {
+    /// The step's inference.
+    inference: GoalId,
+    /// The term as text, which the session's `witness` reads: an
+    /// eigenvariable by its name, a witness given; `null` for a witness
+    /// left open.
+    term: Option<String>,
+}
+
+/// Returns a session's closed quantifier steps with their terms, in the
+/// order of their inferences.
+fn opened_with(state: &Interactive) -> Vec<OpenedWith> {
+    // The explicit drawing shows every inference of the session.
+    let mut goals = state.derivation_ids(deduxit::linear::proofs::Structural::Explicit);
+    goals.sort_unstable();
+    goals
+        .into_iter()
+        .filter_map(|goal| {
+            let term = state.opened_term(goal)?;
+            // An open witness is written with a `$`, which no term holds.
+            let term = (!term.starts_with('$')).then_some(term);
+            Some(OpenedWith {
+                inference: goal,
+                term,
+            })
+        })
+        .collect()
 }
 
 impl View {
@@ -98,6 +134,7 @@ impl View {
             goals,
             inferences: state.derivation_ids(settings.view.structural),
             invertible: state.invertible_steps(),
+            opened: opened_with(state),
         }
     }
 }
@@ -214,6 +251,50 @@ pub fn rules(
         .rules(GoalId::new(goal), side_of(side)?, position as usize)
         .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
+}
+
+/// Returns every rule of the logic that acts on the formula at a position
+/// of a side of a goal, each with whether a step of it is legal on the
+/// goal as it stands (`Interactive::candidates`): `[{"rule", "status"}]`,
+/// `status` `applies`, `needs_input` with `needs` (`context` for two
+/// premises, which share the goal's other formulas unless a step splits
+/// them; `witness` for `∀L` and `∃R`) where the step with a shared context
+/// and a witness left open is legal, or `refused` with `refusal`, the
+/// error [`apply`] throws for that step. Whether the goals a step opens
+/// can be closed is not judged.
+///
+/// # Errors
+///
+/// An unknown side, and the step error for a goal that is not open or a
+/// position outside its side.
+pub fn candidates(
+    session: &str,
+    goal: u32,
+    side: &str,
+    position: u32,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let candidates = state
+        .candidates(GoalId::new(goal), side_of(side)?, position as usize)
+        .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
+    let judged: Vec<Judged<Rule, &str>> = candidates
+        .into_iter()
+        .map(|Candidate { rule, status, .. }| match status {
+            Status::NeedsInput { needs, .. } => Judged::needs(
+                rule,
+                match needs {
+                    Needs::Context => "context",
+                    Needs::Witness => "witness",
+                    _ => "input",
+                },
+            ),
+            Status::Refused(error) => Judged::refused(rule, &deduxit::Error::from(error)),
+            _ => Judged::applies(rule),
+        })
+        .collect();
+    written(&judged)
 }
 
 /// A step as the page sends it: `{"side", "position", "rule", "split",

@@ -4,8 +4,8 @@
 //! The protocol every suite's calls speak, written as data: [`describe`].
 //!
 //! A suite offers the stage's calls by one set of names (`read`, `start`,
-//! `view`, `rules`, `apply`, `undo`, `close`, `hint`, `draw`, `export_as`,
-//! `certificate`), each exported under the suite's prefix with the
+//! `view`, `rules`, `candidates`, `apply`, `undo`, `close`, `hint`, `draw`,
+//! `export_as`, `certificate`), each exported under the suite's prefix with the
 //! arguments its row lists, or `null` where the suite has no such call.
 //! Every call is stateless JSON: the documents it takes and gives carry
 //! their wire level (`version`), and a session's `view` says in `layout`
@@ -14,11 +14,12 @@
 use serde::Serialize;
 
 /// The protocol's calls, in the order every suite lists them.
-pub const CALLS: [&str; 11] = [
+pub const CALLS: [&str; 12] = [
     "read",
     "start",
     "view",
     "rules",
+    "candidates",
     "apply",
     "undo",
     "close",
@@ -56,7 +57,7 @@ pub struct Speaks {
     /// The suite, as `about` names it.
     pub suite: &'static str,
     /// The protocol's calls, in the order of [`CALLS`].
-    pub calls: [Offered; 11],
+    pub calls: [Offered; 12],
     /// The suite's calls beyond the protocol's.
     pub extra: &'static [Extra],
     /// The hosts its views draw into: `tree` (a derivation), `list` (a
@@ -159,6 +160,11 @@ pub const SUITES: [Speaks; 5] = [
                 "rules",
                 &["session", "goal", "position", "settings"],
             ),
+            offered(
+                "candidates",
+                "candidates",
+                &["session", "goal", "position", "settings"],
+            ),
             offered("apply", "apply", STEP),
             offered("undo", "undo", SESSION),
             offered("close", "close", GOAL),
@@ -206,6 +212,11 @@ pub const SUITES: [Speaks; 5] = [
             offered(
                 "rules",
                 "ordinary_rules",
+                &["session", "goal", "side", "position", "settings"],
+            ),
+            offered(
+                "candidates",
+                "ordinary_candidates",
                 &["session", "goal", "side", "position", "settings"],
             ),
             offered("apply", "ordinary_apply", STEP),
@@ -318,6 +329,7 @@ pub const SUITES: [Speaks; 5] = [
             ),
             offered("view", "rules_view", SESSION),
             offered("rules", "rules_rules", GOAL),
+            offered("candidates", "rules_candidates", GOAL),
             offered("apply", "rules_apply", STEP),
             offered("undo", "rules_undo", SESSION),
             lacks("close"),
@@ -363,6 +375,7 @@ pub const SUITES: [Speaks; 5] = [
             lacks("start"),
             lacks("view"),
             lacks("rules"),
+            lacks("candidates"),
             lacks("apply"),
             lacks("undo"),
             lacks("close"),
@@ -412,6 +425,7 @@ pub const SUITES: [Speaks; 5] = [
             lacks("start"),
             lacks("view"),
             lacks("rules"),
+            lacks("candidates"),
             lacks("apply"),
             lacks("undo"),
             lacks("close"),

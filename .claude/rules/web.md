@@ -439,7 +439,7 @@ for `THIRD-PARTY-NOTICES.txt`.
   term, and only an unreadable session throws. The judgement writes types
   and joins `no_intuitionistic_text_writes_a_classical_symbol`.
 - **The protocol** (`protocol.rs`, exported `describe`): which of each
-  suite's calls is which of the protocol's eleven (`CALLS`), with its
+  suite's calls is which of the protocol's twelve (`CALLS`), with its
   arguments (`takes`), `null` where the suite lacks one (the `rules`
   suite has no search, so no `close`, `hint` or `certificate`), its
   calls beyond them (`extra`), the layouts its views draw into and how
@@ -454,6 +454,26 @@ for `THIRD-PARTY-NOTICES.txt`.
   and every kind's form to the manual's schema
   (`docs/src/wire.schema.json`, which the `web-tests` part keeps). A new
   call of a suite is a row there; a new suite a row of `SUITES`.
+- **Every candidate rule with its status** (`candidates`,
+  `ordinary_candidates`, `rules_candidates`, one row of `describe`'s
+  `CALLS`, `lacks` in the modal and lambda suites): the library's
+  `Interactive::candidates` of each suite, written by one form,
+  `calls::Judged` (`{"rule", "at" (the rules suite's alone), "status",
+  "needs", "refusal"}`), so the page reads one shape. `refusal` is the
+  error `apply` throws for the same step, the linear one described with
+  the session's formulas (`Failure::described`'s form), so the page's
+  wording of a refusal is the same whichever call it came from;
+  `candidates_give_every_rule_its_status` in each test file compares
+  them. The linear call joins
+  `no_intuitionistic_text_writes_a_classical_symbol`, since a refusal's
+  message names formulas.
+- **The ordinary view's `opened`** (`ordinary::opened_with`, over
+  `Interactive::opened_term`): each closed quantifier step's term as
+  text the session's `witness` reads, `null` for a witness left open,
+  the steps found through the explicit drawing's ids (every inference of
+  the session). The page's replay of an ordinary proof gives each
+  witness from it; before, a replayed witness stayed open
+  (`a_step_s_term_is_written_out`).
 - **`ordinary_read(input, logic, settings)`** reads a sequent as
   `ordinary_start` would (a session made and dropped, so that two
   formulas right of ⊢ outside classical logic is the same

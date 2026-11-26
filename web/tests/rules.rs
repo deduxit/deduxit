@@ -361,3 +361,28 @@ fn a_line_out_of_scope_is_refused() {
         "{refused}"
     );
 }
+
+/// Every rule of the calculus comes with its status on a goal: `→I`
+/// applying, `∧I` refused with the fault as a field.
+#[wasm_bindgen_test(unsupported = test)]
+fn candidates_give_every_rule_its_status() {
+    let started = rules::start("NJ", "a ∧ b → b", "", "").unwrap();
+    let judged = value(&rules::candidates(&session(&started), 0, "").unwrap());
+    let of = |rule: &str| {
+        judged
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["rule"] == rule)
+            .unwrap_or_else(|| panic!("{rule} in {judged}"))
+            .clone()
+    };
+    assert_eq!(
+        of("→I"),
+        json!({"rule": "→I", "at": [], "status": "applies"})
+    );
+    let and = of("∧I");
+    assert_eq!(and["status"], "refused");
+    assert_eq!(and["refusal"]["code"], "step_refused");
+    assert_eq!(and["refusal"]["details"]["fault"], "unmatched");
+}

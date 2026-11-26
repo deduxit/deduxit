@@ -782,6 +782,14 @@ fn no_intuitionistic_text_writes_a_classical_symbol() {
                 }
             }
         }
+        // A refusal's message names formulas as the session writes them.
+        let formulas = value(&started)["view"]["goals"][0]["formulas"]
+            .as_array()
+            .map_or(0, Vec::len);
+        for position in 0..formulas as u32 {
+            let judged = calls::candidates(&session(&started), root, position, "").unwrap();
+            check("a candidate's refusal", &judged);
+        }
         if value(&closed)["view"]["complete"] != true {
             continue;
         }
@@ -1443,4 +1451,28 @@ fn a_finished_proof_reads_back_as_a_lambda_term() {
     );
     let small = settings(&json!({"limits": {"derivation_bytes": 8}}));
     assert_eq!(refused(&proof, &small)["error"]["kind"], "limit");
+}
+
+/// Every rule of a formula comes with its status: a split rule that takes
+/// input where some split is legal, and the axiom refused with the reason
+/// `apply` gives, as fields.
+#[wasm_bindgen_test(unsupported = test)]
+fn candidates_give_every_rule_its_status() {
+    // ⊢ ~A, A ⊗ ~B, B in a mode with Mix.
+    let started = calls::start("A, A -o B |- B", "mix", "").unwrap();
+    let state = session(&started);
+    let tensor = value(&calls::candidates(&state, 0, 1, "").unwrap());
+    assert_eq!(
+        tensor,
+        json!([
+            {"rule": "⊗", "status": "needs_input", "needs": "split"},
+            {"rule": "mix", "status": "needs_input", "needs": "split"},
+        ])
+    );
+    let axiom = value(&calls::candidates(&state, 0, 0, "").unwrap());
+    assert_eq!(axiom[0]["rule"], "ax");
+    assert_eq!(axiom[0]["status"], "refused");
+    let thrown = failure(&calls::apply(&state, 0, &step(0, "ax", None), "").unwrap_err());
+    assert_eq!(axiom[0]["refusal"], thrown);
+    assert_eq!(thrown["details"]["kind"], "not_alone");
 }

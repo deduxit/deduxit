@@ -636,3 +636,56 @@ fn an_open_witness_is_filled_by_the_axiom() {
     let undone = ordinary::undo(&state, "").unwrap();
     assert_eq!(value(&undone)["view"]["goals"][0]["left"][0], "p($2)");
 }
+
+/// Every rule of a formula comes with its status: the axiom refused with
+/// the reason `apply` gives, the rules of `∧` on the left applying.
+#[wasm_bindgen_test(unsupported = test)]
+fn candidates_give_every_rule_its_status() {
+    let started = ordinary::start("a /\\ b |- b", "intuitionistic", "").unwrap();
+    let state = session(&started);
+    let judged = value(&ordinary::candidates(&state, 0, "left", 0, "").unwrap());
+    let rules: Vec<(&str, &str)> = judged
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| (c["rule"].as_str().unwrap(), c["status"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        rules,
+        [
+            ("ax", "refused"),
+            ("WL", "applies"),
+            ("CL", "applies"),
+            ("∧L", "applies"),
+            ("∧L₁", "applies"),
+            ("∧L₂", "applies"),
+        ]
+    );
+    let thrown =
+        failure(&ordinary::apply(&state, 0, &step("left", 0, "ax", None), "").unwrap_err());
+    assert_eq!(judged[0]["refusal"], thrown);
+    assert_eq!(thrown["details"]["kind"], "no_partner");
+}
+
+/// A quantifier step's term is in the view as text the session reads,
+/// so a replay gives each witness again; a witness that is no term is
+/// refused with the fault as a field.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_step_s_term_is_written_out() {
+    let started = ordinary::start("forall x. p(x) |- forall y. p(f(y))", "classical", "").unwrap();
+    let eigen = ordinary::apply(&session(&started), 0, &step("right", 0, "∀R", None), "").unwrap();
+    let witness = |text: &str| {
+        let mut form: Value = serde_json::from_str(&step("left", 0, "∀L", None)).unwrap();
+        form["witness"] = json!(text);
+        form.to_string()
+    };
+    let refused = ordinary::apply(&session(&eigen), 1, &witness("g(a)"), "").unwrap_err();
+    let refused = failure(&refused);
+    assert_eq!(refused["details"]["fault"], "unknown_symbol");
+    assert_eq!(refused["details"]["name"], "g");
+    let taken = ordinary::apply(&session(&eigen), 1, &witness("f(a)"), "").unwrap();
+    assert_eq!(
+        value(&taken)["view"]["opened"],
+        json!([{"inference": 0, "term": "a"}, {"inference": 1, "term": "f(a)"}])
+    );
+}

@@ -13,7 +13,7 @@ use crate::Failure;
 use crate::tab;
 use deduxit::export::{Drawable, latex, rocq, svg, typst};
 use deduxit::linear::proofs::Compact;
-use deduxit::linear::proofs::interactive::{Applicable, Inverted, Needs, Split};
+use deduxit::linear::proofs::interactive::{Applicable, Candidate, Inverted, Needs, Split, Status};
 use deduxit::linear::proofs::{Sides, cut};
 use deduxit::{
     Error, Progress, Settings,
@@ -636,6 +636,104 @@ pub fn rules(session: &str, goal: u32, position: u32, settings: &str) -> Result<
         .rules(GoalId::new(goal), position_of(position))
         .map_err(|e| Failure::described(&Error::from(e), &state))?;
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
+}
+
+/// A candidate rule as the page lists it: `{"rule", "status", "needs",
+/// "refusal"}`, the same form in every suite's `candidates` (the rules
+/// suite's with `at`).
+#[derive(Serialize)]
+pub(crate) struct Judged<R: Serialize, N: Serialize> {
+    /// The rule's name.
+    pub(crate) rule: R,
+    /// The members the step acts on, by their numbers: the rules suite's
+    /// alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) at: Option<Vec<u32>>,
+    /// `applies`, `needs_input` or `refused`.
+    pub(crate) status: &'static str,
+    /// What the step takes, for `needs_input`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) needs: Option<N>,
+    /// The refusal, for `refused`: the error `apply` throws for the step.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) refusal: Option<serde_json::Value>,
+}
+
+impl<R: Serialize, N: Serialize> Judged<R, N> {
+    /// Returns a rule that applies.
+    pub(crate) const fn applies(rule: R) -> Self {
+        Self {
+            rule,
+            at: None,
+            status: "applies",
+            needs: None,
+            refusal: None,
+        }
+    }
+
+    /// Returns a rule whose step takes `needs`.
+    pub(crate) const fn needs(rule: R, needs: N) -> Self {
+        Self {
+            rule,
+            at: None,
+            status: "needs_input",
+            needs: Some(needs),
+            refusal: None,
+        }
+    }
+
+    /// Returns a rule refused, with the error's written form.
+    pub(crate) fn refused(rule: R, refusal: &impl Serialize) -> Self {
+        Self {
+            rule,
+            at: None,
+            status: "refused",
+            needs: None,
+            refusal: serde_json::to_value(refusal).ok(),
+        }
+    }
+}
+
+/// Returns every rule that acts on the formula at a position of a goal,
+/// each with whether a step of it is legal on the goal as it stands
+/// (`Interactive::candidates`): `[{"rule", "status"}]`, `status`
+/// `applies`, `needs_input` with `needs` (`split` for `⊗` and Mix,
+/// `witness` for `∃R` and `∀L`, or `∃` one-sided) where some choice is
+/// legal, or `refused` with `refusal`, the error [`apply`] throws for the
+/// step without input (every other formula to the right premise, a
+/// witness left open), its message naming formulas. Whether the goals a
+/// step opens can be closed is not judged.
+///
+/// # Errors
+///
+/// The step error for a goal that is not open or a position outside it.
+pub fn candidates(
+    session: &str,
+    goal: u32,
+    position: u32,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let candidates = state
+        .candidates(GoalId::new(goal), position_of(position))
+        .map_err(|e| Failure::described(&Error::from(e), &state))?;
+    let judged: Vec<Judged<Named, &str>> = candidates
+        .into_iter()
+        .map(|Candidate { rule, status, .. }| match status {
+            Status::NeedsInput { needs, .. } => Judged::needs(
+                rule,
+                match needs {
+                    Needs::Split => "split",
+                    Needs::Witness => "witness",
+                    _ => "input",
+                },
+            ),
+            Status::Refused(error) => Judged::refused(rule, &Error::from(error).describe(&state)),
+            _ => Judged::applies(rule),
+        })
+        .collect();
+    written(&judged)
 }
 
 /// A step as the page sends it: `{"position", "rule", "left", "witness"}`.

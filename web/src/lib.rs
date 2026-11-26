@@ -104,6 +104,18 @@ mod exports {
         calls::view(session, settings).map_err(thrown)
     }
 
+    /// See [`calls::candidates`].
+    #[wasm_bindgen]
+    pub fn candidates(
+        session: &str,
+        goal: f64,
+        position: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        let (goal, position) = (index(goal, "a goal")?, index(position, "a position")?);
+        calls::candidates(session, goal, position, settings).map_err(thrown)
+    }
+
     /// See [`calls::rules`].
     #[wasm_bindgen]
     pub fn rules(
@@ -289,6 +301,19 @@ mod exports {
     #[wasm_bindgen]
     pub fn ordinary_view(session: &str, settings: &str) -> Result<String, JsValue> {
         ordinary::view(session, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::candidates`].
+    #[wasm_bindgen]
+    pub fn ordinary_candidates(
+        session: &str,
+        goal: f64,
+        side: &str,
+        position: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        let (goal, position) = (index(goal, "a goal")?, index(position, "a position")?);
+        ordinary::candidates(session, goal, side, position, settings).map_err(thrown)
     }
 
     /// See [`ordinary::rules`].
@@ -525,6 +550,12 @@ mod exports {
     #[wasm_bindgen]
     pub fn rules_rules(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
         rules::rules(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`rules::candidates`].
+    #[wasm_bindgen]
+    pub fn rules_candidates(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        rules::candidates(session, index(goal, "a goal")?, settings).map_err(thrown)
     }
 
     /// See [`rules::apply`].

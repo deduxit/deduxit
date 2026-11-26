@@ -16,12 +16,14 @@
 //! the calculus's rules are sound.
 
 use crate::Failure;
+use crate::calls::Judged;
 use crate::tab;
 use deduxit::export::Drawable;
 use deduxit::export::{latex, svg, typst};
 use deduxit::linear::proofs::Layout;
 use deduxit::rules::{
-    self, Apply, Calculus, Derive, Drawing, Fitch, GoalId, Interactive, LineId, Undone,
+    self, Apply, Calculus, Candidate, Derive, Drawing, Fitch, GoalId, Interactive, LineId, Status,
+    Undone,
 };
 use deduxit::{Limits, Progress, Settings, wire};
 use serde::{Deserialize, Serialize};
@@ -401,6 +403,46 @@ pub fn rules(session: &str, goal: u32, settings: &str) -> Result<String, Failure
         })
         .collect();
     written(&offered)
+}
+
+/// Returns every rule of the calculus with whether a step of it is legal
+/// on an open goal as it stands (`Interactive::candidates`): `[{"rule",
+/// "at", "status"}]`, a rule once for each choice of the members it acts
+/// on where it is legal, `status` `applies` or `needs_input` with `needs`
+/// (the names a value must be given for), and a rule no choice makes legal
+/// once, with `at` empty, `status` `refused` and `refusal`, the error
+/// [`apply`] throws at its first choice (`step_refused` with its
+/// `details.fault`). Whether the goals a step opens can be closed is not
+/// judged.
+///
+/// # Errors
+///
+/// `step_refused` for a goal that is not open, and the refusals of the
+/// settings' bounds.
+pub fn candidates(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let judged: Vec<Judged<String, Vec<String>>> = state
+        .candidates(GoalId::new(goal))
+        .map_err(Failure::from)?
+        .into_iter()
+        .map(
+            |Candidate {
+                 rule, at, status, ..
+             }| {
+                let judged = match status {
+                    Status::NeedsInput { needs, .. } => Judged::needs(rule, needs),
+                    Status::Refused(error) => Judged::refused(rule, &error),
+                    _ => Judged::applies(rule),
+                };
+                Judged {
+                    at: Some(at),
+                    ..judged
+                }
+            },
+        )
+        .collect();
+    written(&judged)
 }
 
 /// A step as the page sends it: `{"rule", "at", "given"}`.
