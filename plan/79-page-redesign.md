@@ -339,7 +339,10 @@ departures of "Before approving the page":
   it possible to get that as well? maybe as long as no unification is
   necessary" (fixup-29: any proof made apart whose sequent is the goal's
   up to the order of its formulas).
-- **"+ view"'s fifth group**: asked again in plain words; open.
+- **"+ view"'s fifth group**: asked again in plain words; the author
+  left it to the planning session ("just go with what you think is
+  best"), which keeps "From this proof" as built: it tells the reader
+  that these views need a finished proof.
 - Every other departure stands as built.
 - The three library wishes the page left (every candidate rule with its
   reason, a step's term written out, untyped lambda calculi): "do all
