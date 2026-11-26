@@ -18,7 +18,7 @@
 use super::reduce::{Halt, budget, copied};
 use super::{Calculus, Node, Term, TermId, Type, TypeId, Types, Variable};
 use crate::Error;
-use crate::hash::HashMap;
+use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Progress, Refusal};
 
 /// A type of the unification: a type variable or a function type.
@@ -40,6 +40,9 @@ struct Unifier {
     seen: Vec<u64>,
     /// The mark of the current occurs check.
     mark: u64,
+    /// The pairs of function types set equal so far, each once: their
+    /// operands are equal once the unification that met them is done.
+    unified: HashSet<(u32, u32)>,
 }
 
 /// Why a unification failed: a type variable would be part of a type
@@ -132,9 +135,15 @@ impl Unifier {
                     }
                     self.parent[v as usize] = t;
                 }
+                // Two function types stay apart in the union-find, each its
+                // own representative: linked before their operands were
+                // unified, the one linked away would hide its operands
+                // from the occurs check, which then let a variable equal
+                // a type containing it. The pair is unified once.
                 (Shape::Arrow(from_a, to_a), Shape::Arrow(from_b, to_b)) => {
-                    self.parent[a as usize] = b;
-                    pairs.extend([(to_a, to_b), (from_a, from_b)]);
+                    if self.unified.insert((a.min(b), a.max(b))) {
+                        pairs.extend([(to_a, to_b), (from_a, from_b)]);
+                    }
                 }
             }
         }
@@ -330,6 +339,7 @@ impl Term {
             parent: Vec::new(),
             seen: Vec::new(),
             mark: 0,
+            unified: HashSet::default(),
         };
         let of_variable: Vec<u32> = (0..tree.variables.len())
             .map(|_| unifier.add(Shape::Variable))

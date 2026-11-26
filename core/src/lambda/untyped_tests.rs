@@ -504,4 +504,185 @@ fn principal_types_are_the_textbook_ones() {
         reason.contains("in `x x`") && reason.contains("a = a → b"),
         "{reason}"
     );
+    // A variable applied to another and then to itself: the occurs check
+    // sees through the function types unified on the way, whatever comes
+    // after.
+    for text in [r"\z. \x. \k. k (z x) (z z)", r"\z. \x. z x (z z)"] {
+        let Err(Error::IllTyped { reason, .. }) =
+            read(text, Calculus::Untyped).principal_type(&limits, never)
+        else {
+            panic!("{text} has no simple type");
+        };
+        assert!(reason.contains("in `z z`"), "{text}: {reason}");
+    }
+}
+
+/// A simple type of the reference unifier: a variable or a function
+/// type.
+#[derive(Clone, Debug)]
+enum Simple {
+    /// A type variable.
+    Var(u32),
+    /// `A → B`
+    Fun(Box<Simple>, Box<Simple>),
+}
+
+/// The reference's inference: the textbook's recursive unification with
+/// the occurs check, over a substitution kept as a map.
+#[derive(Default)]
+struct Reference {
+    /// What each bound type variable stands for.
+    bound: HashMap<u32, Simple>,
+    /// The next fresh type variable.
+    next: u32,
+}
+
+impl Reference {
+    /// Returns a fresh type variable.
+    fn fresh(&mut self) -> Simple {
+        self.next += 1;
+        Simple::Var(self.next)
+    }
+
+    /// Returns the type with every bound variable replaced, through and
+    /// through.
+    fn resolve(&self, t: &Simple) -> Simple {
+        match t {
+            Simple::Var(v) => self
+                .bound
+                .get(v)
+                .map_or(Simple::Var(*v), |t| self.resolve(t)),
+            Simple::Fun(a, b) => Simple::Fun(Box::new(self.resolve(a)), Box::new(self.resolve(b))),
+        }
+    }
+
+    /// Sets two types equal, or returns `false` where no type does.
+    fn unify(&mut self, a: &Simple, b: &Simple) -> bool {
+        let (a, b) = (self.resolve(a), self.resolve(b));
+        match (a, b) {
+            (Simple::Var(v), Simple::Var(w)) if v == w => true,
+            (Simple::Var(v), t) | (t, Simple::Var(v)) => {
+                fn occurs(v: u32, t: &Simple) -> bool {
+                    match t {
+                        Simple::Var(w) => *w == v,
+                        Simple::Fun(a, b) => occurs(v, a) || occurs(v, b),
+                    }
+                }
+                if occurs(v, &t) {
+                    return false;
+                }
+                self.bound.insert(v, t);
+                true
+            }
+            (Simple::Fun(a1, b1), Simple::Fun(a2, b2)) => {
+                self.unify(&a1, &a2) && self.unify(&b1, &b2)
+            }
+        }
+    }
+
+    /// Returns the type of a term under `scope`, the innermost binder
+    /// last, or `None` where it has none; a free name gets a type of its
+    /// own in `free`.
+    fn infer(
+        &mut self,
+        term: &Named,
+        scope: &mut Vec<(&'static str, Simple)>,
+        free: &mut Vec<(&'static str, Simple)>,
+    ) -> Option<Simple> {
+        match term {
+            Named::Var(x) => {
+                if let Some((_, t)) = scope.iter().rev().find(|(y, _)| y == x) {
+                    return Some(t.clone());
+                }
+                if let Some((_, t)) = free.iter().find(|(y, _)| y == x) {
+                    return Some(t.clone());
+                }
+                let t = self.fresh();
+                free.push((x, t.clone()));
+                Some(t)
+            }
+            Named::Lam(x, body) => {
+                let a = self.fresh();
+                scope.push((x, a.clone()));
+                let b = self.infer(body, scope, free);
+                scope.pop();
+                Some(Simple::Fun(Box::new(a), Box::new(b?)))
+            }
+            Named::App(f, a) => {
+                let tf = self.infer(f, scope, free)?;
+                let ta = self.infer(a, scope, free)?;
+                let r = self.fresh();
+                self.unify(&tf, &Simple::Fun(Box::new(ta), Box::new(r.clone())))
+                    .then_some(r)
+            }
+        }
+    }
+}
+
+/// Writes a reference type as deduxit writes one, its variables named
+/// `a`, `b`, … in the order `names` met them.
+fn written(t: &Simple, names: &mut Vec<u32>, top: bool, out: &mut String) {
+    match t {
+        Simple::Var(v) => {
+            let n = names.iter().position(|w| w == v).unwrap_or_else(|| {
+                names.push(*v);
+                names.len() - 1
+            });
+            out.push(char::from(b'a' + n as u8));
+        }
+        Simple::Fun(a, b) => {
+            out.push_str(if top { "" } else { "(" });
+            written(a, names, false, out);
+            out.push_str(" → ");
+            written(b, names, false, out);
+            out.push_str(if top { "" } else { ")" });
+        }
+    }
+}
+
+#[test]
+fn principal_types_agree_with_a_reference_unifier() {
+    let limits = Limits::default();
+    let mut generator = Generator(86);
+    let (mut typed, mut untypable) = (0, 0);
+    for _ in 0..3000 {
+        let named = generator.term(18);
+        let mut text = String::new();
+        named.text(&mut std::iter::empty(), &mut text);
+        let mut reference = Reference::default();
+        let mut free = Vec::new();
+        let expected = reference
+            .infer(&named, &mut Vec::new(), &mut free)
+            .map(|goal| {
+                let (mut names, mut out) = (Vec::new(), String::new());
+                for (i, (x, t)) in free.iter().enumerate() {
+                    out.push_str(if i == 0 { "" } else { ", " });
+                    out.push_str(&format!("{x} : "));
+                    written(&reference.resolve(t), &mut names, true, &mut out);
+                }
+                out.push_str(if free.is_empty() { "⊢ " } else { " ⊢ " });
+                out.push_str(": ");
+                written(&reference.resolve(&goal), &mut names, true, &mut out);
+                out
+            });
+        let found = match read(&text, Calculus::Untyped).principal_type(&limits, never) {
+            Ok(term) => {
+                let mut judgement = String::new();
+                term.write_judgement(&mut judgement, &Options::default(), &limits, never)
+                    .unwrap();
+                // The term's text out, its types kept.
+                let (context, rest) = judgement.split_once('⊢').unwrap();
+                let goal = rest.rsplit_once(" : ").unwrap().1;
+                typed += 1;
+                Some(format!("{context}⊢ : {goal}"))
+            }
+            Err(Error::IllTyped { .. }) => {
+                untypable += 1;
+                None
+            }
+            Err(other) => panic!("{text}: {other}"),
+        };
+        assert_eq!(found, expected, "{text}");
+    }
+    assert!(typed > 50 && untypable > 20, "{typed} {untypable}");
 }

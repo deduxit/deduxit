@@ -139,7 +139,12 @@ design, with its sources and the alternatives weighed, is
   DAG would force equal), by unification with the occurs check over
   type variables and arrows (`Unifier`, union-find with path
   compression, the occurs check a marked walk over the type DAG, every
-  step a unit of `limits.work`); no recursion. A failure is the occurs
+  step a unit of `limits.work`); no recursion. Only variables are linked
+  in the union-find: two arrows unified stay apart (`unified` keeps the
+  pair, so shared types are unified once), since an arrow linked away
+  before its operands were unified hid them from the occurs check, and
+  `\z. \x. \k. k (z x) (z z)` then made a cyclic type that the
+  solution's walk followed forever (the review's witness, a test now). A failure is the occurs
   check at an application, said with the equation (`a = a → b`) and the
   application's text, as `Error::IllTyped` at the source's node. The
   solution's type variables are atoms `a`, `b`, … named in the order the
