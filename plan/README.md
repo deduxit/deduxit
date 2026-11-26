@@ -8567,3 +8567,10 @@ move (D26).
   client's full `nix flake check` at `osruxkzq` (all 16 checks built for that tree, passed). The
   client's `main` is `osruxkzq`. Left open: natural deduction's panel takes `rules_candidates` (now in
   step 83's prompt); the calculus checker's own faults are still sentences.
+- 2026-11-27, about 00:23: **Back from the second account; steps 82 and 84 and fixup-30 started**
+  (the author's standing go of 2026-11-25; `plan/notes/handoff-2026-11-26.md` read). Step 82 (the
+  ordinary goal state: a first-order goal proved by search or refuted; cores 4-6) and step 84
+  (untyped lambda calculi, the β stepper, principal types; cores 7-9) run side by side, each in a
+  new session and workspace, each making its own client workspace; 84's client part waits for 82's
+  and 83's page work (the table). fixup-30 (the front texts with no main suite; cores 10-12) beside
+  them. Step 83 starts when 82 has landed, step 85 when 84 has.
