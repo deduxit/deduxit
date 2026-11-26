@@ -8407,3 +8407,13 @@ move (D26).
   input and adds them (step 79's prompt says so). Solid 2.0's two conditions both fail (2.0.0 is
   under 14 days old; `@astrojs/solid-js` 7.1.6 still peers `^1.9.13`). The redesign chain is rebased
   onto the client's new `main` at 79a's review.
+- 2026-11-26, about 01:40: **fixup-27 reviewed, complete** (report `vxkmswps` in
+  `plan/reports/fixups.md`): all three repositories updated and pushed (rocq-deduxit `uytplsqq`,
+  deduxit `urzxlzqy`, the client `tnvosplw`); every claim of its report matches the diffs and the
+  runs. Held: resvg 0.50 (krilla-svg), skrifa 0.50 (krilla), minicov (wasm-bindgen-test's pin),
+  install-nix-action v32 (under fourteen days), and the client's flake lock with its Biome override
+  (step 79). **Decided (unattended)**: its two findings go with 79c's lock move, in step 79's prompt:
+  the Biome cache test of the client's `flake.md` becomes the store path's lookup, and the client's
+  `flake.nix` comment stops claiming the followed inputs are past fourteen days (they follow
+  deduxit's lock; the gate is npm's and the actions'), rather than holding deduxit's flake inputs
+  back by age, which neither the skill nor the stack spec asks.

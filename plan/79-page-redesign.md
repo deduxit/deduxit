@@ -100,7 +100,16 @@ countermodels) works on it, which step 79 was first planned for.
   (79c, for its bindings call) adds them to the page's forms, with the
   normal-form view's handling of them left to 79d if 79c's frame has no
   such view yet, and drops the Biome override in the client's flake
-  (Biome 2.6.8 is in that nixpkgs). The client's `main` moved under the
+  (Biome 2.6.8 is in that nixpkgs). With it, two corrections fixup-27
+  found: the test in the client's `.claude/rules/flake.md` for whether
+  nixpkgs' Biome is cached becomes the store path's lookup (`nix
+  path-info --store https://cache.nixos.org $(nix eval --raw
+  --inputs-from . nixpkgs#biome.outPath)`; the one written there tries
+  to copy the derivation and fails with 404), and the comment in the
+  client's `flake.nix` that its followed inputs are all past fourteen
+  days is made true to what happens: they follow deduxit's lock, which
+  takes the newest (the fourteen days are npm's and the actions' gate,
+  stack spec §3.8). The client's `main` moved under the
   redesign chain meanwhile (npm updates, `tnvosplw`): the planning
   session rebases the chain onto it at 79a's review, and a conflict in
   `package-lock.json` is resolved by `npm install --package-lock-only`
