@@ -114,6 +114,9 @@ mod structure;
 mod table;
 #[cfg(feature = "interactive")]
 mod tableau;
+/// Formulas copied between arenas, for the goal state's search.
+#[cfg(feature = "interactive")]
+mod transfer;
 mod translate;
 /// A tableau written by hand, read and reviewed.
 #[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
@@ -2192,8 +2195,6 @@ mod first_order_tests {
     fn every_propositional_method_refuses_a_first_order_sequent() {
         let (sequent, derivation) = quantified();
         let limits = Limits::default();
-        #[cfg(feature = "interactive")]
-        let search = crate::linear::Options::default();
         for &logic in Logic::ALL {
             // The embedding decides it, and is the default there.
             for method in [None, Some(Method::Embedding)] {
@@ -2229,14 +2230,6 @@ mod first_order_tests {
                     |_| false,
                 ),
             );
-            // The goal state takes the sequent; its search refuses it.
-            #[cfg(feature = "interactive")]
-            {
-                let mut state = Interactive::within(&sequent, logic, &limits).unwrap();
-                let goal = state.goals().next().unwrap();
-                refused(state.close(goal, None, &search, &limits, |_| false));
-                refused(state.hint(goal, None, &search, &limits, |_| false));
-            }
         }
         refused(truth_table(&sequent, &limits, |_| false));
         refused(normal::rewrite(

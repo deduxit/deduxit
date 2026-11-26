@@ -199,9 +199,12 @@ in use.
   library.
 - Sequents are proved step by step in LK and LJ, in the command and in
   the web bindings, and a session can apply the invertible rules by
-  itself. A goal's `close` and `hint` decide through the embedding, for
-  propositional goals; in the bindings a goal that is not valid gets the
-  SAT solver's countermodel.
+  itself. A goal's `close` and `hint` decide a propositional goal
+  through the embedding and a first-order one by the first-order
+  methods: a proof found is checked before it enters, and a first-order
+  goal that is not valid gets a finite countermodel. In the bindings a
+  propositional goal that is not valid gets the SAT solver's
+  countermodel.
 - [First-order sequents](ordinary-logic.md#first-order-sequents) are
   read from text, JSON and TPTP, `fof` and `cnf` (of ILTP's 2 670
   first-order problems, all but four whose conjecture uses a variable

@@ -36,6 +36,18 @@ second number (0.1.x to 0.2.0), anything else the third.
 - `ordinary::Interactive::opened_term`: a quantifier step's term as text
   that `witness` reads back, so that a program that keeps the steps can
   take them again with their witnesses.
+- **The search closes a first-order goal** in the ordinary session
+  (`ordinary::Interactive::close` and `hint`, `close` in `interact
+  --logic`, `ordinary_close` and `ordinary_hint` in the bindings): it
+  searches for a proof as `prove --logic` does and grafts the derivation
+  found, each inference checked first; where it finds none, it looks
+  for a finite countermodel, which refutes the goal; otherwise the goal
+  stays open as unknown. An eigenvariable in the goal is a constant
+  there. A goal that holds an open witness is never called not valid.
+  A valid sequent whose evidence is grounding's clausal proof gets the
+  derivation that Herbrand's theorem builds. `hint` gives a `∀L` or
+  `∃R` its witness where the goal holds the term, and
+  `ordinary::Interactive::term_text` writes it as text `witness` reads.
 
 ### Changed
 

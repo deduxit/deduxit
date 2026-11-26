@@ -446,9 +446,11 @@ impl Session {
 }
 
 impl Session {
-    /// Decides a goal through the session's translation, stopped by the
-    /// time limit or Ctrl-C, grafts its derivation if it is valid, and
-    /// returns the verdict line.
+    /// Decides a goal, a propositional one through the session's
+    /// translation and a first-order one by the first-order methods,
+    /// stopped by the time limit or Ctrl-C, grafts its derivation if it is
+    /// valid, and returns the verdict line, with a countermodel's lines
+    /// after it.
     fn close(&mut self, goal: GoalId) -> Result<String> {
         clear_interrupt();
         let start = Instant::now();
@@ -474,25 +476,38 @@ impl Session {
             Err(error) => return Err(error.into()),
         };
         let outcome = &closed.outcome;
-        let ordinary::Search::Embedding {
-            translation,
-            linear,
-        } = &outcome.search
-        else {
-            unreachable!("a session closes a goal through the embedding")
+        let line = match &outcome.search {
+            ordinary::Search::Embedding {
+                translation,
+                linear,
+            } => {
+                let incomplete = matches!(
+                    outcome.verdict,
+                    ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete)
+                );
+                crate::ordinary::verdict_line(
+                    linear,
+                    outcome.logic,
+                    *translation,
+                    incomplete,
+                    0,
+                    &ended,
+                )
+            }
+            // A first-order goal is decided by the first-order methods;
+            // a countermodel follows its line, as `prove` prints it.
+            _ => {
+                let mut line = crate::ordinary::native_verdict_line(outcome, &ended);
+                if matches!(outcome.verdict, ordinary::Verdict::NotValid) {
+                    if let Some(structure) = &outcome.structure {
+                        line = format!("{line}\n{}", structure.structure);
+                    } else if let Some(kripke) = &outcome.kripke {
+                        line = format!("{line}\n{}", kripke.model);
+                    }
+                }
+                line
+            }
         };
-        let incomplete = matches!(
-            outcome.verdict,
-            ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Incomplete)
-        );
-        let line = crate::ordinary::verdict_line(
-            linear,
-            outcome.logic,
-            *translation,
-            incomplete,
-            0,
-            &ended,
-        );
         match closed.grafted {
             Ok(()) => Ok(line),
             Err(Refusal::Output {
