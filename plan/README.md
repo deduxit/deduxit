@@ -115,6 +115,10 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 83 | Natural deduction proofs found through cut-free sequent proofs translated and checked; natural deduction's goal menu whole on the page (one session) | `83-natural-deduction-search.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 79, 82 (the same files) |
 | 84 | Untyped lambda calculi beside the typed ones, a β stepper and principal types; the page's "Untyped" active (one session) | `84-untyped-lambda.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 71, 79 (its client part after 83's) |
 | 85 | System F, Church style: types with `∀`, terms with type abstraction and application, type checking in the unrestricted, linear and affine calculi, the typing derivation drawn and exported, type β in the stepper; no inference (one session) | `85-system-f.md` (written 2026-11-26, at the author's word) | Opus 5.5; `fresh-reviewer` | high | 84 |
+| | **Release 0.9.0: the libraries audited and refactored** (the author, 2026-11-27) | | | | |
+| 86 | The audit: quality criteria from their sources, baselines, an API consumer test, a workflow of finders and verifiers over nine areas and five dimensions, the findings ranked and one API proposal for the author's sign-off, the refactor planned (one session leading a workflow) | `86-audit-refactor.md` (written 2026-11-27) | Fable 5.2 leading; finders Opus 5.5, the architecture reader Fable 5.2, verifiers the other model, inventories Sonnet 5.5 | high (verifiers of Opus findings medium) | 85 for phase B (phase A beside 82 to 85) |
+| 87 | The refactor, behaviour-preserving first, by area (sessions 87a, 87b, …) | `87-refactor.md` (written at phase C of 86) | Opus 5.5; `fresh-reviewer`, the panel on checkers, searches and certificates | high | 86 and the author's sign-off of the API proposal |
+| 88 | The release of 0.9.0 (one session) | `88-release-0.9.0.md` (written at the review of 87) | Opus 5.5 | high | 87 |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -8574,3 +8578,16 @@ move (D26).
   new session and workspace, each making its own client workspace; 84's client part waits for 82's
   and 83's page work (the table). fixup-30 (the front texts with no main suite; cores 10-12) beside
   them. Step 83 starts when 82 has landed, step 85 when 84 has.
+- 2026-11-27, about 00:59: **Step 86, the audit and refactor for 0.9.0** (the author: after the
+  planned steps, a comprehensive audit and refactor of the Rust and Rocq libraries: idiomatic, clean
+  architecture, performance, an API others can build engines on, natural CLI, plain text; the API
+  may change significantly, 0.9.0 soon; a reasonably sized workflow allowed). Researched: Anthropic's
+  model and effort guidance (Opus 5.5 the default for complex agentic coding, Fable 5.2 for the most
+  demanding long-horizon work, effort at its default unless work is skipped; reviewers at high), the
+  verify-before-report pattern of multi-agent review, the Rust API Guidelines, the Rust Performance
+  Book, clig.dev and the Rust CLI book, Rocq's opam packaging and the rocq-community templates.
+  `plan/86-audit-refactor.md`: phase A (criteria, method, baselines, an API consumer test; no code,
+  beside 82 to 85), phase B after 85 (finders on Opus per area, one architecture reader on Fable,
+  verifiers on the other model, inventories on Sonnet; findings and one API proposal for the
+  author's sign-off), phase C (the refactor as steps 87a…), phase D (the steps), then 0.9.0 (88).
+  Led by the author's Fable 5.2 session "Rust and Rocq library audit"; table rows 86 to 88 added.
