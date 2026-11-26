@@ -23,9 +23,10 @@ threads only behind its `parallel` feature. The bindings leave that
 feature off: the flake builds them for `wasm32-unknown-unknown` with
 every other feature.
 
-The library holds three suites side by side: `linear` (linear logic),
-`ordinary` (propositional logic) and `lambda` (proofs read as
-lambda-terms). What they share stays at the root: the one error type,
+The library holds its suites side by side: `ordinary` (ordinary logic,
+propositional and first-order), `linear` (linear logic), `modal` (modal
+logic) and `lambda` (lambda-terms), with `rules` (calculi given as rule
+files) beside them. What they share stays at the root: the one error type,
 the limits a long call takes, the settings a front end holds, the
 exports and the JSON forms.
 

@@ -121,5 +121,5 @@ extension of `FILE` picks the format, so `--format` is not needed.
 In linear logic every hypothesis is used exactly once, so `A, B |- A` is
 unprovable. Affine mode, `-a`, lets a hypothesis go unused; the
 refutation names it where that is the problem
-([Getting started](introduction.md#your-first-unprovable-sequent)).
+([Getting started](introduction.md#linear-logic)).
 `!A` lets `A` be used any number of times.

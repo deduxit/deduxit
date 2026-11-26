@@ -1,6 +1,7 @@
 # Decide ordinary logic
 
-deduxit also decides ordinary propositional logic, in three variants:
+deduxit decides ordinary logic in three variants, propositional and
+[first-order](#first-order-sequents):
 - classical logic, where every formula is true or false, so that
   `a \/ ~a` holds;
 - intuitionistic logic, where a proof of a formula must build it, so

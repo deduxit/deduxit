@@ -7,23 +7,26 @@
 deduxit is a collection of logic suites. It decides whether a sequent
 is provable, and shows the proof or says why there is none. It is a
 command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
-are linear logic (classical and intuitionistic, first-order and cyclic,
-and the Lambek calculus), ordinary logic (classical, intuitionistic
-and minimal, propositional and first-order, with equality), where a
-sequent that is not valid gets a Kripke countermodel or a finite
-structure and classical logic has truth tables and tableaux, and
-propositional modal logic in the fifteen systems from K to S5.
-It checks and builds derivations in calculi given as rule files,
-natural deduction among them, drawn as trees or as Fitch proofs. It
-proves step by step, draws proof nets and countermodels, rewrites a
-classical sequent into normal forms, proves a first-order one by
-Herbrand's theorem, refutes its clauses by resolution, reads intuitionistic proofs as lambda-terms, checks the
-terms you write and finds a type's terms, grades an answer to a
-problem, and exports proofs to LaTeX,
-Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
-proves step by step in the browser with the same library. It began as
-linlog, a linear logic library (up to 0.2.0), and is growing to take in
-more calculi.
+are:
+
+- ordinary logic: classical, intuitionistic and minimal, propositional
+  and first-order, with equality. A sequent that is not valid gets a
+  Kripke countermodel or a finite structure. Classical logic also has
+  truth tables, tableaux, normal forms, Herbrand's theorem and
+  resolution.
+- linear logic: classical and intuitionistic, affine, first-order and
+  cyclic, and the Lambek calculus, with proof nets.
+- modal logic: the fifteen propositional systems from K to S5, with a
+  derivation or a Kripke countermodel.
+- lambda-terms: a proof read as a program, the terms you write checked,
+  and a type's terms found.
+- calculi given as rule files, natural deduction among them, drawn as
+  trees or as Fitch proofs.
+
+deduxit proves step by step, grades an answer to a problem, and exports
+proofs to LaTeX, Typst, SVG, PNG, PDF and Rocq. The
+[web page](https://deduxit.github.io/) proves step by step in the
+browser with the same library.
 
 ## Install
 
@@ -51,6 +54,30 @@ library's features.
 
 ## A first proof
 
+`--logic` names the logic of an ordinary sequent:
+
+```console
+$ deduxit prove --logic intuitionistic "A, A -> B |- B"
+valid (intuitionistic logic by the SAT solver)
+───── ax   ──────── ax
+A ⊢ A      B, A ⊢ B
+─────────────────── →L
+   A, A → B ⊢ B
+$ deduxit prove --logic intuitionistic "|- A \/ ~A"
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1
+world 1: forces A
+```
+
+The first line is the verdict, with the logic and the method that
+decided it. Then comes the proof, which a checker has verified, or the
+reason there is none. Here a Kripke countermodel shows why `A \/ ~A`
+does not hold: at world 0, `A` is not yet true, and `~A` fails since
+`A` holds at world 1 above it.
+
+Without `--logic`, `prove` reads linear logic, where each hypothesis is
+used exactly once:
+
 ```console
 $ deduxit prove "A, A -o B |- B"
 provable (MLL, classical, focus engine)
@@ -62,12 +89,10 @@ $ deduxit prove "A |- B"
 unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 ```
 
-The first line is the verdict, with the fragment of linear logic the
-sequent uses, the logic and the engine that searched. Then comes the
-proof, which the proof checker has verified, or the reason there is
-none. The proof is written one-sided, the standard form for classical
-linear logic: `⊢ ~A, A` is the axiom `A ⊢ A`. `--classical-sides two`
-writes it with the sides you gave:
+The verdict names the fragment of linear logic the sequent uses, the
+logic and the engine that searched. The proof is written one-sided, the
+standard form for classical linear logic: `⊢ ~A, A` is the axiom
+`A ⊢ A`. `--classical-sides two` writes it with the sides you gave:
 
 ```console
 $ deduxit prove --classical-sides two "A, A -o B |- B"
@@ -78,19 +103,17 @@ A ⊢ A      B ⊢ B
   A, A ⊸ B ⊢ B
 ```
 
-With `--logic`, deduxit decides classical, intuitionistic or minimal
-propositional logic instead. A sequent that is not valid comes with a
-checked Kripke countermodel:
+`--system` names a modal logic, and `deduxit term` works with
+lambda-terms:
 
 ```console
-$ deduxit prove --logic intuitionistic "|- A \/ ~A"
-not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
-world 0 (the model's world): forces nothing; below 1
-world 1: forces A
+$ deduxit prove --system K "[]A |- A"
+not valid in K: a checked countermodel of 1 world refutes □A ⊢ A at world 0
+world 0 (where the sequent fails): forces nothing; sees no world
+$ deduxit term inhabit "|- (A -> B) -> (B -> C) -> A -> C"
+inhabited
+⊢ λf:(A → B). λg:(B → C). λx:A. g (f x) : (A → B) → ((B → C) → (A → C))
 ```
-
-At world 0, `A` is not yet true, and `~A` fails since `A` holds at
-world 1 above it.
 
 The exit status is 0 for provable or valid, 1 for unprovable or not
 valid, 3 for unknown and 2 for an error. `deduxit <command> --help`
@@ -101,8 +124,8 @@ shows every option.
 - **The manual**,
   [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
   starts with a short tour, then has a guide for each task (deciding a
-  sequent, checking a proof, exporting, Rocq certificates, proving step
-  by step, other logics, the library), the reference, how the search
+  sequent in each logic, checking a proof, exporting, Rocq certificates,
+  proving step by step, the library), the reference, how the search
   works, and [the benchmarks](https://deduxit.github.io/deduxit/manual/benchmarks.html)
   beside the other provers. It describes `main`; a release's manual is
   the `docs/` directory of its tag.
