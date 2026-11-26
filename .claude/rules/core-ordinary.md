@@ -40,7 +40,9 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
   `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
   transformations, below; `normal.rs`: the normal forms, below; `interactive.rs` (behind `interactive`): the
-  goal state `Interactive`, below. Its JSON forms and those of the
+  goal state `Interactive`, below; `transfer.rs` (behind `interactive`):
+  formulas copied between arenas, a first-order goal out to the search
+  and its derivation back. Its JSON forms and those of the
   sequent, the derivation and the outcome are in
   `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
   goal state at wire level 8 (`wire::ORDINARY`, 9 with LJ's cut), the
@@ -279,7 +281,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   default translation for intuitionistic and minimal logic is
   `Translation::DEFAULT_INTUITIONISTIC`, chosen by the ILTP run
   (`plan/reports/25-ordinary-logic.md`). The goal state's `close` and
-  `hint` pass `Method::Embedding`: its steps take no cut.
+  `hint` pass `Method::Embedding` on a propositional goal (its steps take
+  no cut) and decide a first-order one by the default (below).
 - **First-order formulas** (`plan/notes/first-order-design.md` is the
   design): `Node::Forall(body)` and `Node::Exists(body)`, last, over de
   Bruijn indices, so formulas equal up to bound names are one node and
@@ -312,10 +315,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     `within`, `ljt::run`, `sat::run`, `truth_table`, `Tableau::of`,
     `normal`'s `rewrite_dyn`, `Clauses::of_sequent`, `interpolate` and
     `interpolant`,
-    `Model::forcing_with`, the goal state's `close` and `hint` (a door of
-    their own in `Interactive::decide`, since `decide` takes first-order
-    sequents now and the graft's `ids_of` has no arm for a binder; the
-    goal state itself takes first-order sequents),
+    `Model::forcing_with`,
     `WrittenTableau::review_dyn` (its own and the expected sequent),
     the Rocq certificate (`rocq::write`), `Derivation::term`,
     `lambda::enumerate` (whose search reads the types itself; `has_type`
@@ -1907,6 +1907,55 @@ factored out of the two until the kernel crate is.
   pins it. A refutation or an unknown leaves the goal
   open with the outcome saying why; a stop is `Unknown(Stopped)`, a
   refused read-back `decide`'s error.
+- **A first-order goal is decided as a sequent of its own arena**
+  (`Interactive::decide`, `transfer::copy`; the author's "most
+  idiomatic", 2026-11-26: prove, else find a countermodel, as Isabelle's
+  `try` runs Sledgehammer and Nitpick on one goal):
+  - The goal's formulas are copied into a fresh arena, every
+    eigenvariable and open witness a constant of its own
+    (`Parameters::Constants`: an eigenvariable named as the session
+    prints it, so a structure's constant is the goal text's name; an
+    open witness by a name after those), so no parameter reaches an
+    engine (the model search has an `unreachable!` on one), and no
+    eigenvariable of another branch can be a witness of the derivation.
+    A goal with no binder and no term copies to a propositional arena
+    and goes through the embedding as before.
+  - The search is `decide_within` with no method (the translation the
+    caller gives): grounding or the connection prover, the embedding,
+    then the model search. A valid outcome whose evidence is grounding's
+    clausal proof gets Herbrand's derivation (`with_derivation`,
+    `herbrand::herbrand`, which checks it); where it builds none the
+    verdict stays valid and nothing is grafted (`Closed::grafted` is
+    `Ok`, "there was none").
+  - **A goal holding an open witness is never refuted**
+    (`takes_open_witness`): a countermodel of the witness as a constant
+    shows nothing of the other terms an axiom may bind it to, so
+    `NotValid` turns `Unknown(Incomplete)` and the countermodels go; and
+    a derivation whose quantifier rule takes a term holding a witness's
+    constant is unknown too, since the session reader's replay refuses
+    a closed `∀L`/`∃R` whose term holds an earlier step's witness.
+  - **The graft** (`graft_first_order`, `carried`): the derivation's
+    formulas and terms are copied into a clone of the arena
+    (`Parameters::Back`), each constant back to its parameter by name and
+    each eigenvariable numbered `offset` higher, past every eigenvariable
+    the live inferences hold (as `fresh_eigenvariable` numbers): above
+    every open witness's level, so no later binding takes one, and apart
+    from the parameters, so `∀R`'s condition holds as it did. Every
+    inference is checked by `check_inference` in that arena before the
+    state changes (a failure is `Error::ReadBack`), the implications of
+    new equivalences are added, and the step goes through `record`, which
+    registers inferences under the open witnesses they show.
+  - `hint` copies the same way into its clone (`first_steps`) and gives
+    `∀L`/`∃R` the witness only where `held` takes it and its id is below
+    the state's terms (the clone's later ids are no ids of the state);
+    `term_text` writes it for a front end.
+  - A goal with `=` that lacks some of the equality axioms (the
+    bindings start a session without them; the command's session adds
+    them, and a step may weaken one away) is decided with them, since
+    `within` adds them: valid means valid with identity, but the
+    derivation's root holds the axioms, so nothing is grafted and `hint`
+    gives no steps (`Decided::graftable`); a structure refutes the goal
+    as it is, `=` read as identity.
 - **The structural rules as a display choice** (`ViewOptions::structural`,
   `Structural::{Explicit, Admissible}`, admissible by default): `Derivation::shown`/`admissible`
   leaves out every `WL`, `WR`, `CL`, `CR` whose branch the rules above

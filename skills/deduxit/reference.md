@@ -1698,7 +1698,9 @@ other methods refuse a first-order sequent, naming themselves (exit
   introduced below the goal: `apply 1 R0 existsR a`. The witness is
   typed; one left open for an axiom to fill comes later, so a sequent
   with no constant, such as `∀x. p(x) ⊢ ∃x. p(x)`, has no proof yet.
-- `close` refuses a first-order goal (no graft yet); `check` checks the derivation
+- `close` searches a first-order goal for a proof, its eigenvariables
+  constants there, and grafts the derivation, checked; else it looks
+  for a finite countermodel and prints it. `check` checks the derivation
   `proof FILE` writes, whose quantifier inferences hold `"term": k` (an
   index of the sequent's `fo`, an eigenvariable there `{"E": n}`, wire
   level 25).
@@ -2251,7 +2253,11 @@ library's `ordinary::Interactive` at wire level 8:
   those rules `"witness": true`;
 - `ordinary_hint`, whose `steps` are the weakenings and contractions at
   the root of the derivation found and the rule above them, which
-  `ordinary_apply` takes in turn;
+  `ordinary_apply` takes in turn (a `∀L` or `∃R` with its `witness` as
+  text where the goal holds the term);
+- `ordinary_close` and `ordinary_hint` decide a first-order goal as the
+  session's `close` does: a proof grafted, checked, or a finite
+  countermodel in the outcome's `structure`;
 - `ordinary_export`, in `text`, `latex`, `typst`, `svg` or `rocq`.
 - `ordinary_translate(sequent, options, settings)`, `options` being
   `{"translation": "kuroda", "target": "intuitionistic"}` or `""`, and

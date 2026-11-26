@@ -287,8 +287,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   The batch has the same in
   `Shared::by_native` and `write_native` (an entry is `Loaded::Ordinary` or
   `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
-  the embedding (its steps take no cut), so its outcome is always
-  `Search::Embedding`.
+  the embedding on a propositional goal (its steps take no cut), and a
+  first-order goal's outcome is the method's that answered, its line
+  `native_verdict_line` with the structure or Kripke model after it
+  (`Session::close`).
 - `calculus.rs`: `check` of a derivation in a calculus given as data
   (`read_document` probes the key `calculus` first: no other document
   has it). `--calculus CALCULUS` (a path, an input like the proof file,
@@ -1494,8 +1496,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   compared by name before and after: a step that fills an earlier
   witness adds one in the middle); `ordinary_rules` lists the
   quantifier rules only for a sequent with a binder (`binders`), so a
-  propositional session's messages are as before; `close` answers the
-  library's first-order refusal.
+  propositional session's messages are as before; `close` proves or
+  refutes a first-order goal by the library's first-order methods.
 - **An `interact` command**: an arm in `Session::answer` (linear) or
   `ordinary::Session::command` (LK and LJ), a line in that module's
   `HELP`, and the session test in `cli/tests/cli.rs`

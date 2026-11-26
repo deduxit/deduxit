@@ -911,8 +911,13 @@ and LM:
   introduced after it was left open is refused. One still open when the
   proof is finished becomes a fresh constant, so `∀x. p(x) ⊢ ∃x. p(x)`
   proves with no constant in the sequent (below).
-- `close` refuses a first-order goal: the session cannot graft a
-  first-order derivation yet.
+- `close` searches for a proof of a first-order goal as `prove --logic`
+  does, then for a finite countermodel. A derivation found is checked
+  before it enters the proof; a countermodel is printed after the line.
+  An eigenvariable in the goal is a constant there. A goal that holds an
+  open witness is never called not valid: a countermodel there treats
+  the witness as one constant, and another term may still prove the
+  goal.
 
 `check` checks a finished derivation that `proof FILE` wrote:
 
@@ -969,6 +974,29 @@ p(a), ∀x. p(x) ⊢ p(a)
    ∀x. p(x) ⊢ p(a)
  ─────────────────── ∃R
  ∀x. p(x) ⊢ ∃x. p(x)
+```
+
+`close` proves a first-order goal, or refutes it with a finite
+structure. Here the second goal holds the eigenvariable `a`, which the
+structure gives an element:
+
+```console
+$ deduxit interact --logic classical '|- forall x. (p(x) -> p(x)), forall x. q(x)'
+> apply 0 R1 forallR
+opened goal 1: ⊢ R0: ∀x. (p(x) → p(x)), R1: q(a)
+> close 1
+goal 1: valid (classical logic by the connection prover)
+no goal is open: `proof` checks the proof
+```
+
+```console
+$ deduxit interact --logic classical '|- forall x. q(x)'
+> apply 0 R0 forallR
+opened goal 1: ⊢ R0: q(a)
+> close
+goal 1: not valid (classical logic by grounding): a checked finite structure of 1 element refutes it
+domain: {0}
+a = 0
 ```
 
 The checker takes the rules in G3's form and in G1's: `∀L` may keep

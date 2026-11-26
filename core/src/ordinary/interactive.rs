@@ -7,8 +7,10 @@
 //! in it by its side and position, and a rule. The step checks the rule
 //! against the formula and the logic, checks every inference it makes by
 //! the rules the derivation's checker applies, and returns the goals it
-//! opens. The search can close a goal through the embedding into linear
-//! logic ([`decide_within`]), whose derivations have no cut. A finished
+//! opens. The search can close a goal ([`decide_within`]): a propositional
+//! goal through the embedding into linear logic, whose derivations have no
+//! cut, a first-order one by the first-order methods, and a derivation
+//! found is checked inference by inference before it enters. A finished
 //! proof is a [`Derivation`] that [`Derivation::check`] validates, so this
 //! module adds nothing to what must be trusted.
 //!
@@ -16,10 +18,12 @@
 
 use super::derivation::{check_inference, same};
 use super::instance::Resolution;
+use super::transfer::{self, Parameters};
 use super::translate::Extra;
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side};
-use super::{Translation, Verdict, bound, decide_within};
+use super::{Evidence, Translation, Verdict, bound, decide_within};
 use crate::first_order::{Eigen, FoTerm, FoTermId};
+use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
@@ -955,6 +959,91 @@ fn implications_from(formulas: &mut Formulas, from: usize) -> Result<(), Error> 
     Ok(())
 }
 
+/// What deciding a goal found, and how to carry its derivation back.
+struct Decided {
+    /// The outcome. At first order its derivation, its countermodels and
+    /// their sequents are over an arena of the goal alone.
+    outcome: Outcome,
+    /// At first order, the constants of that arena that stand for the
+    /// goal's eigenvariables and open witnesses, by name, each with the
+    /// state's term.
+    constants: Option<HashMap<String, FoTermId>>,
+    /// Whether a derivation in the outcome is one of the goal: not where
+    /// it holds the equality axioms the goal lacks.
+    graftable: bool,
+}
+
+/// Gives a valid first-order outcome whose evidence is no derivation (the
+/// clausal proof of grounding's instances) the derivation of LK that
+/// Herbrand's theorem builds from ground instances of the sequent, which
+/// [`herbrand`](super::herbrand::herbrand) checks; where it builds none
+/// within `limits` and `stop`, the outcome stays as it is.
+///
+/// # Errors
+///
+/// [`Error::ReadBack`] where the derivation built fails its check, a
+/// defect.
+#[cfg(feature = "sat")]
+fn with_derivation(
+    outcome: &mut Outcome,
+    sequent: &Sequent,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<(), Error> {
+    let Verdict::Valid(evidence) = &outcome.verdict else {
+        return Ok(());
+    };
+    // Herbrand's derivation is one of LK, and grounding is valid in
+    // classical logic alone.
+    if evidence.derivation().is_ok()
+        || !sequent.formulas.is_first_order()
+        || outcome.logic != Logic::Classical
+    {
+        return Ok(());
+    }
+    match super::herbrand::herbrand(sequent, &super::herbrand::Options::default(), limits, stop) {
+        Ok(found) => {
+            if let Verdict::Valid(evidence @ Evidence::Derivation(_)) = found.verdict {
+                outcome.verdict = Verdict::Valid(evidence);
+            }
+            Ok(())
+        }
+        Err(error @ Error::ReadBack { .. }) => Err(error),
+        // A bound or a sequent outside its reach leaves the clausal proof.
+        Err(_) => Ok(()),
+    }
+}
+
+/// Returns whether `outcome` rests on an open witness taken as a
+/// constant, one of `metas` by name: a countermodel, which shows only
+/// that the witness as a constant gives no proof, and a derivation whose
+/// quantifier rule takes a term holding one, which no proof in progress
+/// names.
+fn takes_open_witness(outcome: &Outcome, metas: &crate::hash::HashSet<&str>) -> bool {
+    match &outcome.verdict {
+        Verdict::NotValid => true,
+        Verdict::Valid(Evidence::Derivation(found)) => {
+            let tables = found.formulas().first_order();
+            let mut seen = crate::hash::HashSet::default();
+            let mut stack: Vec<FoTermId> =
+                found.inferences().iter().filter_map(|i| i.term).collect();
+            while let Some(t) = stack.pop() {
+                if !seen.insert(t) {
+                    continue;
+                }
+                if let FoTerm::App(symbol, args) = tables.terms[t.index()] {
+                    if metas.contains(tables.symbols[symbol.index()].0.as_str()) {
+                        return true;
+                    }
+                    stack.extend_from_slice(tables.list(args));
+                }
+            }
+            false
+        }
+        Verdict::Valid(_) | Verdict::Unknown(_) => false,
+    }
+}
+
 /// Returns an open goal with the sides given.
 const fn open(left: Vec<NodeId>, right: Vec<NodeId>) -> Inference {
     Inference {
@@ -1358,6 +1447,16 @@ impl Interactive {
             .and_then(|w| w.raw.get(goal.index())?.as_ref())
             .map_or(inference.term, |made| made.term)?;
         Some(self.formulas.term_text(made))
+    }
+
+    /// Returns the term `term` of the proof's formulas as text that
+    /// [`witness`](Self::witness) reads back, an eigenvariable by the name
+    /// the proof prints it with, or `None` for an id outside them: what a
+    /// front end shows of a step's witness, such as one of
+    /// [`Hint::steps`].
+    pub fn term_text(&self, term: FoTermId) -> Option<String> {
+        (term.index() < self.formulas.first_order().terms.len())
+            .then(|| self.formulas.term_text(term))
     }
 
     /// Returns what `rule` makes of the formula `x` at `position` of
@@ -2364,25 +2463,38 @@ impl Interactive {
     }
 
     /// Decides the open goal as a sequent of its own in the state's logic
-    /// and returns the outcome. The search goes through the embedding by
-    /// `translation` (`None` for the logic's default), with the search
-    /// options, within `limits` and until `stop` fires. When the goal is
-    /// valid, the derivation found is grafted onto it as one step, which
-    /// [`undo`](Self::undo) takes back whole. A goal the search refutes or
-    /// cannot decide stays open, and the outcome says why
-    /// ([`Verdict::NotValid`], or [`Verdict::Unknown`] with its reason).
+    /// and returns the outcome, with the search options, within `limits`
+    /// and until `stop` fires. A propositional goal goes through the
+    /// embedding by `translation` (`None` for the logic's default). A
+    /// first-order goal is decided as [`decide_within`] decides a sequent
+    /// with no method given: a search for a proof, then one for a finite
+    /// countermodel, the embedding by `translation` where one is given;
+    /// an eigenvariable or an open witness of the goal is a fresh constant
+    /// there. When the goal is valid, the derivation found is grafted onto
+    /// it as one step, which [`undo`](Self::undo) takes back whole, each of
+    /// its inferences checked first. A goal the search refutes or cannot
+    /// decide stays open, and the outcome says why ([`Verdict::NotValid`],
+    /// or [`Verdict::Unknown`] with its reason). A goal that holds an open
+    /// witness is never refuted: a countermodel there shows only that
+    /// the witness as a constant gives no proof, and the outcome is
+    /// unknown ([`Reason::Incomplete`](crate::linear::search::Reason::Incomplete)).
     ///
     /// A derivation larger than `limits.derivation_bytes` by the size
     /// estimate is not grafted: the goal stays open, [`Closed::grafted`]
-    /// says why, and the outcome keeps the derivation.
+    /// says why, and the outcome keeps the derivation. A valid goal whose
+    /// evidence is no derivation stays open too, and so does a goal with
+    /// `=` that lacks some of the equality axioms: it is decided with them
+    /// as hypotheses, so its derivation is not the goal's.
     ///
     /// # Errors
     ///
     /// [`Error::OrdinaryStep`] for a goal that is not open, the errors of
     /// [`decide_within`] (a translation that does not decide the logic, the
-    /// refusal of a bound or the stop), the goal then still open, and
+    /// refusal of a bound or the stop), the goal then still open,
     /// [`Error::GoalMismatch`] if the derivation found concludes a sequent
-    /// other than the goal.
+    /// other than the goal, and
+    /// [`Error::ReadBack`] if one of its inferences fails the check, a
+    /// defect.
     pub fn close(
         &mut self,
         goal: GoalId,
@@ -2391,14 +2503,20 @@ impl Interactive {
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<Closed, Error> {
-        let outcome = self.decide(goal, translation, search, limits, stop)?;
+        let Decided {
+            outcome,
+            constants,
+            graftable,
+        } = self.decide(goal, translation, search, limits, stop)?;
         let grafted = match &outcome.verdict {
-            Verdict::Valid(evidence) => match self.graft(goal, evidence.derivation()?, limits) {
-                Ok(()) => Ok(()),
-                Err(Error::Refused(refusal)) => Err(refusal),
-                Err(error) => return Err(error),
-            },
-            Verdict::NotValid | Verdict::Unknown(_) => Ok(()),
+            Verdict::Valid(Evidence::Derivation(found)) if graftable => {
+                match self.graft(goal, found, constants.as_ref(), limits) {
+                    Ok(()) => Ok(()),
+                    Err(Error::Refused(refusal)) => Err(refusal),
+                    Err(error) => return Err(error),
+                }
+            }
+            Verdict::Valid(_) | Verdict::NotValid | Verdict::Unknown(_) => Ok(()),
         };
         Ok(Closed { outcome, grafted })
     }
@@ -2419,38 +2537,103 @@ impl Interactive {
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<Hint, Error> {
-        let outcome = self.decide(goal, translation, search, limits, stop)?;
+        let Decided {
+            outcome,
+            constants,
+            graftable,
+        } = self.decide(goal, translation, search, limits, stop)?;
         self.open(goal)?;
         let steps = match &outcome.verdict {
-            Verdict::Valid(evidence) => self.first_steps(goal, evidence.derivation()?),
-            Verdict::NotValid | Verdict::Unknown(_) => Vec::new(),
+            Verdict::Valid(Evidence::Derivation(found)) if graftable => {
+                self.first_steps(goal, found, constants.as_ref())
+            }
+            Verdict::Valid(_) | Verdict::NotValid | Verdict::Unknown(_) => Vec::new(),
         };
         Ok(Hint { outcome, steps })
     }
 
-    /// Decides the open goal as a sequent of its own.
+    /// Decides the open goal as a sequent of its own, as
+    /// [`close`](Self::close) says.
     fn decide(
         &self,
         goal: GoalId,
         translation: Option<Translation>,
         search: &search::Options,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
-    ) -> Result<Outcome, Error> {
-        // A first-order derivation is not grafted yet.
-        self.formulas.propositional("a session's close and hint")?;
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Decided, Error> {
         let goal = self.open(goal)?;
+        if !self.formulas.is_first_order() {
+            let sequent = Sequent {
+                formulas: self.formulas.clone(),
+                left: goal.left.clone(),
+                right: goal.right.clone(),
+            };
+            // The embedding's derivations have no cut, which no step takes.
+            let options = super::Options::default()
+                .with_logic(self.logic)
+                .with_translation(translation)
+                .with_method(Some(super::Method::Embedding));
+            return Ok(Decided {
+                outcome: decide_within(&sequent, &options, search, limits, stop)?,
+                constants: None,
+                graftable: true,
+            });
+        }
+        // The goal alone, in an arena of its own: no eigenvariable or open
+        // witness of the proof reaches the search, and none of another
+        // branch can be a witness of the derivation found.
+        let roots: Vec<NodeId> = goal.left.iter().chain(&goal.right).copied().collect();
+        let mut formulas = Formulas::default();
+        let copied = transfer::copy(
+            &mut formulas,
+            &self.formulas,
+            Some(&roots),
+            &Parameters::Constants,
+        )?;
         let sequent = Sequent {
-            formulas: self.formulas.clone(),
-            left: goal.left.clone(),
-            right: goal.right.clone(),
+            left: goal.left.iter().map(|&n| copied.node(n)).collect(),
+            right: goal.right.iter().map(|&n| copied.node(n)).collect(),
+            formulas,
         };
-        // The embedding's derivations have no cut, which no step takes.
-        let options = super::Options::default()
+        let mut options = super::Options::default()
             .with_logic(self.logic)
-            .with_translation(translation)
-            .with_method(Some(super::Method::Embedding));
-        decide_within(&sequent, &options, search, limits, stop)
+            .with_translation(translation);
+        if !sequent.formulas.is_first_order() {
+            options = options.with_method(Some(super::Method::Embedding));
+        }
+        // A goal with `=` is decided with the equality axioms; where it
+        // lacks them, a derivation is of the goal with them, no derivation
+        // of the goal.
+        let graftable = !sequent.formulas.has_equality()
+            || super::equality::with_axioms(&sequent, limits)?.is_none();
+        let mut outcome = decide_within(&sequent, &options, search, limits, &mut stop)?;
+        #[cfg(feature = "sat")]
+        with_derivation(&mut outcome, &sequent, limits, &mut stop)?;
+        if copied.metas {
+            let metas: crate::hash::HashSet<&str> = copied
+                .constants
+                .iter()
+                .filter(|&(_, &t)| {
+                    matches!(
+                        self.formulas.first_order().terms[t.index()],
+                        FoTerm::Meta(_)
+                    )
+                })
+                .map(|(name, _)| name.as_str())
+                .collect();
+            if takes_open_witness(&outcome, &metas) {
+                outcome.verdict = Verdict::Unknown(crate::linear::search::Reason::Incomplete);
+                outcome.countermodel = None;
+                outcome.structure = None;
+                outcome.kripke = None;
+            }
+        }
+        Ok(Decided {
+            outcome,
+            constants: Some(copied.constants),
+            graftable,
+        })
     }
 
     /// Returns the id in `formulas` of every formula of `other`, adding to
@@ -2479,7 +2662,13 @@ impl Interactive {
     /// in the goal's place and the rest appended in reverse, so that every
     /// premise keeps a larger index than its conclusion; refused past
     /// `limits.derivation_bytes` by the size estimate's measure.
-    fn graft(&mut self, goal: GoalId, found: &Derivation, limits: &Limits) -> Result<(), Error> {
+    fn graft(
+        &mut self,
+        goal: GoalId,
+        found: &Derivation,
+        constants: Option<&HashMap<String, FoTermId>>,
+        limits: &Limits,
+    ) -> Result<(), Error> {
         let estimate = estimate(found.formulas(), found.inferences());
         if let Some(limit) = limits.derivation_bytes
             && estimate > limit
@@ -2490,6 +2679,9 @@ impl Interactive {
                 limit_bytes: limit,
                 least_bytes: None,
             }));
+        }
+        if let Some(constants) = constants {
+            return self.graft_first_order(goal, found, constants);
         }
         let ids = Self::ids_of(&mut self.formulas, found.formulas())?;
         let map = |list: &[NodeId]| list.iter().map(|k| ids[k.index()]).collect::<Vec<_>>();
@@ -2528,20 +2720,157 @@ impl Interactive {
         Ok(())
     }
 
+    /// Grafts a derivation of the first-order goal, over an arena of its
+    /// own whose constants `constants` stand for the goal's parameters, as
+    /// [`graft`](Self::graft) does: its formulas and terms copied into the
+    /// state's arena, the parameters back in their constants' places and
+    /// its eigenvariables numbered past every one the proof holds, so that
+    /// none meets a parameter or a later step's. Every inference is checked
+    /// in the state's arena before the state changes.
+    fn graft_first_order(
+        &mut self,
+        goal: GoalId,
+        found: &Derivation,
+        constants: &HashMap<String, FoTermId>,
+    ) -> Result<(), Error> {
+        let mut formulas = self.formulas.clone();
+        let copied = self.carried(&mut formulas, found, constants)?;
+        let map = |list: &[NodeId]| list.iter().map(|&k| copied.node(k)).collect::<Vec<_>>();
+        // The root first, then the rest in reverse, so that every premise
+        // comes after its conclusion; indices local to the step, as
+        // `record` takes them.
+        let n = found.inferences().len();
+        // Fewer inferences than a `u32` counts.
+        let local = |p: InfId| InfId::new((n - 1 - p.index()) as u32);
+        let mut made: Vec<Inference> = found
+            .inferences()
+            .iter()
+            .rev()
+            .map(|inference| Inference {
+                term: inference
+                    .term
+                    .map(|t| copied.terms[t.index()].expect("a term of the derivation")),
+                left: map(&inference.left),
+                right: map(&inference.right),
+                rule: inference.rule,
+                principal: inference.principal,
+                premises: inference.premises.iter().map(|&p| local(p)).collect(),
+            })
+            .collect();
+        let goal_inference = &self.inferences[goal.index()];
+        let top = &mut made[0];
+        if !same(&top.left, &goal_inference.left) || !same(&top.right, &goal_inference.right) {
+            return Err(Error::GoalMismatch);
+        }
+        top.principal = top.principal.map(|(side, position)| {
+            let id = top.side(side)[position];
+            let list = goal_inference.side(side);
+            (side, list.iter().position(|&y| y == id).unwrap_or(position))
+        });
+        top.left.clone_from(&goal_inference.left);
+        top.right.clone_from(&goal_inference.right);
+        for inference in &made {
+            let premises: Vec<&Inference> = inference
+                .premises
+                .iter()
+                .map(|p| &made[p.index()])
+                .collect();
+            check_inference(&formulas, self.logic, inference, &premises).map_err(|reason| {
+                Error::ReadBack {
+                    calculus: self.logic.calculus(),
+                    reason: format!("the derivation found, carried into the proof: {reason}"),
+                }
+            })?;
+        }
+        self.formulas = formulas;
+        self.record(goal, made);
+        Ok(())
+    }
+
+    /// Copies the formulas and terms of `found`, a derivation over an arena
+    /// whose constants `constants` stand for this state's parameters, into
+    /// `formulas`, an arena that extends the state's: each such constant
+    /// back to its parameter, each eigenvariable numbered past every one
+    /// the proof holds, the implications of every equivalence added.
+    fn carried(
+        &self,
+        formulas: &mut Formulas,
+        found: &Derivation,
+        constants: &HashMap<String, FoTermId>,
+    ) -> Result<transfer::Copied, Error> {
+        let roots = self
+            .inferences
+            .iter()
+            .flat_map(|i| i.left.iter().chain(&i.right));
+        let terms = self.inferences.iter().filter_map(|i| i.term);
+        let offset = self
+            .formulas
+            .largest_eigenvariable(roots.copied(), terms)
+            .map_or(Some(0), |k| k.checked_add(1))
+            .ok_or(Error::Refused(Refusal::Index {
+                what: crate::limits::Space::Term,
+                count: u64::from(u32::MAX) + 1,
+                most: u64::from(u32::MAX),
+            }))?;
+        let before = formulas.len();
+        let copied = transfer::copy(
+            formulas,
+            found.formulas(),
+            None,
+            &Parameters::Back { constants, offset },
+        )?;
+        implications_from(formulas, before)?;
+        Ok(copied)
+    }
+
     /// Returns the steps of a derivation of the open goal from its root
     /// up to and including the first rule that is not structural, each
     /// applied in a copy of the state to find the goal the next one acts
     /// on. Each turn goes one premise up the derivation, so there are no
     /// more turns than it has inferences; a step the copy refuses (a
-    /// bound) ends the list there.
-    fn first_steps(&self, goal: GoalId, found: &Derivation) -> Vec<Step> {
+    /// bound) ends the list there. A first-order derivation is over an
+    /// arena of its own whose constants `constants` stand for the goal's
+    /// parameters, carried into the copy's arena first.
+    fn first_steps(
+        &self,
+        goal: GoalId,
+        found: &Derivation,
+        constants: Option<&HashMap<String, FoTermId>>,
+    ) -> Vec<Step> {
         let mut state = self.clone();
+        let carried = match constants {
+            None => {
+                Self::ids_of(&mut state.formulas, found.formulas()).map(|ids| (ids, Vec::new()))
+            }
+            Some(constants) => {
+                let mut formulas = state.formulas.clone();
+                self.carried(&mut formulas, found, constants).map(|copied| {
+                    state.formulas = formulas;
+                    let ids = copied
+                        .nodes
+                        .iter()
+                        .map(|n| n.expect("every node"))
+                        .collect();
+                    (ids, copied.terms)
+                })
+            }
+        };
+        let Ok((ids, terms)) = carried else {
+            return Vec::new();
+        };
+        // A witness is given only as a term of this state's arena, whose
+        // ids the copy keeps: one the derivation brought in has no id here.
+        let known = self.formulas.first_order().terms.len();
+        let terms: Vec<Option<FoTermId>> = terms
+            .into_iter()
+            .map(|t| t.filter(|t| t.index() < known))
+            .collect();
         let (mut goal, mut at) = (goal, found.root());
         let mut steps = Vec::new();
         while let Some(step) = state
             .open(goal)
             .ok()
-            .and_then(|inference| state.step_at(inference, found, at))
+            .and_then(|inference| state.step_at(goal, inference, found, at, &ids, &terms))
         {
             steps.push(step.clone());
             if !step.rule.is_structural() {
@@ -2557,12 +2886,21 @@ impl Interactive {
     }
 
     /// Returns the rule of inference `at` of a derivation of the open goal
-    /// (whose conclusion is the goal as multisets) as a step on the goal,
-    /// its formula found by what it is and, for two premises, the context
-    /// as the derivation gave it to them.
-    fn step_at(&self, goal: &Inference, found: &Derivation, at: InfId) -> Option<Step> {
-        let mut formulas = self.formulas.clone();
-        let ids = Self::ids_of(&mut formulas, found.formulas()).ok()?;
+    /// `id` (whose conclusion is the goal `goal` as multisets) as a step
+    /// on the goal, its formula found by what it is and, for two premises,
+    /// the context as the derivation gave it to them; `ids` and `terms`
+    /// are the state's ids of the derivation's nodes and terms. A witness
+    /// of `∀L` or `∃R` is given where the goal holds it, else left open:
+    /// one the search made up is no term of the proof.
+    fn step_at(
+        &self,
+        id: GoalId,
+        goal: &Inference,
+        found: &Derivation,
+        at: InfId,
+        ids: &[NodeId],
+        terms: &[Option<FoTermId>],
+    ) -> Option<Step> {
         let map = |list: &[NodeId]| list.iter().map(|k| ids[k.index()]).collect::<Vec<_>>();
         let root = found.inference(at);
         let Some((side, at)) = root.principal else {
@@ -2571,7 +2909,15 @@ impl Interactive {
         };
         let x = ids[root.side(side)[at].index()];
         let position = goal.side(side).iter().position(|&y| y == x)?;
-        let step = Step::new(side, position, root.rule);
+        let mut step = Step::new(side, position, root.rule);
+        if matches!(root.rule, Rule::ForallLeft | Rule::ExistsRight)
+            && let Some(t) = root
+                .term
+                .and_then(|t| terms.get(t.index()).copied().flatten())
+            && self.held(id, t).is_ok()
+        {
+            step = step.with_witness(t);
+        }
         let Ok(Shape::Binary([first, _])) = self.shape(root.rule, side, position, x) else {
             return Some(step);
         };
@@ -5254,5 +5600,179 @@ mod tests {
             let read: Result<Interactive, _> = crate::wire::upgrade(&mut reader, &limits);
             assert!(read.is_ok(), "terms {terms}: {:?}", read.err());
         }
+    }
+
+    /// A first-order goal is closed by the search, each inference of the
+    /// derivation checked as it enters, in LK and LJ, or refuted by a
+    /// finite structure. An eigenvariable of the goal is a constant there,
+    /// named as the proof prints it, and the derivation's own
+    /// eigenvariables come after every one the proof holds.
+    #[test]
+    fn the_search_closes_or_refutes_a_first_order_goal() {
+        let options = search::Options::default();
+        let limits = Limits::default();
+        for logic in [Logic::Classical, Logic::Intuitionistic] {
+            let (mut s, g) = start(
+                "forall x. (p(x) -> q(x)), exists x. p(x) |- exists y. q(y)",
+                logic,
+            );
+            let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+            assert!(
+                matches!(
+                    closed.outcome.verdict,
+                    Verdict::Valid(Evidence::Derivation(_))
+                ),
+                "{logic:?}: {:?}",
+                closed.outcome.verdict
+            );
+            assert!(s.is_complete(), "{logic:?}");
+            s.finished(&limits, |_| false).unwrap();
+            #[cfg(feature = "serialize")]
+            assert!(reads_back(&s), "{logic:?}");
+        }
+        // The goal holds the eigenvariable `a`; the derivation's `∀R`
+        // names another.
+        let (mut s, g) = start(
+            "|- forall x. (p(x) -> forall y. (q(y) -> p(x) /\\ q(y)))",
+            Logic::Intuitionistic,
+        );
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ForallRight).unwrap()[..] else {
+            panic!()
+        };
+        let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(closed.outcome.verdict, Verdict::Valid(_)));
+        assert!(s.is_complete());
+        s.finished(&limits, |_| false).unwrap();
+        // `⊢ p(a)` is refuted by a structure whose constant `a` is the
+        // eigenvariable.
+        let (mut s, g) = start("|- forall x. p(x)", Logic::Classical);
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ForallRight).unwrap()[..] else {
+            panic!()
+        };
+        let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(closed.outcome.verdict, Verdict::NotValid));
+        let structure = closed.outcome.structure.expect("a finite structure");
+        assert_eq!(structure.sequent.to_string(), "⊢ p(a)");
+        assert_eq!(s.goals().collect::<Vec<_>>(), [g]);
+        // With `=` and without its axioms the goal is valid with identity,
+        // and its derivation, which holds the axioms, is not grafted.
+        let (mut s, g) = start("a = b, p(a) |- p(b)", Logic::Classical);
+        let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(closed.outcome.verdict, Verdict::Valid(_)));
+        assert_eq!((closed.grafted, s.steps()), (Ok(()), 0));
+        assert_eq!(
+            s.hint(g, None, &options, &limits, |_| false).unwrap().steps,
+            []
+        );
+    }
+
+    /// Following the hints proves a first-order sequent: a witness the
+    /// goal holds comes with its step.
+    #[test]
+    fn following_first_order_hints_proves_a_sequent() {
+        let options = search::Options::default();
+        let limits = Limits::default();
+        for (text, logic) in [
+            (
+                "forall x. (p(x) -> q(x)), exists x. p(x) |- exists y. q(y)",
+                Logic::Intuitionistic,
+            ),
+            (
+                "forall x. (p(x) -> q(x)), p(c), r |- q(c) /\\ r",
+                Logic::Classical,
+            ),
+        ] {
+            let (mut s, _) = start(text, logic);
+            for _ in 0..50 {
+                let Some(goal) = s.goals().next() else { break };
+                let hint = s.hint(goal, None, &options, &limits, |_| false).unwrap();
+                assert!(!hint.steps.is_empty(), "{text}: {:?}", hint.outcome.verdict);
+                let mut goal = goal;
+                for step in &hint.steps {
+                    if matches!(step.rule, Rule::ForallLeft | Rule::ExistsRight) {
+                        assert!(step.witness.is_some(), "{text}");
+                    }
+                    let opened = s.apply(goal, step).unwrap();
+                    if let [next, ..] = opened[..] {
+                        goal = next;
+                    }
+                }
+            }
+            assert!(s.is_complete(), "{text}");
+            s.finished(&limits, |_| false).unwrap();
+        }
+    }
+
+    /// A goal that holds an open witness is not refuted, its countermodel
+    /// being one of the witness as a constant; one that holds it and is
+    /// valid whatever it becomes is closed, and the session document
+    /// reads back with the graft beside the witness.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_goal_with_an_open_witness_is_closed_but_never_refuted() {
+        let options = search::Options::default();
+        let limits = Limits::default();
+        let (mut s, g) = start("|- exists x. p(x)", Logic::Classical);
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(
+            closed.outcome.verdict,
+            Verdict::Unknown(search::Reason::Incomplete)
+        ));
+        assert!(closed.outcome.structure.is_none());
+        let (mut s, g) = start("|- exists x. (p(x) -> p(x))", Logic::Classical);
+        let [g] = at_position(&mut s, g, (Right, 0), Rule::ExistsRight).unwrap()[..] else {
+            panic!()
+        };
+        let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(closed.outcome.verdict, Verdict::Valid(_)));
+        assert!(s.is_complete());
+        assert!(reads_back(&s));
+        s.finished(&limits, |_| false).unwrap();
+    }
+
+    /// A valid first-order sequent whose evidence is grounding's clausal
+    /// proof gets the derivation of LK that Herbrand's theorem builds,
+    /// checked, which concludes the sequent.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn a_clausal_proof_becomes_a_derivation() {
+        let sequent: Sequent = "forall x. (p(x) -> q(x)), p(c) |- q(c)".parse().unwrap();
+        let limits = Limits::default();
+        let grounded =
+            super::super::grounding::decide(&sequent, Logic::Classical, &limits, |_| false)
+                .unwrap()
+                .unwrap();
+        let mut outcome = Outcome::from(grounded);
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Valid(Evidence::Clausal(_))
+        ));
+        with_derivation(&mut outcome, &sequent, &limits, &mut |_| false).unwrap();
+        let Verdict::Valid(Evidence::Derivation(found)) = &outcome.verdict else {
+            panic!("{:?}", outcome.verdict)
+        };
+        found.check(&limits, |_| false).unwrap();
+        let root = found.inference(found.root());
+        let text = |list: &[NodeId]| {
+            let mut texts: Vec<String> = list
+                .iter()
+                .map(|&k| found.formulas().formula(k).to_string())
+                .collect();
+            texts.sort();
+            texts
+        };
+        let written = |list: &[NodeId]| {
+            let mut texts: Vec<String> = list
+                .iter()
+                .map(|&k| sequent.formulas().formula(k).to_string())
+                .collect();
+            texts.sort();
+            texts
+        };
+        assert_eq!(text(&root.left), written(sequent.left()));
+        assert_eq!(text(&root.right), written(sequent.right()));
     }
 }
