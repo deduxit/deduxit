@@ -306,3 +306,21 @@ and the answers:
   it runs only the modal proof step by step).
 - `src/lib/practice.ts`, `course.ts` and `content.ts` keep Learn's and
   Practice's data with their tests until those return.
+- **`lucide-solid` stays for now** (the stack spec's §1.6, as few npm
+  packages as practical; the guide draws its own icons on an 18-unit grid):
+  five islands still import it after 79a (`App.tsx`, `Frame.tsx`,
+  `Stage.tsx`, `Tour.tsx`, `Transforms.tsx`), for the tools, the top row,
+  the zoom and the sheets. 79e removes the rest with
+  `src/integrations/lucide.ts` and its test, since it draws the Export
+  entries' own signs and is the last to touch the tools; 79b to 79d add no
+  new import of it.
+- **The new fonts** come from npm (`@fontsource/gentium-book-plus` 700,
+  `@fontsource/ysabeau-office` 400, 500, 600) and are self-hosted as subset
+  woff2 files by unicode range, built under `/fonts/` beside their OFL
+  texts, as the client's other fonts are (the stack spec's §2, "Fonts").
+- **The frame's commit is one large change** (`lqzlonkr`): the scale, the
+  frame, the window sizes, the keys, the new tab view, Restore and the
+  removals were built together and depend on one another (the token
+  renames run through `app.css`, the removals through `App.tsx`), so only
+  the fonts and the rules were split from it; the later commits each hold
+  one unit.
