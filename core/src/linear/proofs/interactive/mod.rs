@@ -204,7 +204,7 @@ pub enum StepError {
     Witness {
         /// What is wrong with it.
         #[cfg_attr(feature = "serialize", serde(flatten))]
-        fault: WitnessFault,
+        fault: Box<WitnessFault>,
     },
     /// The step breaks the eigenvariable condition. An eigenvariable (the
     /// fresh name a `∀` step introduces; two-sided, a `∀R` or `∃L` step)

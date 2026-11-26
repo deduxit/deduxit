@@ -2123,7 +2123,12 @@ factored out of the two until the kernel crate is.
 - **A refusal's fields** (`WitnessFault`, at the root and shared with
   the linear session; `BindingFault`): the `Display` keeps the sentence
   the refusal had, and the JSON's `details` hold the fault flattened
-  under `"fault"`. `bound_met` turns an error of building from the
+  under `"fault"`. Both are boxed in `StepError`, as `StepFault` is in
+  `Error`: `WitnessFault` holds a `Refusal` (56 bytes), and inline it made
+  every step error 56 bytes and `Error` 64, which grew the frames of
+  every `Result` on the recursive paths enough that a wasm32 test of the
+  intuitionistic connection prover's read-back ran out of stack; boxed,
+  the linear `StepError` is 32 bytes, the ordinary one 24, `Error` 56. `bound_met` turns an error of building from the
   proof's own arena into its `Refusal`: every id is the arena's and
   every witness closed by then, so no other error is reachable.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears

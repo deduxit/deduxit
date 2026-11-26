@@ -30,7 +30,9 @@ impl Interactive {
     /// name, a predicate, a symbol given the wrong number of arguments, or
     /// a stray bracket or comma.
     pub fn witness(&self, text: &str) -> Result<Witness, StepError> {
-        let fault = |fault: WitnessFault| StepError::Witness { fault };
+        let fault = |fault: WitnessFault| StepError::Witness {
+            fault: Box::new(fault),
+        };
         let fo = &self.forest.sequent().fo;
         let eigens = self
             .fo
@@ -141,7 +143,9 @@ impl Interactive {
         goal: GoalId,
         nodes: &[TermNode],
     ) -> Result<FoTermId, StepError> {
-        let fault = |fault: WitnessFault| StepError::Witness { fault };
+        let fault = |fault: WitnessFault| StepError::Witness {
+            fault: Box::new(fault),
+        };
         if nodes.is_empty() {
             return Err(fault(WitnessFault::Empty));
         }

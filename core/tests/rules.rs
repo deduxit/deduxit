@@ -890,6 +890,13 @@ fn candidates_give_every_rule_with_its_status() {
     for (file, goal) in [(NJ, "a /\\ b -> b"), (LK, "a /\\ b |- b /\\ a")] {
         let calculus = calculus(file).unwrap();
         let names: Vec<String> = calculus.rules().map(str::to_owned).collect();
+        // A rule that asks no member's position is tried first at no
+        // members, the choice a refused candidate names.
+        let unplaced: Vec<String> = names
+            .iter()
+            .filter(|name| calculus.positions(name) == Some(0))
+            .cloned()
+            .collect();
         let session = Interactive::within(calculus, goal, &[], &limits).unwrap();
         let root = session.goals()[0];
         let candidates = session.candidates(root).unwrap();
@@ -918,7 +925,7 @@ fn candidates_give_every_rule_with_its_status() {
                         !listed.iter().any(|a| a.rule == candidate.rule),
                         "{candidate:?}"
                     );
-                    if !at.is_empty() || calculus_has_no_positions(&candidate.rule, file) {
+                    if !at.is_empty() || unplaced.contains(&candidate.rule) {
                         assert_eq!(tried.as_ref().err(), Some(error), "{candidate:?}");
                     }
                 }
@@ -935,12 +942,6 @@ fn candidates_give_every_rule_with_its_status() {
             );
         }
     }
-}
-
-/// Returns whether the rule of the built-in file asks no member's
-/// position, so that its step at no members is the one tried first.
-fn calculus_has_no_positions(rule: &str, file: &str) -> bool {
-    calculus(file).unwrap().positions(rule) == Some(0)
 }
 
 #[cfg(feature = "interactive")]

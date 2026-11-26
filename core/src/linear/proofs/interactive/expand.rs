@@ -330,7 +330,7 @@ impl Interactive {
                 let q = self.fo.as_ref().expect("a first-order session");
                 match q.limit {
                     Some(limit) if q.too_large() => Err(StepError::Witness {
-                        fault: WitnessFault::Table { limit },
+                        fault: Box::new(WitnessFault::Table { limit }),
                     }),
                     _ => Ok(premises),
                 }
@@ -404,7 +404,7 @@ impl Interactive {
                 let q = self.fo.as_mut().expect("a first-order session");
                 let Some((_, a)) = q.fresh_eigen() else {
                     return Err(StepError::Witness {
-                        fault: WitnessFault::Eigenvariables,
+                        fault: Box::new(WitnessFault::Eigenvariables),
                     });
                 };
                 Some(a)

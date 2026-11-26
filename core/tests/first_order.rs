@@ -1678,10 +1678,7 @@ fn a_session_refuses_what_no_step_could_make() {
     assert!(
         matches!(
             &error,
-            StepError::Witness {
-                fault: deduxit::WitnessFault::Table { .. },
-                ..
-            }
+            StepError::Witness { fault, .. } if matches!(**fault, deduxit::WitnessFault::Table { .. })
         ),
         "{error}"
     );
