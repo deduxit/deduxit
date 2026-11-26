@@ -8417,7 +8417,7 @@ move (D26).
   `flake.nix` comment stops claiming the followed inputs are past fourteen days (they follow
   deduxit's lock; the gate is npm's and the actions'), rather than holding deduxit's flake inputs
   back by age, which neither the skill nor the stack spec asks.
-- 2026-11-26, about 03:00: **Session 79a reviewed, complete** (`local_9dfa5c8f`; report `ytkpvopq`,
+- 2026-11-26, about 01:45: **Session 79a reviewed, complete** (`local_9dfa5c8f`; report `ytkpvopq`,
   `rolnlosz`): the page's frame on the redesign chain in the client (`nrynynyl` the fonts, `lqzlonkr`
   the frame in one commit whose units depend on one another, `ruoyqrpt` the rules, `lqyuxrrm` the
   reviewer's findings, `qykrxzmt`, `wxknvkvo`). Checked here: the report against the commits, the
@@ -8429,3 +8429,17 @@ move (D26).
   touch toggles' 44, the rule labels' zoom floor, the fragment no longer shown). **Decided
   (unattended)**: a chip gets a close button with Undo and the key `W` (79d), since the guide gives
   no way to close one sequent; `lucide-solid` leaves in 79e. Step 79's prompt has "What 79a left".
+- 2026-11-26, about 03:25: **Session 79b reviewed, complete** (`local_9dfa5c8f`, 01:47 to 03:25;
+  report `yvoslsrz`): the rule popover with greyed rules and their reasons, splits and cut, the
+  goal's menu at ⊢, undo and Steps, the hint, Close all with a budget, the no-proof marking, the
+  toggles, the guide's sentences and the tour, on the redesign chain (`yppuwptt` to `wvwoxywp`; the
+  proving units share their files hunk by hunk, so `mwypvqrk` holds them, its body listing each).
+  Measured on the 514 stored problems: the press to the popover a median of 14.9 ms (slowest 20.4),
+  the marking 3.9 ms after a step (slowest 8.7). A first-time Sonnet agent proved two sequents by
+  hand in about 38 actions; three of its findings fixed. `fresh-reviewer` found six faults and a
+  gap, six fixed (the ordinary replay's rule among them). Checked here: the report against the
+  commits, and the client's full `nix flake check` at `wvwoxywp` (every check already built for that
+  tree, all passed). **Held for the author**: its six departures (a view beside as a chip, natural
+  deduction's `?` with Prove apart alone, "Use its proof" only for the proof made apart, Steps by
+  goal number, the engine choice for the visit, a replay keeping every step that holds) and the
+  first-time task's points 4 and 5.
