@@ -8478,3 +8478,21 @@ move (D26).
   **Decided (unattended)**: the More menu gets "Close this sequent", a real button, so a screen
   reader on a touch screen can close one (79e). 79e also takes 79d's three small faults and the
   three tests that passed only on a retry (the prompt's "What 79b to 79d left").
+- 2026-11-26, about 07:25: **Session 79e reviewed, complete; step 79 built** (`local_9dfa5c8f`,
+  06:05 to 07:25; report `knwvxmyt`): the Export panel (entries with their signs, each setting a
+  deduxit style option, the text shown, Copy and Save, for the view shown), course packs (the form
+  in Export, one chip and a page for the student; hand-in links and files open as packs, the check
+  view gone), the Settings page as D10 with the search per logic, Rocq's logo as the one third-party
+  file (the client's licence rule and check changed), every icon the page's own sign and
+  `lucide-solid` gone, More's "Close this sequent", 79d's three faults, and the three retry-only
+  tests fixed at their cause (the page `aria-busy` until its start settles). No library or bindings
+  change. On the redesign chain `onmrpvus` to `svusqksw`. `fresh-reviewer` found three faults and a
+  question, all answered; a Sonnet agent walked the page at fifteen sizes. Checked here: the report
+  against the commits and the client's full `nix flake check` at `svusqksw` (all 16 checks built for
+  that tree, passed; the session's runs had none flaky). The report ends with "Before approving the
+  page", every departure of 79a to 79e in one list. **Left open, to fixup-28** (decided unattended,
+  under the author's standing go: the page should be whole before the author looks): the frame's
+  faults the walk found (the zoom group under the bottom box or a note at medium widths, the new tab
+  view's four logics at 600 to 840, the sheets' close focusable where not drawn, More covered at
+  200 % zoom) and Export for natural deduction, modal and lambda views (`rules_export`,
+  `modal_export`, `lambda_export`). The client's `main` waits for the author's approval of the page.
