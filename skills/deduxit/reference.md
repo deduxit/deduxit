@@ -3,9 +3,11 @@
 > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
 deduxit is a collection of logic suites: it decides, checks and proves
-sequents of linear logic and of ordinary propositional logic (classical,
-intuitionistic and minimal), and decides propositional modal logic in
-the systems from K to S5. This reference covers the `deduxit`
+sequents of ordinary logic (classical, intuitionistic and minimal,
+propositional and first-order), of linear logic and of propositional
+modal logic in the systems from K to S5, checks lambda-terms and finds
+a type's terms, and checks derivations in calculi given as rule files.
+This reference covers the `deduxit`
 command (its flags, formats, JSON forms and exit statuses), then the
 Rust library, the WebAssembly bindings and the Rocq library.
 
@@ -51,7 +53,14 @@ The commands:
 - `check` checks a proof or a refutation (section 9);
 - `eliminate` eliminates the cuts of a proof (section 10);
 - `interact` proves a sequent step by step (section 10);
-- `seq print`, `seq json` and `seq fragment` show a sequent (section 11).
+- `seq print`, `seq json` and `seq fragment` show a sequent (section 11);
+- `grade` grades an answer to a problem (section 9);
+- `workspace` keeps a sequent and what is made from it (section 11);
+- `seq translate`, `seq normalize`, `interpolate`, `herbrand` and
+  `resolve` transform an ordinary sequent or refute its clauses
+  (section 13);
+- `term check`, `term inhabit` and `term enumerate` work with
+  lambda-terms (section 4).
 
 The exit status is the same for every command:
 
@@ -205,7 +214,7 @@ unfold to at most `--term-limit 50000000` first-order terms.
 | `--mix` | the Mix rule, which proves `⊢ Γ, Δ` from `⊢ Γ` and `⊢ Δ` |
 | `--cyclic` | cyclic linear logic, unit-free MLL in a fixed order (section 14) |
 | `--lambek` | the Lambek calculus, `--empty-antecedents` for L* (section 14) |
-| `--logic classical\|intuitionistic\|minimal` | ordinary propositional logic, by a SAT solver (section 13) |
+| `--logic classical\|intuitionistic\|minimal` | ordinary logic, propositional and first-order (section 13) |
 
 deduxit detects the fragment (MLL, MLL with units, ALL, MALL, MELL, LL,
 and IMLL to ILL in intuitionistic mode), and the fragment picks the
@@ -1113,7 +1122,8 @@ with `--cores within` or a longer `--timeout`.
 ## 13. Ordinary and modal logic
 
 `--logic classical`, `intuitionistic` or `minimal` reads a formula or a
-sequent of propositional logic. The connectives are `->`/`→`, `/\`/`∧`,
+sequent of ordinary logic, propositional or first-order ("First-order
+sequents in LK or LJ" below). The connectives are `->`/`→`, `/\`/`∧`,
 `\/`/`∨`, `~`/`¬`, `<->`/`↔`, and the constants `true`/`⊤` and
 `false`/`⊥`. `~` binds tightest, then `/\`, `\/`, `->`, and last `<->`;
 `->` and `<->` group to the right. A `.p` file is a TPTP problem.
