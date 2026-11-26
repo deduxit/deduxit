@@ -2632,3 +2632,90 @@ the answers (all in `xxslynwr`):
   the model (deduxit, not this client).
 - Two or more "Use the proof of …" buttons share one sign; their names show
   with the guide on and in their hover.
+
+## Session fixup-30: no suite named as the main one
+
+The author's word of 2026-11-26 ("linear logic is not the 'main'
+anymore"), `.claude/rules/writing.md` rule 3. Opus 5.5 at `high`, in
+`../deduxit-wt-fixup-30-3e23c4`, on `main@origin` (`tttkyssp`).
+
+### What changed where
+
+- `lmxszxrl` README and the manual:
+  - README's opening lists the suites in the page's order (ordinary,
+    linear, modal, lambda-terms, rule files). "A first proof" leads with
+    ordinary logic (`--logic`), then linear logic, then one modal and one
+    lambda-term example. The linlog history sentence is gone (it is the
+    changelog's), and "other logics" became "in each logic".
+  - `docs/src/introduction.md`: the same opening, with each suite linked
+    to its chapter. The tour goes one suite at a time: first proof and
+    countermodel in ordinary logic (with the exit statuses), then linear
+    logic (one-sided trees, `A, B |- A` and `-a`, `-i` and `!A`, the
+    `-i` tree dropped, `commands.md` has it), then modal logic (`--system
+    T` valid, `--system K` refuted), lambda-terms (`--lambda`, `term
+    check`), and calculi of your own (`check --calculus`, `interact
+    --calculus`). Export and check are unchanged.
+  - `mistakes.md` links `#linear-logic` in place of the removed heading;
+    `ordinary-logic.md`'s first line no longer says "also decides …
+    propositional"; `architecture.md` lists every suite, not three.
+- `mulvomtq` the guide: `SKILL.md`'s description and summary name the
+  suites evenly and ordinary logic as first-order; "The logic" comes
+  before "Syntax" and starts with `--logic`; quantifiers are said to work
+  under `--logic` and in linear logic but for `--cyclic` and `--lambek`;
+  the summary names `term check|inhabit` and `check --calculus`, and the
+  library line names a module per suite. Budget: description 831
+  characters, body 91 lines and 7 986 bytes (cuts: the fragment list after
+  `seq fragment`, the web page under Optional, the pointer to section
+  19). `reference.md`: the opening, the `--logic` row of section 3 and
+  section 13's first sentence say first-order too; section 1 lists every
+  command.
+- `vmkuxsvu` crate docs: the front page names `ordinary`, `linear`,
+  `modal`, `lambda` and `rules`, shows the ordinary module's example
+  before the linear one, and orders "What you can do" by suite. The
+  `ordinary` module's docs said "propositional" and "Nothing decides
+  first-order validity here", false since 0.8.0: corrected from
+  `Options::method_for` and `decide`.
+- `opynoykl` the crates' descriptions, `CITATION.cff` (abstract and
+  keyword order) and `deduxit --help`'s summary, ordinary logic first;
+  the core crate's keyword `proof-nets` gave way to `logic`, and
+  `linear-logic` moved last in both. One changelog entry (Changed),
+  since user-facing descriptions changed.
+- `tnmlvstn` the behaviour lock reblessed: `error-no-command.txt`, the
+  help's first line, alone.
+- `wnrylqsy` CLAUDE.md's opening and its line on the core crate.
+
+### The reviewer
+
+`fresh-reviewer` on Fable 5.2: one finding, held. `SKILL.md` still said
+"a SAT solver decides it" of ordinary logic, false at first order
+(`prove --logic classical "forall x. p(x) |- p(a)"` answers by the
+connection prover): now "`--method` picks how it is decided", folded
+into `mulvomtq`. One question, kept: `deduxit --help`'s syntax text below
+the summary shows linear syntax first; it follows the real default (no
+flag reads linear logic) and says how `--logic` reads ordinary logic.
+Everything else checked: every new console block run, the flags,
+commands, anchors, section numbers, the module paragraph against the
+code, the budget.
+
+### Checks
+
+- `cargo test -p deduxit-cli --test readme`: 7 passed, after the last
+  change too.
+- The gate at `wnrylqsy` before the reviewer's one-line fix (capped,
+  cores 10-12): passed; the ratchet's misses moved on
+  `search-chain-128` and `check-qbf-20-2`, a note and never a failure, on
+  a change of text alone.
+- `nix build .#checks.x86_64-linux.manual
+  .#checks.x86_64-linux.manual-links` under the machine lock: built.
+
+### For the author (asked through the planning session)
+
+- `prove` without `--logic` or `--system` reads linear logic, so every
+  text introduces ordinary logic with a flag. Recommendation: keep the
+  default (scripts and the web page rely on it, and the texts now name
+  the flag first); a required logic flag would be the even alternative.
+- Left as they are: the reference's sections 2 to 12 and the manual's
+  how-to order still give linear logic the most room, and
+  `docs/src/syntax.md` is linear logic's syntax with ordinary logic's in
+  its own chapter. Evening those out is a restructuring of its own, not
+  a wording fix. `docs/src/status.md` keeps its order, as the brief says.
