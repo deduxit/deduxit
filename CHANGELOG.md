@@ -26,7 +26,7 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
-- `Interactive::candidates` in the linear, the ordinary and the rules
+- `Interactive::candidates` in the ordinary, the linear and the rules
   sessions: every rule that acts on a formula of a goal, each with
   whether a step of it is legal on the goal now (`Status::Applies`,
   `NeedsInput` with what it takes, or `Refused` with the error `apply`
