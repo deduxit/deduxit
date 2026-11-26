@@ -682,14 +682,19 @@ impl<R: Serialize, N: Serialize> Judged<R, N> {
         }
     }
 
-    /// Returns a rule refused, with the error's written form.
+    /// Returns a rule refused, with the error's written form. It is written
+    /// as text and read back: the serializer of text is the one every
+    /// failure goes through, where one into a `Value` would link a second
+    /// copy of every error's form.
     pub(crate) fn refused(rule: R, refusal: &impl Serialize) -> Self {
         Self {
             rule,
             at: None,
             status: "refused",
             needs: None,
-            refusal: serde_json::to_value(refusal).ok(),
+            refusal: serde_json::to_string(refusal)
+                .ok()
+                .and_then(|text| serde_json::from_str(&text).ok()),
         }
     }
 }
