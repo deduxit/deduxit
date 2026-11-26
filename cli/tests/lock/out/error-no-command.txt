@@ -2,7 +2,7 @@ $ deduxit
 --- status 2
 --- stdout
 --- stderr
-Decide, check, prove step by step and export sequents of linear logic, and ordinary logic through its translations
+Decide, check, prove step by step and export sequents of ordinary, linear and modal logic, and check lambda-terms and derivations in rule files
 
 Usage: deduxit <COMMAND>
 
