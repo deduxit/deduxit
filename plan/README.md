@@ -8417,3 +8417,15 @@ move (D26).
   `flake.nix` comment stops claiming the followed inputs are past fourteen days (they follow
   deduxit's lock; the gate is npm's and the actions'), rather than holding deduxit's flake inputs
   back by age, which neither the skill nor the stack spec asks.
+- 2026-11-26, about 03:00: **Session 79a reviewed, complete** (`local_9dfa5c8f`; report `ytkpvopq`,
+  `rolnlosz`): the page's frame on the redesign chain in the client (`nrynynyl` the fonts, `lqzlonkr`
+  the frame in one commit whose units depend on one another, `ruoyqrpt` the rules, `lqyuxrrm` the
+  reviewer's findings, `qykrxzmt`, `wxknvkvo`). Checked here: the report against the commits, the
+  screenshots at 1280 by 800 and 390 by 844 against the guide. **The redesign chain rebased** onto
+  the client's `main` (`tnvosplw`): `package.json` merged (79a's fonts, fixup-27's versions), the
+  lock made again by npm (`npm install`/`uninstall --package-lock-only` of the fonts on main's lock),
+  and the client's full `nix flake check` passed at the rebased head (all checks, e2e among them).
+  **Held for the author**: 79a's five departures (the colour `good`, lapis and the nets' blue, the
+  touch toggles' 44, the rule labels' zoom floor, the fragment no longer shown). **Decided
+  (unattended)**: a chip gets a close button with Undo and the key `W` (79d), since the guide gives
+  no way to close one sequent; `lucide-solid` leaves in 79e. Step 79's prompt has "What 79a left".

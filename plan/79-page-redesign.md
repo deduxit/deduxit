@@ -271,6 +271,32 @@ Boards D10, D16, D17, D18, N1 to N10.
   list, then the report says what the author should look at before
   approving the page.
 
+## What 79a left (its review, 2026-11-26)
+
+- The frame is built (`Frame.tsx`, `Toggles.tsx`, `Panels.tsx`), and
+  today's views run inside it; the report's "What 79b must know" and
+  "Left open" say what each later session takes over: the goal's dock
+  until 79b's menu at `⊢`, the sheets as panels until 79d makes them
+  views, the Settings page as today's form until 79e, the hand-in link
+  still opening the check view until 79e.
+- The redesign chain (with 79a) was rebased onto the client's `main` of
+  2026-11-26 (`tnvosplw`); its `package-lock.json` was made again by npm
+  from the merged `package.json`, and the client's full check passed at
+  the rebased head `wxknvkvo`.
+- **Held for the author** (79a's departures, each marked in its report):
+  the colour `good` moved towards teal to pass the repository's
+  colour-vision test; lapis left the nets' colour-vision groups; the
+  touch toggles' cell is 44 high; rule labels get a zoom floor of 24
+  pixels; the fragment (MLL, MELL) is no longer shown. They stand as
+  built until the author decides.
+- **Closing one sequent** (79a found the guide gives no way): decided by
+  the planning session while the author was away (departs from the
+  design, for the author's review): a chip gets a close button, shown
+  on hover and focus and always on a touch screen, which closes that
+  sequent with an Undo in the notes, as "Close every sequent" does; and
+  the key `W` beside it in the keys' table. 79d builds it with the rest
+  of the sequents' and views' management.
+
 ## Deliverables
 
 The client's commits on the redesign's chain, deduxit's commits of 79c
