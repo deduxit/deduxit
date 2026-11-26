@@ -8496,3 +8496,16 @@ move (D26).
   view's four logics at 600 to 840, the sheets' close focusable where not drawn, More covered at
   200 % zoom) and Export for natural deduction, modal and lambda views (`rules_export`,
   `modal_export`, `lambda_export`). The client's `main` waits for the author's approval of the page.
+- 2026-11-26, about 08:05: **fixup-28 reviewed, complete; the page waits for the author's
+  approval** (`local_9dfa5c8f`, 07:35 to 08:05; report `vrslnlsu`, which also updates "Before
+  approving the page"): the bottom box and its notes give way to the zoom group, the new tab view's
+  logics two by two on a stage under 51rem, a sheet's close out of the tab order where not drawn, a
+  compact window under 480 high scrolling up and down, panels ending above the box and a phone's sheet
+  hiding the zoom; Export writes natural deduction, a modal decision and a lambda-term through their
+  own calls. On the redesign chain `lqynnsvr` to `ynvuuuyn`; a scripted walk at 79e's fifteen sizes,
+  light and dark, found nothing. `fresh-reviewer`: three findings fixed, two questions answered.
+  Checked here: the report against the commits and the client's full `nix flake check` at
+  `ynvuuuyn` (all 16 checks built for that tree, passed). **Held for the author**: its one departure
+  (the logics two by two below 51rem) with every departure of 79a to 79e, in "Before approving the
+  page" of `plan/reports/79-page-redesign.md`. Nothing further is started on the page until the
+  author has looked.
