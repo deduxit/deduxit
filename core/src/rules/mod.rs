@@ -73,7 +73,9 @@ pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
 pub use draw::Drawing;
 pub use fitch::{Fitch, FitchOptions};
 #[cfg(all(feature = "interactive", feature = "parse"))]
-pub use interactive::{Applicable, Apply, Derive, GoalId, Interactive, LineId, Undone};
+pub use interactive::{
+    Applicable, Apply, Candidate, Derive, GoalId, Interactive, LineId, Status, Undone,
+};
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) use ordinary::terms_of;
 pub use print::Shown;

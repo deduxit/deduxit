@@ -270,6 +270,17 @@ design, with the reasons and the alternatives weighed, is
   suffix property: a step's premises and scopes are the last the
   session holds. `rules` tries every rule at every choice of the
   conclusion's position members (at most `RULE_CHOICES`) on a clone.
+- **Every rule with its status** (`Interactive::candidates`; `Candidate`,
+  `Status`): `rules` is `candidates` less the refused ones. Each choice
+  of members is a step on a clone (`plan`, then `commit`); a rule that
+  no choice makes legal is one candidate with `at` empty and the first
+  choice's error, or `StepFault::NoPlace` where there is no choice. A
+  bound refusing `commit` refuses that step alone (as `rules` dropped
+  it); a bound refusing `plan` ends the call, as before.
+- **`step_refused` carries a `StepFault`** (`errors/step.rs`), one
+  variant per reason, its `Display` the sentence it had; the checker's
+  own reason (`StepFault::Check`) is still the checker's sentence,
+  since `Derivation::check` writes its faults as text.
 - **Forward steps and lines** (`Interactive::derive`, `lines`, `cite`,
   `Derive`, `LineId`, `Undone`): a line is a hypothesis a scope offers
   or a node a forward step derived (`Goal::line`), numbered from 1 by

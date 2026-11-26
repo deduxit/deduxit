@@ -877,6 +877,72 @@ fn the_memory_bound_counts_every_context_and_zone() {
     );
 }
 
+/// Every rule of the calculus is a candidate on a goal: a legal step at
+/// each choice of members, what it needs given, or one refusal with
+/// apply's reason at its first choice; a refused rule is no rule `rules`
+/// lists.
+#[cfg(feature = "interactive")]
+#[test]
+fn candidates_give_every_rule_with_its_status() {
+    use deduxit::StepFault;
+    use deduxit::rules::{Apply, Interactive, NJ, Status};
+    let limits = Limits::default();
+    for (file, goal) in [(NJ, "a /\\ b -> b"), (LK, "a /\\ b |- b /\\ a")] {
+        let calculus = calculus(file).unwrap();
+        let names: Vec<String> = calculus.rules().map(str::to_owned).collect();
+        let session = Interactive::within(calculus, goal, &[], &limits).unwrap();
+        let root = session.goals()[0];
+        let candidates = session.candidates(root).unwrap();
+        for name in &names {
+            assert!(
+                candidates.iter().any(|c| &c.rule == name),
+                "{name} in {goal}"
+            );
+        }
+        let listed = session.rules(root).unwrap();
+        for candidate in &candidates {
+            let at = candidate.at.as_slice();
+            let tried = session
+                .clone()
+                .apply(root, &Apply::new(&candidate.rule).at(at));
+            match &candidate.status {
+                Status::Applies => assert!(tried.is_ok(), "{candidate:?}"),
+                Status::NeedsInput { needs, .. } => {
+                    assert!(
+                        matches!(&tried, Err(Error::StepNeeds { needs: n, .. }) if n == needs),
+                        "{candidate:?}"
+                    );
+                }
+                Status::Refused(error) => {
+                    assert!(
+                        !listed.iter().any(|a| a.rule == candidate.rule),
+                        "{candidate:?}"
+                    );
+                    if !at.is_empty() || calculus_has_no_positions(&candidate.rule, file) {
+                        assert_eq!(tried.as_ref().err(), Some(error), "{candidate:?}");
+                    }
+                }
+                other => panic!("a status this test does not know: {other:?}"),
+            }
+        }
+        // `→I` is refused on a goal that is no implication, in fields.
+        if file == NJ {
+            let and_i = candidates.iter().find(|c| c.rule == "∧I").unwrap();
+            assert!(
+                matches!(&and_i.status, Status::Refused(Error::StepRefused { fault, .. })
+                    if matches!(**fault, StepFault::Unmatched { .. })),
+                "{and_i:?}"
+            );
+        }
+    }
+}
+
+/// Returns whether the rule of the built-in file asks no member's
+/// position, so that its step at no members is the one tried first.
+fn calculus_has_no_positions(rule: &str, file: &str) -> bool {
+    calculus(file).unwrap().positions(rule) == Some(0)
+}
+
 #[cfg(feature = "interactive")]
 #[test]
 fn a_session_builds_a_derivation_the_checker_accepts() {

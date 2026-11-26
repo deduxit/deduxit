@@ -413,8 +413,9 @@ the commit that lands it rewrites that bullet.
   Inhabitation, Inhabitants}` (added at step 71b); `ordinary::{Evidence, Logic, Method, Options,
   Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
   and `Search` added at step 54s); `ordinary::interactive::{Applicable,
-  BindingFault, Closed, Context, Hint, Needs, Step, StepError}`
-  (`BindingFault` added at step 81); `Backwards`, `StepFault` and
+  BindingFault, Candidate, Closed, Context, Hint, Needs, Status, Step,
+  StepError}` (`BindingFault`, `Candidate` and `Status` added at step
+  81); `Backwards`, `StepFault` and
   `WitnessFault` at the root (added at step 81);
   `ordinary::interpolant::{Interpolant, Interpolation, Partition}` and
   `ordinary::negative::{Agreement, Comparison, Options,
@@ -448,11 +449,12 @@ the commit that lands it rewrites that bullet.
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62),
   `rules::{Applicable, Apply, Derive, Undone}` (added at steps 61 and
-  62); `proofs::{ClassicalRule,
+  62), `rules::{Candidate, Status}` (added at step 81); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,
   Refused, Sides, Structural, TextOptions}` (`Layout` added at step 62);
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,
-  Split, TermNode, Witness}`;
+  Split, TermNode, Witness}`, `proofs::interactive::{Candidate, Status}`
+  (added at step 81);
   `proofs::cut::{Case, Elimination, End, Options, Reduction, Step,
   Strategy}`;
   `search::{Basis, Cadence, Classical, Equation, Jobs, Marking, OneSided,

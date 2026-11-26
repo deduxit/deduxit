@@ -86,6 +86,42 @@ pub struct Applicable {
     pub needs: Vec<String>,
 }
 
+/// A rule of the calculus tried on a goal, at one choice of the members it
+/// acts on, and whether the step is legal there, as
+/// [`Interactive::candidates`] lists them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Candidate {
+    /// The rule's name.
+    pub rule: String,
+    /// The members of the goal it acts on, by their number; empty for a
+    /// rule refused at every choice.
+    pub at: Vec<u32>,
+    /// Whether the step is legal.
+    pub status: Status,
+}
+
+/// Whether a candidate step is legal on the goal as it stands. Whether
+/// the goals it opens can be closed is not judged.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Status {
+    /// The step applies as it is.
+    Applies,
+    /// The step needs these variables or contexts given: what the goal
+    /// leaves open.
+    #[non_exhaustive]
+    NeedsInput {
+        /// Their names.
+        needs: Vec<String>,
+    },
+    /// No choice of members makes the step legal. The refusal is
+    /// [`apply`](Interactive::apply)'s at the first choice:
+    /// [`Error::StepRefused`] with its fault, or the refusal of a value's
+    /// text.
+    Refused(Error),
+}
+
 /// A line of a session that a step may cite, by its number: a hypothesis
 /// a scope offers, or a line a forward step derived. Lines are numbered
 /// from 1 in the order they enter the session, the assumptions first, and
@@ -737,9 +773,41 @@ impl Interactive {
     /// [`Error::StepRefused`] for a goal that is not open, and a refusal
     /// of a bound.
     pub fn rules(&self, goal: GoalId) -> Result<Vec<Applicable>, Error> {
+        Ok(self
+            .candidates(goal)?
+            .into_iter()
+            .filter_map(|candidate| {
+                let needs = match candidate.status {
+                    Status::Applies => Vec::new(),
+                    Status::NeedsInput { needs } => needs,
+                    Status::Refused(_) => return None,
+                };
+                Some(Applicable {
+                    rule: candidate.rule,
+                    at: candidate.at,
+                    needs,
+                })
+            })
+            .collect())
+    }
+
+    /// Lists every rule of the calculus with whether a step of it is
+    /// legal on the goal `goal` as it stands: for each choice of the
+    /// members it acts on, the step if the checker takes it or what it
+    /// needs given, and for a rule that no choice makes legal one entry
+    /// with the refusal at its first choice (with no member to act on,
+    /// [`StepFault::NoPlace`]). Each choice costs one step tried on a copy
+    /// of the session. A rule that asks positions of more members than
+    /// [`RULE_CHOICES`](Self::RULE_CHOICES) choices allow is left out, as
+    /// [`rules`](Self::rules) leaves it out.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::StepRefused`] for a goal that is not open, and a refusal
+    /// of a bound.
+    pub fn candidates(&self, goal: GoalId) -> Result<Vec<Candidate>, Error> {
         self.open(goal)?;
-        let mut out: Vec<Applicable> = Vec::new();
-        let mut seen: Vec<(String, Vec<TermId>)> = Vec::new();
+        let mut out: Vec<Candidate> = Vec::new();
         let flat = self.members(goal);
         for (index, rule) in self.calculus.rules.iter().enumerate() {
             let name = &self.calculus.form().rules[index].name;
@@ -769,6 +837,9 @@ impl Interactive {
             if count > Self::RULE_CHOICES {
                 continue;
             }
+            let mut legal = false;
+            let mut first: Option<Error> = None;
+            let mut seen: Vec<Vec<TermId>> = Vec::new();
             for pick in 0..count {
                 let mut at = Vec::with_capacity(choices.len());
                 let mut rest = pick;
@@ -778,35 +849,39 @@ impl Interactive {
                 }
                 // Equal members at other places give the same step.
                 let key: Vec<TermId> = at.iter().map(|&n| flat[n as usize].1).collect();
-                if seen.iter().any(|(r, k)| r == name && *k == key) {
+                if seen.contains(&key) {
                     continue;
                 }
                 let step = Apply::new(name).at(&at);
                 let mut trial = self.clone();
-                match trial.plan(goal, rule, &step) {
-                    Ok(plan) => {
-                        if trial.commit(goal, name, plan).is_ok() {
-                            seen.push((name.clone(), key));
-                            out.push(Applicable {
-                                rule: name.clone(),
-                                at,
-                                needs: Vec::new(),
-                            });
-                        }
-                    }
-                    Err(Unplanned::Needs(needs)) => {
-                        seen.push((name.clone(), key));
-                        out.push(Applicable {
-                            rule: name.clone(),
-                            at,
-                            needs,
-                        });
-                    }
-                    Err(Unplanned::Error(Error::Refused(refusal))) => {
-                        return Err(Error::Refused(refusal));
-                    }
-                    Err(Unplanned::Error(_)) => {}
+                let status = match trial.plan(goal, rule, &step) {
+                    // A step a bound refuses cannot be taken either.
+                    Ok(plan) => match trial.commit(goal, name, plan) {
+                        Ok(_) => Status::Applies,
+                        Err(error) => Status::Refused(error),
+                    },
+                    Err(Unplanned::Needs(needs)) => Status::NeedsInput { needs },
+                    Err(Unplanned::Error(error @ Error::Refused(_))) => return Err(error),
+                    Err(Unplanned::Error(error)) => Status::Refused(error),
+                };
+                if let Status::Refused(error) = status {
+                    first.get_or_insert(error);
+                    continue;
                 }
+                seen.push(key);
+                legal = true;
+                out.push(Candidate {
+                    rule: name.clone(),
+                    at,
+                    status,
+                });
+            }
+            if !legal {
+                out.push(Candidate {
+                    rule: name.clone(),
+                    at: Vec::new(),
+                    status: Status::Refused(first.unwrap_or_else(|| refused(StepFault::NoPlace))),
+                });
             }
         }
         Ok(out)
