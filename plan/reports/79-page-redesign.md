@@ -960,3 +960,291 @@ and the answers:
   sequent as typed in the box, so a box edited and not entered since would be
   what it checks.
 - For the author: the departures above.
+
+## Session 79d: the other views
+
+Opus 5.5 at `high`, 2026-11-26, in the deduxit workspace
+`deduxit-wt-step-79a-…` (on `tvsumqrp`, main@origin) and the client workspace
+`step79a` (`/home/tux/Projects/own/deduxit.github.io-79a`) on the redesign's
+head `uprvlrlk`, cores 4 to 9. Nothing pushed; the client's `main` untouched;
+no change to the library or the bindings.
+
+### Outcome
+
+Every way of looking at a sequent is now a view of it, as boards D3, D13, D14
+and D19 draw it. "+ view" lists them under Prove, Decide, Translate, Read off
+and From this proof; an entry that cannot be added is faint with its reason,
+one already there has a check. Each view is a cell of the rail and stands in
+the drawing's place: the truth table, the tableau (Search, or By hand by
+pressing its lines), resolution (Search, DPLL, By hand), the normal form as
+numbered steps, the interpolant, the four negative translations and the
+embedding into linear logic, each with "Prove it in", a model of one's own,
+the countermodel, and, made from a finished proof and joined to it, cut
+elimination and the λ-term. A calculus opened beside and a copy of a proof
+are cells of the same chip, no longer chips. A view whose source changed is
+dashed with a red "!", drawn in a lighter ink, with "Update" or "Start
+again". The graph of views is the rail's first cell once there are two. A
+chip has a close button and the key W, with Undo. Modal logic has its system
+as a list and its five conditions as toggles, and "Prove step by step" among
+its tools; lambda-terms have "Typed" ("Untyped" inactive) and their use as
+toggles, and "List its terms" among the tools. The sheets, the typed tableau
+and their tests left the client.
+
+The client's commits on the redesign's chain (change ids, oldest first):
+- `syltuoly` Find the modal system that a set of frame conditions makes
+  (`closure`, `systemOf` in `src/lib/modal.ts`, tested);
+- `ropwlykq` Add W, the key that closes the chosen sequent;
+- `ylunnmqp` Make every way of looking at a sequent a view in its rail (the
+  units below; they share `Frame.tsx`, `Stage.tsx`, `state.tsx`, `ui.tsx`,
+  `app.css` and the state walks hunk by hunk, so they are one commit whose
+  body lists them);
+- `xloqqwps` Build a tableau by hand by pressing its lines (`src/lib/hand.ts`
+  with its tests against the real module, `HandTableau.tsx`; the typed
+  tableau's view `TableauCheck.tsx` leaves);
+- `xmvsupko` Word the net entry's reason and two view sentences as one action
+  each (the education skills' findings);
+- `ywrtnqwm` Describe the views of a sequent in the client's rules;
+- `sklqvxks` Close the systems' list on Escape and a press outside, and fit a
+  badge's letters (found in the screenshots);
+- `oxulwxrx` Answer the review: the close's Undo, toggles of the proof shown,
+  Delete on a chip (the chain's head).
+
+### What was built, by the guide's sections
+
+- **"+ view" (D3, D14)** (`entries`, `addEntry` in `Views.tsx`): the groups of
+  D13 and D14's list, in order: Prove (Tableau, Resolution, A copy of this
+  proof, Proof net), Decide (Truth table, A model of your own), Translate
+  (Glivenko, Kuroda, Gödel–Gentzen, Kolmogorov, each `¬¬` with its letters,
+  and Linear logic, `!`), Read off (Interpolant, Normal form), From this proof
+  (Cut elimination, λ-term). A faint entry is `aria-disabled` with its reason
+  under it as its description; one there carries a check named "added".
+- **A sequent's proofs in one chip** (`Proof.beside`, stored with the proof in
+  the shelf; `chipOf`, `members`): the top row shows the proofs beside none. A
+  calculus that cannot keep the steps (`setCalculus`, the natural deduction
+  toggle), a copy of a proof, and the labelled calculus of a valid modal
+  sequent (`modalSteps`) join the chip as cells. This closes 79b's departure
+  (a view beside as a chip).
+- **Rail cell** (`cellsOf`, `Cell`): a cell per proof of the chip and per view
+  added to it, the cell's sign above (⧉ for a copy) and letters under it (Gl),
+  a view made from the proof joined to it by a short line (`data-tied`), the
+  net in one capsule with its proof, a view out of date with a dashed red edge
+  and a red "!". The name says what the cell shows and its state ("Truth
+  table, TT, out of date").
+- **The views of D13**: truth table and tableau (`MethodView` with the
+  sequent the view was made from), the tableau's toggle Search or By hand;
+  resolution with its toggle; the normal form (`NormalView`): its kind a
+  toggle of the ten forms, the steps as numbered lines each with its law,
+  opening at the last, Undo stepping back and "Next step" and "To the end"
+  among the tools; the interpolant; the translations (`TranslationView`: the
+  translated sequent on a strip with "Prove it in LJ" or LM at its end, the
+  sign of Prove apart, its words with the guide on; then both verdicts); the
+  embedding into linear logic (`EmbeddingView`); a model of one's own.
+- **The tableau by hand** (`HandTableau.tsx`, `src/lib/hand.ts`): the guide's
+  "a press on a line expands it, a branch closes by itself", in place of the
+  typed tableau. A press expands the line by its rule on every open branch
+  below it; the tableau is a function of the lines pressed, so Undo drops the
+  last press; after every press the tableau is written in deduxit's text and
+  `ordinary_tableau_review` judges it (closed, open with "Check its
+  countermodel", unfinished). Tested in any order of presses against the real
+  module.
+- **The views of D14** (made from a finished proof, joined to it): cut
+  elimination (`elim`: started by itself on the proof as it is, on the
+  derivation or, by its toggle, on the net; "Next step", "To the end" and Undo
+  among the tools, Steps opening the list of steps, Before; the proof's own
+  cell shows the proof, its cuts unmarked); the λ-term (`TermView`, "Copy as
+  text" among the tools); "Eliminate cuts" among a finished proof's tools when
+  it has cuts.
+- **A view out of date** (`Added.source`, `staleOf`, `StaleBar`): each view
+  keeps what it was made from (the sequent's text and JSON, or the session's
+  key for CE and λ); once that differs, the cell is dashed with a red "!" and
+  the view shows its old contents with "Out of date." and one button, "Update",
+  or "Start again" where it has steps of its own (a CE run, presses of the
+  tableau by hand). "Update all" is the graph's tool.
+- **The graph of views (D19)** (`GraphView`): the rail's first cell, 44 by 30,
+  once there are two views; also the key G and a press on the chosen chip. The
+  sequent on a lapis strip at the top, each view a node (badge, name, state on
+  a second line) under the one it was made from, joined by a line with a
+  round elbow and an arrow head, a view out of date dashed; a press opens the
+  view.
+- **One countermodel view per proof** (`ui.counters`, `counterOf`,
+  `setCounter`): closes 79c's "one at a time".
+- **Closing one sequent** (79a's question, decided by the planning session):
+  a close at the chip's end, shown on hover and with the focus in the chip,
+  always beside it on a touch screen; W closes the chosen chip; both close the
+  chip with every proof beside it, and the notice's Undo puts them back where
+  they were (`closeChip`).
+- **Modal logic (D11)**: the system's name is a button that opens the list of
+  the fifteen (each with its conditions), closed by Escape and a press
+  outside; the five conditions are toggles, the system's own with a lapis
+  edge, one that follows from them pressed without it; a press finds the
+  system their closure makes (`systemOf`). Decided on Enter and on a change as
+  before; the countermodel view; "Prove step by step" among a valid sequent's
+  tools, opening the labelled calculus beside the decision.
+- **Lambda-terms (D12)**: "Typed" and "Untyped" (inactive, "Coming soon" said
+  when pressed), and "Unrestricted", "Linear", "Affine" as a toggle in place of
+  the select; "List its terms" among the tools.
+- **The drawing (D15)**: pan, zoom, fit and the zoom group are 79a's, the
+  net's "Formulas" or "Compact" toggle 79b's; nothing new was needed.
+- **The guide**: one sentence per view (`viewWords` in `Stage.tsx`), what it is
+  for or what to press.
+- **Gone**: the sheets of a translation, an interpolant, a normal form and
+  resolution (`TranslateSheet`, `InterpolateSheet`, `NormalizeSheet`,
+  `ResolveSheet`, `Sheet`, `classicalSequent`), the elimination's "Eliminate
+  the cuts" and "Leave" buttons, the typed tableau (`TableauCheck.tsx`,
+  `startLines`), the selects of the modal system and the lambda calculus, the
+  panels' buttons "Prove it step by step" and "List its terms" (now tools).
+
+### What the library's workspace document gave
+
+- **The embedding into linear logic** is the workspace operation
+  `ordinary.embed` (class derived, cost instant, the logic's default
+  embedding), run on a scratch document of its own: `workspace_statement`,
+  `workspace_edit` (add the sequent, connect the embedding), `workspace_run`,
+  `workspace_view`; the node's `summary` is the text shown and its `value` the
+  linear sequent "Prove it in" opens. No bindings call was needed.
+- **The graph's translations**: the page's workspace rows (`rowsOf`, each with
+  the line above it) give the sequents made from a proof by a translation,
+  drawn as chip-shaped nodes under that proof; a copy the workspace holds joins
+  its proof's chip when a link arrives (`arrive`).
+- **Not taken**: the document as the model of every view. Its operations name
+  the views (`ordinary.cnf`, `ordinary.resolve`, `ordinary.interpolate`, …),
+  but the page's views keep their own calls and the rail's model
+  (`ui.added`), because the document holds only what a link of linked tabs
+  carries, and a node per table or tableau would put every view into the
+  links and the workspace's undo. A view's staleness is the page's (its
+  snapshot against the proof), the workspace's state where the workspace
+  holds the node (the made sequents).
+
+### Links of every version
+
+Unchanged: `#v=1` to `#v=4` and `h=` open as 79a reported; `#v=3` now opens a
+copy in its proof's chip.
+
+### Decisions where the guide left a choice
+
+- **A chip is a sequent; its proofs are cells.** A calculus beside and a copy
+  are proofs of their own (`Proof`), joined to the chip by `beside`, so each
+  keeps its steps, link and shelf entry as before.
+- **The calculus toggles show on a proof's view and its net alone**; a view
+  with a way of working shows its own toggle there.
+- **Cut elimination on the net** stays, as the CE view's toggle "Derivation"
+  or "Net" (the guide draws CE on a derivation; the page's net elimination is
+  kept).
+- **Each translation is a view of its own** (D13 draws them so), the four
+  negative ones under `¬¬` with their letters.
+- **A view's snapshot**: a view of the sequent draws the sequent it was made
+  from, never the proof's live one, so that "Update" has something to change.
+
+### Departures from the design (for the author)
+
+- **"+ view" has a fifth group, "From this proof"** (departs from the design:
+  the guide names four groups). Board D14 draws it, holding Cut elimination
+  and the λ-term, the views made from a finished proof; the four groups have
+  no place for them.
+- **The chip's close is a press target hidden from assistive technology, not
+  a button** (departs from the design, the planning session's "a close
+  button"). The chips are a tab list, which may hold tabs alone (an axe rule
+  and ARIA's tabs pattern), so a button inside it fails the axe walk. The close
+  is an `aria-hidden` target over the chip's end, shown on hover and with the
+  focus in the chip, always beside it on a touch screen; the keyboard and a
+  screen reader close a chip by Delete on it (ARIA's pattern for tabs that can
+  be closed, a key "Single keys" leaves on) or W. A screen reader on a touch
+  screen with no keyboard has no way: a button beside the tab list, one per
+  chip, would be the fix, for the author to choose.
+- **A view out of date is drawn in `soft`, not `faint`** (departs from the
+  design's "drawn faint"): `faint` fails 4.5:1 for text (the axe walk found
+  it), and the guide keeps `faint` from text; the dashed red cell, the "!" and
+  the "Out of date." line say the state.
+
+### Checks
+
+- Vitest: 37 files, 736 tests pass (`hand.test.ts` new: the tableau by hand
+  closed in any order, open, unfinished, a line's twin, all against deduxit's
+  review; `modal.test.ts` the systems from their conditions). Biome and `tsc`
+  clean.
+- Playwright against the built site, cores 4 to 9, six workers: 335 passed
+  (the last full run 334 and the new test alone; `tests/views.spec.ts` new,
+  `cut.spec.ts`, `clausal.spec.ts`, `transforms.spec.ts`, `written.spec.ts`,
+  `methods.spec.ts`, `workspace.spec.ts`, `modal.spec.ts`, `lambda.spec.ts`
+  and the walks changed to the views). The walks of `tests/states.ts` cover the
+  new states for axe (both schemes, desktop and phone) and the target sizes:
+  the list, every view, a translation, the embedding, a normal form a step
+  back, resolution's three ways, the tableau by hand split, the graph, a view
+  out of date, a sequent closed, the CE view, the modal toggles.
+- `nix flake check` in the client under `flock /tmp/linlog-machine.lock` with
+  `--max-jobs 2 --cores 6`: the first run, at `sklqvxks`, failed in the e2e
+  check alone: the cutting walk at a phone's width pressed More while the
+  proof was still being finished (fixed in `oxulwxrx`: it waits for
+  "Proved."), and `ordinary.spec.ts`'s "goes back to the last goal still
+  valid" passed on its retry. The second run, at the head `oxulwxrx`: "all
+  checks passed!", exit 0, Vitest 736, e2e 334 passed and 1 flaky (79c's
+  "the witness's box and the countermodel view are targets", on its retry).
+- deduxit: no code change; the report alone.
+- Screenshots, 90, at 320 by 700, 390 by 844, 844 by 390, 700 by 900 and 1280
+  by 800, light and dark, in `/tmp/claude-79d/`: the list of views, the
+  normal form, a translation, the tableau by hand, the graph, a view out of
+  date, the modal systems' list and toggles, a modal sequent, lambda-terms.
+  They found two faults, fixed: a translation's badge spilling its letters,
+  and the systems' list not closing on Escape.
+- The education skills: `ai-feedback-design-principles` on the faint entries'
+  reasons and the out-of-date line (each names what is missing, then one
+  action; the net's reason gave none and was rewritten), and
+  `cognitive-load-analyser` on the views' guide sentences (the translation's
+  repeated what its verdict says, and was cut to its action; the tableau by
+  hand's spoke of typing). `frontend-design` was not run: the boards fix the
+  look, and the screenshots were checked against them.
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the chain to `sklqvxks`
+against the prompt's 79d section, the guide's sections and the rules; it ran
+nothing. It found the tableau's rules, its closure and text, the systems'
+closure, the groups, the keys, the staleness and the CE view sound. Its
+findings and the answers:
+1. *Undo of a chip's close could leave no sequent chosen* (it dropped every
+   empty sequent and kept `active` on one it dropped). Held; fixed in
+   `oxulwxrx`; tested.
+2. *A view's toggle and "Copy as text" read the proof once*, so the same view
+   of another proof of the chip acted on the first. Held; fixed: they read the
+   proof shown at each use.
+3. *The chip's close is no button; with Single keys off nothing closes one
+   sequent.* Held in part: Delete on a focused chip now closes it; the close
+   stays a hidden target (a departure, above).
+4. *A refused embedding showed raw JSON.* Held; fixed: it says so in words.
+5. *Resolution by hand said "Update" where it loses the resolvents.* Held;
+   fixed: its resolvents are steps ("Start again"). That leaving its cell loses
+   them stays open (below).
+6. *A tableau line whose twin was expanded was not counted done*, so deduxit
+   asked to mark a branch open with no control for it. Held; fixed; tested.
+7. Smaller: the fifth group is now a marked departure; the system's button is
+   named "K system", what it shows first.
+
+### What 79e must know
+
+- The Export panel acts on the proof of the view shown (`ui.tab`), as before:
+  a view other than a proof (a table, a translation) has Export and Import
+  among its tools and exports its proof. The guide's Export "for the view
+  shown" is 79e's.
+- `lucide-solid`: no new import; `Views.tsx`, `HandTableau.tsx` and the new
+  tools draw the page's own signs (`Signs.tsx`: next, end, update, graph,
+  copy, list, stairs, eliminate, shut).
+- A chip is a group (`chipOf`, `members`): a pack's page and its count should
+  count chips, not proofs; `closeChip` closes a group.
+- `ui.added` is not stored, so the views added go on a reload, as before.
+- `tests/prover.spec.ts`'s "a proof's tab shows its sequent in signs" reloads
+  right after a `goto`, the race the rules name; it failed once under a full
+  run on six workers and passed six times alone.
+
+### Left open
+
+- The departures above, for the author.
+- Resolution by hand keeps its resolvents in its component: leaving its cell
+  and coming back starts it again.
+- The embedding's "Prove it in" opens a chip the workspace does not link, so
+  the graph shows no node under the embedding.
+- Undo of a chip's close brings its proofs back but not their links in the
+  workspace (closing took their nodes out).
+- 79b's natural deduction `?` in its panel and 79c's Kripke model with
+  growing domains are as those sessions left them.
+- `tests/prover.spec.ts`'s reload race, `ordinary.spec.ts`'s "goes back" and
+  79c's witness target walk passed on a retry in the sandbox, each once.
