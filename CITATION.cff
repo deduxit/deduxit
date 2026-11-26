@@ -8,10 +8,10 @@ title: deduxit
 abstract: >-
   A collection of logic suites: a Rust library and a command line
   program that decide, check, prove step by step and export sequents of
-  linear logic, classical and intuitionistic, of classical,
-  intuitionistic and minimal logic, propositional and first-order with
-  equality, and of propositional
-  modal logic in the fifteen systems from K to S5. Proofs are shown as
+  classical, intuitionistic and minimal logic, propositional and
+  first-order with equality, of linear logic, classical and
+  intuitionistic, and of propositional modal logic in the fifteen
+  systems from K to S5. Proofs are shown as
   derivation trees, proof nets or tableaux, and classical sequents also
   by their truth tables; a sequent that is not valid gets a Kripke
   countermodel, at first order a finite structure or a Kripke model
@@ -60,12 +60,12 @@ references:
     license: EUPL-1.2
     repository-code: "https://github.com/deduxit/rocq-deduxit"
 keywords:
+  - intuitionistic logic
+  - first-order logic
+  - Kripke semantics
   - linear logic
   - intuitionistic linear logic
-  - intuitionistic logic
-  - Kripke semantics
   - modal logic
-  - first-order logic
   - proof search
   - sequent calculus
   - natural deduction

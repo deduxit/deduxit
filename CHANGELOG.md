@@ -37,6 +37,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   that `witness` reads back, so that a program that keeps the steps can
   take them again with their witnesses.
 
+### Changed
+
+- The crates' descriptions, `deduxit --help` and the front pages name
+  the suites evenly: ordinary logic, linear logic, modal logic,
+  lambda-terms and calculi given as rule files. The crate `deduxit`
+  has the keyword `logic` in place of `proof-nets`.
+
 ## [0.8.0] - 2026-11-23
 
 First-order ordinary logic. deduxit reads first-order sequents of

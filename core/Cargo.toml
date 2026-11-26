@@ -3,7 +3,7 @@
 
 [package]
 name = "deduxit"
-description = "A collection of logic suites: decides, checks, proves step by step and exports sequents of linear logic, of classical, intuitionistic and minimal logic, propositional and first-order, and of modal logic, with checked proofs, countermodels and Rocq certificates; normal forms, Herbrand's theorem and resolution; lambda-terms checked and a type's terms found."
+description = "A collection of logic suites: decides, checks, proves step by step and exports sequents of ordinary logic (classical, intuitionistic and minimal, propositional and first-order), of linear logic and of modal logic, with checked proofs, countermodels and Rocq certificates; normal forms, Herbrand's theorem and resolution; lambda-terms checked and a type's terms found; derivations checked in calculi given as rule files."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,11 +11,11 @@ license.workspace = true
 repository.workspace = true
 readme = "../README.md"
 keywords = [
-  "linear-logic",
   "theorem-prover",
+  "logic",
   "proof-search",
   "sequent-calculus",
-  "proof-nets",
+  "linear-logic",
 ]
 categories = ["science", "mathematics"]
 # The export test reads the command's font from `cli/`, outside this

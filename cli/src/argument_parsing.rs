@@ -94,8 +94,9 @@ const ORDINARY_SHORT: &str = concat!(ordinary_syntax!(), "\n\n", every_option!()
 /// `check` and `eliminate`.
 const EVERY_OPTION: &str = every_option!();
 
-/// Decide, check, prove step by step and export sequents of linear logic,
-/// and ordinary logic through its translations
+/// Decide, check, prove step by step and export sequents of ordinary,
+/// linear and modal logic, and check lambda-terms and derivations in rule
+/// files
 #[derive(Parser, Debug)]
 #[command(version, long_about = None, after_help = ORDINARY)]
 pub(crate) struct Cli {

@@ -3,7 +3,7 @@
 
 [package]
 name = "deduxit-cli"
-description = "The deduxit command, a collection of logic suites: decide, check, prove step by step and export sequents of linear logic, of classical, intuitionistic and minimal logic, propositional and first-order, and of modal logic; refute clauses by resolution, prove by Herbrand's theorem, check lambda-terms and grade answers."
+description = "The deduxit command, a collection of logic suites: decide, check, prove step by step and export sequents of ordinary logic (classical, intuitionistic and minimal, propositional and first-order), of linear logic and of modal logic; refute clauses by resolution, prove by Herbrand's theorem, check lambda-terms and derivations in calculi given as rule files, and grade answers."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,10 +16,10 @@ repository.workspace = true
 documentation = "https://deduxit.github.io/deduxit/manual/"
 readme = "../README.md"
 keywords = [
-  "linear-logic",
   "theorem-prover",
   "proof-search",
   "sequent-calculus",
+  "linear-logic",
   "cli",
 ]
 categories = ["command-line-utilities", "science", "mathematics"]
