@@ -1248,3 +1248,356 @@ findings and the answers:
   growing domains are as those sessions left them.
 - `tests/prover.spec.ts`'s reload race, `ordinary.spec.ts`'s "goes back" and
   79c's witness target walk passed on a retry in the sandbox, each once.
+
+## Session 79e: export, packs and settings
+
+Opus 5.5 at `high`, 2026-11-26, in the deduxit workspace
+`deduxit-wt-step-79a-…` (on `onorszow`, main@origin) and the client workspace
+`step79a` (`/home/tux/Projects/own/deduxit.github.io-79a`) on the redesign's
+head `oxulwxrx`, cores 4 to 9. Nothing pushed; the client's `main` untouched;
+no change to the library or the bindings (every export setting the guide names
+is already one of deduxit's style options, which the bindings pass on whole).
+
+### Outcome
+
+The page is the guide's in its last parts. Export is a panel of two columns
+(board D16): the entries under Picture, Text, Proof and Link, each with its
+sign (Rocq's own logo for Rocq), and at the right the chosen entry's settings,
+what a text format writes, and Copy and Save. Every setting is a `--style`
+option of deduxit's and is kept with the page's settings. A course pack is
+made in Export's entry "Course pack" (board D18) and met by a student as one
+chip with its count and a page of its problems (board D17); a hand-in link or
+file of the page before opens as its pack with its answers, and the check view
+is gone. The Settings page is board D10, its search defaults kept per logic.
+Every icon is the page's own sign and `lucide-solid` left the client. More's
+rows have "Close this sequent". 79d's three faults and the three tests that
+passed only on a retry are fixed at their cause.
+
+The client's commits on the redesign's chain (change ids, oldest first):
+- `onmrpvus` Draw Rocq's logo beside its export, the one third-party file,
+  served with its licence (CLAUDE.md's rule, the licences check, About);
+- `xrsqwvkl` Build the Export panel (it shares hunks with a pack no longer
+  barring the search and with the λ view's Copy, said in its body);
+- `vyvqtswr` Make course packs the guide's: a form in Export, one chip and a
+  page for the student (hand-ins open as packs; the check view, the hand-in
+  sheet and the pack's bar leave);
+- `wkszwkpv` Lay the Settings page out as board D10, the search's defaults
+  kept per logic;
+- `pwktxmxt` Draw every icon as the page's own sign, and drop `lucide-solid`;
+- `wwmuvznw` Add Close this sequent to More's rows;
+- `owqulsps` Keep resolution by hand's resolvents when its cell is left;
+- `vwsrrvrt` Link the embedding's sequent and a closed sequent brought back
+  in the workspace (two of 79d's faults, sharing `Workspace.tsx`);
+- `kknlrqnw` Open the Euler Math test's link in a page of its own;
+- `prnoxlqy` Say the page is busy until its start settles, and wait for it
+  in the tests' goto;
+- `uqsrqxpr` Describe Export, course packs, Settings, the signs and the
+  page's start in the client's rules;
+- `wuusxvmn` Word four help lines of Settings and Rocq's reason as one idea
+  each;
+- `mkrwmzwv` Answer the review;
+- `svusqksw` Let the pack form's buttons wrap at their own width (the
+  chain's head).
+
+The brief asked for the units one commit each. The Export panel's commit
+holds two more because they run through the same files hunk by hunk
+(`state.tsx`, `Stage.tsx`, `Frame.tsx`, `Views.tsx`); its body says so, as
+`vwsrrvrt`'s does for its two faults.
+
+### What was built, by the guide's sections
+
+- **Export (Panels; D16; "What the page needs from elsewhere")** (`src/islands/Export.tsx`):
+  the entries SVG, PNG, PDF (Picture), LaTeX, Typst, Text (Text), Session, Rocq
+  (Proof), This proof, The sequent, Course pack (Link), each a button with its
+  sign (`Signs.tsx`: the board's curve, framed picture, page, TeX, Typst's t,
+  lines, braces, the derivation, the turnstile, the box) and Rocq's logo. At
+  the right the chosen entry's settings, each one of deduxit's style options,
+  stored as `Settings.exports`: a picture's Font (`svg.font`), Background
+  None or White (`svg.background`), a PNG's Scale 1× to 4× (`png.scale`), Rule
+  names Upright, Subscript or Off (`labels` of every format), Whole document
+  (LaTeX's and Typst's `form`), Rule line ─ or = (`text.bar`), the Lemma's
+  name (`rocq.lemma`). A text format shows what it writes in a scrolling
+  block before Copy or Save; a picture has its settings and Save. The links
+  show the URL and Copy it. Copy and Save say what they did in the notes
+  ("LaTeX copied.", "Saved deduxit-proof.png."). Export acts on the view
+  shown: a net's pictures are the net, its texts say to show the proof; any
+  other view exports its proof, the right column naming it ("The proof in
+  LK"). Rocq writes the finished proof's certificate, or a refuted goal's
+  (the old menu's Not derivable and Countermodel), or says why it cannot (a
+  refutation by saturation, an exhausted search, an unfinished proof). The
+  λ-term left Export: 79d made it a view.
+- **Rocq's logo** (Icons; "What the page needs from elsewhere"):
+  `src/third-party/rocq/icon-rocq-black.svg`, the path of rocq-prover.org's
+  small logo as the design session read it (from the shared notes'
+  `rocqlogo.py`; nothing was downloaded), with `LICENSE.txt` naming the
+  source and holding the Unlicense; served under `/licenses/rocq/`, listed in
+  About, drawn in the text's colour. CLAUDE.md's licence rule names it as the
+  one third-party file; the `licences` check takes it as the one image
+  outside `logo/` beside a notice with its source and the Unlicense.
+- **Course packs** (Panels' Export; 9. Teach; D17, D18; Sequent's chip): the
+  form under Link (a title, the sequents at the top ticked, Copy the link,
+  Copy the embed code, Print with its printed sheet); a pack as a student
+  meets it: one chip "Week 3, 1/3" first in the top row, its page (the title,
+  a row per problem with its calculus and a check or a dashed ring, "1 of 3
+  done"), a press on a row opens the problem in its fixed calculus, a press on
+  the chip goes back. The page has no rail, bottom box, toggles or tools. Hint
+  and Close all work as anywhere: the pack's switch that barred the search is
+  gone, and with it every bar it set (the hint, the closes, the table and the
+  tableau, the marking, the invertible rules, the modal decision). The pack's
+  code is gone from the page (it still keys the answers kept in the browser).
+- **The Settings page** (D10; 10. Settings and the rest): "Kept in this
+  browser" beside the title; Look (Scheme, Font of the formulas, Proof nets,
+  the net's look and its three fields); Search (Defaults for Ordinary, Linear
+  or Modal; Engine, a list for linear logic, "deduxit's choice" for the
+  others; Budget; Witness depth, Instances and Terms but in modal logic);
+  Proving (Mark goals that have no proof, Apply invertible rules by themselves,
+  Steps of cut elimination); Keys (Single keys); This browser (Close every
+  sequent, with Undo); About as three rows (Keys, What deduxit is with its
+  licences, Privacy). Rows put the control under the label where they do not
+  fit (compact).
+- **Icons** (Icons): every pictogram is a sign of `Signs.tsx` on the 18-unit
+  grid; `lucide-solid`, its build-time check (`src/integrations/lucide.ts`),
+  its test and its rule are gone (`npm uninstall --package-lock-only`).
+- **Close this sequent** (What 79b to 79d left): a tool in More's rows (a
+  compact or short window), outside the chips' tab list, closing the chosen
+  sequent (or the pack) with the same Undo; the column of a wider window
+  leaves it out.
+
+### 79d's faults and the tests that passed on a retry
+
+- **Resolution by hand kept its resolvents in its component**: they are now
+  kept by the proof (the sequent they are of, the steps, whether □ was
+  reached), so leaving the cell or the view's toggle and coming back loses
+  none; another sequent starts again. Tested (`clausal.spec.ts`).
+- **The embedding's "Prove it in" opened an unlinked chip**: it is now one
+  workspace action, "embedding" (the sequent joined, `ordinary.embed` and
+  `linear.start` made on it, the chip opened from the proof node and linked),
+  so the graph shows the chip under its proof. The workspace lays in no linear
+  session, so the node keeps the session it started with. Tested
+  (`views.spec.ts`).
+- **Undo of a chip's close lost its links**: closing now parks the tabs it
+  takes out of the workspace, and the notice's Undo takes the workspace's
+  "closing" back while it is the last action, which links each tab again.
+  Tested (`workspace.spec.ts`).
+- **The λ view's "Copy as text" never enabled** (found by moving
+  `term.spec.ts` from Export to the view): the term each view shows lived in a
+  plain Map, which the tools never saw change; it is a signal now.
+- **`prover.spec.ts`'s Euler Math test** went to another fragment of the
+  loaded page and reloaded at once, racing the page's own write of its link;
+  it opens the link in a page of its own.
+- **`ordinary.spec.ts`'s "goes back" and 79c's witness target walk** both
+  failed in the same place in 79d's sandbox logs: a second plain visit in the
+  same browser brings the first part's proofs back by itself after the first
+  paint, and the test's next press, made on the new tab view, raced that
+  restore. The app is `aria-busy` until its start settles, and the tests'
+  `goto` waits for it. Each of the three passed eight times on six workers and
+  four times in CI mode on one core, with no retry.
+
+### Links of every version
+
+- `#v=1` (the linear suite's first links) and `#v=2` (a sequent with its
+  session in its suite) open their sequent with its proof, as before.
+- `#v=3` (a linked group) opens every proof of the group, a copy in its
+  proof's chip, the linked one shown.
+- `#v=4&k=…` (a course pack) opens as the pack's chip with its page shown, the
+  answers kept in this browser restored; with `&e=1` embedded, with "Open in
+  deduxit".
+- `#v=4&h=…` (a hand-in of the page before) opens as its pack with the
+  hand-in's answers on the problems' tabs; a hand-in file imported or dropped
+  does the same. No check view.
+- A link pasted into the open page opens as a load would, the open proofs set
+  aside for "Restore".
+
+### Decisions where the guide left a choice
+
+- **Export for the view shown**: a net's pictures draw the net; any view that
+  is not a proof or its net exports the proof it belongs to, and says so.
+- **The export settings are kept with the page's settings**, one set for all
+  formats (the board's one `opts`), so LaTeX and Typst share "Whole document"
+  and every format "Rule names".
+- **Rocq's entry** carries the old refutation and countermodel certificates.
+- **Search per logic**: the budget and the first-order bounds are each logic's
+  (natural deduction and lambda-terms count as ordinary logic); "Defaults
+  for" opens on the shown proof's logic. Earlier single values seed every
+  logic.
+- **An earlier pack's `search: false`** opens with the search allowed: the
+  guide drops the switch, and a pack is for working on.
+- **The pack page's sentence** shows with the guide on only.
+- **"Close every sequent"** keeps its words (the guide's function table) on
+  the board's row "Every sequent and its proofs" (the board's button says
+  "Close all", which is also the search's tool).
+
+### Departures from the design (for the author)
+
+- **In a compact window Export's entries wrap in rows** (departs from the
+  design, "one row that scrolls sideways"): in a row that scrolls, the
+  entries off the edge are partly hidden, and the target-size walk (axe's
+  2.5.8) failed them; the row also overlapped its entries on a phone. Four
+  short rows, each group kept together, stand above the chosen entry.
+- **The engine is chosen in linear logic alone, for the visit** (departs from
+  the design, whose D10 lists engines per logic and keeps them): deduxit's
+  ordinary and modal searches take no engine (the bindings' `search.engine`
+  is the linear search's), so Ordinary and Modal say "deduxit's choice"; a
+  forced engine still holds for the visit, as decided before, since it
+  refuses what it does not take.
+- **Natural deduction, modal and lambda views have no Export panel of their
+  own** (departs from the design's "a panel for the view shown"): natural
+  deduction keeps its panel's LaTeX, Typst and SVG buttons; a modal decision
+  and a lambda-term had no export on the page before. The bindings have the
+  calls (`rules_export`, `modal_export`, `lambda_export`); wiring them into
+  the panel is a follow-up.
+- **A view that is not a proof exports its proof** (a table, a tableau, a
+  translation, a model): deduxit writes none of them; the panel names what it
+  exports.
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the chain `onmrpvus` to
+`uqsrqxpr` against the prompt's 79e section, "What 79b to 79d left", the
+guide's sections and the client's rules, and deduxit's export and settings
+sources; it ran nothing. It found the export settings to match deduxit's
+style options key for key, the reactivity sound, the per-logic settings,
+the packs, the workspace changes and the three tests' fixes sound. Its
+findings and the answers (all in `mkrwmzwv`):
+1. *A Rocq keyword as the lemma's name (`Lemma`, `Proof`, `forall`, `_` …)
+   passed the page's check, and deduxit's refusal of it refused every
+   format's settings, stored across a reload.* Held: the page refuses
+   deduxit's keyword list too and sends deduxit's own name meanwhile;
+   tested.
+2. *With the pack's page shown, a close aimed at another sequent's chip
+   closed the pack.* Held: the pack closes only as the chosen sequent (W,
+   More's Close this sequent) or by its own chip; tested.
+3. *Export's header comment said the compact entries scroll sideways, and
+   the wrap is a departure the report must mark.* Held: the comment is
+   true now, and the wrap is under "Departures".
+4. *Question: the embedding's "Prove it in" announced the chip even where
+   the workspace opened none.* Held: it says so only once the chip is open.
+
+### The walk of the whole page at every width
+
+A fresh agent (Sonnet 5.5 at `high`) walked the built page in the built-in
+browser at 320x700, 360x740, 390x844, 599, 600, 700, 839, 840 (each x900),
+1024x768, 1280x800, 1440x900, 1920x1080 and 844x390, and at 640x400 and
+320x200 as stand-ins for 200 % and 400 % zoom of 1280x800 (the pane has no
+browser zoom): the new tab view, a proof closed by the search, Export with
+each kind of entry, Settings scrolled through, a pack opened with a problem
+and back, More's rows. It measured every control's size, whether another
+element covers its centre, and sideways scrolling. No page scrolls
+sideways at any size; Settings, the pack, More's "Close this sequent" and
+the phone's Export sheet are sound. Its findings and the answers:
+1. *At 600 wide "Copy the embed code" was cut by Print* (79e's). Fixed in
+   `svusqksw`: each button wraps at its own width.
+2. *The zoom group lies under the bottom box* at medium widths (600 to about
+   890, and with any panel open at 840 and wider, where the stage narrows but
+   the box stays centred on the window), *and under a verdict note* in a
+   compact window. 79a's frame; the keys (`+`, `-`, `0`, `F`) and the
+   gestures still zoom. Left open (below).
+3. *The new tab view's four logics in one row are wider than the stage at
+   600 to 840* (the first tile cut under the rail). 79a's; left open.
+4. *The sheets' close button is focusable but drawn nowhere in a medium or
+   expanded window* (under the toggles or a panel). 79a's; left open.
+5. *At 640x400 (200 % zoom) the note and the bottom box cover More*, and at
+   320x200 rows overlap. Left open.
+6. *A drawing's rule labels are under 44 high at a phone's width* (30 to 41):
+   79a's recorded departure (the labels share the gaps between neighbours).
+7. *The course pack's checkboxes are the browser's 13 pixels in a row 36
+   high* (the guide: 18). The row is the target; left as it is.
+
+### Checks
+
+- Vitest: 36 files, 733 tests pass (`lucide.test.ts` left with its module).
+  Biome and `tsc` clean.
+- Playwright against the built site, cores 4 to 9, six workers: the whole
+  suite 344 passed, none flaky, before the review's fixes; the specs those
+  touched then 75 passed.
+- The three tests that passed only on a retry: 8 runs each on six workers,
+  then 4 each in CI mode (`CI=1`, 60 s) on one core with four workers, no
+  retry: all passed.
+- `nix flake check` in the client under `flock /tmp/linlog-machine.lock`
+  with `--max-jobs 2 --cores 6`: "all checks passed!", exit 0, at
+  `mkrwmzwv` (Vitest 733, e2e 345 passed, none flaky), and again at the head
+`svusqksw`: "all checks passed!", exit 0, Vitest 733, e2e 345 passed, none
+flaky.
+- deduxit: no code change; the report alone.
+- Screenshots at the guide's widths, light and dark, of Export (LaTeX,
+  PNG), the pack's form, the pack's page and a problem of it, and the
+  Settings page: `/tmp/claude-79e/screens/` (the script that took them,
+  `/tmp/claude-79e/shots.mjs`): 156, six states at thirteen sizes in both
+  schemes; the runs' logs are in `/tmp/claude-79e/runs/`. Held against the
+  boards D10, D16, D17, D18, N3, N4, N5, N9 and N10: the layouts match but
+  the faults of the frame under "Left open".
+- The education skills: `cognitive-load-analyser` on the Settings page's
+  help lines, the pack page's sentence and Export's reasons: four lines
+  carried two ideas or a stray referent, rewritten in `wuusxvmn`.
+  `ai-feedback-design-principles` was not run separately: Export's reasons
+  follow the form 79d checked with it (what is missing, then one action).
+  `frontend-design` was not run: the boards fix the look, and the
+  screenshots were held against them.
+
+### Left open
+
+- 79a's frame at the walk's sizes: the zoom group under the bottom box or a
+  note, the new tab view's row of four at 600 to 840, the sheets' close
+  button focusable where it is not drawn, More covered at 200 % zoom. One
+  fixup can take them together (the zoom group lifted above the box where
+  the stage is narrower than the box and the zoom side by side, the logics
+  two by two below 840, the close button out of the tab order outside a
+  sheet).
+- Export of a natural deduction, modal or lambda view: the bindings have
+  the calls; the panel does not offer them yet.
+- A pack's problems, once the pack is closed by a new plain visit, come
+  back as sequents of their own (the shelf keeps them as any proof); they
+  are no pack's then.
+- For the author: the departures above and every earlier session's, listed
+  under "Before approving the page".
+
+### Before approving the page
+
+What to look at, in the page built from the client's chain at `svusqksw`
+(`nix build` in the client's workspace `step79a`, or `dev` there):
+1. **A proof by hand and the search** (79b): the rule popover with a greyed
+   rule's card, a ⊗ split's premises, the goal's menu at ⊢, Hint's ring, Close
+   all, a goal marked as having no proof and Go back.
+2. **First order** (79c): a witness typed in the popover and a refusal under
+   it; the countermodel view `⊭` with a dot pressed.
+3. **The views** (79d): "+ view", a translation with "Prove it in", the
+   graph of views, a view out of date with Update.
+4. **Export** (79e): each entry's settings and text, Copy and Save, and a
+   phone's rows of entries.
+5. **A course pack**: made in Export, opened from its link as a student, a
+   problem done, the chip's count.
+6. **Settings**: Search per logic, the About rows.
+7. **Narrow windows**: a phone upright and sideways, a small tablet
+   (screenshots under `/tmp/claude-79a/` to `/tmp/claude-79e/`), and the
+   frame's faults the last walk found at medium widths and at 200 % zoom
+   (79e's "Left open"), which wait for a fixup.
+
+Every departure of 79a to 79e, for the author's decision (each is built as
+described unless the author decides otherwise):
+- 79a: the colour `good` turned towards teal (`#075e55` light, `#86e2ba`
+  dark) to pass the colour-vision test; lapis left the nets' colour-vision
+  groups (a net's ⅋ blue and lapis are near under the simulations); a
+  toggle's cell on a touch screen is 44 high in a box of 50; rule labels get a
+  zoom floor of 24 pixels; the fragment (MLL, MELL) is no longer shown; the
+  drawing's glow in the dark scheme is gone.
+- 79a, decided by the planning session: a chip has a close (an
+  `aria-hidden` press target, 79d) and the key W; 79e adds More's "Close this
+  sequent" as the screen reader's way on a touch screen.
+- 79b: natural deduction's `?` stands in its panel's goal line with Prove
+  apart alone (no search in the rules suite); "Use its proof" is offered for
+  the proof made apart from that goal only; Steps names a step by rule and goal
+  number, not by formula; the search's settings panel chooses the engine for
+  the visit; a replay keeps a step that holds in the new calculus even where it
+  makes other premises there. (79b's view beside as a chip was closed by 79d.)
+- 79c: a first-order goal is closed or hinted by the finite model search
+  (`ordinary_close`, `ordinary_hint`), so the search refutes it but never
+  proves it there; a Kripke model with growing domains is named, not drawn;
+  an ordinary proof replayed onto a goal leaves its witnesses open (no
+  library printer of a term).
+- 79d: "+ view" has a fifth group, "From this proof"; the chip's close is a
+  press target hidden from assistive technology, not a button; a view out of
+  date is drawn in `soft`, not `faint`.
+- 79e: Export's entries wrap in rows in a compact window; the engine is
+  linear logic's alone, for the visit; natural deduction, modal and lambda
+  views have no Export panel of their own; a view that is not a proof
+  exports its proof.
