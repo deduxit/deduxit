@@ -12,25 +12,28 @@ rules, conventions and pointers. Guidance for one area of the tree goes in
 
 ## Project
 
-deduxit is a collection of logic suites, linear logic one of them: it
-decides, checks, proves step by step and exports sequents of classical
-and intuitionistic linear logic and of cyclic MLL (the order of the
-formulas kept), and decides classical, intuitionistic and minimal
-propositional logic by a SAT solver, LJT, truth tables and tableaux, or
-through its embeddings, with a checked Kripke countermodel for what is
-not valid (the
-manual's "What exists and what is planned", `docs/src/status.md`). It is written in Rust with
+deduxit is a collection of logic suites, none of them the main one: it
+decides, checks, proves step by step and exports sequents of ordinary
+logic (classical, intuitionistic and minimal, propositional and
+first-order, with a checked countermodel for what is not valid), of
+linear logic (classical, intuitionistic, affine, cyclic and the Lambek
+calculus) and of modal logic from K to S5, reads proofs as lambda-terms
+and checks the terms written, and checks derivations in calculi given
+as rule files (the manual's "What exists and what is planned",
+`docs/src/status.md`). Text names the suites in the page's order
+(`.claude/rules/writing.md`, rule 3). It is written in Rust with
 WebAssembly in mind for the `deduxit-web` crate: the library reads
 no clock and uses threads only behind a feature. Performance is a stated
 goal: the data structures are compact and cache-friendly.
 
 Workspace crates:
-- `core/` is package **`deduxit`**: all logic. The linear suite is the
-  module `deduxit::linear` (sequents, the forest, proofs and the checker,
-  nets, the search, the readers and families); `ordinary`, `modal` (the
-  systems from K to S5, decided by a labelled tableau) and `lambda` are suites beside it, `rules` checks a derivation in a calculus given
-  as a rule file, and what they share with it stays at the root
-  (the errors, the limits, the settings, the exports, the wire forms).
+- `core/` is package **`deduxit`**: all logic, a module per suite:
+  `ordinary`, `linear` (sequents, the forest, proofs and the checker,
+  nets, the search, the readers and families), `modal` (the systems
+  from K to S5, decided by a labelled tableau) and `lambda`; `rules`
+  checks a derivation in a calculus given as a rule file, and what they
+  share stays at the root (the errors, the limits, the settings, the
+  exports, the wire forms).
   It has nine optional
   default features, `parse` (the text parser, the LLTP reader and the
   generated families),
