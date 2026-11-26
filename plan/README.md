@@ -114,6 +114,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 82 | A first-order goal closed by proof search with a checked derivation, or refuted by a finite countermodel, in the goal state; the page proves first-order goals (one session) | `82-first-order-close.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 75, 76, 79, 81 (the same files) |
 | 83 | Natural deduction proofs found through cut-free sequent proofs translated and checked; natural deduction's goal menu whole on the page (one session) | `83-natural-deduction-search.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 79, 82 (the same files) |
 | 84 | Untyped lambda calculi beside the typed ones, a β stepper and principal types; the page's "Untyped" active (one session) | `84-untyped-lambda.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 71, 79 (its client part after 83's) |
+| 85 | System F, Church style: types with `∀`, terms with type abstraction and application, type checking in the unrestricted, linear and affine calculi, the typing derivation drawn and exported, type β in the stepper; no inference (one session) | `85-system-f.md` (written 2026-11-26, at the author's word) | Opus 5.5; `fresh-reviewer` | high | 84 |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -8526,3 +8527,11 @@ move (D26).
   `wt-step-54s-c1`, `58a`, `58b`, `78a`, `fixup-27`; the client's `wt-redesign-291b11`), each holding
   only build caches (about 550 GB). The client's freeze ends: its work goes to its `main` after
   review, as deduxit's does.
+- 2026-11-26, about 08:40: **fixup-29 and step 81 started** (`local_c4869735` on cores 10-15,
+  `local_9dfa5c8f` on cores 4-9). The client's CI and Pages deploy of the approved page passed (run
+  45779545265); the page is live.
+- 2026-11-26, about 09:00: **System F taken as step 85** (the author: "system F should also be done.
+  Maybe type inference is not necessary, but type checking should be doable"): `85-system-f.md`,
+  checking only, after 84. **The author starts 82 to 85 from the first account**: no new step from
+  here. `plan/notes/handoff-2026-11-26.md` hands the planning session back (what runs, what is
+  written, what waits).
