@@ -2455,3 +2455,180 @@ findings and the answers (all in `ynvuuuyn`):
 - A modal outcome with nothing to draw is handled by reading, not by a test.
 - What 79e left for the author stands, with this session's departure added
   to "Before approving the page".
+
+## Session fixup-29: Steps named as the literature names them, "Use its proof" up to order, the search's engine said
+
+Opus 5.5 at `high`, 2026-11-26, from the brief
+`/tmp/linlog-handoff/start-fixup-29.md`, in the client workspace `fixup-29`
+(`/home/tux/Projects/own/deduxit.github.io-fixup-29`) on the client's
+`main@origin` (`ynvuuuyn`), and in the deduxit workspace
+`deduxit-wt-step-fixup-29-…` on `main@origin` (this report alone), cores 10
+to 15. Nothing pushed; no bookmark moved; no change to the library or the
+bindings.
+
+### Outcome
+
+The author's three answers that were the client's are built. Steps names
+each step by its rule and the formula it acts on ("⊗ on B ⊗ A", "∧R on
+b ∧ a", "cut on A ⊗ B"). "Use its proof" is offered for every finished proof
+at the top, in the same calculus, whose sequent has the goal's formulas on
+each side in any order, and the replay finds each step's formulas in the
+goal it acts on. A search that closes goals says which engine did, and the
+hint's line names the engine whose proof it follows. The client's full
+`nix flake check` passes at the head, `xxslynwr`.
+
+The client's commits (change ids, oldest first):
+- `kxvvqqzk` Name each step in Steps by its rule and principal formula;
+- `mvprowtp` Offer every proof made apart of the goal's formulas, in any
+  order;
+- `krkwzlrz` Say which engine the search used: on Close all, a goal's close
+  and Hint;
+- `xxslynwr` Answer the review: eigenvariables by path, answers for their
+  session, ordered calculi (the chain's head).
+
+### What was taken for Steps, and why
+
+A research agent (Sonnet 5.5 at `high`) read thirteen sources, each by its
+URL. The textbooks label an inference by its rule alone, beside its line:
+the Open Logic Project's sequent calculus chapter (∧L, ∧R, "named for the
+main operator"), Pfenning's CMU 15-414 lecture 12 on sequents (∧R, and "the
+principal formula of the rule"), Girard's *Proofs and Types*, chapter 5 (R∧,
+L1∧, "the principal symbol"), and Wikipedia's sequent calculus page. The
+tools say which formula by where the visitor presses or by a position:
+Click and coLLecT (a press on a formula picks the rule of its connective),
+the Proof Tree Builder paper (arXiv 2303.05865), the Sequent Calculus
+Trainer (arXiv 1507.03666), the KeYmaera X cheat sheet ("apply tactic t at
+position j"), Lean's tactics chapter of *Theorem Proving in Lean 4* (a
+tactic and a hypothesis's name), the Isabelle tutorial (numbered subgoals)
+and the Carnap-based forall x guide (a Fitch line cites its rule, then the
+lines). No source puts a goal number in a step's label, and every one names
+the rule by its connective. KeY's and Logitext's own pages could not be
+read, so nothing is claimed from them.
+
+So a step reads as its rule on its principal formula, the term the textbooks
+use: "⊗ on B ⊗ A", "∧R on b ∧ a", "ax on b" (an axiom names its formulas),
+"cut on A ⊗ B" (the cut formula), with no goal number; that is also the
+guide's "each step by its rule and formula". A search's close keeps "The
+⟨engine⟩ closed goal N": it has no rule.
+
+### Each change
+
+- **Steps** (`StepsPanel` in `Panels.tsx`). The session document numbers
+  formulas and holds no text, so the text is deduxit's own. A linear
+  session's steps and cuts are replayed in the worker from the sequent (one
+  request, `principals` in `steps.ts`, over `play` with an observer), each
+  goal read from the view just before its step; the searches' grafts are
+  left out, since no later step lies under one. An ordinary step's goal is
+  opened again (`reopen` in `ordinary.ts`, what undo already did) and read
+  from `ordinary_view` (`principalTexts`). Until the answer for the session
+  shown arrives, a step reads as its rule alone. With quantifiers each
+  eigenvariable is written by the path of the step that made it and lettered
+  back as the session letters it.
+- **"Use its proof"** (`apartFor`, `useApart`, `replayOnto` in `state.tsx`;
+  the goal's menu in `Goal.tsx` and `Stage.tsx`). Each candidate's sequent is
+  read as deduxit's start writes it (`rootOf`, cached per proof and
+  sequent) and matched to the goal's formulas by text and side (`placesOf`),
+  as multisets. With several, each reads "Use the proof of ⟨tab⟩"; with one,
+  "Use its proof". A proof written in the goal's order replays as before.
+  In another order each step's principal formula, and what a split or a cut
+  sends to its first premise, are found again in the goal the step acts on
+  by their text (`principals` of the source, `principalTexts` for an
+  ordinary one): no position is carried over, no substitution and no
+  unification is made, and every step still goes through deduxit, so a
+  refused replay stays "Not used". Formulas written alike are taken as one
+  formula, since they are interchangeable in a proof. In an ordered calculus
+  (cyclic, Lambek) a sequent in another order is another sequent, so only
+  one in the goal's order is offered.
+- **The engine said** (`closedBy`, `engineOf` in `engines.ts`; the line in
+  `App.tsx`; the hint's line in `Stage.tsx`). A search that closes goals
+  leaves a line over the bottom box, a notice of something done in the
+  guide's sense: "Goal 2 closed by the focused search.", "Every goal closed
+  by the focused search.", "3 goals closed: 2 by the focused search, 1 by
+  the Horn engine.". It goes at the next change or when another search
+  starts. The hint's line carries the engine's chip after "Hint.", as a
+  goal's note already carried it after its verdict. The engine is the one
+  the outcome names: in ordinary logic the image's engine under the
+  embedding, and for a first-order goal (closed or hinted by the finite
+  model search) the method, which the page now names "finite model search"
+  with its sources as deduxit's `models.rs` cites them (McCune's MACE,
+  Claessen and Sörensson's Paradox as Reger, Suda and Voronkov 2016 state
+  it; taken from deduxit's doc comment, not read in the works).
+
+### Checks
+
+- Vitest: 37 files, 736 tests (new: `principals` read off a session in
+  `steps.test.ts`, `closedBy` and `engineOf` in `engines.test.ts`). Biome
+  and `tsc` clean; `astro check` 0 errors, 0 warnings.
+- Playwright, new or changed: Steps' names in linear and in ordinary logic
+  (`prover.spec.ts`, `ordinary.spec.ts`); a proof made apart in another
+  order used, and another sequent's proof not offered (`prover.spec.ts`,
+  `ordinary.spec.ts`); the same where the goal's eigenvariables take other
+  letters, and Steps' letters after a search's graft (`first-order.spec.ts`;
+  the first fails with the goal's letters left unconverted, checked once);
+  the engine's line after a goal's close and Close all, the hint's chip
+  (`prover.spec.ts`, `ordinary.spec.ts`), the finite model search named on a
+  countermodel's note (`countermodel.spec.ts`). The hint test's four lines
+  now read "Hint. Focused search …": that behaviour was meant to change.
+- `tests/states.ts`: Steps named by rule and formula, the goal's menu
+  offering two proofs made apart in other orders, and the engine's line on
+  the proved state; the axe walks (both schemes, desktop and phone) and the
+  target-size walks pass.
+- `nix flake check` in the client under `flock /tmp/linlog-machine.lock`
+  with `--max-jobs 2 --cores 6`: "all checks passed!", exit 0, at
+  `krkwzlrz` (Vitest 736, e2e 360 passed, none flaky), and again at the head
+  `xxslynwr` (Vitest 736, e2e 362 passed, none flaky).
+- Screenshots at 390x844 and 1280x800, light and dark: the hint's chip, the
+  engine's line after Close all, Steps named, the goal's menu with two
+  proofs made apart, and the goal closed by one
+  (`/tmp/claude-fixup-29/screens/`, 20 files; the script is
+  `/tmp/claude-fixup-29/shots.mjs`).
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the first three commits
+against the brief, the guide's sections and the client's rules; it ran
+nothing. It found no fault of soundness (every replayed step goes through
+deduxit, and a replay that leaves a goal open is refused). Its findings and
+the answers (all in `xxslynwr`):
+1. *A proof made apart whose eigenvariables take other letters than the
+   goal's (each session letters them in the order its ∀ steps come) was
+   found by its text and refused as "Not used".* Held: the source's
+   formulas are written with each eigenvariable by the path of the step
+   that made it (`byPaths`), and so are the goal's, relative to the goal;
+   tested.
+2. *Steps' replay leaves the searches' grafts out, so a ∀ by hand after a
+   graft's took another letter than the session shows.* Held: the same
+   paths, lettered back as the session letters them (`lettered`); tested
+   (the hand's ∀ takes `b` after the search's `a`).
+3. *Proofs in another order were offered in the ordered calculi (cyclic,
+   Lambek), where they are other sequents.* Held: only one in the goal's
+   order is offered there.
+4. *Steps showed the last answer's formulas, by index, until the new one
+   came.* Held: an answer is kept with its session and used only for it.
+5. *The doc comment said a step whose replay failed has no formulas; the
+   observer had read them before the step.* Held: such a step, and every
+   one under it, names nothing now.
+- Question: *with the guide off the hint has no line, so no engine.* Kept:
+  the hint's words show with the guide on (79b's design), and its ring
+  says nothing in words.
+- Question: *a closed goal's line stayed over a later search's verdict.*
+  Held: a new search takes the line away.
+- Question: *an ordinary goal's countermodel is the SAT solver's, while the
+  chip names the image's engine.* Kept: the outcome deduxit answers records
+  the embedding's search alone; naming the solver needs the bindings to
+  record it (below).
+- Question: *a cut formula with eigenvariables read "{0.1}" in Steps.*
+  Held: lettered as the session letters it.
+
+### Left open
+
+- An ordinary first-order proof made apart in another order whose
+  eigenvariables differ is still compared by its letters, and so is "Not
+  used" where the letters differ: the ordinary goal state names its
+  eigenvariables by number and the page has no path for them. No wrong
+  proof follows.
+- An ordinary goal's Kripke countermodel names the image's engine: the
+  bindings' `ordinary_close` would need to record that the SAT solver found
+  the model (deduxit, not this client).
+- Two or more "Use the proof of …" buttons share one sign; their names show
+  with the guide on and in their hover.
