@@ -1942,7 +1942,12 @@ factored out of the two until the kernel crate is.
     every open witness's level, so no later binding takes one, and apart
     from the parameters, so `∀R`'s condition holds as it did. Every
     inference is checked by `check_inference` in that arena before the
-    state changes (a failure is `Error::ReadBack`), the implications of
+    state changes (a failure is `Error::ReadBack`), the arena with the
+    graft is held to the state's bound on terms (`arena_terms` against
+    `terms`, `Refusal::Terms` in `Closed::grafted`: the search bounds only
+    the goal's own arena, which lacks the other branches' atoms, and the
+    review's `a_graft_is_held_to_the_bound_on_terms` made a document its
+    reader refused without it), the implications of
     new equivalences are added, and the step goes through `record`, which
     registers inferences under the open witnesses they show.
   - `hint` copies the same way into its clone (`first_steps`) and gives

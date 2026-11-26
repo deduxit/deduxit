@@ -402,7 +402,10 @@ for `THIRD-PARTY-NOTICES.txt`.
   without one gets the SAT solver's model of the goal (`with_countermodel`,
   `sat::decide` on the goal as a sequent, within the settings' limits;
   none where it refuses, the outcome as it was; never in a first-order
-  session, whose outcome has its own countermodels). A first-order
+  session, whose arena the solver refuses: a first-order goal's outcome
+  has the first-order methods' countermodels, and a goal of such a
+  session with no binder and no term, decided through the embedding,
+  gets none beyond the image's assignment). A first-order
   goal takes the library's answer (`Interactive::close` and `hint`): a
   proof grafted, checked, or a finite `structure` or `kripke_structure`,
   its eigenvariables constants named as the goal prints them, so the

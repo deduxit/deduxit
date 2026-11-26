@@ -2722,7 +2722,8 @@ impl Interactive {
 
     /// Grafts a derivation of the first-order goal, over an arena of its
     /// own whose constants `constants` stand for the goal's parameters, as
-    /// [`graft`](Self::graft) does: its formulas and terms copied into the
+    /// [`graft`](Self::graft) does, refused past the bound on terms the
+    /// state was started under: its formulas and terms copied into the
     /// state's arena, the parameters back in their constants' places and
     /// its eigenvariables numbered past every one the proof holds, so that
     /// none meets a parameter or a later step's. Every inference is checked
@@ -2735,6 +2736,16 @@ impl Interactive {
     ) -> Result<(), Error> {
         let mut formulas = self.formulas.clone();
         let copied = self.carried(&mut formulas, found, constants)?;
+        // The search held its own arena to the bound, which lacks the
+        // atoms of the proof's other branches: a document of the proof
+        // with the graft would be refused when read.
+        let terms = arena_terms(formulas.first_order());
+        if terms > self.terms {
+            return Err(Error::Refused(Refusal::Terms {
+                terms,
+                limit: self.terms,
+            }));
+        }
         let map = |list: &[NodeId]| list.iter().map(|&k| copied.node(k)).collect::<Vec<_>>();
         // The root first, then the rest in reverse, so that every premise
         // comes after its conclusion; indices local to the step, as
@@ -5664,6 +5675,35 @@ mod tests {
             s.hint(g, None, &options, &limits, |_| false).unwrap().steps,
             []
         );
+    }
+
+    /// A graft that would take the proof's arena past the bound on terms
+    /// is refused, the goal left open, so the session's document still
+    /// reads back under the bound: the search held only the goal's own
+    /// arena to it.
+    #[test]
+    fn a_graft_is_held_to_the_bound_on_terms() {
+        let sequent: Sequent = "|- (exists y. (q(y) -> q(y))) /\\ (forall x. (p(x) -> p(x)))"
+            .parse()
+            .unwrap();
+        let limits = Limits {
+            terms: Some(2),
+            ..Limits::default()
+        };
+        let mut s = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
+        let g = s.goals().next().unwrap();
+        let opened = at_position(&mut s, g, (Right, 0), Rule::AndRight).unwrap();
+        let goal = opened[1];
+        let options = search::Options::default();
+        let closed = s.close(goal, None, &options, &limits, |_| false).unwrap();
+        assert!(matches!(closed.outcome.verdict, Verdict::Valid(_)));
+        assert!(
+            matches!(closed.grafted, Err(Refusal::Terms { limit: 2, .. })),
+            "{:?}",
+            closed.grafted
+        );
+        assert!(s.goals().any(|open| open == goal));
+        assert!(arena_terms(s.formulas.first_order()) <= 2);
     }
 
     /// Following the hints proves a first-order sequent: a witness the
