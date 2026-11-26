@@ -61,6 +61,12 @@ It does not apply to `plan/` (working notes).
      easily, without real harm to other uses, don't make the change.
      Ask the author through the planning session, with a recommendation
      of the most idiomatic, current practice.
+   - **No suite is the main one** (the author, 2026-11-26: "linear
+     logic is not the 'main' anymore"). Text names the suites evenly
+     and gives none more room or a place of honour. Where an order is
+     needed, use the page's: ordinary logic, linear logic, modal
+     logic, lambda-terms. That linear logic came first belongs to the
+     changelog.
 4. **Legible.**
    - The aim is text that is easy to read, not text that hides that a
      model helped write it. So avoid the patterns Wikipedia's "Signs of
