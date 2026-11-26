@@ -138,3 +138,4 @@ fixup-26	small	opus-5-5	high	reviewer (fable)	local_f223ef15	2026-11-23 00:10	20
 web-redesign	design	fable-5-2	high	-	local_580488fc	2026-11-24 11:26		the web page redesigned from scratch, led by the author (plan/web/redesign-brief.md)
 79a	client	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-25 23:17	2026-11-26 03:00	the page's new frame: the scale, the frame, window sizes, keys, the new tab view, restore; LK and linear views moved in
 fixup-27	small	opus-5-5	high	-	local_2063af4c	2026-11-25 23:42	2026-11-26 01:40	every dependency updated in deduxit, rocq-deduxit and the client (update-deps); the client's part held unpushed
+79b	client	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 01:47		proving by hand and the search: the rule popover, splits and cut, the goal's menu, undo, hint, close all, the no-proof marking, the toggles, the guide
