@@ -1,0 +1,10 @@
+$ deduxit term reduce --strategy applicative-order --node-limit 30 '(\x. y) ((\x. x x x) (\x. x x x))'
+--- status 3
+--- stdout
+(λx. y) ((λx. x x x) (λx. x x x))
+  β: (λx. x x x) (λx. x x x)
+(λx. y) ((λx. x x x) (λx. x x x) (λx. x x x))
+  β: (λx. x x x) (λx. x x x)
+(λx. y) ((λx. x x x) (λx. x x x) (λx. x x x) (λx. x x x))
+not finished after … steps: the next step would make a term of more than 30 nodes; --node-limit allows more
+--- stderr

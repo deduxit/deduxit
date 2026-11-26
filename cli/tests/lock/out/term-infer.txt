@@ -1,0 +1,6 @@
+$ deduxit term infer '\x. \y. \z. x z (y z)'
+--- status 0
+--- stdout
+principal type
+⊢ λx:(a → (b → c)). λy:(a → b). λz:a. x z (y z) : (a → (b → c)) → ((a → b) → (a → c))
+--- stderr

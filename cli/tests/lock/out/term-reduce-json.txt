@@ -1,0 +1,5 @@
+$ deduxit term reduce --format json '(\f. \x. f (f x)) (\y. y)'
+--- status 0
+--- stdout
+{"version":30,"strategy":"normal_order","term":{"calculus":"untyped","variables":[{"name":"x"}],"context":[],"nodes":[{"kind":"var","variable":0},{"kind":"lambda","variable":0,"body":0}],"root":1},"steps":[{"redex":8},{"redex":6},{"redex":3}],"end":"normal_form","deduxit":"…","text":"λx. x"}
+--- stderr

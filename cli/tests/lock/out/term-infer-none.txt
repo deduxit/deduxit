@@ -1,0 +1,5 @@
+$ deduxit term infer '\x. x x'
+--- status 1
+--- stdout
+no simple type: in `x x`, the types would have to satisfy a = a → b, and no type contains itself
+--- stderr

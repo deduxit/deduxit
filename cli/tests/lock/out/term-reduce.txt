@@ -1,0 +1,10 @@
+$ deduxit term reduce '(\x. \y. x) y (\z. z)'
+--- status 0
+--- stdout
+(λx. λy. x) y (λz. z)
+  β: (λx. λy. x) y
+(λy₁. y) (λz. z)
+  β: (λy₁. y) (λz. z)
+y
+normal form after … steps
+--- stderr

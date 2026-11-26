@@ -1,0 +1,5 @@
+$ deduxit term check --calculus untyped-linear '\x. x x'
+--- status 1
+--- stdout
+ill formed: the variable x is used more than once, and the untyped linear lambda calculus uses every variable exactly once
+--- stderr

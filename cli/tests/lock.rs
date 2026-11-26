@@ -465,6 +465,38 @@ const CASES: &[Case] = &[
             "x : a |- \\y:b. x : b -> a",
         ],
     ),
+    call(
+        "term-check-untyped",
+        &["term", "check", "--calculus", "untyped-linear", "\\x. x x"],
+    ),
+    call(
+        "term-reduce",
+        &["term", "reduce", "(\\x. \\y. x) y (\\z. z)"],
+    ),
+    call(
+        "term-reduce-unfinished",
+        &[
+            "term",
+            "reduce",
+            "--strategy",
+            "applicative-order",
+            "--node-limit",
+            "30",
+            "(\\x. y) ((\\x. x x x) (\\x. x x x))",
+        ],
+    ),
+    call(
+        "term-reduce-json",
+        &[
+            "term",
+            "reduce",
+            "--format",
+            "json",
+            "(\\f. \\x. f (f x)) (\\y. y)",
+        ],
+    ),
+    call("term-infer", &["term", "infer", "\\x. \\y. \\z. x z (y z)"]),
+    call("term-infer-none", &["term", "infer", "\\x. x x"]),
     call("term-inhabit", &["term", "inhabit", "a /\\ b -> b /\\ a"]),
     call(
         "term-inhabit-empty",
