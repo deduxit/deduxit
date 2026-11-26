@@ -640,3 +640,323 @@ the trials free of any state change. Its findings and the answers:
   worth a look in 79e's walk of every width.
 - For the author: the departures above, and the first-time task's points 4
   and 5.
+
+## Session 79c: first order
+
+Opus 5.5 at `high`, 2026-11-26, in the deduxit workspace
+`deduxit-wt-step-79a-…` (on `lstkrnzs`, main@origin) and the client workspace
+`step79a` (`/home/tux/Projects/own/deduxit.github.io-79a`) on the redesign's
+head `wvwoxywp`, cores 4 to 9. Nothing pushed; the client's `main` untouched.
+
+### Outcome
+
+First-order logic works on the page as boards D8 and D9 draw it. A rule that
+takes a witness (∃R, ∀L; one-sided ∃) stays pressed in the rule popover and
+opens a small box beside it: the quantifier's variable, the term typed, an
+enter button, and `$1` to leave the witness open; deduxit's refusal stands
+under the field. It works in ordinary logic too, which had no witness at all
+on the page before. A first-order sequent that is not valid has a
+countermodel view, `⊭`: its finite structure drawn as a grid, a press on a
+dot flipping where a predicate holds or naming a term's element, "+" and "−"
+an element, deduxit's check after every change, each formula with a check or
+a cross, `⊭` or `⊨` between the sides, and Undo and Redo of its own. The
+propositional and the modal Kripke models deduxit finds open in the same
+view. The client's input moved to deduxit's `main` with this session's
+bindings, and the five first-order normal forms are offered.
+
+deduxit's change (on main@origin since the planning session's push):
+- `nxtmowyn` Check a finite structure formula by formula, and find one for a
+  first-order goal.
+
+The client's commits on the redesign's chain (change ids, oldest first):
+- `ppqqvnlp` Read a first-order sequent's symbols and change a finite
+  structure (`src/lib/structure.ts` and its tests);
+- `mlmtrwmt` Offer the five first-order normal forms deduxit lists;
+- `uqmpqtvz` Give a witness in the rule popover, and show countermodels in
+  the view ⊭ (the witness's box, the replay's lettering, the countermodel
+  view, the Kripke models moved into it, and every Playwright spec and state
+  walk changed to them);
+- `tmqlssvk` Describe the witness's box, the replay's letters and the view ⊭
+  in the client's rules;
+- `lxsllkyr` flake.lock: Update (deduxit to `7e974ff9`, its nixpkgs to
+  `619c39f6`);
+- `tsvunosw` Take nixpkgs' Biome from the cache again, and test for it by its
+  store path;
+- `rmrsuolv` Say in flake.nix how the followed inputs move;
+- `plvwutql` Check a countermodel against its goal's text, and let it go with
+  its sequent (the review's findings);
+- `uprvlrlk` Open the first-order walks' second sequent beside the first (the
+  chain's head).
+
+The brief asked for a commit per unit (the witness box; the eigenvariables
+and the replay's lettering; the countermodel view; the Kripke models moved
+into it). They share `Stage.tsx`, `state.tsx`, `app.css` and the state walks
+hunk by hunk, and jj has no editor here to split hunks, so they are one
+commit, `uqmpqtvz`, whose body lists them; what stood apart by its files
+(the structure's model, the forms, the rules, the lock, the flake) is a
+commit of its own.
+
+### The bindings call and its tests
+
+- **`ordinary_structure(structure, sequent, logic, settings)`**
+  (`web/src/ordinary.rs`, exported in `lib.rs`, an extra of the ordinary suite
+  in `protocol.rs`, a row in `plan/web/README.md`): the structure is the
+  library's `Structure` read by serde, the sequent typed or as JSON. Each
+  formula is evaluated alone, as the one hypothesis of a sequent over the
+  same arena (`A ⊢` is refuted exactly where `A` is true), by
+  `Structure::refutes`; the answer is `{"refutes", "reason", "left":
+  [{"formula", "true"}], "right": […]}`. The verdict is
+  `FiniteCountermodel::check` in the logic given, its `reason` the check's
+  words where the structure does not refute. Since every formula was
+  evaluated first, every term is interpreted by then, so the check's
+  `Error::Structure` means "does not refute"; any other error is thrown, and a
+  structure that cannot interpret the sequent is the library's
+  `invalid_structure`. No library change.
+- **`ordinary_close` and `ordinary_hint` at first order** (departs from the
+  design: the brief named one call; the planning session accepted it,
+  2026-11-26). The library's goal state refuses `close` and `hint` on a
+  first-order session (`first_order`), so the page had no structure to start
+  from. In a first-order session the bindings now search the goal for a
+  finite countermodel instead (`refuted`: `ordinary::decide_within` with
+  `Method::Models` within the settings' limits) and answer that outcome with
+  the session unchanged and no hint steps. A first-order goal is never closed
+  by the search on the page; one naming an eigenvariable is unknown
+  (`incomplete`), since no structure interprets one. The page's marking of
+  goals with no proof meets the same search within its smaller budget, so a
+  first-order sequent that has a finite countermodel is marked "no proof".
+- Tests (`web/tests/ordinary.rs`): `a_structure_is_checked_formula_by_formula`
+  (a structure that does not refute, with each formula's value and the
+  reason; one that refutes in intuitionistic logic; one that interprets no
+  constant, `invalid_structure`) and
+  `a_first_order_goal_gets_a_finite_countermodel` (`close` on
+  `∃x. p(x) ⊢ ∀x. p(x)` answers `not_valid` with a structure that
+  `ordinary_structure` accepts).
+- deduxit's `.claude/rules/web.md` says both.
+
+### What was built, by the guide's sections
+
+- **Give a witness (∃R, ∀L)**, board D8 (`Witness` in `Goal.tsx`): the rule
+  pressed stays pressed (`aria-pressed`, an inner edge), and the box stands
+  beside the row in the same popover: `y =` (the variable read off the
+  formula's text, `boundVariable`), the term in the formulas' font, an enter
+  button, then `$1`. Enter or the button applies; Escape closes the box and
+  gives the focus back to its rule; another formula picked closes it; digits
+  typed in the field pick no rule. The old chooser dialog under the goal is
+  gone. In ordinary logic `ordinary_rules`' `witness` reaches the popover and
+  the step carries the witness (`OrdinaryStep.witness`); the trials still try
+  a witness rule open.
+- **The refusal of a typed witness, under its field** ("Not drawn"): the
+  page's keyword and deduxit's reason, e.g. "∃R refused: no such term. A
+  witness is built from the sequent's constants and function symbols and the
+  eigenvariables made below this goal, and d is not a symbol of the
+  sequent." The reason follows the sentence as deduxit wrote it (a first try
+  capitalised it and turned the symbol `d` into `D`). I wrote the words with
+  the `ai-feedback-design-principles` skill: its criterion that feedback names
+  what is wrong before the general rule moved deduxit's reason to the front of
+  the sentence's work, and the guide line while the box is open names one
+  action and its alternative ("Type a term for x and press Enter, or press $1
+  to leave it open.").
+- **∀R and ∃L** ("Not drawn"): nothing is typed; they apply on a press, and
+  deduxit names the eigenvariable, as the session's letters (`a`, `b`, …),
+  which the formulas' texts show.
+- **The replay's lettering** (79b's "What 79c must know"): a linear proof
+  made apart or kept across a change of calculus records a witness or a cut
+  formula with each eigenvariable named by its step's path (`{1.0}`);
+  `replayOnto` now letters it as `play` does (`lettered` of `steps.ts`, with
+  the goal's path as its base), so such a proof is no longer refused. An
+  ordinary proof's steps carry no witness text (the session document holds a
+  term's index, and the library has no public printer of a term), so they
+  replay the witness open, and the axiom that used it fills it.
+- **See a countermodel: a view of its own, `⊭`**, board D9 (`Structure.tsx`,
+  `src/lib/structure.ts`, `ui.counter`, `ui.tab` `countermodel`): the
+  elements as circles across the grid's top with "−" under each and a dashed
+  "+" after them; a row of dots per predicate (a nullary one spans the row; a
+  predicate of arity k has a row per tuple of its first k − 1 arguments,
+  headed `r(0, ·)`); a row of squares per constant and per argument tuple of a
+  function (`a =`, `f(0) =`), the element it names pressed. Under the grid
+  the sequent, each formula with a check or a cross (`role=img`, "true here"),
+  and `⊭` or `⊨` between the sides, named "This structure refutes the
+  sequent" or "… does not refute …". deduxit checks after every change; an
+  answer for a structure changed since is dropped. Undo and Redo are the
+  view's tools and keys (`undoStructure`), never the proof's. Its cell stands
+  after the proof's in the rail. It opens from a goal's note ("See the
+  countermodel", for a `not_valid` outcome with a `structure`), or, named M,
+  from "+ view"'s "A model of your own" on a first-order sequent (one element,
+  every constant and value 0, nothing holding). With the guide on, the
+  sentence says why the structure refutes or which formula keeps it from
+  refuting, and what to press, by the same feedback skill's criterion of naming
+  the formula at fault and the next action. I did not run
+  `cognitive-load-analyser` (the brief names it): its criteria are the ones
+  79b applied, one action a sentence, which these sentences keep.
+- **The symbols are read off the sequent's JSON** (`signatureOf`): a
+  predicate is a symbol an atom applies, or a nullary atom written by name;
+  every other symbol is a function, a constant at arity 0; `=` is neither,
+  since a structure reads it as identity. A table of more than 64 rows is
+  said, not drawn; at most eight elements.
+- **The propositional and modal Kripke models move into the same view**:
+  `ModelFigure`'s and the tableau by hand's "Change this model and check it"
+  open the propositional model there (`ModelView` as before); a modal
+  sequent that is not valid has the `⊭` cell, its panel keeps the drawing
+  and the button, and the view shows the verdict, the system's sentence and
+  the editor standing open (no summary to close it by). The system's toggle
+  stays on that view (the model must meet its conditions); on a first-order
+  structure the toggles hide, since a structure has no calculus. A modal
+  sequent decided again after a change of system keeps the view while it
+  has no outcome. The own propositional model, M, stays the model view of
+  79a.
+- **The forms**: Prenex, Miniscope, Skolem, Herbrand and Clausal join the
+  page's forms (`FORMS` in `clausal.ts`, each with deduxit's description), so
+  `clausal.test.ts`'s "offers the forms deduxit lists" passes. The normal
+  form sheet offers them on any classical sequent; its drawing of a
+  first-order result (binders and terms in `formulaTexts`) is 79d's, with the
+  normal-form view.
+
+### The input bump
+
+`nix flake update deduxit` moved deduxit from `c3d80cfa` (2026-11-21) to
+`7e974ff9` (this session's bindings), and with deduxit's lock its crane,
+nixpkgs (`2074cc67` to `619c39f6`, 2026-11-22), rocq-deduxit (`03f0af20` to
+`20b1a20f`), rust-overlay and treefmt-nix. Its fixes:
+- the Biome override (`modules/biome.nix`) is gone: nixpkgs `619c39f6` has
+  Biome 2.6.8 on cache.nixos.org, which the corrected test showed (`nix
+  path-info --store https://cache.nixos.org $(nix eval --raw --inputs-from .
+  nixpkgs#biome.outPath)` printed `/nix/store/5f5f2yvr…-biome-2.6.8`); the
+  formatter, `lint` and the dev shell take `pkgs.biome`, and the client's
+  `.claude/rules/flake.md` holds the new test and says when to override again;
+- the comment in `flake.nix` says the followed inputs move with deduxit's
+  lock, which takes the newest of each, and that the fourteen days are npm's
+  and the actions'.
+
+### Decisions where the guide left a choice
+
+- **The witness's box keeps the rule row**: D8 draws the one rule of `∃y.
+  q(y)`; with several rules the row stays and the rule pressed carries an
+  edge, so the visitor sees which rule the term is for.
+- **A term's element is a row of squares, a predicate's truth a row of
+  dots**: D9 draws a unary predicate and a nullary one. Constants and
+  function symbols, and predicates of two or more arguments, are not drawn
+  there; they follow the same grid (a row per constant and per argument
+  tuple, a row per tuple of a predicate's first arguments), squares where one
+  of the row is pressed and dots where any may be.
+- **At most eight elements, 64 rows a symbol**: a table grows with the size
+  to the arity; past the rows the symbol is said, not drawn.
+- **One countermodel at a time**: the view is `ui.counter`, of the proof it
+  was opened on; opening another proof's countermodel takes the first one's
+  cell away. The guide does not say whether views of several proofs stay
+  open; 79d's views of a sequent can keep one per proof.
+- **The structure is checked against the goal's text**, never its JSON (the
+  review's first finding, below).
+
+### Departures from the design (for the author)
+
+- **`ordinary_close` and `ordinary_hint` answer a first-order goal by the
+  finite model search** (departs from the design: the brief named one
+  bindings call; accepted by the planning session). Without it the page
+  had no countermodel to show, since the library's goal state refuses to
+  close or hint at a first-order goal; with it, a first-order goal is never
+  closed by the search on the page, only refuted.
+- **A Kripke model with growing domains is named, not drawn** (departs from
+  the design, whose "See a countermodel" has a view for every countermodel):
+  in intuitionistic and minimal logic the model search may answer such a
+  model (`kripke_structure`) where no finite structure refutes; the verdict
+  says so, and the `⊭` view draws finite structures alone. Drawing and
+  editing one is a view of its own, worth a board.
+- **An ordinary proof replayed onto a goal leaves its witnesses open**
+  (departs from the brief's "the replay lettering them as `play` does", which
+  holds for linear proofs): the ordinary session document records a term by
+  its index, and the library has no public printer of a term, so the page
+  cannot write it; the axiom that used the witness fills it again. A typed
+  witness that no axiom fills (one weakened away) replays open. A call that
+  writes an inference's term would make it exact.
+- **The modal panel keeps its drawing; the model to change is the `⊭`
+  view**: the guide's D11 is 79d's, and the modal countermodel's editor
+  moved into the view as the prompt asks, with the drawing and "Change this
+  model and check it" left in the panel until then.
+
+### Checks
+
+- deduxit: `cargo clippy -p deduxit-web --all-targets -- --deny warnings`
+  and `cargo test -p deduxit-web --test ordinary` (17 passed) on the final
+  bindings; the `gate` (capped on cores 4 to 9) passed twice, the second time
+  on the committed tree ("gate: passed", exit 0); `nix build
+  .#checks.x86_64-linux.web-wasm-tests .#deduxit-web` under the machine
+  lock, exit 0. The planning session's full check on GitHub's runners passed
+  (run 45745798518) before its push.
+- The client, before the bump, against a local build of the new bindings:
+  Vitest 730 passed, tsc and Biome clean; the whole Playwright suite (319
+  tests, six workers) gave 317 passed and 2 failed, both target sizes at a
+  phone's width (the witness field's input at 40 high and its enter button at
+  36, the "+" circle at 40), fixed in `uqmpqtvz` (the field 44, the circle
+  `--size-element` 2.75rem on a coarse pointer); the target, axe, first-order
+  and countermodel specs then passed (117).
+- The first full `nix flake check` at the bumped head failed in `lint` alone:
+  Biome's `useSemanticElements` on the structure grid's `div role=group`
+  (the dev shell's `lint`, run before, had printed "Found 1 error", which I
+  missed). The grid is a `fieldset` now; `lint` reports 0 errors.
+- The full `nix flake check` in the client under `flock
+  /tmp/linlog-machine.lock` with `--max-jobs 2 --cores 6`: after the review's
+  fixes it passed at `plvwutql` ("all checks passed!", exit 0) with one flaky
+  e2e test (the witness's walk at a phone's width, whose second `goto` raced
+  the restore of the first sequent, passing on its retry); fixed in
+  `uprvlrlk`, after which the walks passed three times over, and the full
+  check passed at the head `uprvlrlk` ("all checks passed!", exit 0; Vitest
+  730 passed, e2e 322 passed, none flaky).
+- Screenshots of the witness's box with a refusal (LK, `p(c) ⊢ ∃x. p(x)`)
+  and of the countermodel view (`∃x. p(x), q ⊢ ∀x. p(x)`) at 320 by 700,
+  390 by 844, 844 by 390, 700 by 900 and 1280 by 800, light and dark:
+  `/tmp/claude-79c/` (`witness-…`, `countermodel-…`).
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read `nxtmowyn`, `ppqqvnlp`,
+`mlmtrwmt`, `uqmpqtvz` and `tmqlssvk` against the prompt's 79c section and the
+guide's rows, and ran the bindings natively in a scratch crate. Its findings
+and the answers:
+1. *A countermodel cannot be checked once the session's arena holds an
+   eigenvariable*: after any `∀R` or `∃L` (an undone one too) the outcome's
+   `structure.sequent` and the session's `sequent` hold `{"E": n}`, which the
+   sequent reader refuses, so the view said "Not checked". Held, reproduced.
+   Fixed in `plvwutql`: the structure is checked against the goal's text as
+   deduxit writes it (or, for a model of one's own, the sequent as typed);
+   tested ("a goal's countermodel is checked after an eigenvariable was made
+   elsewhere in the proof"). deduxit's rules note corrected.
+2. *A first-order goal refuted by a Kripke model with growing domains got a
+   false sentence* (that the translation decided it) *and no countermodel*.
+   Held. The sentence now names the model, and says the translation only
+   where it decided; tested. The model is not drawn (a departure, above).
+3. *The countermodel stayed on a proof whose sequent was typed anew, and the
+   rules' "one per proof" was false.* Held. The view keeps the root of its
+   proof's sequent and goes when it changes (`sameRoot`); tested; the rules
+   say one at a time.
+4. *Question: an ordinary replay drops typed witnesses.* Held as a
+   departure (above): it is the library's lack of a term printer.
+
+### What 79d must know
+
+- The countermodel view is `ui.counter` with `ui.tab` `countermodel`, one
+  at a time; 79d's views of a sequent can make it a view of its own per
+  sequent, its cell already after the proof's in `cellsOf`. Its Undo and
+  Redo are the view's (`undoStructure`), and the App's key handler routes
+  Ctrl+Z there on that tab.
+- A first-order goal's countermodel comes from `ordinary_close` and
+  `ordinary_hint` (the bindings' `refuted`); a goal naming an eigenvariable
+  has none, so the useful one is the sequent's own or a goal below no `∀R`
+  or `∃L`. Check a structure against text, never a session's JSON.
+- The normal form sheet offers the five first-order forms, but
+  `formulaTexts` in `ordinary.ts` writes only propositional formulas: a
+  first-order result (binders, terms, Skolem symbols) needs its writer in
+  79d's normal-form view.
+- The modal countermodel's editor is in the `⊭` view (`ModalCountermodel`),
+  the drawing and its button in the modal panel; D11's view takes both.
+- The witness's box is `Witness` in `Goal.tsx`; the hint does not fill it
+  (a hint at a witness rule rings the rule only).
+
+### Left open
+
+- A Kripke model with growing domains has no view (above).
+- An ordinary proof replayed onto a goal leaves its witnesses open (above);
+  exact with a library call that writes an inference's term.
+- "A model of your own" on a first-order sequent checks against the
+  sequent as typed in the box, so a box edited and not entered since would be
+  what it checks.
+- For the author: the departures above.

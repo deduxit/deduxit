@@ -424,7 +424,11 @@ for `THIRD-PARTY-NOTICES.txt`.
   formulas are evaluated before the check, so every term is interpreted
   by then and the check's `Error::Structure` is "does not refute"
   (`reason`), any other error thrown. The structure is read by serde
-  directly: it has no wire level of its own.
+  directly: it has no wire level of its own. The sequent is read as a
+  sequent, so a session's arena does not do once a `∀R` or `∃L` step put
+  an eigenvariable in it (the reader refuses `{"E": n}` in a sequent,
+  and so the `structure.sequent` of an outcome over that arena): the page
+  sends the goal's text instead.
 - **The lambda-term** (`term`, `ordinary_term`) is the session's own
   derivation read back, as the command's session command `lambda` reads
   it, written with the settings' `lambda` (the command's key). What has no
