@@ -143,3 +143,5 @@ fixup-27	small	opus-5-5	high	-	local_2063af4c	2026-11-25 23:42	2026-11-26 01:40	
 79d	client	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 04:40	2026-11-26 05:55	the other views: + view, every view of D13 and D14, the graph of views, the chip's close button, modal logic, lambda-terms, the drawing
 79e	client	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 06:05	2026-11-26 07:25	export, packs and settings: the Export panel, course packs, the Settings page, Rocq's logo, the final walk; 79d's faults and the close in More
 fixup-28	small	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 07:35	2026-11-26 08:05	the redesigned page's frame at every size (zoom group, new tab view, sheets' close, 200 % zoom) and Export for natural deduction, modal and lambda views
+fixup-29	small	opus-5-5	high	reviewer (fable)	local_c4869735	2026-11-26 08:40		the page: Steps named as the literature names them, Use its proof up to order, the search naming its engine
+81	library	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 08:40		every candidate rule with its reason in every suite, a step's term written out; the page takes both
