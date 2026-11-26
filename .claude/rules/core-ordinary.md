@@ -2101,6 +2101,15 @@ factored out of the two until the kernel crate is.
   - `undo` keeps the nodes a step built, as for an instance (the arena
     only grows), so the document after an `apply` and an `undo` may hold
     more formulas than before it; the state is the same otherwise.
+- **A step's term written out** (`Interactive::opened_term`): a closed
+  quantifier inference's term as made (`Witnesses::raw` first, so an
+  open witness an axiom filled is still `$k`), by `term_text`, which
+  writes eigenvariables by the names `witness` reads. The document keeps
+  a term by its index in the arena, which a replay in another session
+  numbers otherwise, so a front end that keeps steps replays a given
+  witness from this text (`a_step_s_term_written_out_replays_the_proof`);
+  an eigenvariable's name is the session's, which a replay that leaves
+  out a `∀R` or `∃L` renames, as in the linear session.
 - **Every candidate rule with its status** (`Interactive::candidates`;
   `Candidate`, `Status`): the axiom first, which acts on any formula,
   then `Rule::ALL` filtered by `shape` (so a rule the logic lacks, `WR`

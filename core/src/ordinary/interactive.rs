@@ -1333,6 +1333,33 @@ impl Interactive {
             .collect()
     }
 
+    /// Returns the term a closed quantifier step on `goal` took, as text,
+    /// or `None` for a goal no quantifier step closed.
+    ///
+    /// The term is written as the step took it: the eigenvariable of `∀R`
+    /// or `∃L` by the name the proof prints it with, the witness of `∀L`
+    /// or `∃R` that the step was given, or `$1`, `$2`, … for a witness
+    /// left open, whatever an axiom filled it with later.
+    /// [`witness`](Self::witness) reads a given witness back, so a front
+    /// end that keeps only the steps takes each one again: the document
+    /// records a term by its place in the proof's formulas, which another
+    /// session numbers otherwise.
+    pub fn opened_term(&self, goal: GoalId) -> Option<String> {
+        let inference = self.inferences.get(goal.index())?;
+        if !matches!(
+            inference.rule,
+            Rule::ForallLeft | Rule::ForallRight | Rule::ExistsLeft | Rule::ExistsRight
+        ) {
+            return None;
+        }
+        let made = self
+            .witnesses
+            .as_deref()
+            .and_then(|w| w.raw.get(goal.index())?.as_ref())
+            .map_or(inference.term, |made| made.term)?;
+        Some(self.formulas.term_text(made))
+    }
+
     /// Returns what `rule` makes of the formula `x` at `position` of
     /// `side`, or why it does not act on it in this logic. The axiom and
     /// an open goal are no shape.
@@ -4155,6 +4182,80 @@ mod tests {
                 .map(|g| g.len()),
             Ok(2)
         );
+    }
+
+    /// A step by hand: the side and position of its formula, its rule and
+    /// its witness's text.
+    type HandStep = (Side, usize, Rule, Option<&'static str>);
+
+    /// A quantifier step's term written out reads back in a session of
+    /// the same sequent, so the steps alone make the same document again:
+    /// an eigenvariable, a given witness, and one left open that the axiom
+    /// fills.
+    #[test]
+    fn a_step_s_term_written_out_replays_the_proof() {
+        use Rule::{Axiom, ExistsRight, ForallLeft, ForallRight};
+        let cases: [(&str, &[HandStep]); 2] = [
+            (
+                "forall x. p(x) |- forall y. p(f(y))",
+                &[
+                    (Right, 0, ForallRight, None),
+                    (Left, 0, ForallLeft, Some("f(a)")),
+                    (Left, 0, Axiom, None),
+                ],
+            ),
+            (
+                "forall x. p(x) |- p(c)",
+                &[(Left, 0, ForallLeft, None), (Left, 0, Axiom, None)],
+            ),
+        ];
+        for (text, steps) in cases {
+            let sequent: Sequent = text.parse().unwrap();
+            let mut s = Interactive::new(&sequent, Logic::Classical).unwrap();
+            let mut goals = Vec::new();
+            for &(side, position, rule, witness) in steps {
+                let goal = s.goals().next().unwrap();
+                let mut step = Step::new(side, position, rule);
+                if let Some(witness) = witness {
+                    step = step.with_witness(s.witness(goal, witness).unwrap());
+                }
+                s.apply(goal, &step).unwrap();
+                goals.push(goal);
+            }
+            assert!(s.is_complete());
+            // The steps again, each witness from the term written out.
+            let mut again = Interactive::new(&sequent, Logic::Classical).unwrap();
+            for (&(side, position, rule, _), &goal) in steps.iter().zip(&goals) {
+                let mut step = Step::new(side, position, rule);
+                if let Some(term) = s.opened_term(goal)
+                    && matches!(rule, ForallLeft | ExistsRight)
+                    && !term.starts_with('$')
+                {
+                    step = step.with_witness(again.witness(goal, &term).unwrap());
+                }
+                again.apply(goal, &step).unwrap();
+            }
+            assert_eq!(
+                serde_json::to_string(&again).unwrap(),
+                serde_json::to_string(&s).unwrap(),
+                "{text}"
+            );
+            let terms: Vec<Option<String>> = (0..s.inferences.len() as u32)
+                .map(|g| s.opened_term(GoalId::new(g)))
+                .collect();
+            assert!(terms.contains(&Some(witness_or_open(steps))), "{terms:?}");
+        }
+    }
+
+    /// Returns the term the first quantifier step of `steps` that takes a
+    /// witness is written with: the witness given, or `$1`.
+    fn witness_or_open(steps: &[HandStep]) -> String {
+        use Rule::ForallLeft;
+        steps
+            .iter()
+            .find(|step| step.2 == ForallLeft)
+            .map_or("$1", |step| step.3.unwrap_or("$1"))
+            .to_owned()
     }
 
     /// Every candidate's status is what `apply` says of its step with the
