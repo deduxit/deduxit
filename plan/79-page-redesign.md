@@ -297,6 +297,29 @@ Boards D10, D16, D17, D18, N1 to N10.
   the key `W` beside it in the keys' table. 79d builds it with the rest
   of the sequents' and views' management.
 
+## What 79b to 79d left (their reviews, 2026-11-26)
+
+- 79b, 79c and 79d are complete, each checked by the client's full
+  check at its head; their departures are marked in their report
+  sections and held for the author with 79a's.
+- **Closing a chip without a keyboard** (79d: the chips are a tab list,
+  which may hold tabs alone, so the close is a target hidden from
+  screen readers, and Delete or `W` closes by keyboard; a screen reader
+  on a touch screen had no way). Decided by the planning session while
+  the author was away (departs from the design, for the author's
+  review): the More menu gets "Close this sequent", a real button outside
+  the tab list, closing the chosen sequent with the same Undo. 79e
+  builds it.
+- **Small faults 79d left open, 79e's**: resolution by hand loses its
+  resolvents when its cell is left (keep them with the view, as other
+  views keep their state); the chip that the embedding's "Prove it in"
+  opens is not linked in the workspace, so the graph has no node for it;
+  Undo of a chip's close brings its proofs back without their workspace
+  links. And the three tests that passed only on a retry, each once
+  (`tests/prover.spec.ts`'s reload right after a `goto`, `ordinary.spec.ts`'s
+  "goes back to the last goal still valid", 79c's witness target walk):
+  fixed at their cause, none by a retry or a longer timeout.
+
 ## Deliverables
 
 The client's commits on the redesign's chain, deduxit's commits of 79c

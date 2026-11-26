@@ -8462,3 +8462,19 @@ move (D26).
   passed). **Held for the author**: its departures (the first-order close and hint; a Kripke model
   with growing domains named, not drawn; an ordinary replay leaving witnesses open, which a library
   call writing an inference's term would make exact; the modal panel's drawing until 79d).
+- 2026-11-26, about 05:55: **Session 79d reviewed, complete** (`local_9dfa5c8f`, 04:40 to 05:55;
+  report `vusrlknq`): "+ view" by group with faint entries' reasons; one chip per sequent, a calculus
+  beside, a copy and modal "Prove step by step" as cells of its rail; every view of D13 and D14
+  (truth table, tableau by search and by hand, resolution three ways, normal forms by step, the
+  interpolant, a model of one's own, the countermodel one per proof, the translations with "Prove it
+  in", cut elimination and the λ-term joined to their proof), views out of date with Update or Start
+  again; the graph of views as the rail's first cell; a chip's close, `W` and Delete, with Undo;
+  modal systems by their conditions; lambda-terms with Untyped inactive; the old sheets, the typed
+  tableau and the selects gone. No library or bindings change. On the redesign chain `syltuoly` to
+  `oxulwxrx`. `fresh-reviewer` found six points, five fixed. Checked here: the report against the
+  commits and the client's full `nix flake check` at `oxulwxrx` (all 16 checks built for that tree,
+  passed). **Held for the author**: its three departures (a fifth group "From this proof"; the
+  chip's close a hidden target, since a tab list holds tabs alone; a view out of date in `soft`).
+  **Decided (unattended)**: the More menu gets "Close this sequent", a real button, so a screen
+  reader on a touch screen can close one (79e). 79e also takes 79d's three small faults and the
+  three tests that passed only on a retry (the prompt's "What 79b to 79d left").
