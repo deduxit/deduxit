@@ -1,20 +1,21 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The kinds and operations of lambda-terms: a term checked, a type's term
-//! found, and a type's terms listed and counted.
+//! The kinds and operations of lambda-terms: a term checked, reduced and
+//! typed at its principal type, a type's term found, and a type's terms
+//! listed and counted.
 
 use serde::{Deserialize, Serialize};
 
 use super::ordinary::checked;
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 use super::promises::RENDERS;
-use super::promises::{DECIDES, EXACT, WELL_TYPED};
+use super::promises::{DECIDES, EXACT, PRINCIPAL, REDUCES, WELL_TYPED};
 use super::{
     Call, Check, Class, Cost, Kind, Operation, Parameter, Part, Produced, Role, Status, Suite,
     document, object, parameters, written,
 };
-use crate::lambda::{self, Calculus, InhabitOptions, Inhabitation, Term, Typing};
+use crate::lambda::{self, Calculus, InhabitOptions, Inhabitation, ReduceOptions, Term, Typing};
 use crate::ordinary::{Logic, Sequent};
 use crate::{Error, Limits, Progress};
 
@@ -25,14 +26,15 @@ pub(super) static LAMBDA: Lambda = Lambda;
 pub(super) struct Lambda;
 
 /// Its kinds.
-static KINDS: [Kind; 4] = [
+static KINDS: [Kind; 5] = [
     Kind {
         name: "lambda.term",
         role: Role::Statement,
         form: "typed_term",
         level: Some(23),
         stored: true,
-        label: "A lambda-term with its free variables' types, claimed well typed",
+        label: "A lambda-term with its free variables' types, claimed well typed; an untyped one \
+                with its free variables, claimed to use them as its calculus allows",
     },
     Kind {
         name: "lambda.typing",
@@ -57,6 +59,15 @@ static KINDS: [Kind; 4] = [
         level: Some(24),
         stored: true,
         label: "A type's terms, listed and counted",
+    },
+    Kind {
+        name: "lambda.reduction",
+        role: Role::Evidence,
+        form: "lambda_reduction",
+        level: Some(30),
+        stored: true,
+        label: "A term reduced by β step by step: the term reached, each step's redex and how \
+                the reduction ended",
     },
 ];
 
@@ -107,6 +118,48 @@ static OPERATIONS: &[Operation] = &[
         reads: &CHECK_READS,
         promise: &WELL_TYPED,
         label: "The term checked",
+    },
+    Operation {
+        name: "lambda.reduce",
+        from: &[&["lambda.term"]],
+        to: "lambda.reduction",
+        class: Class::Derived,
+        cost: Cost::Search,
+        parameters: &[
+            Parameter {
+                name: "strategy",
+                values: lambda::Strategy::NAMES,
+                default: Some("normal_order"),
+                description: "Which redex each step reduces: the leftmost outermost, or the \
+                              leftmost innermost",
+            },
+            Parameter {
+                name: "steps",
+                values: &[],
+                default: Some("1000"),
+                description: "The most steps taken, or null for no bound",
+            },
+            Parameter {
+                name: "nodes",
+                values: &[],
+                default: Some("100000"),
+                description: "The most nodes a term a step makes may have, or null for no bound",
+            },
+        ],
+        reads: &CHECK_READS,
+        promise: &REDUCES,
+        label: "The term reduced step by step",
+    },
+    Operation {
+        name: "lambda.infer",
+        from: &[&["lambda.term"]],
+        to: "lambda.term",
+        class: Class::Derived,
+        cost: Cost::Instant,
+        parameters: &[],
+        reads: &CHECK_READS,
+        promise: &PRINCIPAL,
+        label: "The untyped term typed at its principal type",
     },
     Operation {
         name: "lambda.inhabit",
@@ -257,6 +310,15 @@ struct CountForm {
     count: Option<u64>,
 }
 
+/// What a summary reads of a reduction.
+#[derive(Deserialize)]
+struct Reduced {
+    /// The steps.
+    steps: Vec<serde_json::Value>,
+    /// How it ended.
+    end: String,
+}
+
 /// The parameters of `lambda.export`.
 #[cfg(any(feature = "latex", feature = "typst"))]
 #[derive(Deserialize, Default)]
@@ -368,6 +430,17 @@ impl Suite for Lambda {
                 let term: Term = document(value, limits)?;
                 term.to_string()
             }
+            "lambda.reduction" => {
+                let reduced: Reduced = object(value, "lambda reduction")?;
+                let steps = match reduced.steps.len() {
+                    1 => "1 step".to_owned(),
+                    n => format!("{n} steps"),
+                };
+                match reduced.end.as_str() {
+                    "normal_form" => format!("Normal form after {steps}"),
+                    _ => format!("Not finished after {steps}"),
+                }
+            }
             "lambda.inhabitation" => {
                 let answer: Answer = object(value, "lambda inhabitation")?;
                 match answer.verdict.as_deref() {
@@ -411,6 +484,16 @@ impl Suite for Lambda {
                     typing: &typing,
                     judgement,
                 })?
+            }
+            "lambda.reduce" => {
+                let term: Term = document(call.input(0), limits)?;
+                let options: ReduceOptions = parameters(call)?;
+                let reduced = term.reduce(&options, limits, &mut *stop, |_, _| {})?;
+                written(&reduced)?
+            }
+            "lambda.infer" => {
+                let term: Term = document(call.input(0), limits)?;
+                written(&term.principal_type(limits, &mut *stop)?)?
             }
             "lambda.inhabit" => {
                 let sequent = type_of(call.input(0), limits)?;
@@ -518,6 +601,35 @@ impl Suite for Lambda {
                     Status::Held
                 } else {
                     Status::Failed
+                };
+                Ok(Check::whole(promise, status))
+            }
+            ("lambda.reduce", "reduces") => {
+                let term: Term = document(call.input(0), limits)?;
+                let options: ReduceOptions = parameters(call)?;
+                let again = match term.reduce(&options, limits, &mut *stop, |_, _| {}) {
+                    Ok(again) => written(&again)?,
+                    Err(error) => {
+                        let part = checked("reduction", Err(error))?;
+                        return Ok(Check::whole(promise, part.status));
+                    }
+                };
+                let same = serde_json::from_str::<serde_json::Value>(output).ok()
+                    == serde_json::from_str::<serde_json::Value>(&again).ok();
+                let status = if same { Status::Held } else { Status::Failed };
+                Ok(Check::whole(promise, status))
+            }
+            ("lambda.infer", "principal") => {
+                let given: Term = document(call.input(0), limits)?;
+                let typed: Term = document(output, limits)?;
+                let part = checked("typing", typed.check(limits, &mut *stop).map(drop))?;
+                if part.status != Status::Held {
+                    return Ok(Check::whole(promise, part.status));
+                }
+                let status = match given.principal_type(limits, &mut *stop) {
+                    Ok(again) if again == typed => Status::Held,
+                    Ok(_) => Status::Failed,
+                    Err(error) => checked("principal type", Err(error))?.status,
                 };
                 Ok(Check::whole(promise, status))
             }

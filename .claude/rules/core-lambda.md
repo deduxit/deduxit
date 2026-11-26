@@ -32,7 +32,14 @@ design, with its sources and the alternatives weighed, is
   `inhabit.rs`: `inhabit` and `enumerate` (inhabitation of simple
   types, their answers' forms at level 24, `wire::INHABITANTS`) and the
   protocol's `has_type`;
-  `tests.rs`: the round trips against a checker of the tests' own.
+  the untyped reader in `parse.rs` (`Parser::untyped`);
+  `reduce.rs`: `Term::reduce`, `ReduceOptions`, `Strategy` (with
+  `pick`), `Step`, `End`, `Reduction`, and the copy (`copied`) that
+  `infer.rs` shares; `infer.rs`: `Term::principal_type`;
+  `tests.rs`: the round trips against a checker of the tests' own;
+  `untyped_tests.rs`: untyped terms, the stepper against a de Bruijn
+  reducer of the tests' own, and the principal type against every
+  typing the checker accepts.
 - **A variable is its `VarId`, with its type** (Church's own typing):
   a binder and every use name one entry of `Term::variables`, so a
   node's type depends on the node alone and a shared node is typed
@@ -77,6 +84,69 @@ design, with its sources and the alternatives weighed, is
   no `⊗`, `1`, `!`, no `let`, `promote`, `derelict`, `discard`, `copy`,
   and `true` and `false` without arguments. The linear and the affine
   calculus take every node.
+- **Typed or untyped is the calculus's** (`Calculus::is_typed`): a
+  typed term has every type (each variable's, the goal), an untyped one
+  none, and no atoms or types at all. Every builder keeps it, and
+  `from_parts` refuses a document that mixes them (`malformed`), so the
+  crate's `Variable::typed` and the checker's rule may `expect` a type
+  in a typed term. An untyped term has `Var`, `Lambda` and `Apply` only:
+  `check` refuses any other node as `Fault::Foreign`
+  (`untyped_foreign`), and the uses pass is the same as the typed
+  terms', linear for `UntypedLinear` (`is_linear`), any count for
+  `Untyped` (`is_unrestricted`). Its `Typing` is empty and its wire
+  level 30 (`wire::UNTYPED`), its JSON without `atoms`, `types`, `goal`
+  and the variables' `type`.
+- **An untyped text's free names are its context** (`Parser::untyped` in `parse.rs`):
+  without `⊢` every name no `λ` binds is a free variable, in the order
+  the names first appear; with `⊢` the names before it are the context
+  and another free name is refused. The judgement the printer writes
+  (`x, y ⊢ M`) keeps the free variables a step dropped, which the bare
+  text loses.
+- **A β step copies the term as a tree, every binder a fresh variable**
+  (`reduce.rs`, `Copier`): the redex's argument is copied at each use of
+  the variable with fresh variables for its own binders, so no variable
+  is bound twice and no use can be taken in by its own variable's
+  binder; `standing` maps each source variable to the copy's at the
+  place being copied and is restored when a binder's node is left, so
+  even a source that binds one variable twice (a document can) is read
+  by the innermost binder. A term with a shared node other than a
+  variable's, or a variable bound twice (`needs_copy`), is copied once
+  before the first step, so every redex a step names is at one place.
+  Only `(λx. M) N` is a redex: the linear calculus's other constructs are
+  copied as they are (`binders`, `rebind` name every node's variables).
+- **Names are fixed after the copy** (`rename`): a binder whose body
+  has a free variable of its name, which a substitution can make
+  (`(λx. λy. x) y`), is renamed to its letters with the least index the
+  term does not use (`y₁`), so `check`'s capture condition holds and the
+  text reads back. Only names that two variables share are scanned.
+- **Every reduct is checked** (`Term::check` before the next step): a
+  typed term keeps its type, an untyped linear or affine one its uses;
+  a fault is `Error::ClaimFails` (a defect), a refusal ends the
+  reduction with `End::Refused` and the last term checked. The bound on
+  steps ends with `End::Steps`, which says "not finished", never "no
+  normal form" (Ω has none, and an untyped unrestricted term need not
+  normalise); the bound on nodes is counted as the copy is made
+  (`Halt::Nodes`), the step not taken. Each node made is a unit of
+  `limits.work` and `NODE_BYTES` against `limits.memory_bytes`.
+- **The strategies** (`Strategy::pick`): normal order is the first redex
+  in pre-order (leftmost outermost), applicative order the first in
+  post-order, which holds no other redex (leftmost innermost). The
+  differential test compares normal order's normal forms and step counts
+  with a de Bruijn reducer on random terms whose few names force
+  captures.
+- **The principal type** (`infer.rs`) is computed on the term copied as
+  a tree (two places of one subterm may need different types, which a
+  DAG would force equal), by unification with the occurs check over
+  type variables and arrows (`Unifier`, union-find with path
+  compression, the occurs check a marked walk over the type DAG, every
+  step a unit of `limits.work`); no recursion. A failure is the occurs
+  check at an application, said with the equation (`a = a → b`) and the
+  application's text, as `Error::IllTyped` at the source's node. The
+  solution's type variables are atoms `a`, `b`, … named in the order the
+  judgement writes them, the term returned is in `Calculus::Simple` and
+  checked (`ClaimFails` otherwise). `untyped_tests.rs` holds every
+  typing the checker accepts over a small set of types to be an instance
+  of it, and finds none for a term without one.
 - **The text the parser reads is what the printer writes with `types`
   on**, in both notations (`agrees` in `tests.rs` holds every read-back
   term to it). A change of a spelling or of a bracket is made in both.

@@ -45,6 +45,7 @@
 //! | 27 | a Kripke model with growing domains, `"kripke_structure": {"sequent": {…}, "model": {"worlds": [{"size": 1, "functions": […], "predicates": […], "falsity": true, "arrows": [1]}], "constants": […], "world": 0}}`, and the reason `{"kind": "kripke_size", "worlds": 4, "size": 6}` | an ordinary outcome refuted by one, or unknown for that reason |
 //! | 28 | Herbrand's theorem applied: the clausal form with its steps, the ground instances, the SAT solver's outcome on them and the derivation built from them, each outcome nested without `version` and `deduxit`; written only | [`ordinary::herbrand::Herbrand`](crate::ordinary::herbrand::Herbrand) (feature `sat`) |
 //! | 29 | first-order resolution: a sequent's clausal form with its steps, its clauses as text, and the refutation's inferences (resolution, factor or paramodulation, the parents, the literals, the unifier as text, the clause made) with the derivation of LK read back from it; written only | [`ordinary::resolution::first_order::FirstOrder`](crate::ordinary::resolution::first_order::FirstOrder) (feature `sat`) |
+//! | 30 | an untyped lambda-term, without `atoms`, `types`, `goal` and its variables' `type`, and a term's reduction by β: the term reached nested without `version`, each step's redex and how it ended; the reduction written only | [`lambda::Term`](crate::lambda::Term), [`lambda::Reduction`](crate::lambda::Reduction) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -301,6 +302,17 @@
 //!   type and a node tagged by `kind`; reading one checks its indices,
 //!   and [`Term::check`](crate::lambda::Term::check) its typing; see
 //!   [`lambda::Term`](crate::lambda::Term).
+//!   An untyped term is the same at level 30 without `atoms`, `types`,
+//!   `goal` and its variables' `type`: `{"version": 30, "calculus":
+//!   "untyped", "variables": [{"name": "x"}], "context": [], "nodes":
+//!   [{"kind": "var", "variable": 0}, {"kind": "lambda", "variable": 0,
+//!   "body": 0}], "root": 1}` for `λx. x`.
+//! - **Reduction** (written only): `{"version": 30, "strategy":
+//!   "normal_order", "term": {…}, "steps": [{"redex": 4}, …], "end":
+//!   "normal_form"}`, the term reached without `version`, each step's
+//!   redex a node of the term it was taken on, and `end` `steps` or
+//!   `nodes` with the `limit`, or `refused` with the `reason`; see
+//!   [`lambda::Reduction`](crate::lambda::Reduction).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -327,10 +339,13 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 29;
+pub const LEVEL: u32 = 30;
 
 /// The level of a lambda-term.
 pub(crate) const LAMBDA: u32 = 23;
+
+/// The level of an untyped lambda-term, and of a term's reduction.
+pub(crate) const UNTYPED: u32 = 30;
 
 /// The level of a type's terms listed and counted, and of whether a type
 /// has a term, which are written only.

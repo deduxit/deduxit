@@ -376,7 +376,10 @@ impl Spelling {
     pub(crate) const fn connectives(&self, calculus: Calculus) -> &Connectives {
         match calculus {
             Calculus::Linear | Calculus::Affine => &self.linear,
-            Calculus::Simple => &self.simple,
+            Calculus::Simple
+            | Calculus::Untyped
+            | Calculus::UntypedLinear
+            | Calculus::UntypedAffine => &self.simple,
         }
     }
 
@@ -448,6 +451,26 @@ enum Piece {
     Var(VarId),
     /// A type, bracketed if binary and the flag says so.
     Type(TypeId, bool),
+    /// The start of the marked subterm's text.
+    MarkStart,
+    /// The end of the marked subterm's text.
+    Marked,
+}
+
+/// A writer that counts the bytes written through it.
+struct Counted<'w, W: Write> {
+    /// The writer.
+    out: &'w mut W,
+    /// The bytes written.
+    bytes: usize,
+}
+
+impl<W: Write> Write for Counted<'_, W> {
+    /// Writes `s` and counts its bytes.
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.bytes += s.len();
+        self.out.write_str(s)
+    }
 }
 
 /// Writes terms of one term in one spelling.
@@ -552,16 +575,9 @@ impl<'t> Printer<'t> {
         use Piece::{Keyword, Term as T, Text, Var};
         let s = self.spelling;
         let linear = self.term.calculus != Calculus::Simple;
-        let typed = |v: VarId| {
-            if self.types {
-                vec![
-                    Var(v),
-                    Text(s.colon),
-                    Piece::Type(self.term.variables[v.index()].ty, true),
-                ]
-            } else {
-                vec![Var(v)]
-            }
+        let typed = |v: VarId| match self.term.variables[v.index()].ty {
+            Some(ty) if self.types => vec![Var(v), Text(s.colon), Piece::Type(ty, true)],
+            _ => vec![Var(v)],
         };
         let list = |terms: &[TermId]| {
             let mut pieces = Vec::new();
@@ -770,7 +786,7 @@ impl<'t> Printer<'t> {
                 return (self.spelling.keyword.0.len() + k.len() + self.spelling.keyword.1.len())
                     as u64;
             }
-            Piece::Term(..) => return 0,
+            Piece::Term(..) | Piece::MarkStart | Piece::Marked => return 0,
             Piece::Var(v) => self.var(&mut text, v),
             Piece::Type(t, _) => return self.type_lengths[t.index()],
         };
@@ -790,7 +806,9 @@ impl<'t> Printer<'t> {
                     other @ (Piece::Text(_)
                     | Piece::Keyword(_)
                     | Piece::Var(_)
-                    | Piece::Type(..)) => self.length(other),
+                    | Piece::Type(..)
+                    | Piece::MarkStart
+                    | Piece::Marked) => self.length(other),
                 };
                 sum = sum.saturating_add(add);
             }
@@ -799,14 +817,16 @@ impl<'t> Printer<'t> {
         lengths
     }
 
-    /// Writes the term, or its judgement, into `out`.
+    /// Writes the term, or its judgement, into `out`, and returns where
+    /// the text of the subterm at `mark` first stands in it.
     fn write(
         &self,
         out: &mut impl Write,
         judgement: bool,
+        mark: Option<TermId>,
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<std::ops::Range<usize>>, Error> {
         let term = self.term;
         let s = self.spelling;
         let mut estimate = self.lengths()[term.root.index()];
@@ -817,11 +837,10 @@ impl<'t> Printer<'t> {
                 if i > 0 {
                     written.push(Piece::Text(", "));
                 }
-                written.extend([
-                    Piece::Var(v),
-                    Piece::Text(s.has_type),
-                    Piece::Type(term.variables[v.index()].ty, false),
-                ]);
+                written.push(Piece::Var(v));
+                if let Some(ty) = term.variables[v.index()].ty {
+                    written.extend([Piece::Text(s.has_type), Piece::Type(ty, false)]);
+                }
             }
             let turnstile = if term.context.is_empty() {
                 s.turnstile.trim_start()
@@ -831,8 +850,8 @@ impl<'t> Printer<'t> {
             written.push(Piece::Text(turnstile));
         }
         written.push(Piece::Term(term.root, Place::Free));
-        if judgement {
-            written.extend([Piece::Text(s.has_type), Piece::Type(term.goal, false)]);
+        if judgement && let Some(goal) = term.goal {
+            written.extend([Piece::Text(s.has_type), Piece::Type(goal, false)]);
         }
         for piece in &written {
             if !matches!(piece, Piece::Term(..)) {
@@ -851,18 +870,24 @@ impl<'t> Printer<'t> {
             }));
         }
         let mut stop = crate::limits::counting(stop, Phase::Write);
-        self.emit(out, stack, &mut stop)
+        self.emit(out, stack, mark, &mut stop)
     }
 
     /// Writes the pieces of `stack`, the last first, unfolding every
-    /// subterm in place, and asks `stop` before each.
+    /// subterm in place, and asks `stop` before each. Returns where the
+    /// text of the subterm at `mark` first stands, in bytes from where
+    /// the writing started.
     fn emit(
         &self,
         out: &mut impl Write,
         mut stack: Vec<Piece>,
+        mut mark: Option<TermId>,
         stop: &mut dyn FnMut() -> bool,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<std::ops::Range<usize>>, Error> {
         let (term, s) = (self.term, self.spelling);
+        let out = &mut Counted { out, bytes: 0 };
+        let mut start = 0;
+        let mut marked = None;
         while let Some(piece) = stack.pop() {
             match piece {
                 Piece::Text(t) => out.write_str(t)?,
@@ -873,7 +898,13 @@ impl<'t> Printer<'t> {
                 }
                 Piece::Var(v) => self.var(out, v)?,
                 Piece::Type(t, bracket) => self.ty(out, t, bracket)?,
+                Piece::MarkStart => start = out.bytes,
+                Piece::Marked => marked = Some(start..out.bytes),
                 Piece::Term(t, place) => {
+                    let marking = mark == Some(t);
+                    if marking {
+                        mark = None;
+                    }
                     if stop() {
                         return Err(Error::Refused(Refusal::Stopped {
                             phase: Phase::Write,
@@ -884,14 +915,21 @@ impl<'t> Printer<'t> {
                     if bracket {
                         stack.push(Piece::Text(")"));
                     }
+                    // The mark holds the subterm's text inside its brackets.
+                    if marking {
+                        stack.push(Piece::Marked);
+                    }
                     stack.extend(self.pieces(node).into_iter().rev());
+                    if marking {
+                        stack.push(Piece::MarkStart);
+                    }
                     if bracket {
                         stack.push(Piece::Text("("));
                     }
                 }
             }
         }
-        Ok(())
+        Ok(marked)
     }
 }
 
@@ -942,7 +980,7 @@ pub(crate) fn write_judgement_at(
             Piece::Text(open),
             Piece::Var(v),
             Piece::Text(spelling.has_type),
-            Piece::Type(term.variables[v.index()].ty, false),
+            Piece::Type(term.variables[v.index()].typed(), false),
             Piece::Text(close),
         ]);
     }
@@ -964,7 +1002,8 @@ pub(crate) fn write_judgement_at(
     ]);
     written.reverse();
     printer
-        .emit(out, written, &mut || false)
+        .emit(out, written, None, &mut || false)
+        .map(drop)
         .map_err(|_| std::fmt::Error)
 }
 
@@ -1036,7 +1075,37 @@ impl Term {
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        Printer::new(self, spelling, types).write(out, judgement, limits, stop)
+        Printer::new(self, spelling, types)
+            .write(out, judgement, None, limits, stop)
+            .map(drop)
+    }
+
+    /// Writes the term into `out` as [`write`](Self::write) does, and
+    /// returns where the text of the subterm at `node` stands in what it
+    /// wrote: its byte range inside any brackets around it, at the first
+    /// place the text writes it, or `0..0` for a node the text does not
+    /// write. A front end marks a redex so
+    /// ([`Strategy::pick`](super::Strategy::pick)).
+    ///
+    /// # Errors
+    ///
+    /// As [`write`](Self::write).
+    pub fn write_marked(
+        &self,
+        out: &mut impl Write,
+        node: TermId,
+        options: &Options,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<std::ops::Range<usize>, Error> {
+        let marked = Printer::new(self, options.notation.spelling(), options.types).write(
+            out,
+            false,
+            Some(node),
+            limits,
+            stop,
+        )?;
+        Ok(marked.unwrap_or(0..0))
     }
 }
 

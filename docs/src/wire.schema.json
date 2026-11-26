@@ -133,15 +133,12 @@
       "type": "object"
     },
     "typed_term": {
-      "description": "A lambda-term (level 23): a term of the linear, the affine or the simply typed lambda calculus with the variables of its hypotheses and its type. A type and a node name what they are built from by index, and each comes after what it names. The library reads it and checks its typing.",
+      "description": "A lambda-term (level 23, an untyped one level 30): a term of the linear, the affine or the simply typed lambda calculus with the variables of its hypotheses and its type, or of an untyped calculus without `atoms`, `types`, `goal` and its variables' `type`. A type and a node name what they are built from by index, and each comes after what it names. The library reads it and checks its typing.",
       "type": "object",
       "required": [
         "calculus",
-        "atoms",
-        "types",
         "variables",
         "context",
-        "goal",
         "nodes",
         "root"
       ],
@@ -154,7 +151,10 @@
           "enum": [
             "linear",
             "affine",
-            "simple"
+            "simple",
+            "untyped",
+            "untyped_linear",
+            "untyped_affine"
           ]
         },
         "atoms": {
@@ -190,12 +190,11 @@
           }
         },
         "variables": {
-          "description": "The variables, each with its type and the name it is printed with. A node names a variable by its index, so two variables may have one name.",
+          "description": "The variables, each with its type (none in an untyped term) and the name it is printed with. A node names a variable by its index, so two variables may have one name.",
           "type": "array",
           "items": {
             "type": "object",
             "required": [
-              "type",
               "name"
             ],
             "properties": {
@@ -218,7 +217,7 @@
           }
         },
         "goal": {
-          "description": "The term's type.",
+          "description": "The term's type, none in an untyped term.",
           "type": "integer",
           "minimum": 0
         },
@@ -265,19 +264,15 @@
       }
     },
     "lambda_typing": {
-      "description": "A lambda-term checked (level 23, `term check --format json`, written only): the term's document, then the type of every node and the judgement with every type. The command adds `deduxit` and `verdict`. The keys of the term come first, so the document reads back as the term.",
+      "description": "A lambda-term checked (level 23, an untyped one level 30; `term check --format json`, and `term infer --format json` for the term typed at its principal type; written only): the term's document, then the type of every node (none for an untyped term) and the judgement with every type. The command adds `deduxit` and `verdict`. The keys of the term come first, so the document reads back as the term.",
       "type": "object",
       "required": [
         "version",
         "calculus",
-        "atoms",
-        "types",
         "variables",
         "context",
-        "goal",
         "nodes",
         "root",
-        "typing",
         "judgement"
       ],
       "additionalProperties": false,
@@ -314,7 +309,11 @@
           "$ref": "#/$defs/writer"
         },
         "verdict": {
-          "const": "well_typed"
+          "enum": [
+            "well_typed",
+            "well_formed",
+            "principal_type"
+          ]
         },
         "typing": {
           "description": "The type of every node: `types` the term's types and those the typing rules made, each after its operands, as the term's `types` are written, and `nodes` the index of each node's type.",
@@ -344,7 +343,7 @@
       }
     },
     "lambda_ill_typed": {
-      "description": "A lambda-term that is not well typed (level 23, `term check --format json`, written only): the error, whose code is `ill_typed`.",
+      "description": "A lambda-term that its calculus refuses (level 23, an untyped one level 30; `term check`, `term reduce` and `term infer` with `--format json`, written only): the error, whose code is `ill_typed`. The verdict is `ill_typed` for a typed term, `ill_formed` for an untyped one, and `no_simple_type` for a term that has no principal type.",
       "type": "object",
       "required": [
         "version",
@@ -362,7 +361,11 @@
           "$ref": "#/$defs/writer"
         },
         "verdict": {
-          "const": "ill_typed"
+          "enum": [
+            "ill_typed",
+            "ill_formed",
+            "no_simple_type"
+          ]
         },
         "error": {
           "$ref": "#/$defs/error"
@@ -447,6 +450,72 @@
           "items": {
             "$ref": "#/$defs/typed_term"
           }
+        }
+      }
+    },
+    "lambda_reduction": {
+      "description": "A lambda-term reduced by β step by step (level 30, written only; `term reduce --format json` adds `deduxit` and `text`, the term reached as text). Each step's `redex` is a node of the term the step was taken on, an application of a λ.",
+      "type": "object",
+      "required": [
+        "version",
+        "strategy",
+        "term",
+        "steps",
+        "end"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 30
+        },
+        "strategy": {
+          "enum": [
+            "normal_order",
+            "applicative_order"
+          ]
+        },
+        "term": {
+          "description": "The term reached, in `typed_term`'s form without `version`.",
+          "$ref": "#/$defs/typed_term"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "redex"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "redex": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "end": {
+          "description": "`normal_form`; `steps` or `nodes`, the bound reached with the term not finished, with its `limit`; or `refused` with the `reason`.",
+          "enum": [
+            "normal_form",
+            "steps",
+            "nodes",
+            "refused"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "$ref": "#/$defs/error"
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "text": {
+          "type": "string"
         }
       }
     },

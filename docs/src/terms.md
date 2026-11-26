@@ -295,9 +295,115 @@ exit 1
 
 Declare free variables before `⊢`, as in `x : a |- \y:b. x`, and give a
 type after a last `:` to have it compared with the term's. `--calculus`
-is `simple` by default, or `linear` or `affine`. The exit status is 0
+is `simple` by default, or `linear` or `affine`, or one of the untyped
+calculi below. The exit status is 0
 for a well-typed term and 1 for an ill-typed one. `--format json` writes
 the term's document with the type of every node under `typing`.
+
+## Untyped terms
+
+An untyped term has variables, `λx. M` (`\x. M`) and applications
+alone, and no types. Three calculi take them: `untyped`, where a
+variable may be used any number of times, `untyped-linear`, where every
+variable is used exactly once, and `untyped-affine`, where at most once.
+`term check` checks how a term uses its variables:
+
+```console
+$ deduxit term check --calculus untyped '\x. x x'
+well formed
+⊢ λx. x x
+$ deduxit term check --calculus untyped-linear '\x. x x'; echo "exit $?"
+ill formed: the variable x is used more than once, and the untyped linear lambda calculus uses every variable exactly once
+exit 1
+```
+
+A name that no `λ` binds is a free variable. Name the free variables
+before `⊢` to fix their order and to have every other name refused, as
+in `f, x |- f (\y. x)`.
+
+## Reduce a term step by step
+
+`term reduce` reduces a term by β. Each step replaces a redex `(λx. M) N`
+by `M` with `N` in place of `x`. The command prints each term and,
+after `β:`, the redex its step reduces:
+
+```console
+$ deduxit term reduce '(\f. \x. f (f x)) (\y. y)'
+(λf. λx. f (f x)) (λy. y)
+  β: (λf. λx. f (f x)) (λy. y)
+λx. (λy. y) ((λy. y) x)
+  β: (λy. y) ((λy. y) x)
+λx. (λy. y) x
+  β: (λy. y) x
+λx. x
+normal form after 3 steps
+```
+
+The term is untyped by default; `--calculus` names another, and a typed
+term keeps its type at every step. A `λ` that would take in a free
+variable of its name is renamed, so `(λx. λy. x) y` reduces to `λy₁. y`
+and not to `λy. y`.
+
+The strategy picks the redex. `--strategy normal-order`, the default,
+takes the leftmost outermost redex, and reaches the normal form whenever
+the term has one. `--strategy applicative-order` takes the leftmost
+innermost redex, so it reduces an argument before the function takes
+it, and may go on forever where normal order finishes:
+
+```console
+$ deduxit term reduce --strategy applicative-order --steps=1 '(\x. y) ((\x. x x) (\x. x x))'
+(λx. y) ((λx. x x) (λx. x x))
+  β: (λx. x x) (λx. x x)
+(λx. y) ((λx. x x) (λx. x x))
+not finished after 1 step: the bound of 1 step was reached; --steps allows more
+$ deduxit term reduce '(\x. y) ((\x. x x) (\x. x x))'
+(λx. y) ((λx. x x) (λx. x x))
+  β: (λx. y) ((λx. x x) (λx. x x))
+y
+normal form after 1 step
+```
+
+An untyped term need not have a normal form, so the reduction ends at
+`--steps` (1 000 by default) not finished, never with "no normal form".
+A typed term, and an untyped linear or affine one, always reaches its
+normal form. `--node-limit` (100 000 by default) bounds the size of a
+term a step makes. The exit status is 0 at the normal form and at a
+`--steps` given, 1 for a term its calculus refuses, and 3 at the
+default bound of steps, at `--node-limit` and at a limit. `--format
+json` writes the term reached, each step's redex as a node of the term
+it was taken on, and how the reduction ended.
+
+Only the application of a `λ` is a redex: a pair taken apart, a `case`
+of an injection and the linear calculus's other constructs stay as they
+are.
+
+## The principal type of an untyped term
+
+`term infer` gives an untyped term its principal simple type: the most
+general type it has, of which every other is an instance. Each variable,
+`λ` and application gives an equation between types, and unification
+solves them (J. R. Hindley, "The principal type-scheme of an object in
+combinatory logic", *Transactions of the AMS* 146, 1969; B. C. Pierce,
+*Types and Programming Languages*, MIT Press, 2002, chapter 22). The
+command prints the term with every `λ` typed, as `term check` reads it:
+
+```console
+$ deduxit term infer '\x. \y. \z. x z (y z)'
+principal type
+⊢ λx:(a → (b → c)). λy:(a → b). λz:a. x z (y z) : (a → (b → c)) → ((a → b) → (a → c))
+$ deduxit term infer 'f (f x)'
+principal type
+f : a → a, x : a ⊢ f (f x) : a
+$ deduxit term infer '\x. x x'; echo "exit $?"
+no simple type: in `x x`, the types would have to satisfy a = a → b, and no type contains itself
+exit 1
+```
+
+The type variables are `a`, `b`, `c`, … in the order the judgement
+writes them, and the free variables' types are part of the answer. A
+term whose equations would make a type contain itself has no simple
+type, with exit status 1. The term typed is checked before it is
+printed.
 
 ## Find a term of a type
 

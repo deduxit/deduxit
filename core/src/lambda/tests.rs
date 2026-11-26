@@ -121,7 +121,7 @@ fn sum(mut a: Uses, b: Uses) -> Uses {
 impl Checker<'_> {
     /// Returns a variable's type.
     fn var(&self, v: VarId) -> T {
-        of_type(self.term, self.term.variables[v.index()].ty)
+        of_type(self.term, self.term.variables[v.index()].typed())
     }
 
     /// Checks that a bound variable is used as the calculus allows and
@@ -132,6 +132,9 @@ impl Checker<'_> {
             Calculus::Linear => assert_eq!(n, 1, "{v:?} used {n} times"),
             Calculus::Affine => assert!(n <= 1, "{v:?} used {n} times"),
             Calculus::Simple => {}
+            Calculus::Untyped | Calculus::UntypedLinear | Calculus::UntypedAffine => {
+                unreachable!("the reference checker types terms")
+            }
         }
     }
 
@@ -328,7 +331,7 @@ impl Checker<'_> {
         for (&v, t) in term.context.iter().zip(context) {
             assert_eq!(&self.var(v), t, "the hypothesis's type");
         }
-        assert_eq!(&of_type(term, term.goal), goal, "the goal's type");
+        assert_eq!(&of_type(term, term.goal.unwrap()), goal, "the goal's type");
         let (ty, mut uses) = self.infer(term.root);
         assert_eq!(&ty, goal, "the term's type is the goal");
         for &v in &term.context {
@@ -385,11 +388,11 @@ fn round_trip(proof: &Proof) -> Term {
         let o = m.occ();
         let ty = if reading.position(o) == crate::linear::occurrences::Side::Input {
             let v = term.context[context.len()];
-            let ty = of_type(&term, term.variables[v.index()].ty);
+            let ty = of_type(&term, term.variables[v.index()].typed());
             context.push(ty.clone());
             ty
         } else {
-            let ty = of_type(&term, term.goal);
+            let ty = of_type(&term, term.goal.unwrap());
             goal = Some(ty.clone());
             ty
         };
@@ -981,7 +984,7 @@ fn a_type_past_the_bound_is_refused_unwritten() {
         });
     }
     let (x, root) = builder.variable(nested);
-    let term = builder.finish(Calculus::Simple, vec![x], nested, root);
+    let term = builder.finish(Calculus::Simple, vec![x], Some(nested), root);
     for options in [Options::default(), Options::default().with_types(true)] {
         let mut out = String::new();
         let refused = term.write_judgement(&mut out, &options, &Limits::default(), never);
@@ -1082,7 +1085,7 @@ fn a_term_displays_as_written() {
             right: root,
         });
     }
-    let long = builder.finish(Calculus::Linear, vec![x], a, root);
+    let long = builder.finish(Calculus::Linear, vec![x], Some(a), root);
     let shown = long.to_string();
     assert!(shown.starts_with("<the term is estimated at "), "{shown}");
 }

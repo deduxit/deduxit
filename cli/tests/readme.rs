@@ -412,7 +412,7 @@ fn guide_examples() {
 
 /// The commands whose help the guide's flags are looked up in, as the
 /// words after `deduxit`.
-const COMMANDS: [&[&str]; 28] = [
+const COMMANDS: [&[&str]; 30] = [
     &["prove"],
     &["check"],
     &["eliminate"],
@@ -427,6 +427,8 @@ const COMMANDS: [&[&str]; 28] = [
     &["resolve"],
     &["herbrand"],
     &["term", "check"],
+    &["term", "reduce"],
+    &["term", "infer"],
     &["term", "inhabit"],
     &["term", "enumerate"],
     &["workspace", "new"],

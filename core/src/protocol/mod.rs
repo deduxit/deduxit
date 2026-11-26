@@ -490,6 +490,8 @@ const OPERATIONS: &[&str] = &[
     "modal.export",
     "modal.duplicate",
     "lambda.check",
+    "lambda.reduce",
+    "lambda.infer",
     "lambda.inhabit",
     "lambda.enumerate",
     #[cfg(feature = "svg")]
@@ -965,6 +967,20 @@ mod promises {
         name: "well_typed",
         check: Some(Cost::Instant),
         description: "Every term is well typed in its calculus, of the type asked for where one was, which deduxit's type checker accepts.",
+    };
+
+    /// Each step reduces a redex by β, and every term is checked.
+    pub(super) static REDUCES: Promise = Promise {
+        name: "reduces",
+        check: Some(Cost::Search),
+        description: "Each step reduces the redex its strategy picks by β, every term reached is accepted by deduxit's checker, and the end is as the bounds say: the reduction is made again and compared.",
+    };
+
+    /// A term is typed at its principal type.
+    pub(super) static PRINCIPAL: Promise = Promise {
+        name: "principal",
+        check: Some(Cost::Instant),
+        description: "The output is the input with the types of its principal typing, of which every typing of the input is an instance; deduxit's type checker accepts it, and the type is inferred again and compared.",
     };
 
     /// A drawing or a text shows its input.

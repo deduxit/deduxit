@@ -22,6 +22,9 @@ use crate::name;
 /// The keywords that end a subterm.
 const ENDS: [&str; 5] = ["be", "in", "of", "for", "as"];
 
+/// The turnstile, which ends a judgement's context.
+const TURNSTILE: &[&str] = &["⊢", "|-"];
+
 /// A subterm read: its node, its type, and where its text lies.
 #[derive(Clone, Copy, Debug)]
 struct Value {
@@ -316,7 +319,7 @@ impl<'a> Parser<'a> {
     /// Makes a variable of a type and a name, with the node that uses it.
     fn variable(&mut self, ty: TypeId, name: &str) -> Result<(VarId, TermId), Error> {
         self.count()?;
-        let made = self.builder.named_variable(ty, name);
+        let made = self.builder.named_variable(Some(ty), name);
         self.of.push(ty);
         Ok(made)
     }
@@ -341,7 +344,7 @@ impl<'a> Parser<'a> {
             &node,
             self.calculus,
             &mut self.builder.types,
-            |v| variables[v.index()].ty(),
+            |v| variables[v.index()].typed(),
             |t| of[t.index()],
         )
         .map_err(|fault| self.ill_typed(fault, start, self.at))?;
@@ -527,7 +530,7 @@ impl<'a> Parser<'a> {
                     )
                     .into());
                 };
-                let ty = self.builder.variables[variable.index()].ty();
+                let ty = self.builder.variables[variable.index()].typed();
                 let end = self.at;
                 return Ok(Some(Value { id, ty, start, end }));
             }
@@ -542,7 +545,10 @@ impl<'a> Parser<'a> {
         if !self.eat(":") {
             return Err(
                 ParseError::new(self.input, self.at, &["`:` and the variable's type"])
-                    .with_hint("write the variable's type, as in λx:a. x; types are not inferred")
+                    .with_hint(
+                        "write the variable's type, as in λx:a. x, or read the term in an \
+                         untyped calculus",
+                    )
                     .into(),
             );
         }
@@ -1046,7 +1052,6 @@ impl<'a> Parser<'a> {
     /// Reads a judgement, a term with its type, or a term alone, and
     /// returns the term.
     fn judgement(mut self) -> Result<Term, Error> {
-        const TURNSTILE: &[&str] = &["⊢", "|-"];
         let mut context = Vec::new();
         if TURNSTILE.iter().any(|token| self.input.contains(token)) && !self.eat_any(TURNSTILE) {
             loop {
@@ -1075,7 +1080,182 @@ impl<'a> Parser<'a> {
         if !self.rest().is_empty() {
             return Err(self.unexpected(self.at, &["the end"]));
         }
-        Ok(self.builder.finish(self.calculus, context, goal, root.id))
+        Ok(self
+            .builder
+            .finish(self.calculus, context, Some(goal), root.id))
+    }
+}
+
+/// A construct of an untyped term that waits for a subterm.
+enum Open {
+    /// A run of applications: the function applied so far.
+    Run(Option<TermId>),
+    /// `(M)`
+    Bracket,
+    /// `λx. M`, its variable and its name.
+    Lambda(VarId, Box<str>),
+}
+
+impl Parser<'_> {
+    /// Makes an untyped variable named `name`, with the node that uses
+    /// it.
+    fn untyped_variable(&mut self, name: &str) -> Result<(VarId, TermId), Error> {
+        self.count()?;
+        Ok(self.builder.named_variable(None, name))
+    }
+
+    /// Makes a node of an untyped term.
+    fn untyped_node(&mut self, node: Node) -> Result<TermId, Error> {
+        self.count()?;
+        Ok(self.builder.node(node))
+    }
+
+    /// Returns the node a name stands for where the text reads it: its
+    /// innermost binder's variable, else a free variable, made and added
+    /// to `context` where no context was written.
+    fn untyped_use(
+        &mut self,
+        name: Box<str>,
+        start: usize,
+        declared: bool,
+        free: &mut HashMap<Box<str>, TermId>,
+        context: &mut Vec<VarId>,
+    ) -> Result<TermId, Error> {
+        if let Some(&(_, id)) = self.scope.get(&name).and_then(|known| known.last()) {
+            return Ok(id);
+        }
+        if let Some(&id) = free.get(&name) {
+            return Ok(id);
+        }
+        if declared {
+            return Err(ParseError::spanning(
+                self.input,
+                start..self.at,
+                &["a variable that a `λ` or the context before `⊢` declares"],
+            )
+            .into());
+        }
+        let (variable, id) = self.untyped_variable(&name)?;
+        free.insert(name, id);
+        context.push(variable);
+        Ok(id)
+    }
+
+    /// Reads an untyped judgement or term, and returns the term: variables,
+    /// `λx. M` and `M N`, with or without the names of its free variables
+    /// before `⊢`. Without `⊢` every name that no `λ` binds is a free
+    /// variable, the context in the order the names first appear; with
+    /// `⊢` the names before it are the context, and any other free name
+    /// is refused.
+    fn untyped(mut self) -> Result<Term, Error> {
+        let mut context = Vec::new();
+        let mut free: HashMap<Box<str>, TermId> = HashMap::default();
+        let declared = TURNSTILE.iter().any(|token| self.input.contains(token));
+        if declared && !self.eat_any(TURNSTILE) {
+            loop {
+                let name = self.name()?;
+                let (variable, id) = self.untyped_variable(&name)?;
+                // A later declaration of a name is the one its uses mean.
+                free.insert(name, id);
+                context.push(variable);
+                if !self.eat(",") {
+                    self.expect(TURNSTILE, &["`,`", "`⊢`"])?;
+                    break;
+                }
+            }
+        }
+        let mut open = vec![Open::Run(None)];
+        loop {
+            let start = {
+                self.rest();
+                self.at
+            };
+            let word = self.word();
+            let operand = if self.eat("\\") || word.is_some_and(|w| w.starts_with('λ')) {
+                if !self.input[start..].starts_with('\\') {
+                    self.at += 'λ'.len_utf8();
+                }
+                let name = self.name()?;
+                if self.rest().starts_with(':') {
+                    return Err(ParseError::new(self.input, self.at, &["`.`"])
+                        .with_hint(
+                            "an untyped term's λ takes no type; read the term in a typed \
+                             calculus to give one",
+                        )
+                        .into());
+                }
+                self.expect(&["."], &["`.`"])?;
+                let (variable, id) = self.untyped_variable(&name)?;
+                self.scope
+                    .entry(name.clone())
+                    .or_default()
+                    .push((variable, id));
+                self.count()?;
+                open.extend([Open::Lambda(variable, name), Open::Run(None)]);
+                continue;
+            } else if word.is_some() {
+                let name = self.name()?;
+                Some(self.untyped_use(name, start, declared, &mut free, &mut context)?)
+            } else if self.eat("(") {
+                self.count()?;
+                open.extend([Open::Bracket, Open::Run(None)]);
+                continue;
+            } else {
+                None
+            };
+            if let Some(operand) = operand {
+                self.untyped_apply(&mut open, operand)?;
+                continue;
+            }
+            // The run ends here: it is the subterm of what waits below it.
+            let Some(Open::Run(function)) = open.pop() else {
+                unreachable!("a run is open whenever an operand is read");
+            };
+            let Some(mut value) = function else {
+                return Err(self.unexpected(self.at, &["a term"]));
+            };
+            match open.pop() {
+                None => {
+                    if !self.rest().is_empty() {
+                        return Err(self.unexpected(self.at, &["a term", "the end"]));
+                    }
+                    return Ok(self.builder.finish(self.calculus, context, None, value));
+                }
+                Some(Open::Lambda(variable, name)) => {
+                    if let Some(known) = self.scope.get_mut(&name) {
+                        known.pop();
+                    }
+                    value = self.untyped_node(Node::Lambda {
+                        variable,
+                        body: value,
+                    })?;
+                    // Its body ran to the end of the run it stood in,
+                    // which ends here too.
+                    self.untyped_apply(&mut open, value)?;
+                }
+                Some(Open::Bracket) => {
+                    self.expect(&[")"], &["a term", "`)`"])?;
+                    self.untyped_apply(&mut open, value)?;
+                }
+                Some(Open::Run(_)) => unreachable!("a run is never under a run"),
+            }
+        }
+    }
+
+    /// Applies the function of the innermost run to `operand`, or makes
+    /// `operand` its function.
+    fn untyped_apply(&mut self, open: &mut [Open], operand: TermId) -> Result<(), Error> {
+        let Some(Open::Run(function)) = open.last_mut() else {
+            unreachable!("an operand is read in a run, and a `λ` or a bracket closes into one");
+        };
+        *function = Some(match *function {
+            None => operand,
+            Some(f) => self.untyped_node(Node::Apply {
+                function: f,
+                argument: operand,
+            })?,
+        });
+        Ok(())
     }
 }
 
@@ -1124,6 +1304,14 @@ impl Term {
     /// subscripts (`x₁` is `x1`). A name stands for its innermost
     /// binder's variable.
     ///
+    /// # Untyped terms
+    ///
+    /// In an untyped calculus a term has variables, `λx. M` (`\x. M`) and
+    /// `M N` alone, and no types. The text is a term, or a judgement with
+    /// the free variables' names before `⊢` (`x, y ⊢ M`). Without `⊢`,
+    /// every name that no `λ` binds is a free variable, in the order the
+    /// names first appear.
+    ///
     /// # What is checked
     ///
     /// The types fit: the text's term has a type by the rules, and a
@@ -1154,7 +1342,7 @@ impl Term {
     /// - [`Refusal::Occurrences`] for a text of more nodes, open
     ///   constructs and type connectives than `limits.occurrences`.
     pub fn parse(text: &str, calculus: Calculus, limits: &Limits) -> Result<Self, Error> {
-        Parser {
+        let parser = Parser {
             input: text,
             at: 0,
             calculus,
@@ -1165,7 +1353,11 @@ impl Term {
             frames: Vec::new(),
             made: 0,
             limit: limits.occurrences,
+        };
+        if calculus.is_typed() {
+            parser.judgement()
+        } else {
+            parser.untyped()
         }
-        .judgement()
     }
 }

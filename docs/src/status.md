@@ -315,6 +315,17 @@ in use.
   [its terms are counted](terms.md#count-a-types-terms) up to
   βη-equality (`term enumerate`): exactly, infinitely many, or at least
   as many as a bounded search met, for types without `∨` and `⊥`.
+- [Untyped terms](terms.md#untyped-terms) of the untyped, the untyped
+  linear and the untyped affine lambda calculus are read, written and
+  checked for how they use their variables (`term check --calculus
+  untyped`).
+- [A term is reduced step by step](terms.md#reduce-a-term-step-by-step)
+  by β, typed or untyped, in normal or applicative order, each step's
+  redex named, each term reached checked, within bounds on steps and
+  size (`term reduce`, `lambda::Term::reduce`).
+- [An untyped term's principal simple type](terms.md#the-principal-type-of-an-untyped-term)
+  is found by unification and checked, or the term is shown to have none
+  (`term infer`, `lambda::Term::principal_type`).
 - [A well-typed term's typing derivation is drawn](terms.md#a-typing-derivation-drawn)
   in LaTeX, Typst, SVG, PNG and PDF by the rules of natural deduction
   (`lambda::Drawing`), its contexts split as linear logic splits them in

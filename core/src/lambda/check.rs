@@ -19,7 +19,8 @@ use std::fmt::Write;
 
 /// The type of every node of a checked term: its typing derivation.
 ///
-/// [`Term::check`] makes one. A term's types are in the term, on its
+/// [`Term::check`] makes one. A term of an untyped calculus has no
+/// types, and its typing is empty. A term's types are in the term, on its
 /// binders, so a term has one derivation at most, and it has the term's
 /// shape: the rule at a node is the node's kind, its premises are the
 /// node's subterms, and its conclusion says that the node has the type
@@ -44,14 +45,19 @@ impl Typing {
         &self.types
     }
 
-    /// Returns the type of a node of the term.
+    /// Returns the type of a node of the term, or `None` for a term of
+    /// an untyped calculus, whose typing has no types.
     ///
     /// # Panics
     ///
-    /// If `node` is past the term's nodes, as an id of another term may
-    /// be.
-    pub fn ty(&self, node: TermId) -> TypeId {
-        self.of[node.index()]
+    /// If `node` is past the nodes of a typed term, as an id of another
+    /// term may be.
+    pub fn ty(&self, node: TermId) -> Option<TypeId> {
+        if self.of.is_empty() {
+            None
+        } else {
+            Some(self.of[node.index()])
+        }
     }
 }
 
@@ -230,6 +236,9 @@ impl Names<'_> {
             Calculus::Linear => "the linear lambda calculus",
             Calculus::Affine => "the affine lambda calculus",
             Calculus::Simple => "the simply typed lambda calculus",
+            Calculus::Untyped => "the untyped lambda calculus",
+            Calculus::UntypedLinear => "the untyped linear lambda calculus",
+            Calculus::UntypedAffine => "the untyped affine lambda calculus",
         }
     }
 }
@@ -259,7 +268,7 @@ pub(crate) fn describe(fault: Fault, names: Names<'_>) -> String {
         Fault::Pattern { variable, expected } => format!(
             "the variable {} has type {}, and the part it names has type {}",
             names.variable(variable),
-            names.ty(names.variables[variable.index()].ty()),
+            names.ty(names.variables[variable.index()].typed()),
             names.ty(expected)
         ),
         Fault::Twice { variable } => format!(
@@ -283,7 +292,7 @@ pub(crate) fn describe(fault: Fault, names: Names<'_>) -> String {
                 "used more than once"
             },
             names.calculus(),
-            if names.calculus == Calculus::Linear {
+            if names.calculus.is_linear() {
                 "exactly once"
             } else {
                 "at most once"
@@ -599,6 +608,25 @@ fn foreign_type(types: &[Type]) -> Option<&'static str> {
     })
 }
 
+/// Returns what a node of an untyped term is, where the untyped calculi
+/// have no such node: they have variables, `λ` and application alone.
+fn untyped_foreign(node: &Node) -> Option<&'static str> {
+    match node {
+        Node::Var { .. } | Node::Lambda { .. } | Node::Apply { .. } => None,
+        Node::Tensor { .. } | Node::LetTensor { .. } => Some("a pair `M ⊗ N`"),
+        Node::Unit | Node::LetUnit { .. } => Some("the unit `∗`"),
+        Node::Pair { .. } | Node::First { .. } | Node::Second { .. } => Some("a pair `⟨M, N⟩`"),
+        Node::Left { .. } | Node::Right { .. } | Node::Case { .. } => {
+            Some("an injection `inl` or `inr`")
+        }
+        Node::True { .. } => Some("a `true`"),
+        Node::False { .. } => Some("a `false`"),
+        Node::Promote { .. } | Node::Derelict { .. } | Node::Discard { .. } | Node::Copy { .. } => {
+            Some("a node of `!`")
+        }
+    }
+}
+
 /// How often each free variable of a subterm is used.
 ///
 /// A count saturates at `u64::MAX`, which never accepts a term: the
@@ -737,7 +765,7 @@ impl Pass<'_, '_> {
     /// the linear calculus, the larger of each otherwise.
     fn share(&mut self, a: Uses, b: Uses) -> Result<Result<Uses, Fault>, Error> {
         self.meter.tick(a.len() + b.len() + 1)?;
-        if self.term.calculus == Calculus::Linear {
+        if self.term.calculus.is_linear() {
             let differs = |x: &Uses, y: &Uses| {
                 x.iter()
                     .filter(|&(v, n)| y.get(v) != Some(n))
@@ -766,10 +794,11 @@ impl Pass<'_, '_> {
     /// subterm leaves no other variable of its name free.
     fn bind(&mut self, uses: &mut Uses, variable: VarId) -> Result<Result<(), Fault>, Error> {
         let count = uses.remove(&variable).unwrap_or(0);
-        let fits = match self.term.calculus {
-            Calculus::Linear => count == 1,
-            Calculus::Affine => count <= 1,
-            Calculus::Simple => true,
+        let calculus = self.term.calculus;
+        let fits = if calculus.is_linear() {
+            count == 1
+        } else {
+            calculus.is_unrestricted() || count <= 1
         };
         if !fits {
             return Ok(Err(Fault::Uses {
@@ -982,18 +1011,23 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
             memory: limits.memory_bytes,
         },
     };
-    let mut of: Vec<TypeId> = Vec::with_capacity(nodes);
+    let typed = term.calculus.is_typed();
+    let mut of: Vec<TypeId> = Vec::with_capacity(if typed { nodes } else { 0 });
     for (i, node) in term.nodes.iter().enumerate() {
         pass.meter.tick(1)?;
-        let ty = rule(
-            node,
-            term.calculus,
-            &mut types,
-            |v| term.variables[v.index()].ty(),
-            |t| of[t.index()],
-        )
-        .map_err(|fault| ill_typed(term, &types, i, fault))?;
-        of.push(ty);
+        if typed {
+            let ty = rule(
+                node,
+                term.calculus,
+                &mut types,
+                |v| term.variables[v.index()].typed(),
+                |t| of[t.index()],
+            )
+            .map_err(|fault| ill_typed(term, &types, i, fault))?;
+            of.push(ty);
+        } else if let Some(what) = untyped_foreign(node) {
+            return Err(ill_typed(term, &types, i, Fault::Foreign { what }));
+        }
         let uses = pass
             .node(node)?
             .map_err(|fault| ill_typed(term, &types, i, fault))?;
@@ -1015,10 +1049,11 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
     if let Some(&variable) = free.keys().min() {
         return Err(ill_typed(term, &types, root, Fault::Free { variable }));
     }
-    let found = of[root];
-    if found != term.goal {
-        let goal = term.goal;
-        return Err(ill_typed(term, &types, root, Fault::Goal { found, goal }));
+    if let Some(goal) = term.goal {
+        let found = of[root];
+        if found != goal {
+            return Err(ill_typed(term, &types, root, Fault::Goal { found, goal }));
+        }
     }
     Ok(Typing {
         types: types.list,
@@ -1029,6 +1064,11 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
 impl Term {
     /// Checks that the term is well typed in its calculus, and returns
     /// the type of every node.
+    ///
+    /// A term of an untyped calculus has no types: the check is then that
+    /// it has variables, `λ` and application alone and uses every
+    /// variable as its calculus allows, and the typing it returns is
+    /// empty.
     ///
     /// The term is well typed when:
     /// - every node has a type by its rule, which for a function and its
@@ -1060,6 +1100,11 @@ impl Term {
     ///
     /// // A linear term uses every variable exactly once.
     /// let twice = Term::parse(r"\x:a. x * x", Calculus::Linear, &limits)?;
+    /// let error = twice.check(&limits, |_| false).unwrap_err();
+    /// assert!(matches!(error, Error::IllTyped { .. }));
+    ///
+    /// // So does an untyped linear term.
+    /// let twice = Term::parse(r"\x. x x", Calculus::UntypedLinear, &limits)?;
     /// let error = twice.check(&limits, |_| false).unwrap_err();
     /// assert!(matches!(error, Error::IllTyped { .. }));
     /// # Ok::<(), Error>(())

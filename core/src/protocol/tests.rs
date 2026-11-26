@@ -810,6 +810,42 @@ fn a_term_is_checked_and_a_type_s_terms_found_and_counted() {
     ));
 }
 
+#[test]
+fn an_untyped_term_is_reduced_and_typed_at_its_principal_type() {
+    let limits = settings().limits;
+    let term = super::statement("lambda", r"(\x. \y. x) (\z. z)", "untyped", &limits).unwrap();
+    let reduced = ran("lambda.reduce", &[&term], "");
+    assert_eq!(
+        summary("lambda.reduction", &reduced, &limits).unwrap(),
+        "Normal form after 1 step"
+    );
+    assert_eq!(
+        checked("lambda.reduce", &[&term], "", &reduced).status,
+        Status::Held
+    );
+    let unfinished = ran("lambda.reduce", &[&term], r#"{"steps": 0}"#);
+    assert_eq!(
+        checked("lambda.reduce", &[&term], "", &unfinished).status,
+        Status::Failed
+    );
+    let typed = ran("lambda.infer", &[&term], "");
+    assert_eq!(
+        checked("lambda.infer", &[&term], "", &typed).status,
+        Status::Held
+    );
+    // The typed term is a term like any, which the check takes.
+    assert_eq!(
+        checked(
+            "lambda.check",
+            &[&typed],
+            "",
+            &ran("lambda.check", &[&typed], "")
+        )
+        .status,
+        Status::Held
+    );
+}
+
 /// A first-order statement is decided through the embedding, starts a
 /// session and its derivation is exported, drawn and summarized; LJT and
 /// the certificate, which take propositional sequents, refuse it by name.

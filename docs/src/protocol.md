@@ -66,10 +66,11 @@ text, quick to make again.
 | `modal.outcome` | a sequent decided, with a derivation or a countermodel | the outcome's JSON |
 | `modal.model` | a Kripke model, each world's arrows the worlds it sees | the model's JSON |
 | `modal.evaluation` | a model checked against a sequent | `{"system", "world", "frame", "holds", "failing", "values"}` |
-| `lambda.term` | a lambda-term with its free variables' types | the term's JSON, with `text` as typed |
+| `lambda.term` | a lambda-term with its free variables' types, or an untyped one | the term's JSON, with `text` as typed |
 | `lambda.typing` | a lambda-term checked | the term's JSON with `typing` and `judgement` |
 | `lambda.inhabitation` | whether a type has a term | `{"verdict", …}`, with the term where it has one |
 | `lambda.inhabitants` | a type's terms, listed and counted | `{"terms", "count"}` |
+| `lambda.reduction` | a term reduced by β step by step | `{"strategy", "term", "steps", "end"}` |
 | `drawing` | a drawing | `{"svg"}` |
 | `text` | a text in a format | `{"format", "text"}` |
 | `certificate` | a certificate for Rocq | `{"text"}` |
@@ -138,6 +139,8 @@ promises something of its output and says what checking that costs.
 | `modal.export` | `modal.outcome` | `text` | renders |
 | `modal.duplicate` | `modal.sequent` | `modal.sequent` | exact |
 | `lambda.check` | `lambda.term` | `lambda.typing` | well typed |
+| `lambda.reduce` | `lambda.term` | `lambda.reduction` | reduces |
+| `lambda.infer` | `lambda.term` | `lambda.term` | principal |
 | `lambda.inhabit` | `ordinary.sequent` | `lambda.inhabitation` | decides |
 | `lambda.enumerate` | `ordinary.sequent` | `lambda.inhabitants` | well typed |
 | `lambda.draw` | `lambda.typing` | `drawing` | renders |
@@ -162,6 +165,8 @@ defaults, its plain name, how its output relates to its inputs once made
 | equisatisfiable | the output's clauses can be satisfied exactly when the input can be false | two searches |
 | equivalid | the output is valid exactly when the input is, its sides kept | one search |
 | well typed | each term is well typed, of the type asked | instant |
+| reduces | each step reduces the redex its strategy picks, and every term reached is checked | the reduction made again |
+| principal | the output is the input typed at its principal type | the type inferred again |
 | renders | the drawing or text shows its input | nothing to check |
 | certifies | Rocq accepts the certificate | Rocq checks it |
 

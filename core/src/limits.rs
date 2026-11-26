@@ -469,6 +469,8 @@ pub enum Phase {
     Eliminate,
     /// Rewriting a formula into a normal form.
     Rewrite,
+    /// Reducing a lambda-term, or inferring its type.
+    Reduce,
 }
 
 impl Phase {
@@ -486,6 +488,7 @@ impl Phase {
             Self::ReadBack => "read-back",
             Self::Eliminate => "elimination",
             Self::Rewrite => "rewriting",
+            Self::Reduce => "reduction",
         }
     }
 }

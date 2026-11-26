@@ -401,13 +401,13 @@ pub(crate) fn has_type(term: &Term, sequent: &Sequent) -> bool {
         Some(&f) => super::simple::type_of(given, &mut builder, &mut cache, f),
         None => builder.ty(Type::Zero),
     };
-    let context: Vec<TypeId> = term
+    let context: Vec<Option<TypeId>> = term
         .context()
         .iter()
         .map(|&v| term.variables()[v.index()].ty())
         .collect();
     // A type made anew is no type of the term's.
-    goal.index() < known && goal == term.goal() && left == context
+    goal.index() < known && Some(goal) == term.goal() && left.iter().copied().map(Some).eq(context)
 }
 
 /// A long normal form, as the search builds it: its parts by index.
@@ -1216,7 +1216,7 @@ impl<'a> Search<'a> {
         let mut context = Vec::with_capacity(self.context.len());
         for &v in &self.context {
             let var = &self.vars[v as usize];
-            let made = builder.named_variable(var.ty, &var.name);
+            let made = builder.named_variable(Some(var.ty), &var.name);
             var_of.insert(v, made);
             context.push(made.0);
         }
@@ -1249,7 +1249,7 @@ impl<'a> Search<'a> {
             let mut var = |v: u32, builder: &mut Builder| {
                 *var_of.entry(v).or_insert_with(|| {
                     let var = &self.vars[v as usize];
-                    builder.named_variable(var.ty, &var.name)
+                    builder.named_variable(Some(var.ty), &var.name)
                 })
             };
             let (id, size) = match lnf {
@@ -1299,7 +1299,7 @@ impl<'a> Search<'a> {
             made.insert(at, (id, size));
         }
         let (root_id, size) = made[&root];
-        let term = builder.finish(Calculus::Simple, context, self.goal, root_id);
+        let term = builder.finish(Calculus::Simple, context, Some(self.goal), root_id);
         let parts = term.nodes().len() + term.variables().len() + term.types().len();
         self.built = self.built.saturating_add(
             (parts as u64).saturating_mul(size_of::<Node>() as u64 + TERM_NODE_BYTES),

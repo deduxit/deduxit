@@ -163,6 +163,16 @@ workspace graph builds on it.
   their checks read each term, check it and hold it to the type with
   `lambda::has_type`; an `empty` answer is `Recorded` (its countermodel
   was checked by the engine, or LJT's search was exhaustive).
+  A `lambda.term` may be untyped (`protocol::statement("lambda", text,
+  "untyped", …)`, level 30). `lambda.reduce` (parameters the serde
+  form of `lambda::ReduceOptions`: `strategy`, `steps`, `nodes`) writes
+  the level-30 `lambda.reduction`; its check of `reduces` reduces again
+  under the call's parameters and compares the documents.
+  `lambda.infer` writes the term typed at its principal type as a
+  `lambda.term` (so `lambda.check` and `lambda.draw` take it); its check
+  of `principal` checks the output and infers again. `KINDS` in
+  `mod.rs` lists no lambda kind (a gap that predates them; the test
+  holds `OPERATIONS` alone).
 - **`ordinary.draw`, `export` and `certificate` hold the derivation to
   `limits.derivation_bytes`** (`drawable`, by
   `ordinary::Derivation::drawn_bytes`): a decided outcome's derivation

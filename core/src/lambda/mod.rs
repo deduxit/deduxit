@@ -65,7 +65,8 @@
 //! let typing = term.check(&limits, |_| false)?;
 //!
 //! // The whole term is a function, from `a -> b`.
-//! let Type::Lollipop { from, .. } = typing.types()[typing.ty(term.root()).index()] else {
+//! let root = typing.ty(term.root()).expect("a typed term's nodes have types");
+//! let Type::Lollipop { from, .. } = typing.types()[root.index()] else {
 //!     panic!("a function");
 //! };
 //! assert!(matches!(typing.types()[from.index()], Type::Lollipop { .. }));
@@ -77,6 +78,36 @@
 //! term read back from a proof is checked the same way, and so is one
 //! read from JSON ([`wire::upgrade`](crate::wire::upgrade), with the
 //! feature `serialize`).
+//!
+//! # Untyped terms, reduction and principal types
+//!
+//! The untyped calculi ([`Calculus::Untyped`], [`Calculus::UntypedLinear`]
+//! and [`Calculus::UntypedAffine`]) have variables, `λx. M` and `M N`,
+//! and no types. [`Term::reduce`] reduces a term by β, typed or untyped,
+//! one step at a time, and [`Term::principal_type`] gives an untyped term
+//! its most general simple type:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::Limits;
+//! use deduxit::lambda::{Calculus, End, ReduceOptions, Term};
+//!
+//! let limits = Limits::default();
+//! let term = Term::parse(r"(\f. \x. f (f x)) (\y. y)", Calculus::Untyped, &limits)?;
+//! let reduced = term.reduce(&ReduceOptions::default(), &limits, |_| false, |_, _| {})?;
+//! assert_eq!(reduced.end, End::NormalForm);
+//! assert_eq!(reduced.term.to_string(), "λx. x");
+//!
+//! let typed = term.principal_type(&limits, |_| false)?;
+//! let mut judgement = String::new();
+//! typed.write_judgement(&mut judgement, &Default::default(), &limits, |_| false)?;
+//! assert_eq!(judgement, "⊢ (λf. λx. f (f x)) (λy. y) : a → a");
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! An untyped term need not have a normal form, so a reduction ends at a
+//! bound of [`ReduceOptions`] as not finished ([`End::Steps`]), never as
+//! having none.
 //!
 //! # What has no term
 //!
@@ -143,6 +174,7 @@
 
 mod check;
 mod draw;
+mod infer;
 mod inhabit;
 pub(crate) mod linear;
 #[cfg(feature = "parse")]
@@ -150,15 +182,19 @@ mod parse;
 pub(crate) mod print;
 #[cfg(feature = "serialize")]
 pub(crate) mod read;
+mod reduce;
 pub(crate) mod simple;
 #[cfg(all(test, feature = "parse"))]
 mod tests;
+#[cfg(all(test, feature = "parse"))]
+mod untyped_tests;
 
 pub use check::Typing;
 pub use draw::Drawing;
 #[cfg(feature = "protocol")]
 pub(crate) use inhabit::has_type;
 pub use inhabit::{Count, InhabitOptions, Inhabitants, Inhabitation, enumerate, inhabit};
+pub use reduce::{End, ReduceOptions, Reduction, Step, Strategy};
 
 use crate::hash::HashMap;
 use crate::limits::Refusal;
@@ -211,16 +247,27 @@ impl TypeId {
     }
 }
 
-/// The calculus a term belongs to, which says how often it may use a
-/// variable.
+/// The calculus a term belongs to: whether its `λ`s carry types, and
+/// how often it may use a variable.
+///
+/// The typed calculi are Church's: every `λ` names its variable's type
+/// (`λx:A. M`), so a term has one type at most. The untyped ones have
+/// variables, `λ` and application alone (`λx. M`), and no types.
+///
+/// | uses of a variable | typed | untyped |
+/// |---|---|---|
+/// | any number | [`Simple`](Self::Simple) | [`Untyped`](Self::Untyped) |
+/// | exactly once | [`Linear`](Self::Linear) | [`UntypedLinear`](Self::UntypedLinear) |
+/// | at most once | [`Affine`](Self::Affine) | [`UntypedAffine`](Self::UntypedAffine) |
 ///
 /// # JSON
 ///
-/// With the feature `serialize`, `"linear"`, `"affine"` or `"simple"`.
+/// With the feature `serialize`, `"linear"`, `"affine"`, `"simple"`,
+/// `"untyped"`, `"untyped_linear"` or `"untyped_affine"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "snake_case"))]
 pub enum Calculus {
     /// The linear lambda calculus: every variable is used exactly once.
     /// `discard`, `copy`, `true` and `false` each count as a use, and the
@@ -234,14 +281,37 @@ pub enum Calculus {
     /// The simply typed lambda calculus: a variable may be used any number
     /// of times.
     Simple,
+    /// The untyped lambda calculus: variables, `λx. M` and `M N`, a
+    /// variable used any number of times.
+    Untyped,
+    /// The untyped linear lambda calculus: as the untyped one, every
+    /// variable used exactly once.
+    UntypedLinear,
+    /// The untyped affine lambda calculus: as the untyped one, every
+    /// variable used at most once.
+    UntypedAffine,
 }
 
 impl Calculus {
     /// Every calculus, in the order of their names.
-    pub const ALL: &'static [Self] = &[Self::Linear, Self::Affine, Self::Simple];
+    pub const ALL: &'static [Self] = &[
+        Self::Linear,
+        Self::Affine,
+        Self::Simple,
+        Self::Untyped,
+        Self::UntypedLinear,
+        Self::UntypedAffine,
+    ];
 
     /// The names, as the JSON form and the command write them.
-    pub const NAMES: &'static [&'static str] = &["linear", "affine", "simple"];
+    pub const NAMES: &'static [&'static str] = &[
+        "linear",
+        "affine",
+        "simple",
+        "untyped",
+        "untyped_linear",
+        "untyped_affine",
+    ];
 
     /// Returns the calculus's name.
     pub const fn name(self) -> &'static str {
@@ -249,7 +319,25 @@ impl Calculus {
             Self::Linear => "linear",
             Self::Affine => "affine",
             Self::Simple => "simple",
+            Self::Untyped => "untyped",
+            Self::UntypedLinear => "untyped_linear",
+            Self::UntypedAffine => "untyped_affine",
         }
+    }
+
+    /// Returns whether the calculus's `λ`s carry types.
+    pub const fn is_typed(self) -> bool {
+        matches!(self, Self::Linear | Self::Affine | Self::Simple)
+    }
+
+    /// Returns whether every variable is used exactly once.
+    pub(crate) const fn is_linear(self) -> bool {
+        matches!(self, Self::Linear | Self::UntypedLinear)
+    }
+
+    /// Returns whether a variable may be used any number of times.
+    pub(crate) const fn is_unrestricted(self) -> bool {
+        matches!(self, Self::Simple | Self::Untyped)
     }
 }
 
@@ -349,21 +437,32 @@ pub enum Type {
 ///
 /// # JSON
 ///
-/// With the feature `serialize`, `{"type": 0, "name": "x"}`.
+/// With the feature `serialize`, `{"type": 0, "name": "x"}`, and
+/// `{"name": "x"}` in an untyped term.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Variable {
-    /// The type.
-    #[cfg_attr(feature = "serialize", serde(rename = "type"))]
-    ty: TypeId,
+    /// The type, `None` in an untyped term.
+    #[cfg_attr(
+        feature = "serialize",
+        serde(rename = "type", skip_serializing_if = "Option::is_none")
+    )]
+    ty: Option<TypeId>,
     /// The name.
     name: Box<str>,
 }
 
 impl Variable {
-    /// Returns the variable's type.
-    pub const fn ty(&self) -> TypeId {
+    /// Returns the variable's type, or `None` in a term of an untyped
+    /// calculus.
+    pub const fn ty(&self) -> Option<TypeId> {
         self.ty
+    }
+
+    /// Returns the type of a variable of a typed term, which has one.
+    pub(crate) fn typed(&self) -> TypeId {
+        self.ty
+            .expect("every variable of a typed term has its type")
     }
 
     /// Returns the variable's name, an index as digits at its end.
@@ -577,8 +676,8 @@ pub struct Term {
     variables: Vec<Variable>,
     /// The variables of the hypotheses, in the order written.
     context: Vec<VarId>,
-    /// The term's type.
-    goal: TypeId,
+    /// The term's type, `None` in an untyped calculus.
+    goal: Option<TypeId>,
     /// The nodes, operands first.
     nodes: Vec<Node>,
     /// The whole term.
@@ -613,8 +712,8 @@ impl Term {
     }
 
     /// Returns the term's type: the sequent's goal, or `⊥` for an LJ
-    /// sequent with nothing right of `⊢`.
-    pub const fn goal(&self) -> TypeId {
+    /// sequent with nothing right of `⊢`; `None` in an untyped calculus.
+    pub const fn goal(&self) -> Option<TypeId> {
         self.goal
     }
 
@@ -959,12 +1058,12 @@ impl Builder {
             0 => letter.to_string(),
             index => format!("{letter}{index}"),
         };
-        self.named_variable(ty, &name)
+        self.named_variable(Some(ty), &name)
     }
 
-    /// Returns a new variable of type `ty` named `name`, and the node
-    /// that uses it.
-    fn named_variable(&mut self, ty: TypeId, name: &str) -> (VarId, TermId) {
+    /// Returns a new variable of type `ty` (`None` in an untyped term)
+    /// named `name`, and the node that uses it.
+    fn named_variable(&mut self, ty: Option<TypeId>, name: &str) -> (VarId, TermId) {
         // A read-back makes a variable per hypothesis of a sequent of
         // the derivation, at most two for one (a contraction's copies),
         // so this truncates only for a derivation of more than 2³¹
@@ -991,7 +1090,13 @@ impl Builder {
     /// Returns the term whose whole is `root`, with only the nodes `root`
     /// reaches, in their order. A node that no rule above used, such as a
     /// weakened variable's, is dropped.
-    fn finish(self, calculus: Calculus, context: Vec<VarId>, goal: TypeId, root: TermId) -> Term {
+    fn finish(
+        self,
+        calculus: Calculus,
+        context: Vec<VarId>,
+        goal: Option<TypeId>,
+        root: TermId,
+    ) -> Term {
         let mut reached = vec![false; self.nodes.len()];
         reached[root.index()] = true;
         for i in (0..self.nodes.len()).rev() {

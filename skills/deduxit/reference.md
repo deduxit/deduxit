@@ -389,6 +389,20 @@ search;
 `false` or `~`. `--format json` writes the term's document with
 `typing`, or a document at wire level 24.
 
+An untyped term has variables, `λ` and application alone (`\x. x x`;
+names no `λ` binds are free variables): `--calculus untyped`,
+`untyped-linear` or `untyped-affine`, where `term check` prints `well
+formed` or `ill formed:` and why. `deduxit term reduce TERM` (untyped by
+default) reduces a term by β step by step and prints each term with its
+redex after `β:`, then `normal form after N steps`, or `not finished
+after N steps` at `--steps N` (1000) or `--node-limit N` (100000):
+an untyped term need not have a normal form. `--strategy
+applicative-order` takes the leftmost innermost redex in place of the
+leftmost outermost. Exit 0 at the normal form or a `--steps` given, 3 at
+the default bound. `deduxit term infer TERM` prints an untyped term's
+principal simple type, the term with every `λ` typed, or `no simple
+type:` and the equation that cannot hold (exit 1).
+
 ```console
 $ deduxit term check '\x:a. \y:b. x'
 well typed
@@ -400,6 +414,16 @@ $ deduxit term enumerate 'a -> a -> a'
 exactly 2 terms
 λx:a. λy:a. x
 λx:a. λy:a. y
+$ deduxit term reduce '(\x. \y. x) a b'
+(λx. λy. x) a b
+  β: (λx. λy. x) a
+(λy. a) b
+  β: (λy. a) b
+a
+normal form after 2 steps
+$ deduxit term infer '\f. \x. f (f x)'
+principal type
+⊢ λf:(a → a). λx:a. f (f x) : (a → a) → (a → a)
 ```
 
 ## 5. Why unprovable, why unknown
@@ -1953,6 +1977,19 @@ occurrences by id, and `describe(&forest)` names them by formula.
   every subterm. An ill-typed term is `Error::IllTyped` (code
   `ill_typed`) with the reason. A term is also a JSON document (wire
   level 23) that `wire::upgrade::<lambda::Term, _>` reads.
+- In an untyped calculus (`Calculus::Untyped`, `UntypedLinear`,
+  `UntypedAffine`) a term has no types: `Variable::ty`, `Term::goal` and
+  `Typing::ty` are `None`, and its JSON is at level 30.
+  `term.reduce(&ReduceOptions::default(), &limits, |_| false, |before,
+  step| …)` reduces a term by β (`Strategy::NormalOrder` by default)
+  and returns a `Reduction`: the term reached, the steps (each its
+  `redex`, a node of the term it was taken on) and the `End`
+  (`NormalForm`, or `Steps`/`Nodes` at a bound, not finished);
+  `term.write_marked(&mut text, step.redex, &options, &limits, |_|
+  false)` returns the redex's byte range in the text.
+  `term.principal_type(&limits, |_| false)` returns the untyped term
+  typed at its principal simple type, in `Calculus::Simple` and checked,
+  or `Error::IllTyped` where it has none.
 - `lambda::Drawing::new(&term, &lambda::Options::default(), &limits,
   |_| false)` checks a term and lays out its typing derivation, which
   `export::latex::to_string`, `typst::to_string` and `svg::to_string`

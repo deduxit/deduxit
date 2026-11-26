@@ -386,6 +386,30 @@ impl crate::argument_parsing::TermCheckArgs {
     }
 }
 
+impl crate::argument_parsing::TermReduceArgs {
+    /// Returns the settings `term reduce` runs under: the settings file's,
+    /// or the command's defaults.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self) -> Result<Settings> {
+        read(self.settings.as_deref())
+    }
+}
+
+impl crate::argument_parsing::TermInferArgs {
+    /// Returns the settings `term infer` runs under: the settings file's,
+    /// or the command's defaults.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self) -> Result<Settings> {
+        read(self.settings.as_deref())
+    }
+}
+
 impl TransformArgs {
     /// Returns the settings `seq translate` and `interpolate` run under:
     /// the bounds of their searches and of the sequent.
@@ -756,6 +780,8 @@ mod tests {
             Command::Workspace { command } => workspace_settings(&command, &given),
             Command::Term { command } => match command {
                 crate::argument_parsing::TermCommand::Check(args) => args.settings().unwrap(),
+                crate::argument_parsing::TermCommand::Reduce(args) => args.settings().unwrap(),
+                crate::argument_parsing::TermCommand::Infer(args) => args.settings().unwrap(),
                 crate::argument_parsing::TermCommand::Inhabit(args) => {
                     args.common.settings(&given).unwrap()
                 }
@@ -1027,6 +1053,12 @@ mod tests {
                 Command::Workspace { command } => drop(workspace_settings(&command, &given)),
                 Command::Term { command } => match command {
                     crate::argument_parsing::TermCommand::Check(args) => {
+                        drop(args.settings().unwrap());
+                    }
+                    crate::argument_parsing::TermCommand::Reduce(args) => {
+                        drop(args.settings().unwrap());
+                    }
+                    crate::argument_parsing::TermCommand::Infer(args) => {
                         drop(args.settings().unwrap());
                     }
                     crate::argument_parsing::TermCommand::Inhabit(args) => {

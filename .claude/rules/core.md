@@ -186,7 +186,11 @@ Each entry point is described in the file of its module:
   `lambda::Options`, and `Error::NoTerm` with a `lambda::NoTerm`;
   `lambda::inhabit(&sequent, &limits, stop)` to an `Inhabitation`,
   `lambda::enumerate(&sequent, &InhabitOptions, &limits, stop)` to
-  `Inhabitants` with a `Count` (`core-lambda.md`).
+  `Inhabitants` with a `Count`; the untyped calculi
+  (`Calculus::Untyped`, `UntypedLinear`, `UntypedAffine`),
+  `Term::reduce(&ReduceOptions, &limits, stop, each)` to a `Reduction`
+  with an `End`, `Strategy::pick`, `Term::write_marked`, and
+  `Term::principal_type(&limits, stop)` (`core-lambda.md`).
 
 ## Crate-wide rules
 
@@ -410,7 +414,8 @@ the commit that lands it rewrites that bullet.
   `nets::cut::{Elimination, Reduction, Step}`;
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
   Options}` (added at step 50), `lambda::{Count, InhabitOptions,
-  Inhabitation, Inhabitants}` (added at step 71b); `ordinary::{Evidence, Logic, Method, Options,
+  Inhabitation, Inhabitants}` (added at step 71b), `lambda::{End,
+  ReduceOptions, Reduction, Step, Strategy}` (added at step 84); `ordinary::{Evidence, Logic, Method, Options,
   Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
   and `Search` added at step 54s); `ordinary::interactive::{Applicable,
   BindingFault, Candidate, Closed, Context, Hint, Needs, Status, Step,

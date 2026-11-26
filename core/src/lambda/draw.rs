@@ -352,12 +352,20 @@ impl Drawing {
     ///   its depth.
     /// - The refusals of [`Term::check`] past the limits, and
     ///   [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+    /// - [`Error::NotApplicable`] for a term of an untyped calculus,
+    ///   which has no typing derivation.
     pub fn new(
         term: &Term,
         options: &Options,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Self, Error> {
+        if !term.calculus.is_typed() {
+            return Err(Error::NotApplicable {
+                operation: "a typing derivation".into(),
+                reason: "an untyped term has no types; its principal type gives it one".to_owned(),
+            });
+        }
         let typing = term.check(limits, &mut stop)?;
         let typed = Term {
             types: typing.types().to_vec(),
@@ -365,7 +373,7 @@ impl Drawing {
         };
         let of: Vec<TypeId> = (0..typed.nodes.len())
             // A term's nodes are numbered by `u32`.
-            .map(|i| typing.ty(TermId(i as u32)))
+            .filter_map(|i| typing.ty(TermId(i as u32)))
             .collect();
         let (node_lengths, type_lengths) = lengths(&typed, &UNICODE, options.types);
         let refused = |estimate: u64, limit: u64| {
@@ -392,9 +400,10 @@ impl Drawing {
             }
         }
         over(least)?;
-        let free = match typed.calculus {
-            Calculus::Simple => None,
-            Calculus::Linear | Calculus::Affine => Some(free_variables(&typed, &reached)),
+        let free = if typed.calculus.is_unrestricted() {
+            None
+        } else {
+            Some(free_variables(&typed, &reached))
         };
         let mut stop = crate::limits::counting(stop, crate::limits::Phase::View);
         let declared = |v: VarId| -> u64 {
@@ -402,7 +411,7 @@ impl Drawing {
             // A name, `" : "`, its type and `", "`.
             (variable.name.len() as u64)
                 .saturating_add(5)
-                .saturating_add(type_lengths[variable.ty.index()])
+                .saturating_add(type_lengths[variable.typed().index()])
         };
         let (mut nodes, mut ends, mut premises_of) = (Vec::new(), Vec::new(), Vec::new());
         let (mut contexts, mut context_ends) = (Vec::new(), Vec::new());
@@ -490,9 +499,10 @@ impl Drawing {
 
     /// Returns the column of the calculus in the rules' tables.
     const fn column(&self) -> usize {
-        match self.term.calculus {
-            Calculus::Linear | Calculus::Affine => 0,
-            Calculus::Simple => 1,
+        if matches!(self.term.calculus, Calculus::Simple) {
+            1
+        } else {
+            0
         }
     }
 

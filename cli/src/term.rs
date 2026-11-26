@@ -1,18 +1,21 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! `term`: a lambda-term checked, a term of a type found, and a type's
-//! terms listed and counted.
+//! `term`: a lambda-term checked, reduced and typed at its principal
+//! type, a term of a type found, and a type's terms listed and counted.
 
 use crate::argument_parsing::{
-    AnswerFormat, CalculusArg, EnumerateArgs, InhabitArgs, TermCheckArgs, TermCommand,
+    AnswerFormat, EnumerateArgs, InhabitArgs, TermCheckArgs, TermCommand, TermInferArgs,
+    TermReduceArgs,
 };
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::{Status, catch_interrupt, interrupted, io};
 use anyhow::Result;
-use deduxit::lambda::{self, Calculus, Count, InhabitOptions, Inhabitation, Term};
+use deduxit::lambda::{
+    self, Calculus, Count, End, InhabitOptions, Inhabitation, Notation, ReduceOptions, Term,
+};
 use deduxit::{Error, Limits, Refusal};
 use std::fmt::Write;
 use std::time::Instant;
@@ -25,6 +28,8 @@ use std::time::Instant;
 pub(crate) fn run(command: &TermCommand, given: &Given) -> Result<Status> {
     match command {
         TermCommand::Check(args) => check(args),
+        TermCommand::Reduce(args) => reduce(args, given),
+        TermCommand::Infer(args) => infer(args),
         TermCommand::Inhabit(args) => inhabit(args, given),
         TermCommand::Enumerate(args) => enumerate(args, given),
     }
@@ -41,46 +46,32 @@ pub(crate) fn run(command: &TermCommand, given: &Given) -> Result<Status> {
 fn check(args: &TermCheckArgs) -> Result<Status> {
     let settings = args.settings()?;
     let limits = settings.limits;
-    let text = match (&args.term, &args.file) {
-        (Some(term), _) => term.clone(),
-        (None, file) => io::read(
-            Some(file.as_deref().unwrap_or_else(|| std::path::Path::new("-"))),
-            "term",
-            limits.memory_bytes,
-        )?,
-    };
-    let calculus = match args.calculus {
-        CalculusArg::Simple => Calculus::Simple,
-        CalculusArg::Linear => Calculus::Linear,
-        CalculusArg::Affine => Calculus::Affine,
-    };
+    let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
+    let calculus = Calculus::from(args.calculus);
+    let words = Words::of(calculus);
     let checked = Term::parse(&text, calculus, &limits)
         .and_then(|term| term.check(&limits, |_| false).map(|typing| (term, typing)));
     let (term, typing) = match checked {
         Ok(checked) => checked,
         Err(error @ Error::IllTyped { .. }) => {
-            let out = match args.format {
-                AnswerFormat::Text => format!("ill typed: {}", reason(&error)),
-                AnswerFormat::Json => serde_json::to_string(&IllTyped {
-                    version: TERM_LEVEL,
-                    deduxit: env!("CARGO_PKG_VERSION"),
-                    verdict: "ill_typed",
-                    error: &error,
-                })?,
-            };
-            io::write(args.output.as_deref(), &out)?;
-            return Ok(Status::No);
+            return refuse(
+                &error,
+                calculus,
+                words.no,
+                args.format,
+                args.output.as_deref(),
+            );
         }
         Err(error) => return Err(error.into()),
     };
     let judgement = judgement(&term, &settings.lambda, &limits)?;
     let out = match args.format {
-        AnswerFormat::Text => format!("well typed\n{judgement}"),
+        AnswerFormat::Text => format!("{}\n{judgement}", words.yes),
         AnswerFormat::Json => serde_json::to_string(&WellTyped {
             term: &term,
             deduxit: env!("CARGO_PKG_VERSION"),
-            verdict: "well_typed",
-            typing: &typing,
+            verdict: &words.yes.replace(' ', "_"),
+            typing: calculus.is_typed().then_some(&typing),
             judgement: &judgement,
         })?,
     };
@@ -88,9 +79,84 @@ fn check(args: &TermCheckArgs) -> Result<Status> {
     Ok(Status::Yes)
 }
 
-/// The wire level of a lambda-term's form, which `term check`'s records
-/// carry.
-const TERM_LEVEL: u32 = 23;
+/// The words of `term check`'s verdicts in a calculus.
+struct Words {
+    /// The verdict on a term the calculus accepts.
+    yes: &'static str,
+    /// The verdict on a term it refuses.
+    no: &'static str,
+}
+
+impl Words {
+    /// Returns the words of a calculus: a typed term is well typed, an
+    /// untyped one well formed.
+    const fn of(calculus: Calculus) -> Self {
+        if calculus.is_typed() {
+            Self {
+                yes: "well typed",
+                no: "ill typed",
+            }
+        } else {
+            Self {
+                yes: "well formed",
+                no: "ill formed",
+            }
+        }
+    }
+}
+
+/// Returns a term's text: the argument, else the file, else standard
+/// input, read within the memory limit.
+///
+/// # Errors
+///
+/// A file or standard input that cannot be read.
+fn term_text(
+    term: Option<&String>,
+    file: Option<&std::path::Path>,
+    limits: &Limits,
+) -> Result<String> {
+    Ok(match term {
+        Some(term) => term.clone(),
+        None => io::read(
+            Some(file.unwrap_or_else(|| std::path::Path::new("-"))),
+            "term",
+            limits.memory_bytes,
+        )?,
+    })
+}
+
+/// Writes the answer on a term that `verdict` refuses, with the reason,
+/// and returns no.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+fn refuse(
+    error: &Error,
+    calculus: Calculus,
+    verdict: &str,
+    format: AnswerFormat,
+    output: Option<&std::path::Path>,
+) -> Result<Status> {
+    let out = match format {
+        AnswerFormat::Text => format!("{verdict}: {}", reason(error)),
+        AnswerFormat::Json => serde_json::to_string(&IllTyped {
+            version: level(calculus),
+            deduxit: env!("CARGO_PKG_VERSION"),
+            verdict: &verdict.replace(' ', "_"),
+            error,
+        })?,
+    };
+    io::write(output, &out)?;
+    Ok(Status::No)
+}
+
+/// Returns the wire level of a term of `calculus`, which the records of
+/// `term` carry: 23 for a typed term, 30 for an untyped one.
+const fn level(calculus: Calculus) -> u32 {
+    if calculus.is_typed() { 23 } else { 30 }
+}
 
 /// `term check`'s record of a well-typed term: the term's document, its
 /// keys first, so that the record reads back as the term.
@@ -101,10 +167,11 @@ struct WellTyped<'a> {
     term: &'a Term,
     /// The crate's version, which wrote the record.
     deduxit: &'static str,
-    /// `well_typed`.
-    verdict: &'static str,
-    /// The type of every node.
-    typing: &'a lambda::Typing,
+    /// `well_typed`, `well_formed` or `principal_type`.
+    verdict: &'a str,
+    /// The type of every node, none for an untyped term.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    typing: Option<&'a lambda::Typing>,
     /// The judgement with every type.
     judgement: &'a str,
 }
@@ -116,8 +183,8 @@ struct IllTyped<'a> {
     version: u32,
     /// The crate's version, which wrote the record.
     deduxit: &'static str,
-    /// `ill_typed`.
-    verdict: &'static str,
+    /// `ill_typed`, `ill_formed` or `no_simple_type`.
+    verdict: &'a str,
     /// Why, as the library writes an error.
     error: &'a Error,
 }
@@ -140,6 +207,190 @@ fn judgement(term: &Term, options: &lambda::Options, limits: &Limits) -> Result<
     let mut text = String::new();
     term.write_judgement(&mut text, &options.with_types(true), limits, |_| false)?;
     Ok(text)
+}
+
+/// Runs `term reduce`: reads a term, reduces it step by step, and prints
+/// each term with its redex and how the reduction ended. Returns yes at
+/// the normal form and at a bound of steps given, no for a term its
+/// calculus refuses, unknown at any other end.
+///
+/// # Errors
+///
+/// An input that cannot be read or parsed, an output that cannot be
+/// written, a defect the check of a step found.
+fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
+    catch_interrupt();
+    let settings = args.settings()?;
+    let limits = settings.limits;
+    let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
+    let calculus = Calculus::from(args.calculus);
+    let term = match Term::parse(&text, calculus, &limits) {
+        Ok(term) => term,
+        Err(error @ Error::IllTyped { .. }) => {
+            let no = Words::of(calculus).no;
+            return refuse(&error, calculus, no, args.format, args.output.as_deref());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let options = ReduceOptions::default()
+        .with_strategy(args.strategy.into())
+        .with_steps(args.steps.0)
+        .with_nodes(args.node_limit.0);
+    let print = settings.lambda;
+    let beta = match print.notation {
+        Notation::Ascii => "beta",
+        _ => "β",
+    };
+    let mut lines = String::new();
+    let mut failed = None;
+    let reduced = on_large_stack(limits.stack_bytes(), || {
+        term.reduce(
+            &options,
+            &limits,
+            |_| interrupted(),
+            |before, step| {
+                let mut text = String::new();
+                match before.write_marked(&mut text, step.redex, &print, &limits, |_| false) {
+                    Ok(span) => {
+                        let _ = writeln!(lines, "{text}\n  {beta}: {}", &text[span]);
+                    }
+                    Err(error) => failed = failed.take().or(Some(error)),
+                }
+            },
+        )
+    })?;
+    let reduced = match reduced {
+        Ok(reduced) => reduced,
+        Err(error @ Error::IllTyped { .. }) => {
+            let no = Words::of(calculus).no;
+            return refuse(&error, calculus, no, args.format, args.output.as_deref());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    if let Some(error) = failed {
+        return Err(error.into());
+    }
+    let mut reached = String::new();
+    reduced
+        .term
+        .write(&mut reached, &print, &limits, |_| false)?;
+    let steps = match reduced.steps.len() {
+        1 => "1 step".to_owned(),
+        n => format!("{n} steps"),
+    };
+    let (status, end) = match &reduced.end {
+        End::NormalForm => (Status::Yes, format!("normal form after {steps}")),
+        End::Steps { limit, .. } => (
+            if given.has("steps") {
+                Status::Yes
+            } else {
+                Status::Unknown
+            },
+            format!(
+                "not finished after {steps}: the bound of {} was reached; --steps allows more",
+                if *limit == 1 {
+                    "1 step".to_owned()
+                } else {
+                    format!("{limit} steps")
+                }
+            ),
+        ),
+        End::Nodes { limit, .. } => (
+            Status::Unknown,
+            format!(
+                "not finished after {steps}: the next step would make a term of more than \
+                 {limit} nodes; --node-limit allows more"
+            ),
+        ),
+        End::Refused(refusal) => (
+            Status::Unknown,
+            format!("not finished after {steps}: {}", refused_why(refusal)),
+        ),
+        _ => (Status::Unknown, format!("not finished after {steps}")),
+    };
+    let out = match args.format {
+        AnswerFormat::Text => format!("{lines}{reached}\n{end}"),
+        AnswerFormat::Json => serde_json::to_string(&Reduced {
+            reduction: &reduced,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            text: &reached,
+        })?,
+    };
+    io::write(args.output.as_deref(), &out)?;
+    Ok(status)
+}
+
+/// Says why a bound or the stop ended a call, with the flag that lifts
+/// the bound.
+fn refused_why(refusal: &Refusal) -> String {
+    let flag = match refusal.setting() {
+        Some("limits.memory_bytes") => "; raise it with --settings (limits.memory_bytes)",
+        Some("limits.work") => "; raise it with --settings (limits.work)",
+        _ => "",
+    };
+    if refusal.is_stop() {
+        "interrupted".to_owned()
+    } else {
+        format!("{refusal}{flag}")
+    }
+}
+
+/// `term reduce`'s record: the library's document, then the writer and
+/// the term reached as text.
+#[derive(serde::Serialize)]
+struct Reduced<'a> {
+    /// The reduction.
+    #[serde(flatten)]
+    reduction: &'a lambda::Reduction,
+    /// The crate's version, which wrote the record.
+    deduxit: &'static str,
+    /// The term reached.
+    text: &'a str,
+}
+
+/// Runs `term infer`: reads an untyped term and prints it typed at its
+/// principal type, or why it has no simple type. Returns yes for a term
+/// with a type, no for one without.
+///
+/// # Errors
+///
+/// An input that cannot be read or parsed, a typed calculus, a limit, an
+/// output that cannot be written.
+fn infer(args: &TermInferArgs) -> Result<Status> {
+    let settings = args.settings()?;
+    let limits = settings.limits;
+    let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
+    let calculus = Calculus::from(args.calculus);
+    let term = Term::parse(&text, calculus, &limits)?;
+    // A term its calculus refuses is ill formed; only then is a failure
+    // of the inference that the term has no simple type.
+    let typed = match term
+        .check(&limits, |_| false)
+        .map_err(|error| (error, Words::of(calculus).no))
+        .and_then(|_| {
+            term.principal_type(&limits, |_| false)
+                .map_err(|error| (error, "no simple type"))
+        }) {
+        Ok(typed) => typed,
+        Err((error @ Error::IllTyped { .. }, no)) => {
+            return refuse(&error, calculus, no, args.format, args.output.as_deref());
+        }
+        Err((error, _)) => return Err(error.into()),
+    };
+    let typing = typed.check(&limits, |_| false)?;
+    let judgement = judgement(&typed, &settings.lambda, &limits)?;
+    let out = match args.format {
+        AnswerFormat::Text => format!("principal type\n{judgement}"),
+        AnswerFormat::Json => serde_json::to_string(&WellTyped {
+            term: &typed,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            verdict: "principal_type",
+            typing: Some(&typing),
+            judgement: &judgement,
+        })?,
+    };
+    io::write(args.output.as_deref(), &out)?;
+    Ok(Status::Yes)
 }
 
 /// Runs `term inhabit`: decides whether the type has a term, and prints

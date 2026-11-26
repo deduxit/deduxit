@@ -191,11 +191,19 @@ run clause_resolution-first-order-saturated 3 "$deduxit" resolve "${t[@]}" --for
 run clause_resolution-paramodulation 0 "$deduxit" resolve "${t[@]}" --format json 'a = b, p(a) |- p(b)'
 run herbrand-valid 0 "$deduxit" herbrand "${t[@]}" --format json '|- exists x. (p(x) -> forall y. p(y))'
 run herbrand-unknown 3 "$deduxit" herbrand "${t[@]}" --depth 1 --format json 'forall x. (p(x) -> p(f(x))) |- p(a)'
-# Lambda-terms: a term checked, well typed and not; a type with a term
+# Lambda-terms: a term checked, well typed and not, typed and untyped; an
+# untyped term typed at its principal type, and one with none; a term
+# reduced to its normal form, and one not finished; a type with a term
 # and one without; a type's terms counted exactly, infinitely many, and
 # at least as many as a shallow search met.
 run lambda_typing-check 0 "$deduxit" term check --format json '\f:a -> b. \x:a. f x'
 run lambda_ill_typed-check 1 "$deduxit" term check --format json '\x:a. x x'
+run lambda_typing-untyped 0 "$deduxit" term check --calculus untyped --format json 'x (\y. y)'
+run lambda_ill_typed-untyped 1 "$deduxit" term check --calculus untyped-linear --format json '\x. x x'
+run lambda_typing-principal 0 "$deduxit" term infer --format json '\f. \x. f (f x)'
+run lambda_ill_typed-no-simple-type 1 "$deduxit" term infer --format json '\x. x x'
+run lambda_reduction-normal 0 "$deduxit" term reduce --format json '(\x. \y. x) y (\z. z)'
+run lambda_reduction-unfinished 3 "$deduxit" term reduce --format json '(\x. x x) (\x. x x)'
 run lambda_inhabitation-inhabited 0 "$deduxit" term inhabit "${t[@]}" --format json 'a /\ b -> b /\ a'
 run lambda_inhabitation-empty 1 "$deduxit" term inhabit "${t[@]}" --format json '((a -> b) -> a) -> a'
 run lambda_inhabitants-exactly 0 "$deduxit" term enumerate "${t[@]}" --format json 'a -> a -> a'

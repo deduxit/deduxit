@@ -229,7 +229,7 @@ impl ReadBack<'_> {
             .pop()
             .ok_or_else(|| unreadable(root, "the root has no term"))?;
         let builder = std::mem::replace(&mut self.builder, Builder::new());
-        Ok(builder.finish(Calculus::Simple, context, goal, root))
+        Ok(builder.finish(Calculus::Simple, context, Some(goal), root))
     }
 
     /// Returns the node a `Make` makes of the terms read last, `None`

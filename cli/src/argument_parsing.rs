@@ -638,7 +638,7 @@ impl Command {
             | Command::Eliminate(_)
             | Command::Workspace { .. }
             | Command::Term {
-                command: TermCommand::Check(_),
+                command: TermCommand::Check(_) | TermCommand::Reduce(_) | TermCommand::Infer(_),
             } => None,
         }
     }
@@ -1953,13 +1953,52 @@ pub(crate) enum TermCommand {
     /// the term's. The chapter "Proofs as programs" of the manual has the
     /// syntax.
     ///
-    /// The command prints `well typed` and the judgement with every type,
-    /// or `ill typed` and why, with exit status 1. With `--format json`
-    /// the answer is the term's own document, then `deduxit`, `verdict`,
-    /// `typing` (the type of every node) and `judgement`, so that it reads
-    /// back as the term; or `{"version", "deduxit", "verdict": "ill_typed",
-    /// "error"}`.
+    /// In an untyped calculus (--calculus untyped, untyped-linear or
+    /// untyped-affine) a term has variables, λ and application alone, such
+    /// as `\x. x x`, and the check is that it uses its variables as the
+    /// calculus allows; names no λ binds are free variables.
+    ///
+    /// The command prints `well typed` (`well formed` for an untyped
+    /// term) and the judgement with every type, or `ill typed` (`ill
+    /// formed`) and why, with exit status 1. With `--format json` the
+    /// answer is the term's own document, then `deduxit`, `verdict`,
+    /// `typing` (the type of every node, none for an untyped term) and
+    /// `judgement`, so that it reads back as the term; or `{"version",
+    /// "deduxit", "verdict": "ill_typed", "error"}` (`ill_formed`).
     Check(TermCheckArgs),
+    /// Reduce a lambda-term step by step by β
+    ///
+    /// Each step replaces a redex (λx. M) N by M with N in place of x,
+    /// renaming a λ where it would take in a free variable of its name.
+    /// The command prints each term, the redex its step reduces after `β:`,
+    /// and the term reached. An untyped term need not have a normal form,
+    /// such as (λx. x x) (λx. x x): the reduction then ends at --steps,
+    /// not finished. The term is untyped by default; --calculus names
+    /// another, and a typed term keeps its type at every step.
+    ///
+    /// The exit status is 0 at the normal form, and at a --steps given; 1
+    /// for a term its calculus refuses; 3 at the default bound of steps,
+    /// at --node-limit and at a limit. With `--format json` the answer is
+    /// `{"version", "strategy", "term", "steps", "end", "deduxit",
+    /// "text"}`: the term reached, each step's `redex` (a node of the term
+    /// the step was taken on), `end` `normal_form`, `steps` or `nodes`
+    /// with the `limit`, or `refused` with the `reason`, and the term
+    /// reached as text.
+    Reduce(TermReduceArgs),
+    /// Find the principal simple type of an untyped lambda-term
+    ///
+    /// The term's variables, λs and applications give equations between
+    /// types, which unification solves in the most general way: every
+    /// simple type of the term is an instance of the one printed, whose
+    /// type variables are a, b, c, … The command prints `principal type`
+    /// and the term with every λ typed, as `term check` reads it, or `no
+    /// simple type` and the equation that cannot hold, with exit status 1,
+    /// such as for `\x. x x`.
+    ///
+    /// With `--format json` the answer is `term check`'s for the typed
+    /// term, its verdict `principal_type`; or `{"version", "deduxit",
+    /// "verdict": "no_simple_type", "error"}`.
+    Infer(TermInferArgs),
     /// Find a term of a type, or show that it has none
     ///
     /// The type is a formula of ordinary logic, such as `a -> b -> a`; the
@@ -2006,7 +2045,7 @@ pub(crate) struct TermCheckArgs {
     #[arg(help_heading = INPUT, short, long, value_name = "PATH")]
     pub(crate) file: Option<PathBuf>,
     /// The calculus: simple (any number of uses), linear (every variable
-    /// used once) or affine (at most once)
+    /// used once) or affine (at most once), or one of them untyped
     #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Simple)]
     pub(crate) calculus: CalculusArg,
     /// The output format: text, or json for the term, its typing and the
@@ -2036,6 +2075,131 @@ pub(crate) enum CalculusArg {
     Linear,
     /// The affine lambda calculus
     Affine,
+    /// The untyped lambda calculus
+    Untyped,
+    /// The untyped linear lambda calculus
+    UntypedLinear,
+    /// The untyped affine lambda calculus
+    UntypedAffine,
+}
+
+impl From<CalculusArg> for deduxit::lambda::Calculus {
+    /// Returns the calculus the value names.
+    fn from(calculus: CalculusArg) -> Self {
+        match calculus {
+            CalculusArg::Simple => Self::Simple,
+            CalculusArg::Linear => Self::Linear,
+            CalculusArg::Affine => Self::Affine,
+            CalculusArg::Untyped => Self::Untyped,
+            CalculusArg::UntypedLinear => Self::UntypedLinear,
+            CalculusArg::UntypedAffine => Self::UntypedAffine,
+        }
+    }
+}
+
+/// A strategy of β-reduction.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StrategyArg {
+    /// The leftmost outermost redex, which reaches a normal form whenever
+    /// there is one
+    NormalOrder,
+    /// The leftmost innermost redex: an argument is reduced before the
+    /// function takes it
+    ApplicativeOrder,
+}
+
+impl From<StrategyArg> for deduxit::lambda::Strategy {
+    /// Returns the strategy the value names.
+    fn from(strategy: StrategyArg) -> Self {
+        match strategy {
+            StrategyArg::NormalOrder => Self::NormalOrder,
+            StrategyArg::ApplicativeOrder => Self::ApplicativeOrder,
+        }
+    }
+}
+
+/// The arguments of `term reduce`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TermReduceArgs {
+    /// The term, such as "(\\x. x) y"; without it, the term is read from
+    /// --file, or from standard input
+    #[arg(value_name = "TERM", conflicts_with = "file")]
+    pub(crate) term: Option<String>,
+    /// Read the term from this file, or from standard input with `-`
+    #[arg(help_heading = INPUT, short, long, value_name = "PATH")]
+    pub(crate) file: Option<PathBuf>,
+    /// The calculus: untyped (any number of uses), untyped-linear (every
+    /// variable used once), untyped-affine (at most once), or one of them
+    /// typed: simple, linear, affine
+    #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Untyped)]
+    pub(crate) calculus: CalculusArg,
+    /// Which redex each step reduces
+    #[arg(help_heading = SEARCH, long, value_enum, value_name = "STRATEGY", default_value_t = StrategyArg::NormalOrder)]
+    pub(crate) strategy: StrategyArg,
+    /// The most steps to take, or `none`
+    ///
+    /// Past it, the term reached is printed with the redexes it still
+    /// has. The exit status is then 0 for a bound given here, and 3 for
+    /// the default, which only keeps the call bounded.
+    #[arg(help_heading = SEARCH, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::lambda::ReduceOptions::DEFAULT_STEPS)))]
+    pub(crate) steps: Count<u64>,
+    /// The most nodes a term a step makes may have, or `none`
+    ///
+    /// A step may copy its argument many times. A step that would pass
+    /// the limit is not taken, and the term reached is printed (exit
+    /// status 3).
+    #[arg(help_heading = SEARCH, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(deduxit::lambda::ReduceOptions::DEFAULT_NODES)))]
+    pub(crate) node_limit: Count<u64>,
+    /// The output format: text, or json for the term reached and the
+    /// steps
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+    pub(crate) format: AnswerFormat,
+    /// Write to this file instead of standard output
+    #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
+    pub(crate) output: Option<PathBuf>,
+    /// Read the settings from a JSON file
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. `lambda` picks the notation
+    /// (lambda.notation) and `limits` bounds the term read, each check
+    /// and the steps' work; the others are read and not used. A misspelt
+    /// field is an error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
+}
+
+/// The arguments of `term infer`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TermInferArgs {
+    /// The term, such as "\\f. \\x. f x"; without it, the term is read
+    /// from --file, or from standard input
+    #[arg(value_name = "TERM", conflicts_with = "file")]
+    pub(crate) term: Option<String>,
+    /// Read the term from this file, or from standard input with `-`
+    #[arg(help_heading = INPUT, short, long, value_name = "PATH")]
+    pub(crate) file: Option<PathBuf>,
+    /// The calculus the term is read in: untyped, untyped-linear or
+    /// untyped-affine
+    #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Untyped)]
+    pub(crate) calculus: CalculusArg,
+    /// The output format: text, or json for the typed term, its typing
+    /// and the judgement
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+    pub(crate) format: AnswerFormat,
+    /// Write to this file instead of standard output
+    #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
+    pub(crate) output: Option<PathBuf>,
+    /// Read the settings from a JSON file
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. `lambda` picks the notation
+    /// (lambda.notation) and `limits` bounds the term read, the inference
+    /// and the check; the others are read and not used. A misspelt field
+    /// is an error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
 }
 
 /// The arguments of `term inhabit`.

@@ -328,7 +328,7 @@ impl ReadBack<'_, '_> {
             Calculus::Linear
         };
         let builder = std::mem::replace(&mut self.builder, Builder::new());
-        Ok(builder.finish(calculus, context, goal, root))
+        Ok(builder.finish(calculus, context, Some(goal), root))
     }
 
     /// Returns the node a `Make` makes of the terms read last.

@@ -23,6 +23,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   no eigenvariable is fresh now says "the proof has made as many
   eigenvariables as it can number" in both sessions, and a given
   witness outside the goal's scope names its eigenvariable.
+- **A lambda-term's types are optional.** `lambda::Variable::ty`,
+  `lambda::Term::goal` and `lambda::Typing::ty` return `Option<TypeId>`,
+  `None` in a term of an untyped calculus. A typed term has every type,
+  so `.expect(…)` or `?` on an `Option` keeps a program that reads typed
+  terms as it was.
+- **The wire level is 30.** An untyped lambda-term and a term's
+  reduction are written at it; a reader of 0.8.0 refuses them by their
+  level.
 
 ### Added
 
@@ -48,6 +56,29 @@ second number (0.1.x to 0.2.0), anything else the third.
   derivation that Herbrand's theorem builds. `hint` gives a `∀L` or
   `∃R` its witness where the goal holds the term, and
   `ordinary::Interactive::term_text` writes it as text `witness` reads.
+- Untyped lambda-terms: `lambda::Calculus::Untyped`, `UntypedLinear`
+  and `UntypedAffine`, whose terms have variables, `λx. M` and `M N`
+  without types. `Term::parse` reads them (`\x. x x`, free variables
+  with or without `x, y ⊢` before the term), and `Term::check` checks
+  how often they use their variables, with the reason when they do not.
+  `term check --calculus untyped` (and `untyped-linear`,
+  `untyped-affine`) checks one.
+- `Term::reduce`: β-reduction of a typed or an untyped term, one step at
+  a time, each step's redex named, under `lambda::ReduceOptions` (the
+  `Strategy`, normal order by default or applicative order, and bounds on
+  steps and on a term's nodes). It ends at the normal form or, at a
+  bound, not finished (`lambda::End`), since an untyped term need not
+  have a normal form; every term it reaches is checked. `Term::write_marked`
+  writes a term and says where a subterm's text stands, and
+  `Strategy::pick` names the next redex. The command `term reduce`
+  prints each step.
+- `Term::principal_type`: an untyped term's principal simple type by
+  unification, as the term typed at it and checked, or why it has none
+  (a type that would contain itself). The command `term infer` prints
+  it.
+- The protocol's operations `lambda.reduce` and `lambda.infer`, with
+  the kind `lambda.reduction` and the promises `reduces` and
+  `principal`.
 
 ### Changed
 

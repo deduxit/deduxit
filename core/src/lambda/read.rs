@@ -23,12 +23,12 @@ pub(crate) struct Parts {
     pub(crate) atoms: Vec<String>,
     /// The types, operands first.
     pub(crate) types: Vec<Type>,
-    /// Each variable's type and name.
-    pub(crate) variables: Vec<(TypeId, String)>,
+    /// Each variable's type, none in an untyped term, and name.
+    pub(crate) variables: Vec<(Option<TypeId>, String)>,
     /// The variables of the hypotheses.
     pub(crate) context: Vec<VarId>,
-    /// The term's type.
-    pub(crate) goal: TypeId,
+    /// The term's type, none in an untyped term.
+    pub(crate) goal: Option<TypeId>,
     /// The nodes, operands first.
     pub(crate) nodes: Vec<Node>,
     /// The whole term.
@@ -145,6 +145,20 @@ impl Term {
         if count >= u64::from(u32::MAX) {
             return Err(malformed("it has 2³² parts or more".to_owned()));
         }
+        // A typed term has every type, an untyped one none.
+        let typed = calculus.is_typed();
+        if !typed && (!atoms.is_empty() || !types.is_empty()) {
+            return Err(malformed(
+                "an untyped term has no atoms and no types".to_owned(),
+            ));
+        }
+        if goal.is_some() != typed || variables.iter().any(|(ty, _)| ty.is_some() != typed) {
+            return Err(malformed(if typed {
+                "a typed term gives its `goal` and every variable's `type`".to_owned()
+            } else {
+                "an untyped term gives no `goal` and no variable's `type`".to_owned()
+            }));
+        }
         // The atoms, one index per name: `merged` maps the document's
         // index. A name is composed as the parsers compose it, so that
         // two spellings of one name are one atom.
@@ -210,7 +224,7 @@ impl Term {
                     )));
                 }
                 Ok(Variable {
-                    ty: known(ty, "a variable")?,
+                    ty: ty.map(|ty| known(ty, "a variable")).transpose()?,
                     name: name::normalized(&name).into(),
                 })
             })
@@ -263,7 +277,7 @@ impl Term {
         Ok(Self {
             calculus,
             atoms: names,
-            goal: known(goal, "`goal`")?,
+            goal: goal.map(|goal| known(goal, "`goal`")).transpose()?,
             types: interned.list,
             variables,
             context,
