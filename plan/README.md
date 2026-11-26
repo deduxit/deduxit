@@ -110,6 +110,10 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 78 | Equality and first-order resolution: `=` as axioms in the image first, and a native rule only where measurement asks for it (more-logics-1); resolution with unification step by step, factoring and a refutation checker at teaching scale (resolution-2); TPTP `cnf` input and SZS status lines (resolution-4, interop-5) (three to four sessions) | `78-equality-resolution.md` (written 2026-11-22, beside 76 and 77) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 70, 75 (77a's clausal form for resolution only) |
 | 79 | The page rebuilt to the author's redesign (`design/redesign.md` in the client), first order on it: the frame, proving by hand, first order, the other views, export, packs and settings (five sessions, 79a to 79e, in the client; 79c adds a bindings call); Learn and Practice wait for a later step | `79-page-redesign.md` (written 2026-11-25 from the settled redesign) | Opus 5.5; `fresh-reviewer` per session | high | 63, 76, 77, the redesign |
 | 80 | The release of 0.8.0 (one session) | `80-release-0.8.0.md` (written 2026-11-23, at the review of 78) | Opus 5.5 | high | 74, 75, 76, 77, 78 (79 after 0.8.0: the author holds the website) |
+| 81 | Every candidate rule with its reason, in every suite, and a step's term written out; the page's popover and an ordinary replay take them (one session, deduxit then the client) | `81-interactive-api.md` (written 2026-11-26, at the author's review of 79) | Opus 5.5; `fresh-reviewer` | high | 79 |
+| 82 | A first-order goal closed by proof search with a checked derivation, or refuted by a finite countermodel, in the goal state; the page proves first-order goals (one session) | `82-first-order-close.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 75, 76, 79, 81 (the same files) |
+| 83 | Natural deduction proofs found through cut-free sequent proofs translated and checked; natural deduction's goal menu whole on the page (one session) | `83-natural-deduction-search.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 79, 82 (the same files) |
+| 84 | Untyped lambda calculi beside the typed ones, a β stepper and principal types; the page's "Untyped" active (one session) | `84-untyped-lambda.md` (written 2026-11-26) | Opus 5.5; `fresh-reviewer` | high | 71, 79 (its client part after 83's) |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -8509,3 +8513,16 @@ move (D26).
   (the logics two by two below 51rem) with every departure of 79a to 79e, in "Before approving the
   page" of `plan/reports/79-page-redesign.md`. Nothing further is started on the page until the
   author has looked.
+- 2026-11-26, about 08:30: **The author approves the page; step 79 done.** The client's `main`
+  pushed to `ynvuuuyn` (a fast-forward from `tnvosplw`'s successor `deefed62`), its CI and Pages
+  deploy started (run 45779545265). The author's answers to the departures are in step 79's prompt,
+  "The author's review": the chip's close stands; natural deduction gets a search through translated
+  sequent proofs (step 83); a first-order goal is closed the idiomatic way, proof search then a
+  countermodel (step 82); Steps by the idiomatic naming, "Use its proof" up to the order of formulas,
+  and the automatic search naming its engine (fixup-29); "+ view"'s fifth group asked again; every
+  other departure stands. The three library wishes, "do all of them": steps 81 (every candidate rule
+  with its reason, a step's term written out) and 84 (untyped lambda calculi). Steps 81 to 84
+  written and added to the table. **Housekeeping**: six workspaces of ended sessions removed (deduxit
+  `wt-step-54s-c1`, `58a`, `58b`, `78a`, `fixup-27`; the client's `wt-redesign-291b11`), each holding
+  only build caches (about 550 GB). The client's freeze ends: its work goes to its `main` after
+  review, as deduxit's does.

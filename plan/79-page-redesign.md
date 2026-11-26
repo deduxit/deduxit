@@ -320,6 +320,31 @@ Boards D10, D16, D17, D18, N1 to N10.
   "goes back to the last goal still valid", 79c's witness target walk):
   fixed at their cause, none by a retry or a longer timeout.
 
+## The author's review (2026-11-26)
+
+The author approved the page as built (fixup-28's head `ynvuuuyn`,
+pushed to the client's `main` and deployed that day) and answered the
+departures of "Before approving the page":
+- **Closing a chip** (the planning session's decision): "lgtm".
+- **The fragment no longer shown**: fine; the automatic search should
+  say which engine it used (fixup-29).
+- **Natural deduction's `?` with Prove apart alone**: "add a search to
+  the library (or a translation from sequent proofs to natural
+  deduction/Fitch proofs)" (step 83).
+- **A first-order goal refuted but never proved by the search**: "do
+  what is most idiomatic" (step 82).
+- **Steps naming a step by its goal number**: "do what is most idiomatic
+  in the literature" (fixup-29).
+- **"Use its proof" for the proof made apart from that goal only**: "is
+  it possible to get that as well? maybe as long as no unification is
+  necessary" (fixup-29: any proof made apart whose sequent is the goal's
+  up to the order of its formulas).
+- **"+ view"'s fifth group**: asked again in plain words; open.
+- Every other departure stands as built.
+- The three library wishes the page left (every candidate rule with its
+  reason, a step's term written out, untyped lambda calculi): "do all
+  of them" (steps 81 and 84).
+
 ## Deliverables
 
 The client's commits on the redesign's chain, deduxit's commits of 79c
