@@ -31,7 +31,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   whether a step of it is legal on the goal now (`Status::Applies`,
   `NeedsInput` with what it takes, or `Refused` with the error `apply`
   returns). It judges legal steps only, never whether a goal can be
-  closed, and costs at most one `apply` per rule.
+  closed, and costs at most one `apply` per rule, in a calculus given
+  as data one per choice of the members a rule acts on.
 - `ordinary::Interactive::opened_term`: a quantifier step's term as text
   that `witness` reads back, so that a program that keeps the steps can
   take them again with their witnesses.
