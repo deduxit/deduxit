@@ -316,14 +316,24 @@ impl Term {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Self, Error> {
+        self.principal_type_in(limits, &mut stop)
+    }
+
+    /// Returns the principal type as [`principal_type`](Self::principal_type)
+    /// does, the stop a trait object, so that the body is compiled once.
+    fn principal_type_in(
+        &self,
+        limits: &Limits,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<Self, Error> {
         if self.calculus.is_typed() {
             return Err(Error::NotApplicable {
                 operation: "the principal type".into(),
                 reason: "the term is typed: its `λ`s give its type".to_owned(),
             });
         }
-        self.check(limits, &mut stop)?;
-        let mut budget = budget(limits, &mut stop);
+        self.check(limits, &mut *stop)?;
+        let mut budget = budget(limits, stop);
         let (tree, origin) = match copied(self, None, None, &mut budget) {
             Ok(copy) => copy,
             Err(Halt::Refused(refusal)) => return Err(Error::Refused(refusal)),

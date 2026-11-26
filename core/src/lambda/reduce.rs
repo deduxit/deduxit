@@ -672,8 +672,20 @@ impl Term {
         mut stop: impl FnMut(Progress) -> bool,
         mut each: impl FnMut(&Self, &Step),
     ) -> Result<Reduction, Error> {
-        self.check(limits, &mut stop)?;
-        let mut budget = budget(limits, &mut stop);
+        self.reduce_in(options, limits, &mut stop, &mut each)
+    }
+
+    /// Reduces the term as [`reduce`](Self::reduce) does, the stop and
+    /// the callback as trait objects, so that the body is compiled once.
+    fn reduce_in(
+        &self,
+        options: &ReduceOptions,
+        limits: &Limits,
+        stop: &mut dyn FnMut(Progress) -> bool,
+        each: &mut dyn FnMut(&Self, &Step),
+    ) -> Result<Reduction, Error> {
+        self.check(limits, &mut *stop)?;
+        let mut budget = budget(limits, stop);
         let mut steps = Vec::new();
         let ended = |term: Self, steps: Vec<Step>, end: End| Reduction {
             strategy: options.strategy,
