@@ -8535,3 +8535,18 @@ move (D26).
   checking only, after 84. **The author starts 82 to 85 from the first account**: no new step from
   here. `plan/notes/handoff-2026-11-26.md` hands the planning session back (what runs, what is
   written, what waits).
+- 2026-11-26, about 09:15: **No suite is the main one** (the author: "linear logic is not the
+  'main' anymore. so don't highlight it particularly"): a bullet of `.claude/rules/writing.md`;
+  README, the manual's "Getting started" and the guide still lead with linear logic, queued as
+  fixup-30 in the handoff note.
+- 2026-11-26, about 09:45: **fixup-29 reviewed, complete; pushed** (`local_c4869735`, 08:40 to
+  09:45; report `mvrymyqk`): Steps names a step by its rule and principal formula ("⊗ on B ⊗ A",
+  thirteen sources read: textbooks label by rule, tools pick by formula, none by goal number); "Use
+  its proof" offered for every proof made apart of the goal's formulas in any order (found by text,
+  eigenvariables by path, no unification; the ordered calculi in the goal's order only); a search's
+  close and Hint name the engine. `fresh-reviewer`: five findings fixed, four questions answered.
+  Checked here: the report against the commits and the client's full `nix flake check` at
+  `xxslynwr` (all 16 checks built for that tree, passed). The client's `main` is `xxslynwr`. Left
+  open: an ordinary first-order proof in another order with other eigenvariable letters stays "Not
+  used"; an ordinary Kripke countermodel names the image's engine, not the SAT solver (a bindings
+  record).
