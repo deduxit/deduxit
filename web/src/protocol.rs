@@ -445,6 +445,16 @@ pub const SUITES: [Speaks; 5] = [
                 does: "checks a term: the type of every subterm, or why it is ill typed",
             },
             Extra {
+                export: "lambda_reduce",
+                takes: &["term", "options", "settings"],
+                does: "reduces a term by β step by step, and marks the next redex",
+            },
+            Extra {
+                export: "lambda_infer",
+                takes: &["term", "settings"],
+                does: "types an untyped term at its principal simple type, or says it has none",
+            },
+            Extra {
                 export: "lambda_read_type",
                 takes: &["input", "settings"],
                 does: "reads a type, a formula of intuitionistic logic",

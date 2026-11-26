@@ -65,3 +65,43 @@ fn a_type_s_terms_are_found_and_counted() {
     let none = lambda::inhabit(&peirce, "").unwrap();
     assert_eq!(value(&none)["verdict"], json!("empty"));
 }
+
+#[wasm_bindgen_test(unsupported = test)]
+fn an_untyped_term_is_reduced_step_by_step_and_typed() {
+    let term = lambda::read(r"(\x. \y. x) (\z. z) w", "untyped", "").unwrap();
+    // No step: the term as it is, its first redex marked.
+    let marked = value(&lambda::reduce(&term, r#"{"steps": 0}"#, "").unwrap());
+    let text = marked["term"]["text"].as_str().unwrap();
+    assert_eq!(text, "(λx. λy. x) (λz. z) w");
+    let utf16: Vec<u16> = text.encode_utf16().collect();
+    let (start, end) = (
+        marked["next"]["start"].as_u64().unwrap() as usize,
+        marked["next"]["end"].as_u64().unwrap() as usize,
+    );
+    assert_eq!(
+        String::from_utf16(&utf16[start..end]).unwrap(),
+        "(λx. λy. x) (λz. z)"
+    );
+    assert_eq!(marked["end"], json!("steps"));
+    // To the end: the normal form, nothing left to mark.
+    let done = value(&lambda::reduce(&term, "", "").unwrap());
+    assert_eq!(done["end"], json!("normal_form"));
+    assert_eq!(done["term"]["text"], json!("λz. z"));
+    assert_eq!(done["next"], Value::Null);
+    // The principal type, and a term without one.
+    let typed = value(&lambda::infer(&term, "").unwrap());
+    assert_eq!(
+        typed["judgement"],
+        json!("w : a ⊢ (λx:(b → b). λy:a. x) (λz:b. z) w : b → b")
+    );
+    let twice = lambda::read(r"\x. x x", "untyped", "").unwrap();
+    assert_eq!(
+        code(lambda::infer(&twice, "").unwrap_err()),
+        json!("ill_typed")
+    );
+    let linear = lambda::read(r"\x. x x", "untyped_linear", "").unwrap();
+    assert_eq!(
+        code(lambda::check(&linear, "").unwrap_err()),
+        json!("ill_typed")
+    );
+}

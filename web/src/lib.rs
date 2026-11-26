@@ -651,6 +651,18 @@ mod exports {
         lambda::export(typing, format, settings).map_err(thrown)
     }
 
+    /// See [`lambda::reduce`].
+    #[wasm_bindgen]
+    pub fn lambda_reduce(term: &str, options: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::reduce(term, options, settings).map_err(thrown)
+    }
+
+    /// See [`lambda::infer`].
+    #[wasm_bindgen]
+    pub fn lambda_infer(term: &str, settings: &str) -> Result<String, JsValue> {
+        lambda::infer(term, settings).map_err(thrown)
+    }
+
     /// See [`lambda::read_type`].
     #[wasm_bindgen]
     pub fn lambda_read_type(text: &str, settings: &str) -> Result<String, JsValue> {

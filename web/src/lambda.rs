@@ -7,15 +7,17 @@
 //! A tab holds a term or a type. A term is a statement, the term's JSON
 //! with the text as typed, which [`read`] writes; [`check`] checks it,
 //! and the checked term's typing derivation is drawn by [`draw`] and
-//! exported by [`export`]. A type is an ordinary statement in
-//! intuitionistic logic, which [`read_type`] writes; [`inhabit`] finds a
-//! term of it or shows it has none, and [`enumerate`] lists and counts
-//! its terms. Each call runs the protocol's operation of that name
-//! (`lambda.check`, …) under the tab's settings.
+//! exported by [`export`]. A term is reduced step by step by [`reduce`],
+//! and an untyped one typed at its principal type by [`infer`]. A type is
+//! an ordinary statement in intuitionistic logic, which [`read_type`]
+//! writes; [`inhabit`] finds a term of it or shows it has none, and
+//! [`enumerate`] lists and counts its terms. Each call runs the
+//! protocol's operation of that name (`lambda.check`, …) under the tab's
+//! settings.
 
 use crate::Failure;
 use crate::tab;
-use deduxit::lambda::Term;
+use deduxit::lambda::{ReduceOptions, Term};
 use deduxit::{Progress, Settings, protocol, wire};
 use serde::Deserialize;
 use serde_json::Value;
@@ -39,8 +41,9 @@ fn ran(
 
 /// Returns the statement of a lambda-term typed as `--lambda-types`
 /// prints terms (`\x:a. x`, or a judgement `x : a |- f x`), in
-/// `calculus` (`simple`, `linear` or `affine`): the term's JSON with the
-/// text as typed.
+/// `calculus` (`simple`, `linear` or `affine`), or an untyped term
+/// (`\x. x x`) in `untyped`, `untyped_linear` or `untyped_affine`: the
+/// term's JSON with the text as typed.
 ///
 /// # Errors
 ///
@@ -136,11 +139,7 @@ pub fn read_type(text: &str, settings: &str) -> Result<String, Failure> {
 /// the settings' `lambda` says, as the bindings' `term` call writes a
 /// proof's term.
 fn printed(term: &mut Value, settings: &Settings) -> Result<(), Failure> {
-    let text = term.to_string();
-    let read: Term = wire::upgrade(
-        &mut serde_json::Deserializer::from_str(&text),
-        &settings.limits,
-    )?;
+    let read = read_term(term, settings)?;
     let (mut written, mut judgement) = (String::new(), String::new());
     read.write(&mut written, &settings.lambda, &settings.limits, never)?;
     read.write_judgement(&mut judgement, &settings.lambda, &settings.limits, never)?;
@@ -149,6 +148,84 @@ fn printed(term: &mut Value, settings: &Settings) -> Result<(), Failure> {
         keys.insert("judgement".to_owned(), Value::String(judgement));
     }
     Ok(())
+}
+
+/// Reduces a term by β, as the protocol's `lambda.reduce` answers: the
+/// term reached, each step's redex and how the reduction ended, with the
+/// term reached as `text` and `judgement`, and under `next` the place of
+/// the redex the next step would reduce in `text`, `{"start", "end"}` in
+/// UTF-16 code units, or `null` in normal form. `options` is
+/// `{"strategy", "steps", "nodes"}`, each key optional, or `""` for the
+/// defaults; `{"steps": 1}` takes one step, and `{"steps": 0}` marks the
+/// first redex of the term as it is.
+///
+/// # Errors
+///
+/// A term its calculus refuses (`ill_typed`, with the reason), options
+/// that are no such object.
+pub fn reduce(term: &str, options: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let reduced = ran("lambda.reduce", &[term], options, &settings)?;
+    let mut answer: Value = serde_json::from_str(&reduced).map_err(Failure::json)?;
+    let chosen: ReduceOptions = if options.trim().is_empty() {
+        ReduceOptions::default()
+    } else {
+        serde_json::from_str(options).map_err(Failure::json)?
+    };
+    if let Some(reached) = answer.get_mut("term") {
+        printed(reached, &settings)?;
+        let text = reached["text"].as_str().unwrap_or_default().to_owned();
+        let read = read_term(reached, &settings)?;
+        let next = match chosen.strategy.pick(&read) {
+            Some(redex) => {
+                let mut written = String::new();
+                let span = read.write_marked(
+                    &mut written,
+                    redex,
+                    &settings.lambda,
+                    &settings.limits,
+                    never,
+                )?;
+                debug_assert_eq!(written, text);
+                let utf16 = |s: &str| s.encode_utf16().count();
+                let start = utf16(&written[..span.start]);
+                serde_json::json!({ "start": start, "end": start + utf16(&written[span]) })
+            }
+            None => Value::Null,
+        };
+        if let Value::Object(keys) = &mut answer {
+            keys.insert("next".to_owned(), next);
+        }
+    }
+    Ok(answer.to_string())
+}
+
+/// Types an untyped term at its principal simple type, as the protocol's
+/// `lambda.infer` answers: the typed term's JSON, a term of the simple
+/// calculus that `check` and `draw` take, with its `text` and its
+/// `judgement` written with every type.
+///
+/// # Errors
+///
+/// A term of a typed calculus (`not_applicable`), a term its calculus
+/// refuses or that has no simple type (`ill_typed`, with the reason).
+pub fn infer(term: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let typed = ran("lambda.infer", &[term], "", &settings)?;
+    let mut answer: Value = serde_json::from_str(&typed).map_err(Failure::json)?;
+    let mut shown = settings;
+    shown.lambda = shown.lambda.with_types(true);
+    printed(&mut answer, &shown)?;
+    Ok(answer.to_string())
+}
+
+/// Reads a term out of a JSON value, under the settings' limits.
+fn read_term(value: &Value, settings: &Settings) -> Result<Term, Failure> {
+    let text = value.to_string();
+    Ok(wire::upgrade(
+        &mut serde_json::Deserializer::from_str(&text),
+        &settings.limits,
+    )?)
 }
 
 /// Finds a term of a type, as the protocol's `lambda.inhabit` answers:

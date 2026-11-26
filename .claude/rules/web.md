@@ -509,7 +509,17 @@ for `THIRD-PARTY-NOTICES.txt`.
   `lambda_read_type` (an ordinary statement claimed in intuitionistic
   logic), `lambda_inhabit` and `lambda_enumerate`, which add to every
   term they answer its `text` and `judgement` (`printed`, the settings'
-  `lambda`), as `term` does, so the page prints no term. There is no session:
+  `lambda`), as `term` does, so the page prints no term. `lambda_reduce`
+  (`lambda.reduce`, its options the protocol's parameters) adds the same
+  to the term reached and `next`, the redex the strategy picks next as a
+  UTF-16 range of that `text` (`Strategy::pick`, `Term::write_marked`
+  under the same `lambda` settings, so the range is of the text sent);
+  the page's "Next step" is `{"steps": 1}` on the term it shows and
+  "To the end" the default, and it keeps the terms before for its undo,
+  as nothing is kept between calls. `lambda_infer` (`lambda.infer`)
+  prints the typed term with types on whatever the settings say, since
+  the types are its answer. `about`'s `calculus` lists the untyped
+  calculi too (`Calculus::NAMES`). There is no session:
   the derivation is a function of the term, so a tab holds the term or
   the type and what the calls answered. An ill-typed term and text that
   is no term are thrown, as every reader's error is; the page branches
