@@ -10,6 +10,32 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### What breaks, and what to do instead
+
+- **A refused witness, binding or step says why in fields.**
+  `linear::StepError::Witness` and `ordinary::StepError::Witness` hold a
+  `WitnessFault` in `fault`, `ordinary::StepError::Binding` a
+  `BindingFault`, and `Error::StepRefused` a boxed `StepFault`, each in
+  place of the field `reason`. Match on the fault, or use `to_string()`
+  for the sentence, which is unchanged. In JSON the error's `details`
+  have `fault` and the fault's fields in place of `reason`.
+- **Two eigenvariable refusals read alike.** A witness refused because
+  no eigenvariable is fresh now says "the proof has made as many
+  eigenvariables as it can number" in both sessions, and a given
+  witness outside the goal's scope names its eigenvariable.
+
+### Added
+
+- `Interactive::candidates` in the linear, the ordinary and the rules
+  sessions: every rule that acts on a formula of a goal, each with
+  whether a step of it is legal on the goal now (`Status::Applies`,
+  `NeedsInput` with what it takes, or `Refused` with the error `apply`
+  returns). It judges legal steps only, never whether a goal can be
+  closed, and costs at most one `apply` per rule.
+- `ordinary::Interactive::opened_term`: a quantifier step's term as text
+  that `witness` reads back, so that a program that keeps the steps can
+  take them again with their witnesses.
+
 ## [0.8.0] - 2026-11-23
 
 First-order ordinary logic. deduxit reads first-order sequents of

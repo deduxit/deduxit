@@ -194,6 +194,7 @@ suite is which, with its arguments, and the catalogue above:
 | `start` | starts a proof step by step | `start` | `ordinary_start` | `rules_start` |
 | `view` | what the page shows of a proof | `view` | `ordinary_view` | `rules_view` |
 | `rules` | the rules that apply at a goal | `rules` | `ordinary_rules` | `rules_rules` |
+| `candidates` | every rule at a goal, each legal or refused with the reason | `candidates` | `ordinary_candidates` | `rules_candidates` |
 | `apply` | takes a step | `apply` | `ordinary_apply` | `rules_apply` |
 | `undo` | takes the last step back | `undo` | `ordinary_undo` | `rules_undo` |
 | `close` | closes a goal by the search | `close` | `ordinary_close` | none |

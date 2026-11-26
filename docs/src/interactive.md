@@ -276,4 +276,8 @@ standard output, and the session goes on. The status is 2 when the
 session cannot start or cannot read its input.
 
 The library's `Interactive` type has the same operations, and its JSON
-form is the file `save` writes.
+form is the file `save` writes. It also has `candidates(goal,
+position)`: every rule that acts on the formula, each with whether a
+step of it is legal on the goal now. A rule that is not legal comes with
+the reason `apply` would give, so a front end can grey it and say why.
+The ordinary and the rules sessions have the same call.

@@ -640,7 +640,12 @@ $ deduxit prove --format json "A |- B"
 An error of the library, in a batch record, in `check`'s JSON or from
 the web bindings, is `{"code", "kind", "message", "setting", "details"}`.
 `code` is the stable reason to branch on. `setting` is the settings key
-of the bound that refused the call, where a bound did.
+of the bound that refused the call, where a bound did. A refused step's
+`details` say why as fields: `kind` for the step's error, and for a
+witness that is no term, an axiom that cannot fill a witness
+(`binding`) and a step of a calculus given as data (`step_refused`),
+`fault` and the fault's own fields, such as `{"fault":
+"unknown_symbol", "name": "g"}`.
 
 ## 9. Checking a proof: `check`
 
@@ -2034,7 +2039,14 @@ occurrences by id, and `describe(&forest)` names them by formula.
 - `ordinary::Interactive` proves an LK or LJ sequent step by step:
   `rules`, `apply`, `undo`, `close` and `hint`, the last two through
   `ordinary::decide_within`. Its finished derivation passes
-  `Derivation::check`.
+  `Derivation::check`. `candidates(goal, side, position)` gives every
+  rule of the logic that acts on the formula with its `Status`:
+  `Applies`, `NeedsInput` (a context or a witness), or `Refused` with
+  the `StepError` that `apply` returns. `opened_term(goal)` writes a
+  quantifier step's term as text that `witness` reads back (`$1` for a
+  witness left open), so a program that keeps only the steps can take
+  them again. The linear `Interactive` and `rules::Interactive` have
+  `candidates` too.
 - `ordinary::Rule` reads from its name or an ASCII spelling
   (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
 - `ViewOptions::structural` draws a derivation of LK or LJ with its
@@ -2156,7 +2168,7 @@ your own rules").
   numbered from 1 for good; a rule that discharges a hypothesis applies
   backwards and opens its subproof. Every step is checked by the
   calculus's checker. In the library this is `rules::Interactive`
-  (`within`, `rules`, `apply` with an `rules::Apply`, `derive` with a
+  (`within`, `rules`, `candidates`, `apply` with an `rules::Apply`, `derive` with a
   `rules::Derive`, `extend` with an `Apply` in a sequent calculus,
   `lines`, `assume`, `cite`, `undo`, `finished`); a
   session's JSON is at wire level 17, or 18 once it holds a derived
@@ -2191,7 +2203,7 @@ call is `render`.
 The calls of linear logic:
 
 - reading: `about`, `defaults`, `read`, `read_as`;
-- a session: `start`, `view`, `rules`, `split_passes`, `apply`, `cut`,
+- a session: `start`, `view`, `rules`, `candidates`, `split_passes`, `apply`, `cut`,
   `invert_all`, `undo`, `close`, `fill`, `close_all`, `hint`, `proof`,
   `term` (the lambda-term);
 - one call: `prove`, `draw`, `draw_net`, `export`, `certificate`, and
@@ -2203,7 +2215,11 @@ The calls of linear logic:
 A sequent with quantifiers is typed as for the command. A step's JSON
 is `{"position", "rule", "left", "witness"}`: `witness` is the witness
 of `∃R` or `∀L` as text, and left out it stays open (`$1`). `rules`
-marks such a rule `"witness": true`. `hint` on a goal of instances
+marks such a rule `"witness": true`. `candidates(session, goal,
+position, settings)` answers every rule of the formula as `{"rule",
+"status"}`: `applies`, `needs_input` with `needs` (`split` or
+`witness`), or `refused` with `refusal`, the error `apply` would throw
+for the step. `hint` on a goal of instances
 closes it in a copy of the session. The first-order bounds are the
 settings `search.witness_depth`, `search.instances` and `limits.terms`.
 
@@ -2212,7 +2228,12 @@ library's `ordinary::Interactive` at wire level 8:
 
 - `ordinary_start(sequent, logic, settings)`, `ordinary_view`,
   `ordinary_undo`, `ordinary_close`, `ordinary_draw`, `ordinary_term`;
-- `ordinary_rules(session, goal, side, position, settings)`;
+- `ordinary_rules(session, goal, side, position, settings)`, and
+  `ordinary_candidates` with the same arguments, every rule as
+  `candidates` answers them (`needs` `context` or `witness`);
+- `ordinary_view`'s `opened` lists each quantifier step's `inference`
+  and the `term` it took as text (`null` for a witness left open), which
+  a replay gives `ordinary_apply` as the step's `witness`;
 - `ordinary_apply`, which takes a step `{"side": "left"|"right",
   "position", "rule": "→L", "split": {"left": [..], "right": [..]}}`;
   with `split` left out, the premises share the context; `"witness":
@@ -2255,7 +2276,8 @@ line a forward step derived), which holds the rule file:
   calculus's own syntax and `assumptions` a JSON array of sequents;
 - `rules_view`, which reads a saved session and checks every step again;
 - `rules_rules(session, goal, settings)`, each step `{"rule", "at",
-  "needs"}`;
+  "needs"}`, and `rules_candidates` with the same arguments, every rule
+  with its `status`, one refused with `at` empty and `refusal`;
 - `rules_apply`, which takes a step `{"rule", "at": [members],
   "given": {"Γ′": "a, b"}}`, `step_needs` naming what must be given;
 - `rules_derive(session, goal, step, settings)`, a forward step
