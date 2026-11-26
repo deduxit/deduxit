@@ -1,7 +1,8 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Ordinary propositional logic: classical, intuitionistic and minimal.
+//! Ordinary logic: classical, intuitionistic and minimal, propositional
+//! and first-order.
 //!
 //! [`decide()`] says whether a [`Sequent`] is valid in a [`Logic`]. A
 //! valid sequent comes with checked [`Evidence`]: a derivation of LK
@@ -33,10 +34,11 @@
 //! rule, naming the first step that breaks a rule.
 //!
 //! A sequent may be first-order, with predicates and quantifiers
-//! ([`Sequent`] has the syntax). Nothing decides first-order validity
-//! here: every method above refuses such a sequent
-//! ([`Error::FirstOrder`]), and a derivation of one is checked as any
-//! other.
+//! ([`Sequent`] has the syntax). Grounding, the connection prover and the
+//! embedding decide it, and the finite model search may refute it;
+//! [`Options::method_for`] says which runs by default. The propositional
+//! methods refuse such a sequent ([`Error::FirstOrder`]), and a
+//! derivation of one is checked as any other.
 //!
 //! The excluded middle is not valid in intuitionistic logic, the default:
 //!

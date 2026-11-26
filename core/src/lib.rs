@@ -7,11 +7,34 @@
 )]
 //! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: \"it has derived\", the perfect of *dēdūcō*, to lead down, derive.
 //!
-//! A collection of logic suites: decides sequents of linear logic, and of
-//! classical, intuitionistic and minimal propositional logic. Every proof
+//! A collection of logic suites, a module each: [`ordinary`] logic
+//! (classical, intuitionistic and minimal, propositional and first-order),
+//! [`linear`] logic, [`modal`] logic from K to S5, [`lambda`]-terms, and
+//! `rules`, calculi given as rule files (feature `serialize`). Every proof
 //! it returns has passed the crate's checker, unless the caller turns the
-//! check off, and every Kripke countermodel its own check. A proof prints
-//! as a derivation, or exports to LaTeX, Typst, SVG, PNG, PDF or Rocq.
+//! check off, and every countermodel its own check. A proof prints as a
+//! derivation, or exports to LaTeX, Typst, SVG, PNG, PDF or Rocq.
+//!
+//! A sequent of ordinary logic, here intuitionistic logic, the default:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::ordinary::{Options, Sequent, Verdict, decide};
+//!
+//! let sequent: Sequent = "a \\/ ~a".parse()?;
+//! let outcome = decide(&sequent, &Options::default())?;
+//! match &outcome.verdict {
+//!     Verdict::Valid(evidence) => println!("valid\n{}", evidence.derivation()?),
+//!     Verdict::NotValid => println!("not valid"),
+//!     _ => println!("unknown"),
+//! }
+//! if let Some(countermodel) = &outcome.countermodel {
+//!     println!("{}", countermodel.model);
+//! }
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! A sequent of linear logic:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -40,30 +63,12 @@
 //!
 //! # What you can do
 //!
-//! - Decide a sequent: [`linear::prove`], as above. A
-//!   [`Mode`](linear::Mode) is the rules a logic allows: classical or
-//!   intuitionistic, with weakening (affine) or Mix, commutative or
-//!   ordered.
-//! - Read intuitionistic input: parse it as an
-//!   [`IllSequent`](linear::IllSequent) (below).
-//! - Bound a search's time, memory and work: [`linear::prove_within`]
-//!   with [`Limits`] and a stop (below).
-//! - Get the answer the command gives: [`Settings::stop`] (below).
-//! - Check a proof, made here or read from a file:
-//!   [`Proof::check`](linear::Proof::check).
-//! - Print or export a derivation: [`Proof::derivation`](linear::Proof::derivation)
-//!   and the formats under [`export`].
-//! - Work with proof nets: [`ProofStructure`](linear::ProofStructure).
-//! - Prove step by step: `linear::Interactive` (feature `interactive`).
 //! - Decide classical, intuitionistic or minimal logic, propositional or
 //!   first-order, with a Kripke countermodel ([`kripke::Model`]) or a
 //!   finite structure for what is not valid: [`ordinary`].
 //! - Translate a classical sequent into intuitionistic or minimal logic,
 //!   or find a Craig interpolant, each checked: `ordinary::negative` and
 //!   `ordinary::interpolant`.
-//! - Decide propositional modal logic in the systems from K to S5, with a
-//!   derivation in a labelled calculus or a checked Kripke countermodel:
-//!   [`modal`]. Either becomes a Rocq certificate under `export::rocq`.
 //! - Check a signed tableau written by hand, step by step:
 //!   `ordinary::WrittenTableau` (features `parse`, `serialize` and
 //!   `interactive`).
@@ -71,11 +76,29 @@
 //!   and refute its clauses by resolution or DPLL with a checked
 //!   refutation: `ordinary::normal` and `ordinary::resolution`; prove a
 //!   first-order one by Herbrand's theorem: `ordinary::herbrand`.
+//! - Decide a sequent of linear logic: [`linear::prove`], as above. A
+//!   [`Mode`](linear::Mode) is the rules a logic allows: classical or
+//!   intuitionistic, with weakening (affine) or Mix, commutative or
+//!   ordered.
+//! - Read intuitionistic linear input: parse it as an
+//!   [`IllSequent`](linear::IllSequent) (below).
+//! - Check a linear proof, made here or read from a file:
+//!   [`Proof::check`](linear::Proof::check).
+//! - Work with proof nets: [`ProofStructure`](linear::ProofStructure).
+//! - Prove step by step: `linear::Interactive` (feature `interactive`).
+//! - Decide propositional modal logic in the systems from K to S5, with a
+//!   derivation in a labelled calculus or a checked Kripke countermodel:
+//!   [`modal`]. Either becomes a Rocq certificate under `export::rocq`.
 //! - Read a proof as a lambda-term, check a term you write, and find and
 //!   count a simple type's terms: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule
 //!   file, natural deduction among the built-in ones, as a tree or as a
 //!   Fitch proof: `rules` (feature `serialize`).
+//! - Bound a search's time, memory and work: [`linear::prove_within`]
+//!   with [`Limits`] and a stop (below).
+//! - Get the answer the command gives: [`Settings::stop`] (below).
+//! - Print or export a derivation: [`Proof::derivation`](linear::Proof::derivation)
+//!   and the formats under [`export`].
 //! - List what each suite makes and does, and run it over JSON: `protocol`
 //!   (feature `protocol`).
 //! - Keep sequents and what was made from them, with undo and redo:
