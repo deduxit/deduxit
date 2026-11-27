@@ -105,3 +105,21 @@ fn an_untyped_term_is_reduced_step_by_step_and_typed() {
         json!("ill_typed")
     );
 }
+
+#[wasm_bindgen_test(unsupported = test)]
+fn a_term_of_system_f_is_checked_drawn_and_reduced() {
+    let term = lambda::read(r"(/\X. \x:X. x) [a]", "system_f", "").unwrap();
+    let checked = value(&lambda::check(&term, "").unwrap());
+    assert_eq!(checked["version"], json!(31));
+    assert_eq!(checked["judgement"], json!("⊢ (ΛX. λx:X. x) [a] : a → a"));
+    let drawing = lambda::draw(&checked.to_string(), "").unwrap();
+    assert!(drawing.contains("∀E"), "{drawing}");
+    let done = value(&lambda::reduce(&term, "", "").unwrap());
+    assert_eq!(done["end"], json!("normal_form"));
+    assert_eq!(done["term"]["text"], json!("λx. x"));
+    // System F infers no types: a λ without one is no term there.
+    assert_eq!(
+        code(lambda::read(r"\x. x", "system_f", "").unwrap_err()),
+        json!("parse")
+    );
+}

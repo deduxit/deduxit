@@ -41,9 +41,11 @@ fn ran(
 
 /// Returns the statement of a lambda-term typed as `--lambda-types`
 /// prints terms (`\x:a. x`, or a judgement `x : a |- f x`), in
-/// `calculus` (`simple`, `linear` or `affine`), or an untyped term
-/// (`\x. x x`) in `untyped`, `untyped_linear` or `untyped_affine`: the
-/// term's JSON with the text as typed.
+/// `calculus` (`simple`, `linear` or `affine`), a term of System F
+/// (`/\X. \x:X. x`, `f [a]`) in `system_f`, `system_f_linear` or
+/// `system_f_affine`, or an untyped term (`\x. x x`) in `untyped`,
+/// `untyped_linear` or `untyped_affine`: the term's JSON with the text as
+/// typed.
 ///
 /// # Errors
 ///
