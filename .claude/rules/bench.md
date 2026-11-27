@@ -1063,6 +1063,17 @@ serde_json, which the CLI and the core's tests already have.
   three shards pinned to cores 4 to 6, the two builds one after the
   other: no verdict lost, the time of the rows decided alike within 1 %
   in the median (`plan/reports/fixups.md`).
+- **`defaults/command-first-order-before.csv`** is the command's own
+  decision of ILTP's 2 670 first-order problems in classical and
+  intuitionistic logic, before the library's default replaces it
+  (F-7b-05): `bench/command-first-order.py BIN
+  bench/iltp-first-order/Problems OUT.csv 4,5,6`, a release build of the
+  base, each run `prove --input-format tptp --logic L --jobs 1 --timeout
+  2s --quiet --file P` pinned to one core, no build beside it; columns
+  problem, logic, exit status, first line, seconds. The after run is the
+  same command with the new binary into another file, compared row by
+  row: a row that ends at the time limit on one side is no verdict
+  change, a decided verdict that flips is (step 87c9's report).
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the
