@@ -371,12 +371,6 @@ fn run(
             }
         }
         Ok((Found::Valid, lemmas, _)) => {
-            let refused = Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: 0,
-                limit_bytes: 0,
-                least_bytes: None,
-            });
             let read = if matches!(derive, Derive::ReadOff | Derive::PreferLjt) {
                 read_back::derivation(
                     formulas,
@@ -390,7 +384,14 @@ fn run(
                     &mut stop,
                 )
             } else {
-                Err(refused)
+                // Only the tests ask for LJT's derivation alone: the
+                // read-back's refusal stands in for a bound it met.
+                Err(Error::Refused(Refusal::Output {
+                    what: "derivation",
+                    estimate_bytes: 0,
+                    limit_bytes: 0,
+                    least_bytes: None,
+                }))
             };
             let derivation = match read {
                 Ok((derivation, facts)) => {
@@ -477,20 +478,14 @@ fn prefer_ljt(
     let Ok(outcome) = decided else {
         return Ok(derivation);
     };
-    match outcome.verdict {
-        Verdict::Valid(Evidence::Derivation(ljt)) => {
+    match ljt_answer(outcome.verdict, logic)? {
+        Ok(ljt) => {
             statistics.ljt = Some(outcome.statistics);
             Ok(*ljt)
         }
-        Verdict::NotValid => Err(Error::ReadBack {
-            calculus: logic.calculus(),
-            reason: "LJT refutes a sequent the SAT search proved".to_owned(),
-        }),
-        // LJT never gives a clausal proof or an image's proof. An unknown,
-        // from a bound or the stop, leaves the derivation read off the
-        // search.
-        Verdict::Valid(Evidence::Clausal(_) | Evidence::Image | Evidence::Table)
-        | Verdict::Unknown(_) => Ok(derivation),
+        // An unknown, from a bound or the stop, leaves the derivation read
+        // off the search.
+        Err(_) => Ok(derivation),
     }
 }
 
@@ -514,24 +509,31 @@ fn by_ljt(
         Err(Error::Refused(_)) => return Err(Error::Refused(refusal)),
         Err(other) => return Err(other),
     };
-    match outcome.verdict {
-        Verdict::Valid(Evidence::Derivation(derivation)) => Ok((*derivation, outcome.statistics)),
-        // LJT never gives a clausal proof or an image's proof.
-        Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation {
-            evidence: "a checked clausal proof",
-        }),
-        Verdict::Valid(Evidence::Image) => Err(Error::NotBuilt),
-        Verdict::Valid(Evidence::Table) => Err(Error::NoDerivation {
-            evidence: "its truth table",
-        }),
-        Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::stopped(
+    match ljt_answer(outcome.verdict, logic)? {
+        Ok(derivation) => Ok((*derivation, outcome.statistics)),
+        Err(Reason::Stopped) => Err(Error::Refused(Refusal::stopped(
             crate::limits::Phase::Search,
         ))),
-        Verdict::Unknown(_) => Err(Error::Refused(refusal)),
-        Verdict::NotValid => Err(Error::ReadBack {
-            calculus: logic.calculus(),
-            reason: "LJT refutes a sequent the SAT search proved".to_owned(),
-        }),
+        Err(_) => Err(Error::Refused(refusal)),
+    }
+}
+
+/// Returns what LJT says of a sequent the SAT search proved: its
+/// derivation, or the reason it gave none; a refutation, or evidence that
+/// is no derivation, is [`Error::ReadBack`], a defect.
+fn ljt_answer(verdict: Verdict, logic: Logic) -> Result<Result<Box<Derivation>, Reason>, Error> {
+    let defect = |reason: &str| Error::ReadBack {
+        calculus: logic.calculus(),
+        reason: reason.to_owned(),
+    };
+    match verdict {
+        Verdict::Valid(Evidence::Derivation(derivation)) => Ok(Ok(derivation)),
+        Verdict::Unknown(reason) => Ok(Err(reason)),
+        Verdict::NotValid => Err(defect("LJT refutes a sequent the SAT search proved")),
+        // LJT never gives a clausal proof, an image's proof or a table.
+        Verdict::Valid(Evidence::Clausal(_) | Evidence::Image | Evidence::Table) => {
+            Err(defect("LJT gives no derivation of a sequent it proved"))
+        }
     }
 }
 
