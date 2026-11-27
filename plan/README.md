@@ -8789,3 +8789,14 @@ move (D26).
   the plan) F-4e-02's panics on a bad id stay for part 2's P13. Both target sets equal, ratchet within
   tolerance (resolution +0.53 %, the new bounds). Full check passed; pushed (`mouwsnlw`). 87b1 is in
   its last review; 87b3 follows it.
+- 2026-11-27, about 16:03: **P1 decided: the suite is a subcommand under the verb** (the author, asking
+  whether a subcommand was more idiomatic than P1's flags, then "lgtm" to the answer). `deduxit prove
+  ordinary --logic …`, `prove linear --mode …`, `prove modal --system …`, `interact linear …`, `seq
+  print ordinary …`; verbs of one suite (`resolve`, `herbrand`, `interpolate`, `term`, `eliminate`)
+  stay plain verbs without a selector; `check`, `grade`, `workspace` and the batch read the logic from
+  their documents. Why: the suite changes which other options apply, which clig.dev and clap's shape
+  give to a subcommand (one argument struct and one `--help` per suite), and the verbs stay first as
+  decided on 2026-11-09, whose "`--logic` chooses the suite" is lifted. Inside a suite a default (classical,
+  classical, K) is the recommendation, requiring the logic the alternative: the author's sign-off of
+  the proposal settles it. The audit session rewrites P1 and the steps 87i1 and 87i2; the rest of the
+  proposal still waits for the author's sign-off.
