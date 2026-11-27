@@ -261,6 +261,46 @@ that is closed is out of force: citing it is refused, and so is a line
 that is not the goal. `undo` takes back the last step, a forward one
 too, and `help` lists every command.
 
+## Let the search close a goal
+
+`close G` lets deduxit's search decide goal G, and `close` every open
+goal. It works in the natural deduction rule sets deduxit ships (NJ,
+NK, NM and their variants). The search proves the goal, with the lines
+in force as hypotheses, in the sequent calculus of the rule set's
+logic. It then rewrites that proof into the rule set and takes it step
+by step, each step checked as yours are. The proof is normal: no
+introduction rule is followed by the elimination of its connective.
+`undo` takes it back a step at a time:
+
+```console
+$ deduxit interact --calculus NJ "(a -> b) -> (b -> c) -> a -> c"
+> apply 0 →I
+opened goal 1: 0: (b → c) → a → c
+    lines: 1. a → b
+> close 1
+goal 1: valid in intuitionistic logic: closed by 7 steps of NJ
+no goal is open: `proof` checks the proof
+> show
+  0.     b → c    hypothesis
+  1.   a → b    hypothesis
+  2.       a    hypothesis
+  3.       b    →E 1, 2
+  4.       c    →E 0, 3
+  5.     a → c    →I 4
+  6.   (b → c) → a → c    →I 5
+  7. (a → b) → (b → c) → a → c    →I 6
+```
+
+A goal with no proof in the rule set's logic stays open:
+
+```console
+$ deduxit interact --calculus NJ "((a -> b) -> a) -> a"
+> close
+goal 0: not valid in intuitionistic logic: the goal has no proof in NJ
+```
+
+In NK the same goal closes, by `RAA`.
+
 ## What the rule sets prove
 
 A proof exists in NJ exactly when `deduxit prove --logic

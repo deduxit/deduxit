@@ -46,6 +46,10 @@ pub struct Apply<'a> {
     /// context of the rule by name and its text: a formula for a
     /// variable, members separated by `,` for a context.
     pub given: &'a [(&'a str, &'a str)],
+    /// The premises' first members, by term, in the rule's order, which
+    /// bind what they hold: how a proof found is taken step by step,
+    /// whose premises are known.
+    pub(crate) premises: &'a [TermId],
 }
 
 impl<'a> Apply<'a> {
@@ -55,7 +59,15 @@ impl<'a> Apply<'a> {
             rule,
             at: &[],
             given: &[],
+            premises: &[],
         }
+    }
+
+    /// Returns the step with these premises' first members, by term.
+    #[must_use]
+    pub(crate) const fn premises(mut self, premises: &'a [TermId]) -> Self {
+        self.premises = premises;
+        self
     }
 
     /// Returns the step acting on these members of the goal.
@@ -580,7 +592,7 @@ impl Interactive {
 
     /// Returns the open goal at `goal`, or the refusal of a goal that is
     /// none.
-    fn open(&self, goal: GoalId) -> Result<&Goal, Error> {
+    pub(super) fn open(&self, goal: GoalId) -> Result<&Goal, Error> {
         match self.nodes.get(goal.index()) {
             Some(node) if node.done == Done::Open => Ok(node),
             _ => Err(refused(StepFault::NoGoal { goal: goal.0 })),
@@ -1573,6 +1585,7 @@ impl Interactive {
             return Err(refused(StepFault::TooMany).into());
         }
         self.give(step.given, &mut bindings, &mut contexts)?;
+        self.bind_premises(rule, step.premises, &mut bindings)?;
         // The contexts the conclusion determines.
         let mut needs: Vec<String> = Vec::new();
         for zone in 0..zones {
@@ -1799,6 +1812,68 @@ impl Interactive {
             }
         }
         Ok(())
+    }
+
+    /// Binds what the premises' first members hold, matching each against
+    /// its premise's first written member, in the rule's order; a member
+    /// that does not match refuses the step.
+    fn bind_premises(
+        &self,
+        rule: &Rule,
+        premises: &[TermId],
+        bindings: &mut [Option<TermId>],
+    ) -> Result<(), Unplanned> {
+        for (premise, &term) in rule.premises.iter().zip(premises) {
+            let item = premise
+                .shape
+                .zones
+                .iter()
+                .flatten()
+                .find_map(|entry| match entry {
+                    Entry::Item(item) => Some(item),
+                    Entry::Context { .. } => None,
+                });
+            if let Some(item) = item
+                && !self.matches(rule, item.root, term, bindings)
+            {
+                return Err(refused(StepFault::Unmatched {
+                    member: self.calculus.show(&self.terms, term).limit(200).to_string(),
+                })
+                .into());
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns, by name, the variables of `rule` that the premises' first
+    /// members `premises` bind, as [`Apply`]'s premises bind them.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::StepRefused`] for an unknown rule or a member that does not
+    /// match its premise.
+    pub(super) fn premise_bindings(
+        &self,
+        rule: &str,
+        premises: &[TermId],
+    ) -> Result<Vec<(String, TermId)>, Error> {
+        let Some(&index) = self.calculus.rule_ids.get(rule) else {
+            return Err(refused(StepFault::NoRule {
+                rule: rule.to_owned(),
+            }));
+        };
+        let rule = &self.calculus.rules[index as usize];
+        let mut bindings: Vec<Option<TermId>> = vec![None; self.calculus.variables as usize];
+        match self.bind_premises(rule, premises, &mut bindings) {
+            Ok(()) => {}
+            Err(Unplanned::Error(error)) => return Err(error),
+            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
+        }
+        Ok(bindings
+            .iter()
+            .enumerate()
+            .filter_map(|(v, bound)| Some((self.calculus.variable_names[v].0.clone(), (*bound)?)))
+            .collect())
     }
 
     /// Binds every variable the rule asks to be new and that is not bound

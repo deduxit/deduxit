@@ -7,10 +7,16 @@
 use super::{Commands, Input, Ran, Saved, load, run};
 use crate::argument_parsing::InteractArgs;
 use crate::io;
+use crate::limit::Deadline;
+use crate::prove::on_large_stack;
+use crate::{catch_interrupt, clear_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
 use deduxit::Settings;
+use deduxit::linear::search::Options;
+use deduxit::ordinary::Verdict;
 use deduxit::rules::{Apply, Derive, GoalId, Interactive, LineId, Undone};
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 /// The session's commands, as `help` lists them.
 const HELP: &str = "\
@@ -28,6 +34,9 @@ derive G RULE L… [NAME=TEXT…]
                     leave open. In a sequent calculus (a calculus with contexts) L… are
                     members of goal G, and what the rule derives from them joins them
 assume G [L]        close goal G by line L in force, or by the line in force equal to it
+close [G]           in a natural deduction calculus deduxit ships (NJ, NK, NM, their
+                    variants): let the search decide goal G, or every open goal, and
+                    take the proof it finds step by step
 undo                retract the last step
 show                the derivation so far, a line per node
 proof [FILE]        check the finished derivation and print it, or write it to FILE as JSON
@@ -46,6 +55,10 @@ struct Session {
     limits: deduxit::Limits,
     /// The options of a certificate `proof --rocq` writes.
     rocq: deduxit::export::rocq::Options,
+    /// The search options of `close`.
+    options: Options,
+    /// How long a `close` may take.
+    timeout: Option<Duration>,
 }
 
 /// Runs `interact --calculus` on the sequent and assumptions the
@@ -86,12 +99,23 @@ pub(super) fn interact(
     // The command line's `--style`, `--lemma`, `--prelude` and `--kernel`
     // over the settings', as the linear session reads them.
     let styles = crate::style::read(&settings.styles, &args.style, Some(&args.rocq), None, false)?;
+    // The library's `close` searches on one thread unless `--jobs` asks
+    // for a count from the start, as a session of LK or LJ does.
+    let threads = crate::settings::Threads::of(&settings);
+    let jobs = if threads.alone.is_some() {
+        1
+    } else {
+        threads.jobs
+    };
+    catch_interrupt();
     let mut session = Session {
         state,
         limits,
         rocq: styles.rocq,
+        timeout: crate::settings::time_limit(&settings),
+        options: settings.search.with_jobs(jobs),
     };
-    run(&mut session, None, input)
+    on_large_stack(limits.stack_bytes(), move || run(&mut session, None, input))?
 }
 
 impl Session {
@@ -157,6 +181,34 @@ impl Session {
             .map(|&g| format!("opened {}", self.goal_line(g)))
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Decides a goal of a natural deduction session, stopped by the time
+    /// limit or Ctrl-C, takes the proof found, and returns the verdict
+    /// line: valid with the steps taken, not valid, or unknown and why.
+    fn close(&mut self, goal: GoalId) -> Result<String> {
+        clear_interrupt();
+        let deadline = Deadline::start(self.timeout, Instant::now())?;
+        let before = self.state.steps();
+        let closed = self.state.close(goal, &self.options, &self.limits, |_| {
+            interrupted() || deadline.passed()
+        })?;
+        let logic = closed.outcome.logic;
+        let name = self.state.calculus().name().to_owned();
+        Ok(match (&closed.outcome.verdict, closed.grafted) {
+            (Verdict::Valid(_), Ok(())) => format!(
+                "valid in {logic} logic: closed by {} steps of {name}",
+                self.state.steps() - before
+            ),
+            (Verdict::Valid(_), Err(refusal)) => {
+                format!("valid in {logic} logic, but the proof is not taken: {refusal}")
+            }
+            (Verdict::NotValid, _) => {
+                format!("not valid in {logic} logic: the goal has no proof in {name}")
+            }
+            (Verdict::Unknown(reason), _) => format!("unknown: {reason}"),
+            _ => "unknown".to_owned(),
+        })
     }
 
     /// Returns the open goals, a line each, or that none is left.
@@ -324,6 +376,20 @@ impl Commands for Session {
                     None => self.state.assume(target)?,
                 }
                 self.opened(&[])
+            }
+            "close" => {
+                let goals = match rest.first() {
+                    Some(_) => vec![goal(rest.first())?],
+                    None => self.state.goals(),
+                };
+                let mut lines = Vec::new();
+                for goal in goals {
+                    lines.push(format!("goal {}: {}", goal.index(), self.close(goal)?));
+                }
+                if self.state.is_finished() {
+                    lines.push("no goal is open: `proof` checks the proof".to_owned());
+                }
+                lines.join("\n")
             }
             "undo" => match self.state.undo() {
                 Some(Undone::Reopened(goal)) => format!("reopened {}", self.goal_line(goal)),

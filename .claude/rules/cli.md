@@ -426,7 +426,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   session's styles read as the linear session reads them, `style::read`).
   `check --calculus` takes `--format rocq` for such a derivation too.
   Mode flags and `--logic` are refused
-  beside it; there is no search, so no `close`.
+  beside it. `close [G]` runs the library's `rules::Interactive::close`
+  in a natural deduction calculus deduxit ships (another calculus is
+  the library's `not_applicable` error), under the time limit and
+  Ctrl-C (`Session::close`, `Deadline`), on one thread unless `--jobs`
+  asks, the loop on the large stack (`on_large_stack`, the embedding's
+  search recurses); its line is `valid in L logic: closed by N steps of
+  NJ`, `not valid in L logic: the goal has no proof in NJ` or `unknown:
+  REASON`.
 - `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
   `ordinary::Interactive`, started from an ordinary sequent (read as
   `prove --logic` reads one, `SequentInput::ordinary`) or from a saved

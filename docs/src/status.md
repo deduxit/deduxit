@@ -508,7 +508,10 @@ in use.
   builds such a derivation step by step, each step checked, what the
   goal leaves open asked for by name: backwards from a goal, or
   forwards from numbered lines in force, as a Fitch-style proof is
-  written. Such a derivation is drawn as a tree in LaTeX, Typst and
+  written. In the natural deduction rule sets deduxit ships, `close`
+  lets the search prove a goal: a proof of the sequent calculus of the
+  rule set's logic, rewritten into a normal natural deduction proof,
+  checked, and taken step by step. Such a derivation is drawn as a tree in LaTeX, Typst and
   SVG, natural deduction with each discharged hypothesis in brackets
   and numbered, and as a Fitch proof, as text, as SVG, for the LaTeX
   package `fitch` and for the Typst package `fitchcraft`.

@@ -55,10 +55,15 @@ pub(crate) mod fitch;
 /// Building a derivation step by step.
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) mod interactive;
+/// Natural deduction proofs from derivations of LK, LJ and LM.
+mod natural;
 /// The derivations of LK and LJ in this form.
 mod ordinary;
 /// Terms and sequents as text.
 mod print;
+/// The search of a natural deduction session.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+mod search;
 /// The signed tableaux of classical logic in this form.
 #[cfg(feature = "interactive")]
 mod tableau;
@@ -79,6 +84,8 @@ pub use interactive::{
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) use ordinary::terms_of;
 pub use print::Shown;
+#[cfg(all(feature = "interactive", feature = "parse"))]
+pub use search::{Closed, Hint, Hinted};
 pub use terms::{Term, TermId, Terms};
 
 /// The name of the sort every calculus has: that of formulas.

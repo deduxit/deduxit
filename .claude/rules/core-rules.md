@@ -22,7 +22,10 @@ design, with the reasons and the alternatives weighed, is
   read from a `CalculusForm` and compiled (`Rule`, `Shape`, `Entry`,
   `Find`, `Equation`); `derivation.rs`: `Derivation`, its flat storage,
   `Node` (what `push` takes), `NodeRef`, `Step`, scopes; `check.rs`:
-  `Derivation::check`; `print.rs`: `Shown`, the printer; `text.rs`: the text syntax; `interactive.rs`: the session (feature `interactive`); `ordinary.rs`:
+  `Derivation::check`; `print.rs`: `Shown`, the printer; `text.rs`: the text syntax; `interactive.rs`: the session (feature `interactive`); `natural.rs`:
+  `Derivation::natural`, natural deduction from LK, LJ and LM;
+  `search.rs`: the session's `close` and `hint` in natural deduction
+  (features `interactive` and `parse`); `ordinary.rs`:
   `Derivation::from_ordinary`; `tableau.rs`: `Derivation::from_tableau`
   (feature `interactive`). The
   JSON forms are `core/src/serialize/rules.rs`, both at wire level 15
@@ -186,6 +189,58 @@ design, with the reasons and the alternatives weighed, is
   The ILTP part is ignored (the library is not in the tree) and leaves
   the tableau method out, which held several times its memory bound on
   SYJ202+1.004.
+- **Natural deduction from sequent proofs** (`natural.rs`,
+  `Derivation::natural`): the shipped files are told by name and rule
+  list (`Profile::of`, `FILES`; a file of that name with other rules is
+  not one, and the result is checked against the file in any case).
+  The translation is the test's converter (`core/tests/natural.rs`,
+  which stays as an independent second one) made a loop over explicit
+  stacks: a left rule replaces every open leaf of its formulas by an
+  elimination from the principal hypothesis, so an elimination's major
+  premise is a hypothesis or an elimination. Two places replace a leaf
+  by an introduction (`iff_left`'s implications, LK's `∨R`/several
+  right formulas' negations), and where that leaf is the major premise
+  of `→E`/`¬E`, `replace` reduces the detour at once (the introduction's
+  premise with its discharged leaves replaced by the minor premise);
+  `iff_right` takes an `→I`'s premise at once. Without the reduction
+  `a ∨ b ⊢ b ∨ a` into NK had a detour (`translations_are_normal_and_checked`
+  holds every file to normality: the major premise of `∧E`, `∨E`, `→E`,
+  `¬E`, `↔E` is never the conclusion of its introduction). The
+  classical rules (`¬¬E` after `¬I`, `LEM` with `∨E`) are not counted
+  as eliminations. The source is checked first and the tree's unfolded
+  size charged to the memory bound before the derivation is written.
+- **The session's search** (`search.rs`, `Interactive::close`, `hint`):
+  the goal with the lines in force (`lines`, hypotheses and derived
+  lines) as an ordinary sequent in the file's logic, decided by the
+  embedding alone (its derivations have no cut, which the translation's
+  `Cut` arm would substitute and could leave a detour), translated and
+  checked, then taken by `apply` with the premises' formulas
+  (`Apply::premises`, crate-private: `bind_premises` matches each
+  premise's first written member, so what the goal leaves open is bound
+  without text) and `assume` for every hypothesis leaf, each step
+  checked by the session; a refused step undoes every step before it.
+  A graft is many steps, which `undo` takes back one at a time (the page
+  groups them).
+- **Hints follow one proof** (`hint`, `path_to`, `found_at`): the
+  search starts at the session's root goal (the lines in force at a
+  closed node read as at an open one) and its proof is followed down
+  the steps taken while each is the proof's (rule and premises' first
+  members, compared by term in a clone's arena); where the session left
+  it, the search starts again from that node, or below it where the
+  proof's own root already differs. The search is pinned to one thread
+  so that a node's proof is the same each time. Each goal searched alone
+  went round for ever in the classical files: on `⊥` under `¬P` the
+  proof is `¬E` with `P`, on `P` it is `⊥E` or `RAA` back to `⊥`
+  (the fresh review's witness, Peirce's law in NK;
+  `following_classical_hints_proves_a_goal` walks the four classical
+  files). The translation helps on its own too (`concluded`): on a goal
+  `⊥` no classical rule (each `¬⊥` leaf is `¬I` over `⊥`, which the
+  elimination it meets reduces away), and where `¬one` is in force the
+  derivation of `one` that `¬E` refutes it with, else `⊥E`. `hint`
+  answers `assume` where the goal is a line in force (the embedding's
+  derivations are η-long and take a compound line apart first);
+  otherwise the proof's rule with `given`, the names `apply` would ask
+  for (`StepNeeds`) bound by the premises (`premise_bindings`), as text.
 - **What the reader refuses beyond names and sorts**: a connective
   over a context that does not take exactly one argument (index 0 of
   an empty list panicked), a variable named twice in `fresh` or

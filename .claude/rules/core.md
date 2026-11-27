@@ -176,8 +176,10 @@ Each entry point is described in the file of its module:
   `LJ`, `LM`, `LL`, `TABLEAU` and natural deduction's `NJ`, `NK`, `NM`
   and variants are built in, `rules::SCHEMA` their JSON Schema),
   `rules::Derivation` (`new`, `terms_mut`, `scope`, `push`, or read from
-  JSON), `Derivation::check(&calculus, &limits, stop)` and
-  `Derivation::from_ordinary` (`core-rules.md`);
+  JSON), `Derivation::check(&calculus, &limits, stop)`,
+  `Derivation::from_ordinary` and `Derivation::natural` (natural
+  deduction from LK, LJ and LM), `Interactive::close` and `hint` in
+  natural deduction (`core-rules.md`);
 - `lambda`: `Derivation::term(&limits, stop)` and
   `ordinary::Derivation::term` to a `lambda::Term`,
   `Term::parse(text, calculus, &limits)`, `wire::upgrade::<Term, _>`,
@@ -454,7 +456,8 @@ the commit that lands it rewrites that bullet.
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62),
   `rules::{Applicable, Apply, Derive, Undone}` (added at steps 61 and
-  62), `rules::{Candidate, Status}` (added at step 81); `proofs::{ClassicalRule,
+  62), `rules::{Candidate, Status}` (added at step 81),
+  `rules::{Closed, Hint, Hinted}` (added at step 83); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,
   Refused, Sides, Structural, TextOptions}` (`Layout` added at step 62);
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,

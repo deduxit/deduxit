@@ -2212,14 +2212,23 @@ your own rules").
   conclusion a new line; in a calculus with contexts, a sequent
   calculus, from members L… of goal G before `⊢`, a rule whose one
   premise only adds members there, which join the goal), `assume G [L]` (closes goal G by line L, or
-  by the line in force equal to it), `undo`, `show`, `proof [FILE]`,
+  by the line in force equal to it), `close [G]` (in the natural
+  deduction calculi deduxit ships, NJ, NK, NM and their variants: the
+  search proves goal G, or every open goal, from the lines in force, in
+  LJ, LK or LM through the embedding, and takes the proof rewritten
+  into the calculus step by step, normal and checked; a goal with no
+  proof stays open, `not valid in … logic`), `undo`, `show`, `proof [FILE]`,
   `save FILE`, `load FILE`. Each goal lists the lines in force,
   numbered from 1 for good; a rule that discharges a hypothesis applies
   backwards and opens its subproof. Every step is checked by the
   calculus's checker. In the library this is `rules::Interactive`
   (`within`, `rules`, `candidates`, `apply` with an `rules::Apply`, `derive` with a
   `rules::Derive`, `extend` with an `Apply` in a sequent calculus,
-  `lines`, `assume`, `cite`, `undo`, `finished`); a
+  `lines`, `assume`, `cite`, `close` and `hint` in natural deduction
+  (`rules::Closed`, `rules::Hint`, its steps `rules::Hinted`), `undo`,
+  `finished`); `rules::Derivation::natural(&derivation, &calculus,
+  &limits, stop)` rewrites a checked derivation of LK, LJ or LM into a
+  normal one of a natural deduction calculus, checked; a
   session's JSON is at wire level 17, or 18 once it holds a derived
   line. `rules::Drawing::new(&calculus, &derivation, &limits)`
   lays a derivation out for the exports: `export::svg::to_string`,
@@ -2342,6 +2351,13 @@ line a forward step derived), which holds the rule file:
   drawing shows;
 - `rules_assume(session, goal, settings)`, `rules_undo` (`reopened`,
   or for a forward step `removed`, the line's number);
+- `rules_close(session, goal, settings)` and `rules_hint` in a natural
+  deduction calculus deduxit ships: the ordinary outcome of the goal
+  (`outcome`, the lines in force its hypotheses), `close` taking the
+  proof found step by step (`refused` the refusal of a bound, or
+  `null`), `hint` its first step as `steps: [{"rule", "given"}]`, which
+  `rules_apply` takes as it is (`rule` `null`: close the goal by
+  `rules_assume`); another calculus is refused with `not_applicable`;
 - `rules_check`, the finished derivation's verdict, "valid in the
   calculus given";
 - `rules_draw` and `rules_export` in `latex`, `typst` or `svg`, a

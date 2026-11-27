@@ -34,6 +34,17 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **Natural deduction has a search.** `rules::Derivation::natural`
+  rewrites a checked derivation of LK, LJ or LM into a normal proof of
+  one of the natural deduction rule sets deduxit ships (NJ, NK, NM and
+  their variants), checked against it; no introduction is followed by
+  the elimination of its connective. A session in one of them
+  (`rules::Interactive`) gets `close` and `hint`, which decide a goal
+  from the lines in force in the sequent calculus of the rule set's
+  logic and take the proof found step by step, each step checked
+  (`rules::Closed`, `rules::Hint`, `rules::Hinted`); `close` in
+  `interact --calculus`, and `rules_close` and `rules_hint` in the
+  bindings.
 - `Interactive::candidates` in the ordinary, the linear and the rules
   sessions: every rule that acts on a formula of a goal, each with
   whether a step of it is legal on the goal now (`Status::Applies`,
