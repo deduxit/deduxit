@@ -717,18 +717,11 @@ impl Reader<'_> {
     /// neither a body literal, `1`, a tensor nor a head, or it has two
     /// heads.
     fn clause(&mut self, clause: OccId) -> Option<(Vec<u32>, Vec<u32>, Option<OccId>)> {
-        let forest = self.forest;
-        let (mut inputs, mut head) = (Vec::new(), None);
-        let mut factors = vec![clause];
-        while let Some(x) = factors.pop() {
-            match forest.kind(x) {
-                Kind::Tensor => factors.extend(forest.children(x)),
-                Kind::One => {}
-                _ if forest.sign(x) == Some(self.body) => inputs.push(self.place(x)),
-                _ if head.is_none() && is_head(forest, self.body, x) => head = Some(x),
-                _ => return None,
-            }
-        }
+        let (forest, body) = (self.forest, self.body);
+        let mut inputs = Vec::new();
+        // The places are numbered in the walk's order, which orders the
+        // arcs and so the search's ties.
+        let head = clause_walk(forest, body, clause, |x| inputs.push(self.place(x)))?;
         let outputs = head.map_or_else(Vec::new, |h| self.literals(h));
         Some((inputs, outputs, head))
     }
@@ -950,13 +943,29 @@ pub(crate) fn is_head(forest: &Forest, body: Sign, o: OccId) -> bool {
     reason = "no clause, or a clause with or without a head: the goal has none"
 )]
 pub(crate) fn clause_head(forest: &Forest, body: Sign, clause: OccId) -> Option<Option<OccId>> {
+    clause_walk(forest, body, clause, |_| {})
+}
+
+/// Walks a clause's factors as [`clause_head`] does and returns what it
+/// returns, giving `body_literal` each body literal in the order the walk
+/// meets it, those before a factor that makes it no clause included.
+#[expect(
+    clippy::option_option,
+    reason = "no clause, or a clause with or without a head: the goal has none"
+)]
+fn clause_walk(
+    forest: &Forest,
+    body: Sign,
+    clause: OccId,
+    mut body_literal: impl FnMut(OccId),
+) -> Option<Option<OccId>> {
     let mut head = None;
     let mut factors = vec![clause];
     while let Some(x) = factors.pop() {
         match forest.kind(x) {
             Kind::Tensor => factors.extend(forest.children(x)),
             Kind::One => {}
-            _ if forest.sign(x) == Some(body) => {}
+            _ if forest.sign(x) == Some(body) => body_literal(x),
             _ if head.is_none() && is_head(forest, body, x) => head = Some(x),
             _ => return None,
         }
