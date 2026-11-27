@@ -489,7 +489,14 @@ code relies on:
   `split_passes` lends the client the focused engine's count prunes
   (`focus::counts::split_passes`, which builds the engine's `Switches` and tallies
   for the two sides) as a "this split cannot close" test; a split that
-  passes may still fail.
+  passes may still fail. It judges the step's own rule (a Mix on a `⊗`
+  formula as a Mix, a `⊗` elsewhere refused as `apply` refuses it, any
+  other rule `StepError::NoSplit`), and the rows it builds for the
+  whole forest can be quadratic in it: `split_passes_within(goal, &step,
+  &limits, stop)` charges them to `limits.memory_bytes` and asks the
+  stop as a search's set-up does (`Counts::new_until`), which the
+  command and the bindings call; `split_passes` alone has no bound. One
+  ⊗ step on a nested tensor of 16 000 atoms once took 1.5 GiB there.
 - **Reading a state back** (`from_parts`, used by deserialization) checks
   the shape (root 0 concludes the sequent, every other inference is the
   premise of exactly one earlier one, sequents ascending and within the

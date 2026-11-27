@@ -816,8 +816,13 @@ pub fn split_passes(session: &str, goal: u32, step: &str, settings: &str) -> Res
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     state
-        .split_passes(GoalId::new(goal), &step_of(step, &state)?)
-        .map_err(|e| Failure::described(&Error::from(e), &state))
+        .split_passes_within(
+            GoalId::new(goal),
+            &step_of(step, &state)?,
+            &settings.limits,
+            never,
+        )
+        .map_err(|e| Failure::described(&e, &state))
 }
 
 /// What a step opened.

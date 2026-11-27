@@ -17,7 +17,7 @@ use deduxit::linear::search::{Goal, Options, Outcome, Verdict};
 use deduxit::{
     Error, Limits, Refusal,
     linear::{
-        CutFormula, GoalId, InputOptions, Interactive, Kind, Mode, Named, Reading, Rule, Side,
+        CutFormula, GoalId, InputOptions, Interactive, Mode, Named, Reading, Rule, Side,
         Step, StepError, ViewOptions,
     },
 };
@@ -522,18 +522,15 @@ impl Session {
                     Step::new(position, rule).left(&positions(3)?)
                 };
                 // The counts tell a split that cannot be closed before it
-                // is made.
-                // The test reads a `⊗` formula's split as the `⊗`'s, so a Mix
-                // is judged only at another formula.
-                let at_tensor = self.state.goal(goal).ok().and_then(|members| {
-                    let member = *members.get(position)?;
-                    Some(self.state.forest().kind(self.state.occurrence(member)) == Kind::Tensor)
-                });
-                let splits = matches!(
-                    (step.rule.rule, at_tensor),
-                    (Rule::Tensor, Some(true)) | (Rule::Mix, Some(false))
-                );
-                let lost = splits && !self.state.split_passes(goal, &step).unwrap_or(true);
+                // is made, within the session's bounds and until Ctrl-C; a
+                // step the test refuses is left for `apply` to refuse.
+                let splits = matches!(step.rule.rule, Rule::Tensor | Rule::Mix);
+                let lost = splits
+                    && matches!(
+                        self.state
+                            .split_passes_within(goal, &step, &self.limits, |_| interrupted()),
+                        Ok(false)
+                    );
                 let before = self.state.steps();
                 let opened = self.state.apply(goal, &step).map_err(|error| {
                     // The refusal names the formula; the command adds the

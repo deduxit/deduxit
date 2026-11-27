@@ -486,10 +486,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `listed_rules_read_back` ties to the library's `FromStr` (a new rule
   or mode is added to these lists; it reads each shown spelling through
   the session's word splitter, which takes `\` as an escape, so the
-  divisions' rules are shown as typed, `\\L`), a `⊗` at a `⊗` formula
-  or a Mix at another formula whose split `Interactive::split_passes`
-  refutes is applied with a warning line (the test reads a `⊗` formula's
-  split as the `⊗`'s whatever the step's rule),
+  divisions' rules are shown as typed, `\\L`), a `⊗` or a Mix whose
+  split `Interactive::split_passes_within` refutes (within the session's
+  limits and until Ctrl-C) is applied with a warning line,
   and the whole loop runs inside `on_large_stack` so that `close` and the
   derivation drawing have the stack `prove` has. `goal_line` prints a goal
   with the position of every formula, two-sided under the reading.

@@ -1862,13 +1862,68 @@ mod tests {
         );
         let (s, g) = start("|- a, ~a, b, ~b", Mode::CLASSICAL.with_mix());
         assert!(
-            s.split_passes(g, &Step::new(0, Rule::Tensor).left(&[at(&s, g, "~a")]))
+            s.split_passes(g, &Step::new(0, Rule::Mix).left(&[at(&s, g, "~a")]))
                 .unwrap()
         );
         assert!(
-            !s.split_passes(g, &Step::new(0, Rule::Tensor).left(&[at(&s, g, "b")]))
+            !s.split_passes(g, &Step::new(0, Rule::Mix).left(&[at(&s, g, "b")]))
                 .unwrap()
         );
+    }
+
+    /// `split_passes` judges the step's own rule: a Mix on a `⊗` formula
+    /// as a Mix, a `⊗` on a formula that is no `⊗` refused as `apply`
+    /// refuses it, and a rule that makes no split refused.
+    #[test]
+    fn split_passes_judges_the_step_s_rule() {
+        let (s, g) = start("|- a * b, ~a, ~b", Mode::CLASSICAL.with_mix());
+        let (t, na) = (at(&s, g, "a ⊗ b"), at(&s, g, "~a"));
+        assert!(
+            s.split_passes(g, &Step::new(t, Rule::Tensor).left(&[na]))
+                .unwrap()
+        );
+        assert!(
+            !s.split_passes(g, &Step::new(t, Rule::Mix).left(&[na]))
+                .unwrap()
+        );
+        assert!(matches!(
+            s.split_passes(g, &Step::new(na, Rule::Tensor).left(&[])),
+            Err(StepError::Rule { .. })
+        ));
+        assert!(matches!(
+            s.split_passes(g, &Step::new(t, Rule::Par)),
+            Err(StepError::NoSplit { .. })
+        ));
+    }
+
+    /// The bounded split test charges the count rows to the memory bound
+    /// and asks the stop: on a nested tensor, whose rows are quadratic in
+    /// it, a small bound refuses where the default answers.
+    #[test]
+    fn the_bounded_split_test_keeps_to_its_bounds() {
+        let atoms: Vec<String> = (1..=2_000).map(|i| format!("a{i}")).collect();
+        let text = format!("|- c * ({}), ~c", atoms.join(" * "));
+        let (s, g) = start(&text, Mode::CLASSICAL);
+        let step = Step::new(0, Rule::Tensor).left(&[1]);
+        assert!(
+            s.split_passes_within(g, &step, &Limits::default(), |_| false)
+                .is_ok()
+        );
+        let small = Limits::default().with_memory_bytes(Some(1 << 20));
+        assert!(matches!(
+            s.split_passes_within(g, &step, &small, |_| false),
+            Err(Error::Refused(Refusal::Memory { .. }))
+        ));
+        // The pass asks the stop every 2¹⁶ occurrences visited, as a
+        // search's set-up does.
+        let atoms: Vec<String> = (1..=40_000).map(|i| format!("a{i}")).collect();
+        let text = format!("|- c * ({}), ~c", atoms.join(" * "));
+        let (s, g) = start(&text, Mode::CLASSICAL);
+        let unbounded = Limits::default().with_memory_bytes(None);
+        assert!(matches!(
+            s.split_passes_within(g, &step, &unbounded, |_| true),
+            Err(Error::Refused(Refusal::Stopped { .. }))
+        ));
     }
 
     /// Undo retracts a rule application and a grafted search alike,

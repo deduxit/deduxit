@@ -330,7 +330,7 @@ impl Counts {
     /// literals that are positive under the bias given. The counts are a
     /// linear mode's. An affine mode's differ from them only in rows the
     /// interval check does not read there.
-    #[cfg(any(all(test, feature = "parse"), feature = "interactive"))]
+    #[cfg(all(test, feature = "parse"))]
     pub(crate) fn new(forest: &Forest, bias: Bias) -> Self {
         Self::new_until(
             forest,
@@ -1243,6 +1243,9 @@ pub(crate) fn refutation(
 /// prunes are the interval check per atom and, in the multiplicative
 /// fragments, the count equation. A split that fails cannot close; one
 /// that passes may still fail. `fragment` is the goal's.
+///
+/// The rows are built as a search's set-up builds them, charged to
+/// `account` and asking `stop`, whose refusal is the reason returned.
 #[cfg(feature = "interactive")]
 pub(crate) fn split_passes(
     forest: &Forest,
@@ -1250,8 +1253,10 @@ pub(crate) fn split_passes(
     mode: Mode,
     left: &[OccId],
     right: &[OccId],
-) -> bool {
-    let counts = Counts::new(forest, Bias::Auto);
+    account: &Account,
+    stop: &mut dyn FnMut(u64) -> bool,
+) -> Result<bool, Reason> {
+    let counts = Counts::new_until(forest, Bias::Auto, Mode::CLASSICAL, account, stop)?;
     let rules = Switches::new(fragment, mode, &counts);
     let mut split = counts.split();
     for (members, side) in [(left, Branch::Left), (right, Branch::Right)] {
@@ -1259,7 +1264,7 @@ pub(crate) fn split_passes(
             split.place(&counts, m, side);
         }
     }
-    split.feasible(rules.intervals, rules.equation, rules.mix)
+    Ok(split.feasible(rules.intervals, rules.equation, rules.mix))
 }
 
 #[cfg(all(test, feature = "parse"))]

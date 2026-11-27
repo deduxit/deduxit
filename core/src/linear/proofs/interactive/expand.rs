@@ -8,7 +8,7 @@ use super::{
     Applicable, Candidate, Closed, GoalId, Interactive, Needs, Status, Step, StepError, Witness,
 };
 use crate::errors::describe::{Names, cut};
-use crate::limits::{Limits, Progress};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::occurrences::instances::{Framing, eigen_names};
 use crate::linear::occurrences::{Member, OccId, Reading, Side};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
@@ -737,41 +737,133 @@ impl Interactive {
         Ok(premises)
     }
 
-    /// Returns whether the split of a `⊗` step passes the focused engine's
-    /// count prunes: `false` means that this split cannot be closed.
+    /// Returns whether the split of a `⊗` or Mix step passes the focused
+    /// engine's count prunes: `false` means that this split cannot be
+    /// closed; a split that passes may still fail. The step's rule is the
+    /// one judged, and the step is refused as [`apply`](Self::apply)
+    /// refuses it where the rule does not act on the formula.
     ///
-    /// It is a cheap test to run before trying a split; a split that
-    /// passes may still fail. The step's rule is not read: the step is a
-    /// `⊗` on a `⊗` formula, and a Mix on any other.
+    /// It builds the count rows of the whole forest, which can be
+    /// quadratic in it, with no bound and no stop:
+    /// [`split_passes_within`](Self::split_passes_within) is the bounded
+    /// form.
     ///
     /// # Errors
     ///
-    /// As [`rules`](Self::rules) does for the goal and the position.
+    /// As [`rules`](Self::rules) does for the goal and the position,
+    /// [`StepError::NoSplit`] for a rule that makes no split, and the
+    /// errors of `apply` for a rule that does not act on the formula.
     pub fn split_passes(&self, goal: GoalId, step: &Step) -> Result<bool, StepError> {
+        match self.split_test(goal, step, &search::memory::Account::new(None), &mut |_| false) {
+            Ok(passes) => Ok(passes),
+            Err(Split::Step(error)) => Err(error),
+            Err(Split::Ended(reason)) => {
+                unreachable!("only an index past the counts' could end the test: {reason:?}")
+            }
+        }
+    }
+
+    /// Returns whether the split of a `⊗` or Mix step passes the count
+    /// prunes, as [`split_passes`](Self::split_passes) does, within
+    /// `limits` and until `stop` fires: the count rows are charged to
+    /// `limits.memory_bytes`, the pass does `limits.work` units at most
+    /// (an occurrence or a row entry visited), and it asks `stop`
+    /// ([`Phase::Search`]) as a search's set-up does.
+    ///
+    /// # Errors
+    ///
+    /// Those of `split_passes`, as [`Error::Step`], and
+    /// [`Error::Refused`] where a bound or `stop` ended the test: no
+    /// answer on the split.
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the counts' pass ends at the stop, the memory or an index alone"
+    )]
+    pub fn split_passes_within(
+        &self,
+        goal: GoalId,
+        step: &Step,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<bool, Error> {
+        let account = search::memory::Account::new(limits.memory_bytes);
+        let mut done = 0u64;
+        let mut polled = |units: u64| {
+            done = done.saturating_add(units);
+            stop(Progress::new(Phase::Search, units, done))
+                || limits.work.is_some_and(|limit| done > limit)
+        };
+        match self.split_test(goal, step, &account, &mut polled) {
+            Ok(passes) => Ok(passes),
+            Err(Split::Step(error)) => Err(Error::Step(error)),
+            Err(Split::Ended(reason)) => Err(Error::Refused(match reason {
+                search::Reason::MemoryLimit { .. } => Refusal::Memory {
+                    phase: Phase::Search,
+                    limit_bytes: limits.memory_bytes.unwrap_or(u64::MAX),
+                    needed_bytes: None,
+                },
+                search::Reason::IndexLimit => Refusal::Index {
+                    what: crate::limits::Space::Occurrence,
+                    count: self.forest.len() as u64,
+                    most: u64::from(u32::MAX),
+                },
+                search::Reason::Stopped => match limits.work {
+                    Some(limit) if done > limit => Refusal::Work { limit },
+                    _ => Refusal::Stopped {
+                        phase: Phase::Search,
+                    },
+                },
+                other => unreachable!("the counts' pass ended at {other:?}"),
+            })),
+        }
+    }
+
+    /// The body of [`split_passes`](Self::split_passes) and
+    /// [`split_passes_within`](Self::split_passes_within): the step's
+    /// premises made as `apply` makes them, then the counts' test of
+    /// them, the rows charged to `account` and the pass asking `stop`.
+    fn split_test(
+        &self,
+        goal: GoalId,
+        step: &Step,
+        account: &search::memory::Account,
+        stop: &mut dyn FnMut(u64) -> bool,
+    ) -> Result<bool, Split> {
         let sequent = self.open(goal)?;
-        let position = step.position;
+        let (position, rule) = (step.position, step.rule);
+        if !matches!(rule.rule, Rule::Tensor | Rule::Mix) {
+            return Err(StepError::NoSplit { rule }.into());
+        }
         let left = step.left_positions(sequent.len())?;
         let left = &left[..];
         let o = formula_at(&sequent, position)?;
-        let rule = if self.forest.kind(o) == Kind::Tensor {
-            Rule::Tensor
-        } else {
-            Rule::Mix
-        };
         let reading = self.reading();
-        let rule = Named::applied(rule, reading.as_ref(), o);
+        let rule = match &reading {
+            Some(reading) => {
+                let named = Named::applied(rule.rule, Some(reading), o);
+                if rule.side.is_some() && rule != named {
+                    let member = self.goal(goal)?[position];
+                    return Err(self.rule_refused(rule, position, member).into());
+                }
+                named
+            }
+            None => rule,
+        };
         let premises = self.expand(reading.as_ref(), &sequent, position, rule, left)?;
         let [l, r] = premises.as_slice() else {
             unreachable!("a split has two premises");
         };
         let fragment = search::goal_fragment(&self.forest, &sequent);
-        Ok(focus::counts::split_passes(
+        focus::counts::split_passes(
             &self.forest,
             fragment,
             self.mode,
             l.as_slice(),
             r.as_slice(),
-        ))
+            account,
+            stop,
+        )
+        .map_err(Split::Ended)
     }
 
     /// Takes back the last step (a rule applied, a cut, or a goal closed by
@@ -988,4 +1080,19 @@ pub(super) fn formula_at(sequent: &[OccId], position: usize) -> Result<OccId, St
         position,
         len: sequent.len(),
     })
+}
+
+/// Why the split test gave no answer: the step's fault, or the reason the
+/// counts' pass ended.
+enum Split {
+    /// The step is refused.
+    Step(StepError),
+    /// A bound or the stop ended the pass.
+    Ended(search::Reason),
+}
+
+impl From<StepError> for Split {
+    fn from(error: StepError) -> Self {
+        Self::Step(error)
+    }
 }
