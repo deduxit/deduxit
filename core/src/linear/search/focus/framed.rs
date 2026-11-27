@@ -1276,9 +1276,33 @@ impl Framed {
         let total = s.starts.len();
         s.order.clear();
         s.order.extend(0..total);
+        self.write_key::<false>(s, n, key);
+    }
+
+    /// Writes the canonical key into `key`, over the order the own key left
+    /// in `s`. It holds the members of `Γ` (the first `n`, each once, after
+    /// its number of copies) and of `Θ`. Each zone's members are sorted with
+    /// every metavariable alike and every eigenvariable by its rank. The
+    /// metavariables are numbered as they first appear in that order. Then
+    /// comes, per metavariable, how many of the sequent's eigenvariables lie
+    /// below its level.
+    fn canonical_key(&self, s: &mut KeyScratch, n: usize, key: &mut Vec<OccId>) {
+        self.write_key::<true>(s, n, key);
+    }
+
+    /// Writes the own key, or the canonical one where `CANONICAL` is set,
+    /// as [`own_key`](Self::own_key) and
+    /// [`canonical_key`](Self::canonical_key) describe them; a constant, so
+    /// that each is a loop of its own.
+    fn write_key<const CANONICAL: bool>(&self, s: &mut KeyScratch, n: usize, key: &mut Vec<OccId>) {
         let mut order = std::mem::take(&mut s.order);
-        order[..n].sort_by(|&x, &y| s.member(x).cmp(s.member(y)));
-        order[n..].sort_by(|&x, &y| s.member(x).cmp(s.member(y)));
+        if CANONICAL {
+            order[..n].sort_by(|&x, &y| s.abstract_order(x, y));
+            order[n..].sort_by(|&x, &y| s.abstract_order(x, y));
+        } else {
+            order[..n].sort_by(|&x, &y| s.member(x).cmp(s.member(y)));
+            order[n..].sort_by(|&x, &y| s.member(x).cmp(s.member(y)));
+        }
         s.metas.clear();
         s.numbers.clear();
         key.clear();
@@ -1290,62 +1314,42 @@ impl Framed {
                 let range = s.range(i);
                 key.push(OccId::new(s.copies[i]));
                 key.push(OccId::new(s.words[range.start]));
-                for &w in &s.words[range.start + 1..range.end] {
-                    if w & TAG == META && s.numbers.insert(w & VALUE, 0).is_none() {
-                        s.metas.push(w & VALUE);
-                    }
-                    key.push(OccId::new(w));
-                }
-            }
-        }
-        key.extend(s.metas.iter().map(|&v| OccId::new(self.meta_level(v))));
-        s.order = order;
-    }
-
-    /// Writes the canonical key into `key`. It holds the members of `Γ` (the
-    /// first `n`, each once, after its number of copies) and of `Θ`. Each
-    /// zone's members are sorted with every metavariable alike and every
-    /// eigenvariable by its rank. The metavariables are numbered as they
-    /// first appear in that order. Then comes, per metavariable, how many of
-    /// the sequent's eigenvariables lie below its level.
-    fn canonical_key(&self, s: &mut KeyScratch, n: usize, key: &mut Vec<OccId>) {
-        let mut order = std::mem::take(&mut s.order);
-        order[..n].sort_by(|&x, &y| s.abstract_order(x, y));
-        order[n..].sort_by(|&x, &y| s.abstract_order(x, y));
-        s.metas.clear();
-        s.numbers.clear();
-        key.clear();
-        for members in [&order[..n], &order[n..]] {
-            key.push(OccId::new(members.len() as u32));
-            for &i in members {
-                let range = s.range(i);
-                key.push(OccId::new(s.copies[i]));
-                key.push(OccId::new(s.words[range.start]));
                 for j in range.start + 1..range.end {
                     let w = s.words[j];
-                    let word = match w & TAG {
-                        META => {
-                            let v = w & VALUE;
-                            // Fewer metavariables than words.
-                            let next = s.metas.len() as u32;
-                            let number = *s.numbers.entry(v).or_insert(next);
-                            if number == next {
-                                s.metas.push(v);
+                    let word = if CANONICAL {
+                        match w & TAG {
+                            META => {
+                                let v = w & VALUE;
+                                // Fewer metavariables than words.
+                                let next = s.metas.len() as u32;
+                                let number = *s.numbers.entry(v).or_insert(next);
+                                if number == next {
+                                    s.metas.push(v);
+                                }
+                                META | number
                             }
-                            META | number
+                            EIGEN => EIGEN | s.rank(w & VALUE),
+                            _ => w,
                         }
-                        EIGEN => EIGEN | s.rank(w & VALUE),
-                        _ => w,
+                    } else {
+                        if w & TAG == META && s.numbers.insert(w & VALUE, 0).is_none() {
+                            s.metas.push(w & VALUE);
+                        }
+                        w
                     };
                     key.push(OccId::new(word));
                 }
             }
         }
-        key.extend(
-            s.metas
-                .iter()
-                .map(|&v| OccId::new(s.rank(self.meta_level(v)))),
-        );
+        if CANONICAL {
+            key.extend(
+                s.metas
+                    .iter()
+                    .map(|&v| OccId::new(s.rank(self.meta_level(v)))),
+            );
+        } else {
+            key.extend(s.metas.iter().map(|&v| OccId::new(self.meta_level(v))));
+        }
         s.order = order;
     }
 }
