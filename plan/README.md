@@ -8713,3 +8713,14 @@ move (D26).
   refactor's reference; the audit's six commits (notes, inventories, the target sets) pushed
   (`zpvqrsok`). A snag: the harness refuses a subagent's Write, so the findings were recovered from
   the agents' transcripts (`plan/audit/recover.py`).
+- 2026-11-27, about 09:02: **The audit's stage 4: a soundness defect; fixup-31 started.** Stage 4 (units
+  4b, 4c, 4d, 4e, 5a; 13 min, below stage 2's rate per unit): 80 findings, 65 confirmed, 15 candidates,
+  none rejected; 280 in 16 units so far, 239 confirmed. **F-4d-01, a defect of a released checker:**
+  `ordinary::KripkeCountermodel::check` reads `=` as an ordinary predicate, so `deduxit check`
+  accepts a forged one-world Kripke model as a refutation of `⊢ a = a`, which `prove` proves; the
+  search never builds such a model, so only a document written elsewhere meets it; in 0.8.0.
+  (decided unattended) A fixup now, before the refactor, with the panel: fixup-31 in step 83's worker
+  (cores 4-6), reading `=` as identity at every world as the finite structure does, or refusing it,
+  with the Rocq side checked; beside it F-4c-01 (resolution's read-back unbounded: 22 s under a 1 s
+  limit). The fix ships with 0.9.0; whether 0.8.0 users need a 0.8.1 is the author's call. Stage 5
+  (six units) runs; the audit's stage 4 notes pushed (`supnspsz`).
