@@ -40,18 +40,15 @@ def run(root, target, log, command):
     return wall, cpu, status
 
 
-def longest_units(target, count):
-    """Returns the units of the last `--timings` report that took longest."""
-    report = os.path.join(target, "cargo-timings", "cargo-timing.html")
+def longest_units(target, count, report=None):
+    """Returns the units of a `--timings` report that took longest: the
+    last one's, or those of the report named."""
+    report = report or os.path.join(target, "cargo-timings", "cargo-timing.html")
+    marker = "const UNIT_DATA = "
     try:
         with open(report, encoding="utf-8") as f:
-            for line in f:
-                text = line.strip()
-                if text.startswith("const UNIT_DATA = "):
-                    units = json.loads(text[len("const UNIT_DATA = ") :].rstrip(";"))
-                    break
-            else:
-                return []
+            text = f.read()
+        units, _ = json.JSONDecoder().raw_decode(text, text.index(marker) + len(marker))
     except (OSError, ValueError):
         return []
     units.sort(key=lambda unit: -unit.get("duration", 0))

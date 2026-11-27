@@ -176,9 +176,11 @@ def mangled(work, files):
         "Each file alone, against the library as built above. A file that"
         " fails names a hypothesis or variable Rocq generated.\n"
     )
-    scratch = os.path.join(work, "mangled.vo")
     refused = 0
     for file in files:
+        # The output goes apart, under the name Rocq requires of it.
+        scratch = os.path.join(work, "mangled", file[: -len(".v")] + ".vo")
+        os.makedirs(os.path.dirname(scratch), exist_ok=True)
         _, status, out, err = rocq(
             work, [*LIBRARY, "-mangle-names", "M_", "-o", scratch, file]
         )
@@ -211,9 +213,7 @@ def assumptions(library, work, files):
                 f.write(f"From {'.'.join(['Deduxit', *parts[:-1]])} Require {parts[-1]}.\n")
                 for name in names:
                     f.write(f"Print Assumptions {name}.\n")
-            _, status, out, err = rocq(
-                work, [*LIBRARY, "-o", os.path.join(scratch, "out.vo"), path]
-            )
+            _, status, out, err = rocq(work, [*LIBRARY, path])
             if not status:
                 for name, answer in zip(names, answers(out), strict=False):
                     if answer is None:

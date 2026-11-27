@@ -131,7 +131,7 @@ dhat() {
   while IFS=, read -r journey _; do
     [ "$journey" = journey ] && continue
     capped -- valgrind --tool=dhat "--dhat-out-file=$out/dhat/$journey.json" \
-      target/dhat/release/deduxit-bench journey "$journey" 2>"$out/dhat/$journey.txt" >/dev/null
+      target/dhat/release/deduxit-bench journey "$journey" 2>"$out/dhat/$journey.txt" >/dev/null </dev/null
   done <bench/ceilings.csv
 }
 
