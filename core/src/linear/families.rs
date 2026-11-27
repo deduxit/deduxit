@@ -703,13 +703,13 @@ pub fn three_partition(items: &[u32], bins: u32, size: u32) -> Sequent {
         let clauses: Vec<String> = (1..=bins)
             .map(|j| format!("({} * t{j} -o d{i})", power(&format!("b{j}"), a, " * ")))
             .collect();
-        hypotheses.push(clauses.join(" & "));
+        hypotheses.push(joined(&clauses, " & "));
     }
     let goal: Vec<String> = (0..items.len()).map(|i| format!("d{i}")).collect();
     parse(&format!(
         "{} |- {}",
         hypotheses.join(", "),
-        goal.join(" * ")
+        joined(&goal, " * ")
     ))
 }
 
@@ -743,12 +743,15 @@ pub fn three_partition_mll(items: &[u32], bins: u32, size: u32) -> Sequent {
 ///
 /// # Panics
 ///
-/// If the sizes add up to an odd total.
+/// If the sizes add up to an odd total, or to more than `u32::MAX`.
 pub fn partition(sizes: &[u32]) -> Sequent {
-    let total: u32 = sizes.iter().sum();
+    let total = sizes
+        .iter()
+        .try_fold(0_u32, |total, &size| total.checked_add(size))
+        .expect("the total fits a u32");
     assert_eq!(total % 2, 0, "the total is even");
     let items: Vec<String> = (1..=sizes.len()).map(|i| format!("a{i}")).collect();
-    let mut hypotheses = vec![items.join(" * ")];
+    let mut hypotheses = vec![joined(&items, " * ")];
     for unit in ["b", "c"] {
         for (i, &size) in sizes.iter().enumerate() {
             hypotheses.push(format!("(a{} -o {})", i + 1, power(unit, size, " * ")));
@@ -759,7 +762,7 @@ pub fn partition(sizes: &[u32]) -> Sequent {
         power("b", total / 2, " * "),
         power("c", total / 2, " * ")
     );
-    hypotheses.push(format!("({half} -o {})", items.join(" * ")));
+    hypotheses.push(format!("({half} -o {})", joined(&items, " * ")));
     hypotheses.push(format!("({half} -o e)"));
     parse(&format!("{} |- e", hypotheses.join(", ")))
 }
@@ -1095,9 +1098,27 @@ fn lambek_first_order(hypotheses: &[Lambek], goal: &Lambek) -> String {
     format!("{} |- {goal}", translated.join(", "))
 }
 
-/// Returns `n` copies of `formula` joined by `separator`.
+/// Returns `n` copies of `formula` joined by `separator`, the
+/// separator's unit for none.
 fn power(formula: &str, n: u32, separator: &str) -> String {
-    vec![formula; n as usize].join(separator)
+    joined(&vec![formula; n as usize], separator)
+}
+
+/// Returns `parts` joined by `separator`, a connective between spaces;
+/// for no part, the connective's unit (`1` for `⊗`, `bot` for `⅋`, `top`
+/// for `&`), so that a size or a count of 0 has its encoding.
+fn joined<S: AsRef<str>>(parts: &[S], separator: &str) -> String {
+    if parts.is_empty() {
+        return match separator.trim() {
+            "*" => "1",
+            "|" => "bot",
+            "&" => "top",
+            other => unreachable!("no unit for {other:?}"),
+        }
+        .to_owned();
+    }
+    let parts: Vec<&str> = parts.iter().map(AsRef::as_ref).collect();
+    parts.join(separator)
 }
 
 /// Parses a sequent a generator wrote, without a bound on its size.
@@ -1185,6 +1206,30 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The public encodings take an item of size 0, no bin and no item:
+    /// each gives its sequent, decided as the problem it encodes (no
+    /// item in no bin splits; items in no bin do not).
+    #[test]
+    fn encodings_take_sizes_and_counts_of_zero() {
+        let decided = |sequent: Sequent| match prove(&sequent, Mode::CLASSICAL, &Options::default())
+            .unwrap()
+            .verdict
+        {
+            Verdict::Proved(_) => true,
+            Verdict::Unprovable(_) => false,
+            Verdict::Unknown(reason) => panic!("{sequent}: {reason:?}"),
+        };
+        assert!(decided(three_partition(&[0, 1, 2], 1, 3)));
+        assert!(!decided(three_partition(&[1, 1, 1], 0, 3)));
+        assert!(decided(three_partition(&[], 0, 3)));
+        assert!(decided(three_partition_mll(&[0, 1, 2], 1, 3)));
+        assert!(!decided(three_partition_mll(&[1, 1, 1], 0, 3)));
+        assert!(decided(three_partition_mll(&[], 0, 3)));
+        assert!(decided(partition(&[0, 2, 2])));
+        assert!(decided(partition(&[])));
+        assert!(!decided(partition(&[0, 2, 4])));
     }
 
     /// The QBF encoding agrees with the formula's truth value on many
