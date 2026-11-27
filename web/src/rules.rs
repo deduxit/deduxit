@@ -593,6 +593,97 @@ pub fn assume(session: &str, goal: u32, settings: &str) -> Result<String, Failur
     changed(&state, &settings, serde_json::Map::new())
 }
 
+/// What a search on a goal found, beside the session.
+#[derive(Serialize)]
+struct Closing {
+    /// The outcome of deciding the goal as a sequent of ordinary logic,
+    /// the lines in force at it its hypotheses, as `prove --logic …
+    /// --format json` writes one.
+    outcome: deduxit::ordinary::Outcome,
+    /// `null` when the proof was taken or there was none; otherwise the
+    /// refusal of a bound, and the goal stays open.
+    refused: Option<serde_json::Value>,
+}
+
+/// Decides an open goal of a session in one of the natural deduction
+/// files deduxit ships and takes the proof found step by step, each step
+/// checked, answering the session with `outcome` and `refused`. The goal
+/// is decided as a sequent of ordinary logic in the file's logic through
+/// the embedding into linear logic, and the derivation found is
+/// translated into a normal proof of the file, checked against it. A goal
+/// not valid or undecided stays open, and the outcome says why.
+///
+/// # Errors
+///
+/// `not_applicable` for a calculus that is no shipped natural deduction
+/// file, a goal that is not open, and the refusals of the search's
+/// bounds.
+pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut state = session_of(session, &settings)?;
+    let closed = state
+        .close(GoalId::new(goal), &settings.search, &settings.limits, never)
+        .map_err(Failure::from)?;
+    let refused = closed
+        .grafted
+        .err()
+        .and_then(|refusal| serde_json::to_value(deduxit::Error::Refused(refusal)).ok());
+    changed(
+        &state,
+        &settings,
+        Closing {
+            outcome: closed.outcome,
+            refused,
+        },
+    )
+}
+
+/// What a hint found.
+#[derive(Serialize)]
+struct Hint {
+    /// The outcome, as [`close`] answers it.
+    outcome: deduxit::ordinary::Outcome,
+    /// The proof's first step on the goal: `{"rule", "given"}`, `rule`
+    /// `null` where the goal is a line in force ([`assume`]), else a step
+    /// [`apply`] takes as it is. Empty unless the goal is valid.
+    steps: Vec<Hinted>,
+}
+
+/// A hinted step.
+#[derive(Serialize)]
+struct Hinted {
+    /// The rule, or `null` to close the goal by a line in force.
+    rule: Option<String>,
+    /// What the rule needs given, by name, as [`StepForm`]'s `given`.
+    given: std::collections::BTreeMap<String, String>,
+}
+
+/// Decides a goal as [`close`] does and returns the outcome with the
+/// first step of the proof found, `{"outcome", "steps"}`. The session
+/// stays as it was.
+///
+/// # Errors
+///
+/// As [`close`].
+pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let hint = state
+        .hint(GoalId::new(goal), &settings.search, &settings.limits, never)
+        .map_err(Failure::from)?;
+    written(&Hint {
+        outcome: hint.outcome,
+        steps: hint
+            .steps
+            .into_iter()
+            .map(|step| Hinted {
+                rule: step.rule,
+                given: step.given.into_iter().collect(),
+            })
+            .collect(),
+    })
+}
+
 /// What an undo took back.
 #[derive(Serialize)]
 struct Reopened {

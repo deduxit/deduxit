@@ -363,7 +363,13 @@ for `THIRD-PARTY-NOTICES.txt`.
   (`rules::Fitch`, `styles.fitch` its text, ids `l<n>`), its `not_fitch`
   refusal passed on as the library writes it. `about` lists the suite
   as `rules` with the parameter `calculus` and `term` `null` (a rule
-  file's rules have no lambda-terms). `tests/rules.rs` holds the tests.
+  file's rules have no lambda-terms). `rules_close` and `rules_hint`
+  (`describe`'s `close` and `hint` of the suite) run the library's
+  `close` and `hint` in a natural deduction file deduxit ships,
+  answering the ordinary outcome as `ordinary_close` does and, for the
+  hint, `steps: [{"rule", "given"}]` (`rule` `null` for `rules_assume`)
+  that `rules_apply` takes as they are; another calculus is the
+  library's `not_applicable`. `tests/rules.rs` holds the tests.
 - **The transformations** (`ordinary_translate(sequent, options,
   settings)`, `ordinary_interpolate(sequent, logic, partition,
   settings)`): the library's `negative::compare` and
@@ -443,7 +449,8 @@ for `THIRD-PARTY-NOTICES.txt`.
 - **The protocol** (`protocol.rs`, exported `describe`): which of each
   suite's calls is which of the protocol's twelve (`CALLS`), with its
   arguments (`takes`), `null` where the suite lacks one (the `rules`
-  suite has no search, so no `close`, `hint` or `certificate`), its
+  suite has no `certificate`, and `close` and `hint` only in natural
+  deduction's files), its
   calls beyond them (`extra`), the layouts its views draw into and how
   its proofs are built (`builds`: the ordinary suite's `natural` runs the
   `rules` suite's calls in NK, NJ or NM). It is `about`'s answer with

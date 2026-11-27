@@ -609,6 +609,18 @@ mod exports {
         rules::undo(session, settings).map_err(thrown)
     }
 
+    /// See [`rules::close`].
+    #[wasm_bindgen]
+    pub fn rules_close(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        rules::close(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`rules::hint`].
+    #[wasm_bindgen]
+    pub fn rules_hint(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        rules::hint(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
     /// See [`rules::check`].
     #[wasm_bindgen]
     pub fn rules_check(session: &str, settings: &str) -> Result<String, JsValue> {

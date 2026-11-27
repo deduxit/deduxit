@@ -386,3 +386,32 @@ fn candidates_give_every_rule_its_status() {
     assert_eq!(and["refusal"]["code"], "step_refused");
     assert_eq!(and["refusal"]["details"]["fault"], "unmatched");
 }
+
+/// In natural deduction the search closes a goal, its proof taken step by
+/// step and the session finished, and a hint is the proof's first step,
+/// which `apply` takes as it is; a calculus that is no natural deduction
+/// file deduxit ships has no search, `not_applicable`.
+#[wasm_bindgen_test(unsupported = test)]
+fn natural_deduction_has_a_search() {
+    let started = rules::start("NJ", "c", r#"["a → b", "b → c", "a"]"#, "").unwrap();
+    let state = session(&started);
+    let hint = value(&rules::hint(&state, 0, "").unwrap());
+    assert_eq!(hint["outcome"]["verdict"], "valid");
+    assert_eq!(hint["steps"][0], json!({"rule": "→E", "given": {"A": "b"}}));
+    let stepped = rules::apply(&state, 0, &hint["steps"][0].to_string(), "").unwrap();
+    assert_eq!(
+        value(&stepped)["view"]["goals"].as_array().unwrap().len(),
+        2
+    );
+    let closed = value(&rules::close(&state, 0, "").unwrap());
+    assert_eq!(closed["outcome"]["verdict"], "valid");
+    assert_eq!(closed["refused"], Value::Null);
+    assert_eq!(closed["view"]["finished"], true);
+    let peirce = session(&rules::start("NJ", "((a → b) → a) → a", "", "").unwrap());
+    let refuted = value(&rules::close(&peirce, 0, "").unwrap());
+    assert_eq!(refuted["outcome"]["verdict"], "not_valid");
+    assert_eq!(refuted["view"]["finished"], false);
+    let lj = session(&rules::start("LJ", "a ⊢ a", "", "").unwrap());
+    let refused = rules::close(&lj, 0, "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "not_applicable");
+}
