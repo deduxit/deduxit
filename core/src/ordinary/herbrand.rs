@@ -51,6 +51,8 @@ use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::linear::search::Reason;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 /// How deep the terms of the instances go by default.
 pub const DEFAULT_DEPTH: u32 = 3;
@@ -737,6 +739,8 @@ pub(super) fn deskolemized(
         inferences: Vec::new(),
         bytes: 0,
         expanded: 0,
+        skolem_memo: RefCell::default(),
+        nesting_memo: RefCell::default(),
         limits,
     };
     // The arena is a copy of the instances': it is charged whole first.
@@ -1093,6 +1097,12 @@ struct Build<'l> {
     charged: ArenaSize,
     /// The branches expanded so far.
     expanded: u64,
+    /// The Skolem terms in each term asked about, as `skolem_terms` found
+    /// them: a term shares its parts, and a walk of its tree per witness,
+    /// item and step would cost its unfolded size each time.
+    skolem_memo: RefCell<HashMap<FoTermId, Rc<[FoTermId]>>>,
+    /// How deep the Skolem terms in each term walked nest.
+    nesting_memo: RefCell<HashMap<FoTermId, u32>>,
     /// The bounds.
     limits: &'l Limits,
 }
@@ -1469,7 +1479,7 @@ impl Build<'_> {
             branch.items[at].done.push(t);
             let mut step = self.instance(branch, at, t, true)?;
             for premise in &mut step.premises {
-                for &e in &constants {
+                for &e in constants.iter() {
                     if !premise.introduced.contains(&e) && !premise.constants.contains(&e) {
                         premise.constants.push(e);
                     }
@@ -1820,35 +1830,59 @@ impl Build<'_> {
             .all(|s| branch.introduced.contains(s) || branch.constants.contains(s))
     }
 
-    /// Returns the Skolem terms in `t`, `t` among them.
-    fn skolem_terms(&self, t: FoTermId) -> Vec<FoTermId> {
+    /// Returns the Skolem terms in `t`, `t` among them, in the order a
+    /// walk of its tree meets them first.
+    fn skolem_terms(&self, t: FoTermId) -> Rc<[FoTermId]> {
+        if let Some(found) = self.skolem_memo.borrow().get(&t) {
+            return Rc::clone(found);
+        }
         let tables = self.formulas.first_order();
         let (mut found, mut stack) = (Vec::new(), vec![t]);
+        // A part met again was walked whole already (the stack takes a
+        // part's arguments before anything under it), so skipping it
+        // keeps the order and every term found.
+        let mut seen: HashSet<FoTermId> = HashSet::default();
         while let Some(u) = stack.pop() {
+            if !seen.insert(u) {
+                continue;
+            }
             if let FoTerm::App(f, args) = tables.terms[u.index()] {
-                if self.symbols.contains(&f) && !found.contains(&u) {
+                if self.symbols.contains(&f) {
                     found.push(u);
                 }
                 stack.extend_from_slice(tables.list(args));
             }
         }
+        let found: Rc<[FoTermId]> = found.into();
+        self.skolem_memo.borrow_mut().insert(t, Rc::clone(&found));
         found
     }
 
     /// Returns how deep the Skolem terms in `t` nest: 0 for none, else one
-    /// more than the deepest inside the deepest.
+    /// more than the deepest inside the deepest. Each part's depth is kept,
+    /// so a part shared on many paths is walked once.
     fn nesting(&self, t: FoTermId) -> u32 {
         let tables = self.formulas.first_order();
-        let mut most = 0;
-        let mut stack = vec![(t, 0u32)];
-        while let Some((u, above)) = stack.pop() {
-            if let FoTerm::App(f, args) = tables.terms[u.index()] {
-                let here = above + u32::from(self.symbols.contains(&f));
-                most = most.max(here);
-                stack.extend(tables.list(args).iter().map(|&v| (v, here)));
+        let mut memo = self.nesting_memo.borrow_mut();
+        let mut stack = vec![(t, false)];
+        while let Some((u, ready)) = stack.pop() {
+            if memo.contains_key(&u) {
+                continue;
             }
+            let FoTerm::App(f, args) = tables.terms[u.index()] else {
+                memo.insert(u, 0);
+                continue;
+            };
+            let list = tables.list(args);
+            if !ready {
+                stack.push((u, true));
+                stack.extend(list.iter().map(|&v| (v, false)));
+                continue;
+            }
+            let below = list.iter().map(|v| memo[v]).max().unwrap_or(0);
+            memo.insert(u, below + u32::from(self.symbols.contains(&f)));
         }
-        most
+        memo[&t]
     }
 
     /// Returns the derivation of `sequent` made: each Skolem term an
@@ -1867,7 +1901,7 @@ impl Build<'_> {
             .max()
             .unwrap_or(0);
         let mut made = std::mem::take(&mut self.made);
-        made.sort_by_key(|&s| self.nesting(s));
+        made.sort_by_cached_key(|&s| self.nesting(s));
         let mut image: HashMap<FoTermId, FoTermId> = HashMap::default();
         for (k, &s) in made.iter().enumerate() {
             let e = Eigen::new(base.saturating_add(k as u32));
