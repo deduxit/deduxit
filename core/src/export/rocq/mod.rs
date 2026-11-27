@@ -165,6 +165,7 @@ use std::fmt::Write;
 use thiserror::Error;
 
 mod deduxit;
+pub(crate) mod library;
 
 /// The version of NanoYalla the scripts are written for. NanoYalla is the
 /// `nanoyalla` directory of Click & coLLecT, whose `macroll` module

@@ -11,52 +11,14 @@
 use super::{Condition, Countermodel, Node, NodeId, Sequent, System};
 use crate::Error;
 use crate::export::Form;
+use crate::export::rocq::library::{self, Bounded, stopped, string};
 use crate::export::rocq::{
     DEDUXIT_MODAL_COUNTERMODEL_PRELUDE, DEDUXIT_MODAL_PRELUDE, Options, Unsupported,
 };
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress};
 use crate::linear::sequents::{Stop, Stops};
 use crate::rules::{Derivation, NodeId as Place, NodeRef, Step, Term, TermId, Terms};
 use std::fmt::Write;
-
-/// Text that refuses to grow past `limits.derivation_bytes`, so that a
-/// certificate is never held or written past the bound.
-struct Bounded {
-    /// The text so far.
-    text: String,
-    /// The bound, if any.
-    limit: Option<u64>,
-}
-
-impl Bounded {
-    /// Returns empty text under `limits.derivation_bytes`.
-    fn new(limits: &Limits) -> Self {
-        Self {
-            text: String::new(),
-            limit: limits.derivation_bytes,
-        }
-    }
-
-    /// Appends `piece`, or refuses where the text would pass the bound.
-    fn push(&mut self, piece: &str) -> Result<(), Error> {
-        self.text.push_str(piece);
-        match self.limit {
-            Some(limit) if self.text.len() as u64 > limit => Err(Refusal::Output {
-                what: "certificate",
-                estimate_bytes: self.text.len() as u64,
-                limit_bytes: limit,
-                least_bytes: None,
-            }
-            .into()),
-            _ => Ok(()),
-        }
-    }
-}
-
-/// Returns a name as a Rocq string, `"` doubled.
-fn string(name: &str) -> String {
-    format!("\"{}\"", name.replace('"', "\"\""))
-}
 
 /// Returns the record of a system's frame conditions, as the library's
 /// `conditions` writes it: every condition the system holds, those that
@@ -73,14 +35,6 @@ fn conditions(system: System) -> String {
     )
 }
 
-/// Returns the stop's refusal while a certificate is written.
-fn stopped() -> Error {
-    Refusal::Stopped {
-        phase: Phase::Write,
-    }
-    .into()
-}
-
 /// Returns the refusal of a derivation the library's calculus has no
 /// term for. The checker refused it first, so this is a defect.
 fn shapeless(why: &str) -> Error {
@@ -88,23 +42,6 @@ fn shapeless(why: &str) -> Error {
         calculus: "G3",
         reason: format!("the derivation has no term of Deduxit.Modal: {why}"),
     }
-}
-
-/// Returns the constructor of the library's formulas a connective of the
-/// labelled calculus is.
-fn constructor(connective: &str) -> Option<&'static str> {
-    Some(match connective {
-        "⊤" => "top",
-        "⊥" => "bot",
-        "¬" => "neg",
-        "∧" => "wedge",
-        "∨" => "vee",
-        "→" => "imp",
-        "↔" => "equiv",
-        "□" => "box",
-        "◇" => "dia",
-        _ => return None,
-    })
 }
 
 /// Writes the formula `id` of a derivation's terms in the constructors of
@@ -119,7 +56,7 @@ fn formula(terms: &Terms, id: TermId, argument: bool, out: &mut Bounded) -> Resu
         match visit {
             Stop::Enter(k, argument) => match terms.term(k) {
                 Term::Atom { name, .. } => {
-                    let atom = format!("var {}", string(name));
+                    let atom = format!("{} {}", library::modal_node(Node::Atom(0)), string(name));
                     // A leaf has no exit, so its bracket closes here.
                     if argument {
                         out.push(&format!("({atom})"))?;
@@ -131,7 +68,7 @@ fn formula(terms: &Terms, id: TermId, argument: bool, out: &mut Bounded) -> Resu
                     connective,
                     arguments,
                 } => {
-                    let name = constructor(connective).ok_or_else(|| {
+                    let name = library::modal(connective).ok_or_else(|| {
                         shapeless(&format!("{connective} is no connective of a formula"))
                     })?;
                     if arguments.is_empty() {
@@ -215,32 +152,33 @@ enum At {
 }
 
 /// Returns where each position of a node of `rule` points, in the
-/// order the node gives them, and the term's constructor.
-fn shape(rule: &str) -> Option<(&'static str, &'static [At])> {
+/// order the node gives them (its constructor is
+/// [`library::modal_proof`]'s).
+fn shape(rule: &str) -> Option<&'static [At]> {
     use At::{Left, Premise, Right};
     Some(match rule {
-        "ax" => ("Ax", &[Left, Right]),
-        "L⊥" => ("LBot", &[Left]),
-        "R⊤" => ("RTop", &[Right]),
-        "L¬" => ("LNeg", &[Left]),
-        "R¬" => ("RNeg", &[Right]),
-        "L∧" => ("LAnd", &[Left]),
-        "R∧" => ("RAnd", &[Right]),
-        "L∨" => ("LOr", &[Left]),
-        "R∨" => ("ROr", &[Right]),
-        "L→" => ("LImp", &[Left]),
-        "R→" => ("RImp", &[Right]),
-        "L↔" => ("LIff", &[Left]),
-        "R↔" => ("RIff", &[Right]),
-        "L□" => ("LBox", &[Left, Left]),
-        "R□" => ("RBox", &[Right, Premise]),
-        "L◇" => ("LDia", &[Left, Premise]),
-        "R◇" => ("RDia", &[Left, Right]),
-        "Ref" => ("Ref", &[Premise]),
-        "Ser" => ("Ser", &[Premise]),
-        "Sym" => ("Sym", &[Left]),
-        "Trans" => ("Trans", &[Left, Left]),
-        "Eucl" => ("Eucl", &[Left, Left]),
+        "ax" => &[Left, Right],
+        "L⊥" => &[Left],
+        "R⊤" => &[Right],
+        "L¬" => &[Left],
+        "R¬" => &[Right],
+        "L∧" => &[Left],
+        "R∧" => &[Right],
+        "L∨" => &[Left],
+        "R∨" => &[Right],
+        "L→" => &[Left],
+        "R→" => &[Right],
+        "L↔" => &[Left],
+        "R↔" => &[Right],
+        "L□" => &[Left, Left],
+        "R□" => &[Right, Premise],
+        "L◇" => &[Left, Premise],
+        "R◇" => &[Left, Right],
+        "Ref" => &[Premise],
+        "Ser" => &[Premise],
+        "Sym" => &[Left],
+        "Trans" => &[Left, Left],
+        "Eucl" => &[Left, Left],
         _ => return None,
     })
 }
@@ -252,7 +190,9 @@ fn head(derivation: &Derivation, node: NodeRef<'_>, out: &mut Bounded) -> Result
     let Step::Rule(rule) = node.step() else {
         return Err(Unsupported::Open.into());
     };
-    let (name, places) = shape(rule).ok_or_else(|| shapeless(&format!("the rule {rule}")))?;
+    let (name, places) = library::modal_proof(rule)
+        .zip(shape(rule))
+        .ok_or_else(|| shapeless(&format!("the rule {rule}")))?;
     let positions = node.positions();
     if positions.len() != places.len() {
         return Err(shapeless(&format!(
@@ -530,29 +470,26 @@ fn modal_formula(
         match visit {
             Stop::Enter(k, argument) => {
                 let node = formulas.node(k);
-                let name = match node {
+                let name = library::modal_node(node);
+                match node {
                     Node::Atom(a) => {
-                        let atom = format!("var {}", string(&formulas.atom_names()[a as usize]));
+                        let atom = format!("{name} {}", string(&formulas.atom_names()[a as usize]));
                         // A leaf has no exit, so its bracket closes here.
                         out.push(&if argument { format!("({atom})") } else { atom })?;
                         continue;
                     }
-                    Node::True => {
-                        out.push("top")?;
+                    Node::True | Node::False => {
+                        out.push(name)?;
                         continue;
                     }
-                    Node::False => {
-                        out.push("bot")?;
-                        continue;
-                    }
-                    Node::Not(_) => "neg",
-                    Node::And(..) => "wedge",
-                    Node::Or(..) => "vee",
-                    Node::Implies(..) => "imp",
-                    Node::Iff(..) => "equiv",
-                    Node::Box(_) => "box",
-                    Node::Diamond(_) => "dia",
-                };
+                    Node::Not(_)
+                    | Node::And(..)
+                    | Node::Or(..)
+                    | Node::Implies(..)
+                    | Node::Iff(..)
+                    | Node::Box(_)
+                    | Node::Diamond(_) => {}
+                }
                 if argument {
                     out.push("(")?;
                 }

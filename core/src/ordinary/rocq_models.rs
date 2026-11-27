@@ -19,7 +19,8 @@
 //! symbols are written: the library compares every table it is given
 //! along the order, and the check compared only those.
 
-use super::rocq::{Closure, string};
+use super::rocq::Closure;
+use crate::export::rocq::library::{self, stopped, string};
 use super::{
     FiniteCountermodel, KripkeCountermodel, KripkeStructure, Logic, Node, NodeId, Sequent,
 };
@@ -30,7 +31,7 @@ use crate::export::rocq::{
 };
 use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress};
 use crate::linear::sequents::{Stop, Stops};
 use std::fmt::Write;
 
@@ -44,10 +45,8 @@ const MOST_WEIGHT: u64 = 1 << 20;
 /// certificate is never held or written past the bound, and that counts
 /// the numbers of the model it writes.
 struct Bounded {
-    /// The text so far.
-    text: String,
-    /// The bound, if any.
-    limit: Option<u64>,
+    /// The text so far, bounded.
+    text: library::Bounded,
     /// What the model's numbers add up to so far.
     weight: u64,
 }
@@ -56,8 +55,7 @@ impl Bounded {
     /// Returns empty text under `limits.derivation_bytes`.
     const fn new(limits: &Limits) -> Self {
         Self {
-            text: String::new(),
-            limit: limits.derivation_bytes,
+            text: library::Bounded::new(limits),
             weight: 0,
         }
     }
@@ -82,26 +80,8 @@ impl Bounded {
 
     /// Appends `piece`, or refuses where the text would pass the bound.
     fn push(&mut self, piece: &str) -> Result<(), Error> {
-        self.text.push_str(piece);
-        match self.limit {
-            Some(limit) if self.text.len() as u64 > limit => Err(Refusal::Output {
-                what: "certificate",
-                estimate_bytes: self.text.len() as u64,
-                limit_bytes: limit,
-                least_bytes: None,
-            }
-            .into()),
-            _ => Ok(()),
-        }
+        self.text.push(piece)
     }
-}
-
-/// Returns the stop's refusal while a certificate is written.
-fn stopped() -> Error {
-    Refusal::Stopped {
-        phase: Phase::Write,
-    }
-    .into()
 }
 
 /// Writes the certificate that a finite structure refutes its sequent in
@@ -199,7 +179,7 @@ fn written(
         .iter()
         .map(|(name, e)| (name.as_str(), *e))
         .collect();
-    write!(text.text, "Lemma {} : ~ ", options.lemma).map_err(|_| Error::WriteFailed)?;
+    write!(text.text.text, "Lemma {} : ~ ", options.lemma).map_err(|_| Error::WriteFailed)?;
     if stop(Progress::new(Phase::Write, 1, 0)) {
         return Err(stopped());
     }
@@ -217,14 +197,14 @@ fn written(
         text.push(";\n       predicates := ")?;
         facts(&world.predicates, identity.then_some(world.size), &mut text)?;
         text.push(" |}).\n  vm_compute. reflexivity.\nQed.")?;
-        out.write_str(&text.text)?;
+        out.write_str(&text.text.text)?;
         return Ok(());
     }
     // The calculus with cut: the theorem holds for every choice of
     // rules, and deduxit's own derivations of LJ and LM may hold a cut.
     let explosion = logic != Logic::Minimal;
     write!(
-        text.text,
+        text.text.text,
         "lj (symbol := string) {{| Calculus.explosion := {explosion}; Calculus.cut := true |}} "
     )
     .map_err(|_| Error::WriteFailed)?;
@@ -235,7 +215,7 @@ fn written(
         None => text.push("bot")?,
     }
     write!(
-        text.text,
+        text.text.text,
         ".\nProof.\n  apply (fo_kripke_refutation String.eqb String.eqb_spec _\n    {{| later := ["
     )
     .map_err(|_| Error::WriteFailed)?;
@@ -301,7 +281,7 @@ fn written(
     text.push("] |} ")?;
     text.number(model.world)?;
     text.push(").\n  vm_compute. reflexivity.\nQed.")?;
-    out.write_str(&text.text)?;
+    out.write_str(&text.text.text)?;
     Ok(())
 }
 
@@ -468,10 +448,11 @@ fn formula(sequent: &Sequent, id: NodeId, argument: bool, text: &mut Bounded) ->
                 if argument && !matches!(node, Node::True | Node::False) {
                     text.push("(")?;
                 }
+                text.push(library::ordinary(node))?;
                 match node {
                     // A leaf has no exit, so its bracket closes here.
                     Node::Atom(a) => {
-                        text.push("var ")?;
+                        text.push(" ")?;
                         match tables.atoms.get(a as usize) {
                             Some(&(symbol, args)) => {
                                 text.push(&string(&tables.symbols[symbol.index()].0))?;
@@ -487,15 +468,14 @@ fn formula(sequent: &Sequent, id: NodeId, argument: bool, text: &mut Bounded) ->
                             text.push(")")?;
                         }
                     }
-                    Node::True => text.push("top")?,
-                    Node::False => text.push("bot")?,
-                    Node::Not(_) => text.push("neg ")?,
-                    Node::And(..) => text.push("wedge ")?,
-                    Node::Or(..) => text.push("vee ")?,
-                    Node::Implies(..) => text.push("imp ")?,
-                    Node::Iff(..) => text.push("equiv ")?,
-                    Node::Forall(_) => text.push("fall ")?,
-                    Node::Exists(_) => text.push("fex ")?,
+                    Node::True | Node::False => {}
+                    Node::Not(_)
+                    | Node::And(..)
+                    | Node::Or(..)
+                    | Node::Implies(..)
+                    | Node::Iff(..)
+                    | Node::Forall(_)
+                    | Node::Exists(_) => text.push(" ")?,
                 }
             }
             Stop::Between(_) => text.push(" ")?,
@@ -545,15 +525,19 @@ fn terms(sequent: &Sequent, list: &[FoTermId], text: &mut Bounded) -> Result<(),
             Piece::CloseApplication => text.push("])")?,
             Piece::Term(t) => match tables.terms[t.index()] {
                 FoTerm::Bound(n) => {
-                    text.push("bound ")?;
+                    text.push(library::BOUND)?;
+                    text.push(" ")?;
                     text.push(&n.to_string())?;
                 }
                 FoTerm::Eigen(a) => {
-                    text.push("eigen ")?;
+                    text.push(library::EIGEN)?;
+                    text.push(" ")?;
                     text.push(&a.get().to_string())?;
                 }
                 FoTerm::App(f, args) => {
-                    text.push("(tapp ")?;
+                    text.push("(")?;
+                    text.push(library::TAPP)?;
+                    text.push(" ")?;
                     text.push(&string(&tables.symbols[f.index()].0))?;
                     text.push(" [")?;
                     stack.push(Piece::CloseApplication);

@@ -21,6 +21,7 @@ use crate::export::Form;
 use crate::export::rocq::{
     CLASSICAL_PRELUDE, DEDUXIT_KRIPKE_PRELUDE, Options, Unsupported, identifiers,
 };
+use crate::export::rocq::library::{self, stopped, string};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
@@ -521,9 +522,7 @@ pub(crate) fn write(
                 let tasks = certificate.tasks(id);
                 stack.extend(tasks.into_iter().rev());
                 if stop() {
-                    return Err(Error::Refused(crate::limits::Refusal::Stopped {
-                        phase: crate::limits::Phase::Write,
-                    }));
+                    return Err(stopped());
                 }
             }
             Task::Text(text) => out.write_str(&text)?,
@@ -731,10 +730,7 @@ pub(crate) fn countermodel(
     let digits = model.worlds.len().to_string().len() as u64 + 2;
     for (w, world) in model.worlds.iter().enumerate() {
         if stop(Progress::new(Phase::Write, 1, w as u64 + 1)) {
-            return Err(Refusal::Stopped {
-                phase: Phase::Write,
-            }
-            .into());
+            return Err(stopped());
         }
         let above = closure.above(w, &mut stop)?.len() as u64;
         let atoms = world
@@ -788,10 +784,7 @@ pub(crate) fn countermodel(
     )?;
     for w in 0..model.worlds.len() {
         if stop(Progress::new(Phase::Write, 1, w as u64 + 1)) {
-            return Err(Refusal::Stopped {
-                phase: Phase::Write,
-            }
-            .into());
+            return Err(stopped());
         }
         if w > 0 {
             out.write_str("; ")?;
@@ -898,10 +891,7 @@ impl<'a> Closure<'a> {
                 if self.steps.is_multiple_of(Self::POLL)
                     && stop(Progress::new(Phase::Write, Self::POLL, self.steps))
                 {
-                    return Err(Refusal::Stopped {
-                        phase: Phase::Write,
-                    }
-                    .into());
+                    return Err(stopped());
                 }
                 if let Some(left) = &mut self.left {
                     *left = left.checked_sub(1).ok_or(Refusal::Work {
@@ -932,25 +922,29 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
                 if argument && !matches!(node, Node::True | Node::False) {
                     out.push('(');
                 }
+                assert!(
+                    !matches!(node, Node::Forall(_) | Node::Exists(_)),
+                    "{}",
+                    crate::ordinary::REFUSED
+                );
+                out.push_str(library::ordinary(node));
                 match node {
                     // A leaf has no exit, so its bracket closes here.
                     Node::Atom(a) => {
-                        out.push_str("var ");
+                        out.push(' ');
                         out.push_str(&string(&formulas.atom_names()[a as usize]));
                         if argument {
                             out.push(')');
                         }
                     }
-                    Node::True => out.push_str("top"),
-                    Node::False => out.push_str("bot"),
-                    Node::Not(_) => out.push_str("neg "),
-                    Node::And(..) => out.push_str("wedge "),
-                    Node::Or(..) => out.push_str("vee "),
-                    Node::Implies(..) => out.push_str("imp "),
-                    Node::Iff(..) => out.push_str("equiv "),
-                    Node::Forall(_) | Node::Exists(_) => {
-                        unreachable!("{}", crate::ordinary::REFUSED)
-                    }
+                    Node::True | Node::False => {}
+                    Node::Not(_)
+                    | Node::And(..)
+                    | Node::Or(..)
+                    | Node::Implies(..)
+                    | Node::Iff(..)
+                    | Node::Forall(_)
+                    | Node::Exists(_) => out.push(' '),
                 }
             }
             Stop::Between(_) => out.push(' '),
@@ -963,7 +957,4 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
     }
 }
 
-/// Returns an atom's name as a Rocq string, `"` doubled.
-pub(super) fn string(name: &str) -> String {
-    format!("\"{}\"", name.replace('"', "\"\""))
-}
+

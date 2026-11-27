@@ -48,6 +48,7 @@ use super::{
     DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE, DEDUXIT_PRELUDE, DEDUXIT_REFUTATION_PRELUDE,
     DEDUXIT_TWO_SIDED_PRELUDE, Options, Unsupported,
 };
+use super::library::{self, string};
 use crate::Error;
 use crate::export::Form;
 use crate::export::notation::{Step, flush, walk};
@@ -302,16 +303,18 @@ impl Fo<'_> {
             let (open, close) = if argument { ("(", ")") } else { ("", "") };
             match self.term(t) {
                 FoTerm::Bound(i) if i < depth => {
-                    write!(out, "{open}bound {i}{close}").expect("a string takes the text");
+                    write!(out, "{open}{} {i}{close}", library::BOUND).expect("a string takes the text");
                 }
                 // A frame holds closed terms.
                 FoTerm::Bound(i) => stack.push(Item::Term(frame[(i - depth) as usize], argument)),
                 FoTerm::Eigen(a) => {
-                    write!(out, "{open}eigen {}{close}", a.get()).expect("a string takes the text");
+                    write!(out, "{open}{} {}{close}", library::EIGEN, a.get())
+                        .expect("a string takes the text");
                 }
                 FoTerm::App(f, args) => {
                     let name = &self.forest.sequent().fo.symbols[f.index()].0;
-                    write!(out, "{open}tapp {} [", string(name)).expect("a string takes the text");
+                    write!(out, "{open}{} {} [", library::TAPP, string(name))
+                        .expect("a string takes the text");
                     stack.push(Item::Text(if argument { "])" } else { "]" }));
                     let list = self.list(args);
                     for (k, &u) in list.iter().enumerate().rev() {
@@ -349,11 +352,13 @@ impl Fo<'_> {
                     if argument && !nullary {
                         out.push('(');
                     }
-                    let name = match reading {
-                        None => one_sided(t),
-                        Some(reading) => two_sided(t, reading.position(k) == Side::Output),
-                    };
-                    out.push_str(name);
+                    out.push_str(match reading {
+                        None => library::formula(t),
+                        Some(reading) => library::iformula(t, reading.position(k) == Side::Output),
+                    });
+                    if !nullary {
+                        out.push(' ');
+                    }
                     match t {
                         Term::Atom(a) | Term::DualAtom(a) => {
                             let (symbol, args) = forest.sequent().fo.atoms[a.index()];
@@ -395,45 +400,6 @@ impl Fo<'_> {
                 }
             }
         }
-    }
-}
-
-/// Returns the constructor of the one-sided formula `t` as the library
-/// names it, with the space before its first argument.
-const fn one_sided(t: Term) -> &'static str {
-    match t {
-        Term::Atom(_) => "var ",
-        Term::DualAtom(_) => "covar ",
-        Term::One => "one",
-        Term::Bot => "bot",
-        Term::Top => "top",
-        Term::Zero => "zero",
-        Term::Tensor(..) => "tens ",
-        Term::Par(..) => "parr ",
-        Term::With(..) => "awith ",
-        Term::Plus(..) => "aplus ",
-        Term::Bang(_) => "oc ",
-        Term::Quest(_) => "wn ",
-        Term::Forall(_) => "fall ",
-        Term::Exists(_) => "fex ",
-    }
-}
-
-/// Returns the constructor of the intuitionistic formula the one-sided
-/// `t` stands for in output position (`output`) or input position.
-const fn two_sided(t: Term, output: bool) -> &'static str {
-    match (t, output) {
-        (Term::Atom(_) | Term::DualAtom(_), _) => "ivar ",
-        (Term::One | Term::Bot, _) => "ione",
-        (Term::Top, true) | (Term::Zero, false) => "itop",
-        (Term::Zero, true) | (Term::Top, false) => "izero",
-        (Term::Tensor(..), true) | (Term::Par(..), false) => "itens ",
-        (Term::Par(..), true) | (Term::Tensor(..), false) => "ilmap ",
-        (Term::With(..), true) | (Term::Plus(..), false) => "iwith ",
-        (Term::Plus(..), true) | (Term::With(..), false) => "iplus ",
-        (Term::Bang(_) | Term::Quest(_), _) => "ioc ",
-        (Term::Forall(_), true) | (Term::Exists(_), false) => "iall ",
-        (Term::Exists(_), true) | (Term::Forall(_), false) => "iex ",
     }
 }
 
@@ -550,7 +516,7 @@ impl<'a> Writer<'a> {
     fn formula(&mut self, instance: Instance, depth: u32, argument: bool) {
         match self.fo {
             Some(fo) => fo.write_formula(&mut self.out, None, instance, depth, argument),
-            None => formula(self.forest, &mut self.out, instance.0, argument),
+            None => formula(self.forest, None, &mut self.out, instance.0, argument),
         }
     }
 
@@ -561,7 +527,7 @@ impl<'a> Writer<'a> {
         let reading = self.derivation.reading().expect("a two-sided derivation");
         match self.fo {
             Some(fo) => fo.write_formula(&mut self.out, Some(reading), instance, depth, argument),
-            None => iformula(self.forest, reading, &mut self.out, instance.0, argument),
+            None => formula(self.forest, Some(reading), &mut self.out, instance.0, argument),
         }
     }
 
@@ -656,7 +622,9 @@ impl<'a> Writer<'a> {
         for i in 0..self.quests[id.index()].len() {
             let (q, frame) = self.quests[id.index()][i];
             self.separate();
-            self.out.push_str("(Quest ");
+            self.out.push('(');
+            self.out.push_str(library::QUEST);
+            self.out.push(' ');
             self.formula((forest.left(q).expect("a ? formula"), frame), 0, true);
             self.closes[id.index()] += 1;
             self.spaced = true;
@@ -681,33 +649,36 @@ impl<'a> Writer<'a> {
         match inference.rule.rule {
             Rule::Forall => {
                 let principal = principal.expect("a principal formula");
-                self.quantifier(id, "Forall", principal, false);
+                self.quantifier(id, constructor(Rule::Forall), principal, false);
             }
             Rule::Exists => {
                 let principal = principal.expect("a principal formula");
-                self.quantifier(id, "Exists", principal, false);
+                self.quantifier(id, constructor(Rule::Exists), principal, false);
             }
             Rule::Ax => {
                 let literal = inference.sequent[0];
                 self.separate();
-                self.out.push_str("(Ax ");
+                self.out.push('(');
+                self.out.push_str(constructor(Rule::Ax));
+                self.out.push(' ');
                 self.literal(literal);
                 self.out.push(')');
                 self.spaced = true;
             }
-            Rule::Tensor => self.node(id, "Tensor", &children, false),
-            Rule::Par => self.node(id, "Par", &children, false),
-            Rule::One => self.node(id, "One", &[], false),
-            Rule::Bot => self.node(id, "Bot", &[], false),
-            Rule::With => self.node(id, "With", &children, false),
+            Rule::Tensor => self.node(id, constructor(Rule::Tensor), &children, false),
+            Rule::Par => self.node(id, constructor(Rule::Par), &children, false),
+            Rule::One => self.node(id, constructor(Rule::One), &[], false),
+            Rule::Bot => self.node(id, constructor(Rule::Bot), &[], false),
+            Rule::With => self.node(id, constructor(Rule::With), &children, false),
             Rule::PlusLeft | Rule::PlusRight => {
                 let side = if inference.rule.rule == Rule::PlusLeft {
-                    "Left"
+                    library::LEFT
                 } else {
-                    "Right"
+                    library::RIGHT
                 };
                 self.separate();
-                self.out.push_str("(Plus");
+                self.out.push('(');
+                self.out.push_str(constructor(inference.rule.rule));
                 for &f in &children {
                     self.out.push(' ');
                     self.formula(f, 0, true);
@@ -717,22 +688,22 @@ impl<'a> Writer<'a> {
                 self.closes[id.index()] += 1;
                 self.spaced = true;
             }
-            Rule::Top => self.node(id, "Top", &[], false),
-            Rule::Promotion => self.node(id, "Bang", &children, false),
-            Rule::Dereliction => self.node(id, "Copy", &children, false),
-            Rule::Mix => self.node(id, "Mix", &[], false),
+            Rule::Top => self.node(id, constructor(Rule::Top), &[], false),
+            Rule::Promotion => self.node(id, constructor(Rule::Promotion), &children, false),
+            Rule::Dereliction => self.node(id, constructor(Rule::Dereliction), &children, false),
+            Rule::Mix => self.node(id, constructor(Rule::Mix), &[], false),
             Rule::AffineWeakening => {
                 let principal = principal.expect("a principal formula");
                 // A `?` formula weakened is one the zone has already.
                 if !is_quest(principal.0) {
-                    self.node(id, "Weaken", &[principal], false);
+                    self.node(id, constructor(Rule::AffineWeakening), &[principal], false);
                 }
             }
             // Implicit in the unrestricted zone.
             Rule::Contraction | Rule::Weakening => {}
             Rule::Cut => {
                 let a = self.parts(inference.cut.expect("a cut names its formula"));
-                self.node(id, "Cut", &[a], false);
+                self.node(id, constructor(Rule::Cut), &[a], false);
             }
             Rule::Open => unreachable!("refused before anything is written"),
         }
@@ -751,25 +722,27 @@ impl<'a> Writer<'a> {
         let side = inference.rule.side;
         let constructor = match (inference.rule.rule, side) {
             (Rule::Forall, Some(Side::Output)) => {
-                self.quantifier(id, "IAllR", principal.expect("a principal formula"), true);
+                self.quantifier(id, iconstructor(Rule::Forall, true), principal.expect("a principal formula"), true);
                 return;
             }
             (Rule::Forall, _) => {
-                self.quantifier(id, "IExL", principal.expect("a principal formula"), true);
+                self.quantifier(id, iconstructor(Rule::Forall, false), principal.expect("a principal formula"), true);
                 return;
             }
             (Rule::Exists, Some(Side::Output)) => {
-                self.quantifier(id, "IExR", principal.expect("a principal formula"), true);
+                self.quantifier(id, iconstructor(Rule::Exists, true), principal.expect("a principal formula"), true);
                 return;
             }
             (Rule::Exists, _) => {
-                self.quantifier(id, "IAllL", principal.expect("a principal formula"), true);
+                self.quantifier(id, iconstructor(Rule::Exists, false), principal.expect("a principal formula"), true);
                 return;
             }
             (Rule::Ax, _) => {
                 let literal = inference.sequent[0];
                 self.separate();
-                self.out.push_str("(IAx ");
+                self.out.push('(');
+                self.out.push_str(iconstructor(Rule::Ax, true));
+                self.out.push(' ');
                 self.literal(literal);
                 self.out.push(')');
                 self.spaced = true;
@@ -785,16 +758,15 @@ impl<'a> Writer<'a> {
                     .collect();
                 let right = side == Some(Side::Output);
                 let goal = goal(derivation, reading, &inference.sequent);
-                let (constructor, context): (_, Vec<Member>) = if right {
-                    ("(ITopR [", others)
+                let context: Vec<Member> = if right {
+                    others
                 } else {
-                    (
-                        "(IZeroL [",
-                        others.into_iter().filter(|&m| m != goal).collect(),
-                    )
+                    others.into_iter().filter(|&m| m != goal).collect()
                 };
                 self.separate();
-                self.out.push_str(constructor);
+                self.out.push('(');
+                self.out.push_str(iconstructor(Rule::Top, right));
+                self.out.push_str(" [");
                 for (i, &m) in context.iter().enumerate() {
                     if i > 0 {
                         self.out.push_str("; ");
@@ -810,25 +782,23 @@ impl<'a> Writer<'a> {
                 self.spaced = true;
                 return;
             }
-            (Rule::One, _) => "IOneR",
-            (Rule::Bot, _) => "IOneL",
-            (Rule::Tensor, Some(Side::Output)) => "ITensR",
-            (Rule::Tensor, _) => "ILmapL",
-            (Rule::Par, Some(Side::Output)) => "ILmapR",
-            (Rule::Par, _) => "ITensL",
-            (Rule::With, Some(Side::Output)) => "IWithR",
-            (Rule::With, _) => "IPlusL",
-            (Rule::PlusLeft, Some(Side::Output)) => "IPlusR1",
-            (Rule::PlusLeft, _) => "IWithL1",
-            (Rule::PlusRight, Some(Side::Output)) => "IPlusR2",
-            (Rule::PlusRight, _) => "IWithL2",
-            (Rule::Promotion, _) => "IOcR",
-            (Rule::Dereliction, _) => "IDe",
-            (Rule::Contraction, _) => "ICo",
-            (Rule::Weakening, _) => "IWk",
+            (
+                rule @ (Rule::One
+                | Rule::Bot
+                | Rule::Tensor
+                | Rule::Par
+                | Rule::With
+                | Rule::PlusLeft
+                | Rule::PlusRight
+                | Rule::Promotion
+                | Rule::Dereliction
+                | Rule::Contraction
+                | Rule::Weakening),
+                side,
+            ) => iconstructor(rule, side == Some(Side::Output)),
             (Rule::AffineWeakening, _) => {
                 let principal = principal.expect("a principal formula");
-                self.node(id, "IWeaken", &[principal], true);
+                self.node(id, iconstructor(Rule::AffineWeakening, true), &[principal], true);
                 return;
             }
             (Rule::Cut, _) => {
@@ -841,7 +811,7 @@ impl<'a> Writer<'a> {
                 } else {
                     dual
                 };
-                self.node(id, "ICut", &[(proved, frame)], true);
+                self.node(id, iconstructor(Rule::Cut, true), &[(proved, frame)], true);
                 return;
             }
             (Rule::Mix | Rule::Open, _) => {
@@ -854,8 +824,23 @@ impl<'a> Writer<'a> {
 
 /// Returns whether a quantifier step's constructor names the eigenvariable
 /// it introduces, rather than a witness.
-fn constructor_introduces(constructor: &str) -> bool {
-    matches!(constructor, "Forall" | "IAllR" | "IExL")
+fn constructor_introduces(name: &str) -> bool {
+    name == constructor(Rule::Forall)
+        || name == iconstructor(Rule::Forall, true)
+        || name == iconstructor(Rule::Forall, false)
+}
+
+/// Returns the constructor of the one-sided term's node for `rule`, one
+/// the term has.
+fn constructor(rule: Rule) -> &'static str {
+    library::proof(rule).expect("a rule the one-sided term has a node for")
+}
+
+/// Returns the constructor of the two-sided term's node for `rule` with
+/// its principal formula on the right (`output`) or the left, one the
+/// term has.
+fn iconstructor(rule: Rule, output: bool) -> &'static str {
+    library::iproof(rule, output).expect("a rule the two-sided term has a node for")
 }
 
 /// Returns the member of the body a quantifier step's premise holds in
@@ -891,80 +876,30 @@ fn atom(forest: &Forest, out: &mut String, o: OccId) {
     out.push_str(&string(&sequent.atom_names()[a.index()]));
 }
 
-/// Writes the one-sided formula at `o` in the library's constructors,
-/// in brackets if `argument` is set and it is an application.
-fn formula(forest: &Forest, out: &mut String, o: OccId, argument: bool) {
-    for visit in Stops::new(o, argument, |k| (forest.left(k), forest.right(k))) {
-        match visit {
-            Stop::Enter(k, argument) => {
-                let t = forest.sequent().term(forest.term(k));
-                let nullary = matches!(t, Term::One | Term::Bot | Term::Top | Term::Zero);
-                if argument && !nullary {
-                    out.push('(');
-                }
-                let name = match t {
-                    Term::Atom(_) => "var ",
-                    Term::DualAtom(_) => "covar ",
-                    Term::One => "one",
-                    Term::Bot => "bot",
-                    Term::Top => "top",
-                    Term::Zero => "zero",
-                    Term::Tensor(..) => "tens ",
-                    Term::Par(..) => "parr ",
-                    Term::With(..) => "awith ",
-                    Term::Plus(..) => "aplus ",
-                    Term::Bang(_) => "oc ",
-                    Term::Quest(_) => "wn ",
-                    Term::Forall(_) | Term::Exists(_) => {
-                        unreachable!("a sequent with a binder is written by `Fo`")
-                    }
-                };
-                out.push_str(name);
-                if matches!(t, Term::Atom(_) | Term::DualAtom(_)) {
-                    atom(forest, out, k);
-                    if argument {
-                        out.push(')');
-                    }
-                }
-            }
-            Stop::Between(_) => out.push(' '),
-            Stop::Exit(_, argument) => {
-                if argument {
-                    out.push(')');
-                }
-            }
-        }
-    }
-}
-
-/// Writes the intuitionistic formula at `o`, read on the side of `⊢`
-/// its position gives, in brackets if `argument` is set and it is an
+/// Writes the formula at `o` in the library's constructors: one-sided,
+/// or with a reading the intuitionistic formula read on the side of `⊢`
+/// its position gives; in brackets if `argument` is set and it is an
 /// application.
-fn iformula(forest: &Forest, reading: &Reading, out: &mut String, o: OccId, argument: bool) {
+fn formula(forest: &Forest, reading: Option<&Reading>, out: &mut String, o: OccId, argument: bool) {
     for visit in Stops::new(o, argument, |k| (forest.left(k), forest.right(k))) {
         match visit {
             Stop::Enter(k, argument) => {
                 let t = forest.sequent().term(forest.term(k));
-                let output = reading.position(k) == Side::Output;
+                assert!(
+                    !matches!(t, Term::Forall(_) | Term::Exists(_)),
+                    "a sequent with a binder is written by `Fo`"
+                );
                 let nullary = matches!(t, Term::One | Term::Bot | Term::Top | Term::Zero);
                 if argument && !nullary {
                     out.push('(');
                 }
-                let name = match (t, output) {
-                    (Term::Atom(_) | Term::DualAtom(_), _) => "ivar ",
-                    (Term::One | Term::Bot, _) => "ione",
-                    (Term::Top, true) | (Term::Zero, false) => "itop",
-                    (Term::Zero, true) | (Term::Top, false) => "izero",
-                    (Term::Tensor(..), true) | (Term::Par(..), false) => "itens ",
-                    (Term::Par(..), true) | (Term::Tensor(..), false) => "ilmap ",
-                    (Term::With(..), true) | (Term::Plus(..), false) => "iwith ",
-                    (Term::Plus(..), true) | (Term::With(..), false) => "iplus ",
-                    (Term::Bang(_) | Term::Quest(_), _) => "ioc ",
-                    (Term::Forall(_) | Term::Exists(_), _) => {
-                        unreachable!("a sequent with a binder is written by `Fo`")
-                    }
-                };
-                out.push_str(name);
+                out.push_str(match reading {
+                    None => library::formula(t),
+                    Some(reading) => library::iformula(t, reading.position(k) == Side::Output),
+                });
+                if !nullary {
+                    out.push(' ');
+                }
                 if matches!(t, Term::Atom(_) | Term::DualAtom(_)) {
                     atom(forest, out, k);
                     if argument {
@@ -1061,8 +996,8 @@ pub(super) fn disproof(
     // A formula of the goal, one-sided or on its side of `⊢`.
     let formula = |text: &mut String, o: OccId, argument: bool| match (&reading, first_order) {
         (_, true) => fo.write_formula(text, reading.as_ref(), (o, None), 0, argument),
-        (Some(reading), false) => iformula(&forest, reading, text, o, argument),
-        (None, false) => self::formula(&forest, text, o, argument),
+        (Some(reading), false) => self::formula(&forest, Some(reading), text, o, argument),
+        (None, false) => self::formula(&forest, None, text, o, argument),
     };
     let (atom, module) = if first_order {
         ("symbol", "Intuitionistic.")
@@ -1295,9 +1230,4 @@ impl Fo<'_> {
             self.fixed(),
         )
     }
-}
-
-/// Returns an atom's name as a Rocq string, `"` doubled.
-fn string(name: &str) -> String {
-    format!("\"{}\"", name.replace('"', "\"\""))
 }
