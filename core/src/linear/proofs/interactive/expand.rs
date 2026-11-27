@@ -748,6 +748,9 @@ impl Interactive {
     /// [`split_passes_within`](Self::split_passes_within) is the bounded
     /// form.
     ///
+    /// A forest past what the counts can index (2³¹ occurrences, or 2³²
+    /// row entries) passes: the test can say nothing of it.
+    ///
     /// # Errors
     ///
     /// As [`rules`](Self::rules) does for the goal and the position,
@@ -757,18 +760,17 @@ impl Interactive {
         match self.split_test(goal, step, &search::memory::Account::new(None), &mut |_| false) {
             Ok(passes) => Ok(passes),
             Err(Split::Step(error)) => Err(error),
-            Err(Split::Ended(reason)) => {
-                unreachable!("only an index past the counts' could end the test: {reason:?}")
-            }
+            // With no bound and no stop, only the counts' indices end it.
+            Err(Split::Ended(_)) => Ok(true),
         }
     }
 
     /// Returns whether the split of a `⊗` or Mix step passes the count
     /// prunes, as [`split_passes`](Self::split_passes) does, within
     /// `limits` and until `stop` fires: the count rows are charged to
-    /// `limits.memory_bytes`, the pass does `limits.work` units at most
-    /// (an occurrence or a row entry visited), and it asks `stop`
-    /// ([`Phase::Search`]) as a search's set-up does.
+    /// `limits.memory_bytes`, and the pass asks `stop` ([`Phase::Search`])
+    /// as a search's set-up does, every 2¹⁶ occurrences or row entries
+    /// visited. It counts no work: `limits.work` does not bound it.
     ///
     /// # Errors
     ///
@@ -787,12 +789,7 @@ impl Interactive {
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<bool, Error> {
         let account = search::memory::Account::new(limits.memory_bytes);
-        let mut done = 0u64;
-        let mut polled = |units: u64| {
-            done = done.saturating_add(units);
-            stop(Progress::new(Phase::Search, units, done))
-                || limits.work.is_some_and(|limit| done > limit)
-        };
+        let mut polled = |_| stop(Progress::new(Phase::Search, 0, 0));
         match self.split_test(goal, step, &account, &mut polled) {
             Ok(passes) => Ok(passes),
             Err(Split::Step(error)) => Err(Error::Step(error)),
@@ -802,16 +799,15 @@ impl Interactive {
                     limit_bytes: limits.memory_bytes.unwrap_or(u64::MAX),
                     needed_bytes: None,
                 },
+                // The counts index at most 2³² row entries; the count
+                // is a number past it, as the refusal allows.
                 search::Reason::IndexLimit => Refusal::Index {
                     what: crate::limits::Space::Occurrence,
-                    count: self.forest.len() as u64,
+                    count: u64::from(u32::MAX) + 1,
                     most: u64::from(u32::MAX),
                 },
-                search::Reason::Stopped => match limits.work {
-                    Some(limit) if done > limit => Refusal::Work { limit },
-                    _ => Refusal::Stopped {
-                        phase: Phase::Search,
-                    },
+                search::Reason::Stopped => Refusal::Stopped {
+                    phase: Phase::Search,
                 },
                 other => unreachable!("the counts' pass ended at {other:?}"),
             })),
