@@ -964,13 +964,23 @@ struct Decided {
     /// The outcome. At first order its derivation, its countermodels and
     /// their sequents are over an arena of the goal alone.
     outcome: Outcome,
-    /// At first order, the constants of that arena that stand for the
-    /// goal's eigenvariables and open witnesses, by name, each with the
-    /// state's term.
-    constants: Option<HashMap<String, FoTermId>>,
+    /// At first order, how a derivation over that arena is carried back.
+    constants: Option<Carry>,
     /// Whether a derivation in the outcome is one of the goal: not where
     /// it holds the equality axioms the goal lacks.
     graftable: bool,
+}
+
+/// How a derivation over the arena of a goal alone is carried back into
+/// the proof's arena.
+struct Carry {
+    /// The constants of that arena that stand for the goal's
+    /// eigenvariables and open witnesses, by name, each with the state's
+    /// term.
+    constants: HashMap<String, FoTermId>,
+    /// The names of that arena's symbols and atoms: any other name of the
+    /// derivation's is its own, renamed apart from the proof's names.
+    names: crate::hash::HashSet<String>,
 }
 
 /// Gives a valid first-order outcome whose evidence is no derivation (the
@@ -2631,7 +2641,10 @@ impl Interactive {
         }
         Ok(Decided {
             outcome,
-            constants: Some(copied.constants),
+            constants: Some(Carry {
+                constants: copied.constants,
+                names: copied.names,
+            }),
             graftable,
         })
     }
@@ -2666,7 +2679,7 @@ impl Interactive {
         &mut self,
         goal: GoalId,
         found: &Derivation,
-        constants: Option<&HashMap<String, FoTermId>>,
+        constants: Option<&Carry>,
         limits: &Limits,
     ) -> Result<(), Error> {
         let estimate = estimate(found.formulas(), found.inferences());
@@ -2732,7 +2745,7 @@ impl Interactive {
         &mut self,
         goal: GoalId,
         found: &Derivation,
-        constants: &HashMap<String, FoTermId>,
+        constants: &Carry,
     ) -> Result<(), Error> {
         let mut formulas = self.formulas.clone();
         let copied = self.carried(&mut formulas, found, constants)?;
@@ -2807,7 +2820,7 @@ impl Interactive {
         &self,
         formulas: &mut Formulas,
         found: &Derivation,
-        constants: &HashMap<String, FoTermId>,
+        constants: &Carry,
     ) -> Result<transfer::Copied, Error> {
         let roots = self
             .inferences
@@ -2828,7 +2841,11 @@ impl Interactive {
             formulas,
             found.formulas(),
             None,
-            &Parameters::Back { constants, offset },
+            &Parameters::Back {
+                constants: &constants.constants,
+                known: &constants.names,
+                offset,
+            },
         )?;
         implications_from(formulas, before)?;
         Ok(copied)
@@ -2846,7 +2863,7 @@ impl Interactive {
         &self,
         goal: GoalId,
         found: &Derivation,
-        constants: Option<&HashMap<String, FoTermId>>,
+        constants: Option<&Carry>,
     ) -> Vec<Step> {
         let mut state = self.clone();
         let carried = match constants {
@@ -5704,6 +5721,71 @@ mod tests {
         );
         assert!(s.goals().any(|open| open == goal));
         assert!(arena_terms(s.formulas.first_order()) <= 2);
+    }
+
+    /// A derivation's own symbol, Herbrand's fresh constant `c1`, is
+    /// renamed apart from the proof's names when it is grafted: here `c1`
+    /// is an atom of another branch, a predicate, which the constant would
+    /// meet in another role.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn a_derivation_s_own_symbols_are_renamed_apart() {
+        let limits = Limits::default();
+        let (mut s, g) = start(
+            "|- (c1 -> c1) /\\ ((forall x. p(x)) -> exists x. p(x))",
+            Logic::Classical,
+        );
+        let opened = at_position(&mut s, g, (Right, 0), Rule::AndRight).unwrap();
+        // The second goal in an arena of its own, as `close` makes it, and
+        // the derivation Herbrand's theorem builds of it.
+        let inference = s.open(opened[1]).unwrap().clone();
+        let roots: Vec<NodeId> = inference
+            .left
+            .iter()
+            .chain(&inference.right)
+            .copied()
+            .collect();
+        let mut formulas = Formulas::default();
+        let copied = transfer::copy(
+            &mut formulas,
+            &s.formulas,
+            Some(&roots),
+            &Parameters::Constants,
+        )
+        .unwrap();
+        let sequent = Sequent {
+            left: inference.left.iter().map(|&n| copied.node(n)).collect(),
+            right: inference.right.iter().map(|&n| copied.node(n)).collect(),
+            formulas,
+        };
+        let options = super::super::herbrand::Options::default();
+        let found =
+            super::super::herbrand::herbrand(&sequent, &options, &limits, |_| false).unwrap();
+        let Verdict::Valid(Evidence::Derivation(derivation)) = found.verdict else {
+            panic!("{:?}", found.verdict)
+        };
+        let symbols = &derivation.formulas().first_order().symbols;
+        assert!(
+            symbols
+                .iter()
+                .any(|(name, arity)| name == "c1" && *arity == 0)
+        );
+        let carry = Carry {
+            constants: copied.constants,
+            names: copied.names,
+        };
+        s.graft(opened[1], &derivation, Some(&carry), &limits)
+            .unwrap();
+        let closed = s.close(
+            opened[0],
+            None,
+            &search::Options::default(),
+            &limits,
+            |_| false,
+        );
+        assert!(matches!(closed.unwrap().outcome.verdict, Verdict::Valid(_)));
+        assert!(s.is_complete());
+        s.finished(&limits, |_| false).unwrap();
     }
 
     /// Following the hints proves a first-order sequent: a witness the

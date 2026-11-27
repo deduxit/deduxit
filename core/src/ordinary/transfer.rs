@@ -11,7 +11,7 @@
 use super::{Formulas, Node, NodeId};
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
-use crate::hash::HashMap;
+use crate::hash::{HashMap, HashSet};
 
 /// What the eigenvariables and open witnesses of the source become in
 /// the target.
@@ -22,10 +22,16 @@ pub(super) enum Parameters<'a> {
     Constants,
     /// A constant named in `constants` is the target's term there, the
     /// parameter it stood for; every eigenvariable of the source is one
-    /// numbered `offset` higher, past every one the target's proof holds.
+    /// numbered `offset` higher, past every one the target's proof holds;
+    /// a symbol or atom whose name `known` lacks, which the source made
+    /// itself (a fresh constant, a Skolem symbol), is renamed apart from
+    /// the target's names, so that it meets none of the target's other
+    /// formulas in another role.
     Back {
         /// The constants made by [`Parameters::Constants`], by name.
         constants: &'a HashMap<String, FoTermId>,
+        /// The names of the arena that copy made ([`Copied::names`]).
+        known: &'a HashSet<String>,
         /// What the source's eigenvariables' numbers are raised by.
         offset: u32,
     },
@@ -43,6 +49,8 @@ pub(super) struct Copied {
     pub(super) constants: HashMap<String, FoTermId>,
     /// Whether one of them stands for an open witness.
     pub(super) metas: bool,
+    /// The target's symbols' and atoms' names after the copy.
+    pub(super) names: HashSet<String>,
 }
 
 impl Copied {
@@ -84,7 +92,9 @@ pub(super) fn copy(
         terms: vec![None; tables.terms.len()],
         constants: HashMap::default(),
         metas: false,
+        names: HashSet::default(),
     };
+    let mut renamed: HashMap<String, String> = HashMap::default();
     // The names of the open witnesses' constants follow the eigenvariables'.
     let eigens = source.eigen_names();
     let mut fresh = Vec::new();
@@ -136,7 +146,8 @@ pub(super) fn copy(
                             .iter()
                             .map(|a| copied.terms[a.index()].expect("a subterm precedes its term"))
                             .collect();
-                        let symbol = symbol_of(target, name, *arity, false)?;
+                        let name = apart(target, parameters, &mut renamed, name);
+                        let symbol = symbol_of(target, &name, *arity, false)?;
                         let args = target.interner().list(&args);
                         target.interner().term(FoTerm::App(symbol, args))
                     }
@@ -159,10 +170,14 @@ pub(super) fn copy(
                     .iter()
                     .map(|t| copied.terms[t.index()].expect("an atom's term was reached"))
                     .collect();
-                let symbol = symbol_of(target, name, *arity, true)?;
+                let name = apart(target, parameters, &mut renamed, name);
+                let symbol = symbol_of(target, &name, *arity, true)?;
                 target.applied_atom(symbol, &args)?
             }
-            Node::Atom(a) => target.atom(source.atom_name(a))?,
+            Node::Atom(a) => {
+                let name = apart(target, parameters, &mut renamed, source.atom_name(a));
+                target.atom(&name)?
+            }
             Node::True | Node::False => target.add(node)?,
             Node::Not(a) => target.add(Node::Not(at(a)))?,
             Node::And(a, b) => target.add(Node::And(at(a), at(b)))?,
@@ -178,7 +193,47 @@ pub(super) fn copy(
         };
         copied.nodes[n] = Some(made);
     }
+    copied.names = target
+        .first_order()
+        .symbols
+        .iter()
+        .map(|(name, _)| name.clone())
+        .chain(target.atom_names().iter().cloned())
+        .collect();
     Ok(copied)
+}
+
+/// Returns the name a symbol or atom of the source called `name` takes in
+/// the target: itself, but in [`Parameters::Back`] for a name `known`
+/// lacks, the first of `name_1`, `name_2`, … that names nothing of the
+/// target's and nothing renamed before, the same each time it is met.
+fn apart(
+    target: &Formulas,
+    parameters: &Parameters<'_>,
+    renamed: &mut HashMap<String, String>,
+    name: &str,
+) -> String {
+    let Parameters::Back { known, .. } = parameters else {
+        return name.to_owned();
+    };
+    if known.contains(name) {
+        return name.to_owned();
+    }
+    if let Some(done) = renamed.get(name) {
+        return done.clone();
+    }
+    let taken = |candidate: &str| {
+        target.has_symbol(candidate)
+            || target.atom_names().iter().any(|a| a == candidate)
+            || known.contains(candidate)
+            || renamed.values().any(|r| r == candidate)
+    };
+    let fresh = (1u64..)
+        .map(|k| format!("{name}_{k}"))
+        .find(|candidate| !taken(candidate))
+        .expect("the names are endless");
+    renamed.insert(name.to_owned(), fresh.clone());
+    fresh
 }
 
 /// Returns the name of the `k`-th open witness's constant: the name after

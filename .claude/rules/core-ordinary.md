@@ -1936,7 +1936,13 @@ factored out of the two until the kernel crate is.
     a closed `∀L`/`∃R` whose term holds an earlier step's witness.
   - **The graft** (`graft_first_order`, `carried`): the derivation's
     formulas and terms are copied into a clone of the arena
-    (`Parameters::Back`), each constant back to its parameter by name and
+    (`Parameters::Back`), each constant back to its parameter by name, a
+    symbol or atom the goal's arena lacked (Herbrand's fresh `c1`, a
+    Skolem name: the derivation's own) renamed apart from the proof's
+    names (`apart`, `name_1`, …; `Copied::names` is the goal's arena's
+    names; without it a `c1` that another branch has as a predicate made
+    `close` an `Error::Symbol` though a proof exists,
+    `a_derivation_s_own_symbols_are_renamed_apart`), and
     each eigenvariable numbered `offset` higher, past every eigenvariable
     the live inferences hold (as `fresh_eigenvariable` numbers): above
     every open witness's level, so no later binding takes one, and apart
