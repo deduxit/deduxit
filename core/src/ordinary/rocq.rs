@@ -546,7 +546,8 @@ pub(crate) fn write(
 
 /// Writes the certificate that an ordinary sequent is not valid, from the
 /// classical refutation of its image, as [`falsified`] does with the
-/// image's assignment (an atom the image lacks false).
+/// image's assignment (an atom the image lacks false), within the default
+/// `derivation_bytes`.
 pub(crate) fn not_valid(
     image: &Image,
     disproof: &Disproof,
@@ -559,7 +560,10 @@ pub(crate) fn not_valid(
     disproof.check()?;
     let linear = image.sequent();
     let value = |name: &str| linear.atom(name).is_some_and(|a| assignment[a.index()]);
-    falsified(image.ordinary(), value, options, None, out)
+    // It takes no limits: the default bound holds, as for every printer
+    // without them.
+    let limit = Limits::default().derivation_bytes;
+    falsified(image.ordinary(), value, options, limit, out)
 }
 
 /// Writes the certificate that an ordinary sequent is false under the

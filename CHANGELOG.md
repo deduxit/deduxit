@@ -173,7 +173,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   that shares its subformulas doubled the text with each level: forty
   levels would have been terabytes. It is now estimated first and
   refused past the bound before anything is written, as in the other
-  logics.
+  logics. `rocq::write_not_valid`, which writes the same text from an
+  image's refutation and takes no limits, keeps to the default
+  `derivation_bytes` (64 MiB). The command's `prove --logic classical
+  --format rocq` goes through it, so there it still writes past a
+  smaller `--derivation-limit`, up to 64 MiB.
 - **A Kripke model's refutation of a sequent with `=` was not
   checked.** In 0.8.0 `ordinary::KripkeCountermodel::check` read `=` as
   any predicate, so it accepted a model that lists no equal pairs as a

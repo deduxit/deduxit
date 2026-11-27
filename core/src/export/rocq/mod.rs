@@ -1165,7 +1165,12 @@ pub fn write_disproof(
 /// [`Error::Unsupported`] with [`Unsupported::NotValid`] where the image's
 /// refutation is no classical assignment or does not falsify the
 /// sequent, [`Error::Refutation`] where it does not falsify the image,
-/// and [`Error::WriteFailed`] when `out` refused the text.
+/// [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+/// for a text estimated past the default
+/// [`Limits::derivation_bytes`](crate::Limits::derivation_bytes), before
+/// anything is written (the statement writes every formula out, and one
+/// that shares its subformulas doubles its text with each level), and
+/// [`Error::WriteFailed`] when `out` refused the text.
 pub fn write_not_valid(
     image: &crate::ordinary::Image,
     disproof: &crate::linear::Disproof,

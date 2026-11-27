@@ -1095,7 +1095,10 @@ for NanoYalla. What the code relies on:
   certificate is refused past `limits.derivation_bytes` before anything
   is written (`a_classical_countermodel_keeps_to_the_bound`: forty
   levels; unbounded, the test is killed at its memory cap).
-  `write_not_valid` takes no limits and passes none. The kernel option is ignored, as for every ordinary
+  `write_not_valid` takes no limits and holds to the default
+  `derivation_bytes` (a printer without limits keeps to the defaults,
+  core.md's decisions); the command's `--derivation-limit` does not reach
+  it until it has a bounded form (an addition, part 2). The kernel option is ignored, as for every ordinary
   certificate. Snapshots `deduxit/countermodel_*.v` and
   `not_valid_kripke_lk.v`; the `rocq-deduxit` check compiles four the
   command writes (two by `prove`, one by `check` of an outcome, one of a
