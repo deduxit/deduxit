@@ -22,6 +22,26 @@ pub(crate) const ORDINARY_KEYWORDS: [&str; 2] = ["true", "false"];
 /// atom, variable or symbol in either syntax.
 pub(crate) const RESERVED: [&str; 2] = ["forall", "exists"];
 
+/// Returns the value of `all` whose name (`name_of`) is `name`, or
+/// [`Error::UnknownName`] naming `what` and the names `known`: the reading
+/// of an option's value by its name, which every such enum shares.
+pub(crate) fn named<T: Copy>(
+    all: &[T],
+    name_of: impl Fn(T) -> &'static str,
+    name: &str,
+    what: &'static str,
+    known: &'static [&'static str],
+) -> Result<T, Error> {
+    all.iter()
+        .copied()
+        .find(|&value| name_of(value) == name)
+        .ok_or_else(|| Error::UnknownName {
+            what,
+            name: name.into(),
+            known,
+        })
+}
+
 /// Returns whether an identifier may start with `c`: `_` or a character
 /// of `XID_Start`.
 pub(crate) fn starts_identifier(c: char) -> bool {

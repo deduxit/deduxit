@@ -217,15 +217,7 @@ impl std::str::FromStr for Logic {
     /// Reads a logic's [`name`](Self::name), one of
     /// [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|logic| logic.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "logic",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, name, "logic", Self::NAMES)
     }
 }
 
@@ -363,15 +355,7 @@ impl std::str::FromStr for Translation {
     /// Reads a translation's [`name`](Self::name), one of
     /// [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|translation| translation.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "translation",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, name, "translation", Self::NAMES)
     }
 }
 
@@ -577,15 +561,7 @@ impl std::str::FromStr for Method {
     /// Reads a method's [`name`](Self::name), one of
     /// [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|method| method.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "method",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, name, "method", Self::NAMES)
     }
 }
 
@@ -1787,10 +1763,40 @@ mod tests {
     /// translation keep to the occurrence bound.
     #[test]
     fn names_read_back_and_bounds_hold() {
-        let logics: Vec<_> = Logic::ALL.iter().map(|l| l.name()).collect();
-        let translations: Vec<_> = Translation::ALL.iter().map(|t| t.name()).collect();
-        assert_eq!(logics, Logic::NAMES);
-        assert_eq!(translations, Translation::NAMES);
+        // Every enum read by `crate::name::named` lists in `NAMES` the
+        // names of `ALL`, in order.
+        fn listed<T: Copy>(all: &[T], name: impl Fn(T) -> &'static str, names: &[&str]) {
+            assert_eq!(all.iter().map(|&t| name(t)).collect::<Vec<_>>(), names);
+        }
+        listed(Logic::ALL, Logic::name, Logic::NAMES);
+        listed(Translation::ALL, Translation::name, Translation::NAMES);
+        listed(Method::ALL, Method::name, Method::NAMES);
+        listed(normal::Form::ALL, normal::Form::name, normal::Form::NAMES);
+        listed(
+            negative::Translation::ALL,
+            negative::Translation::name,
+            negative::Translation::NAMES,
+        );
+        listed(
+            resolution::Method::ALL,
+            resolution::Method::name,
+            resolution::Method::NAMES,
+        );
+        listed(
+            resolution::Equality::ALL,
+            resolution::Equality::name,
+            resolution::Equality::NAMES,
+        );
+        listed(
+            crate::modal::Condition::ALL,
+            crate::modal::Condition::name,
+            crate::modal::Condition::NAMES,
+        );
+        listed(
+            crate::lambda::Strategy::ALL,
+            crate::lambda::Strategy::name,
+            crate::lambda::Strategy::NAMES,
+        );
         for &logic in Logic::ALL {
             assert_eq!(logic.name().parse::<Logic>().unwrap(), logic);
         }

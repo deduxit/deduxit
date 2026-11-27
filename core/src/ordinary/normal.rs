@@ -215,15 +215,7 @@ impl std::str::FromStr for Form {
 
     /// Reads a form's [`name`](Self::name), one of [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|form| form.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "normal form",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, name, "normal form", Self::NAMES)
     }
 }
 

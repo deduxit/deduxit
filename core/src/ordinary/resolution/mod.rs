@@ -607,15 +607,13 @@ impl std::str::FromStr for Method {
 
     /// Reads a method's [`name`](Self::name).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|m| m.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "resolution method",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(
+            Self::ALL,
+            Self::name,
+            name,
+            "resolution method",
+            Self::NAMES,
+        )
     }
 }
 
@@ -678,15 +676,13 @@ impl std::str::FromStr for Equality {
 
     /// Reads a way's [`name`](Self::name).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|e| e.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "way with equality",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(
+            Self::ALL,
+            Self::name,
+            name,
+            "way with equality",
+            Self::NAMES,
+        )
     }
 }
 

@@ -148,15 +148,13 @@ impl std::str::FromStr for Translation {
     /// Reads a translation's [`name`](Self::name), one of
     /// [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|t| t.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "negative translation",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(
+            Self::ALL,
+            Self::name,
+            name,
+            "negative translation",
+            Self::NAMES,
+        )
     }
 }
 

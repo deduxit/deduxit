@@ -95,15 +95,7 @@ impl std::str::FromStr for Condition {
     /// Reads a condition's [`name`](Self::name), one of
     /// [`NAMES`](Self::NAMES).
     fn from_str(name: &str) -> Result<Self, Error> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|condition| condition.name() == name)
-            .ok_or_else(|| Error::UnknownName {
-                what: "frame condition",
-                name: name.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, name, "frame condition", Self::NAMES)
     }
 }
 

@@ -172,15 +172,7 @@ impl std::str::FromStr for Strategy {
 
     /// Reads a strategy by its name.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|strategy| strategy.name() == s)
-            .ok_or_else(|| Error::UnknownName {
-                what: "reduction strategy",
-                name: s.into(),
-                known: Self::NAMES,
-            })
+        crate::name::named(Self::ALL, Self::name, s, "reduction strategy", Self::NAMES)
     }
 }
 
