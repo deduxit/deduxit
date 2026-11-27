@@ -157,13 +157,19 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
         return out.write_char(c);
     }
     out.write_str("italic(\"")?;
-    for c in name.chars() {
+    quoted(out, name)?;
+    out.write_str("\")")
+}
+
+/// Writes `text` for the inside of a Typst string: `"` and `\` escaped.
+fn quoted<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
+    for c in text.chars() {
         if c == '"' || c == '\\' {
             out.write_char('\\')?;
         }
         out.write_char(c)?;
     }
-    out.write_str("\")")
+    Ok(())
 }
 
 /// Writes a symbol of a calculus given as data in math mode, as an
@@ -172,12 +178,7 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
 #[cfg(feature = "serialize")]
 pub(crate) fn upright<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
     out.write_str("upright(\"")?;
-    for c in text.chars() {
-        if c == '"' || c == '\\' {
-            out.write_char('\\')?;
-        }
-        out.write_char(c)?;
-    }
+    quoted(out, text)?;
     out.write_str("\") ")
 }
 
@@ -481,12 +482,7 @@ fn label(out: &mut String, markup: &str) {
             return;
         }
         out.push('"');
-        for c in text.chars() {
-            if c == '"' || c == '\\' {
-                out.push('\\');
-            }
-            out.push(c);
-        }
+        quoted(out, text).expect("a string takes the text");
         out.push('"');
     };
     let start = out.len();
@@ -789,12 +785,7 @@ fn fitch(
     out.write_str("#proof((\n")?;
     let string = |out: &mut String, text: &str| {
         out.push_str("[#\"");
-        for c in text.chars() {
-            if c == '"' || c == '\\' {
-                out.push('\\');
-            }
-            out.push(c);
-        }
+        quoted(out, text).expect("a string takes the text");
         out.push_str("\"]");
     };
     let mut buffer = String::new();

@@ -225,9 +225,8 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
     out.write_char('}')
 }
 
-/// Writes a symbol of a calculus given as data in math mode, upright
-/// and escaped.
-#[cfg(feature = "serialize")]
+/// Writes a symbol of a calculus given as data, or a label's text, in
+/// math mode, upright and escaped.
 pub(crate) fn upright<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
     out.write_str(r"\mathrm{")?;
     for c in text.chars() {
@@ -396,11 +395,7 @@ impl Options {
 /// connectives, text in `\mathrm`, subscripts after `_`.
 fn label(out: &mut String, markup: &str) {
     let text = |out: &mut String, text: &str| {
-        out.push_str(r"\mathrm{");
-        for c in text.chars() {
-            escape(out, c).unwrap();
-        }
-        out.push('}');
+        upright(out, text).expect("a string takes the text");
     };
     for part in parts(markup) {
         match part {
