@@ -774,7 +774,9 @@ copies they had are gone (F103, F104).
   runs there, and a proof found is renamed back by the shift, as a proof
   of the goal (of the sequent for the conclusion), and checked again
   when it was checked (`Error::Rejected` would be a defect of the
-  shift). A disproof is the own sequent's, whose formulas are the
+  shift; a check the bounds or the stop give up is `Unknown` through
+  the same `checked` as `conclude`'s, never `Error::Check`, which it
+  was until 0.9.0). A disproof is the own sequent's, whose formulas are the
   goal's. A cut-free forest takes the path it took before, so no
   counter of the target sets moves; the engines are never handed a cut
   tree, which their literal lists and the net engine's vertices would

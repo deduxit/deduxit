@@ -384,14 +384,14 @@ fn on_own_forest(
         Some(mode) => carried.with_mode(mode),
         None => carried,
     };
-    if outcome.checked {
-        match carried.check_within(mode, limits, &mut *stop) {
-            Ok(()) => {}
-            Err(e @ CheckError::Invalid(_)) => return Err(Error::Rejected(Box::new(e))),
-            Err(e @ CheckError::Refused(_)) => {
-                return Err(Error::Check(e));
-            }
-        }
+    if outcome.checked
+        && let Some(reason) = checked(&carried, mode, limits, limits, &mut *stop)?
+    {
+        // A check the bounds or the stop gave up is no fault of the input,
+        // as `conclude` answers it.
+        outcome.verdict = Verdict::Unknown(reason);
+        outcome.checked = false;
+        return Ok(outcome);
     }
     outcome.verdict = Verdict::Proved(Box::new(carried));
     Ok(outcome)
@@ -1147,12 +1147,33 @@ fn conclude(
     // The check gets what the bound leaves beside the input. A refusal
     // names the option's bound.
     let left = (*limits).with_memory_bytes(account.left());
-    match proof.check_within(mode, &left, stop) {
-        Ok(()) => Ok(verdict),
+    Ok(match checked(proof, mode, &left, limits, stop)? {
+        None => verdict,
+        Some(reason) => Verdict::Unknown(reason),
+    })
+}
+
+/// Checks a proof a search found, within `limits` and until `stop`
+/// fires: `None` where it passes, the reason of an unknown verdict where
+/// a bound or the stop gave the check up, naming the bound of `named`
+/// (the caller's, where `limits` is what the search left of it), as
+/// [`unchecked`] does.
+///
+/// # Errors
+///
+/// [`Error::Rejected`] for a proof the checker refuses, a defect of the
+/// engine; a refusal no check makes.
+fn checked(
+    proof: &Proof,
+    mode: Mode,
+    limits: &Limits,
+    named: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Option<Reason>, Error> {
+    match proof.check_within(mode, limits, stop) {
+        Ok(()) => Ok(None),
         Err(e @ CheckError::Invalid(_)) => Err(Error::Rejected(Box::new(e))),
-        Err(CheckError::Refused(refused)) => {
-            Ok(Verdict::Unknown(unchecked(refused.refusal, limits)?))
-        }
+        Err(CheckError::Refused(refused)) => Ok(Some(unchecked(refused.refusal, named)?)),
     }
 }
 
@@ -3861,6 +3882,48 @@ impl Statistics {
 mod tests {
     use super::*;
     use crate::linear::sequents::Atom;
+
+    /// The check of the proof carried back to a forest with cut formulas
+    /// that the stop gives up makes the verdict unknown, as for any other
+    /// proof, never an error. The proof is past the checker's first poll
+    /// (4 096 nodes); the stop fires at the first poll of that second
+    /// check, after the check of the proof on the cut-free forest.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn a_check_given_up_on_a_forest_with_cuts_is_unknown() {
+        let atoms: Vec<String> = (0..1_500).map(|i| format!("a{i}")).collect();
+        let product = atoms.join(" * ");
+        let mut sequent: Sequent = format!("{product} |- {product}").parse().unwrap();
+        sequent.add_cut("|- bot".parse().unwrap()).unwrap();
+        let run = |fire_at: usize| {
+            let mut polls = 0;
+            let outcome = prove_within(
+                &sequent,
+                Mode::CLASSICAL,
+                &Options::default(),
+                &Limits::default(),
+                |progress| {
+                    if progress.phase != Phase::Check {
+                        return false;
+                    }
+                    polls += 1;
+                    polls == fire_at
+                },
+            )
+            .unwrap();
+            (outcome, polls)
+        };
+        // Both checks are of proofs of one shape, so each polls alike.
+        let (outcome, polls) = run(0);
+        assert!(outcome.checked && polls >= 2 && polls % 2 == 0, "{polls}");
+        let (outcome, _) = run(polls / 2 + 1);
+        assert!(
+            matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)),
+            "{:?}",
+            outcome.verdict
+        );
+        assert!(!outcome.checked);
+    }
 
     /// A forest with cut formulas is searched on a cut-free forest of the
     /// goal's formulas, by every engine that takes the goal. No engine
