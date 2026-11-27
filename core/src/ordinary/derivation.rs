@@ -1237,6 +1237,146 @@ impl Drawn for Derivation {
     }
 }
 
+/// Asks `stop` before the `n`-th inference of a read-back is made,
+/// refusing where it fires: what every builder of a derivation of LK or
+/// LJ asks at each inference.
+pub(super) fn ask_read_back<S: FnMut(Progress) -> bool + ?Sized>(
+    stop: &mut S,
+    n: u64,
+) -> Result<(), Error> {
+    if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
+        return Err(Error::Refused(Refusal::Stopped {
+            phase: Phase::ReadBack,
+        }));
+    }
+    Ok(())
+}
+
+/// Adds `inference` to `inferences` as their next and returns its id,
+/// refusing past the `u32` ids a derivation has. A builder charges its
+/// bounds, each its own way, before it calls this.
+pub(super) fn add(inferences: &mut Vec<Inference>, inference: Inference) -> Result<InfId, Error> {
+    let n = inferences.len() as u64;
+    let id = u32::try_from(n).map_err(|_| {
+        Error::Refused(Refusal::Index {
+            what: Space::Inference,
+            count: n + 1,
+            most: u64::from(u32::MAX),
+        })
+    })?;
+    inferences.push(inference);
+    Ok(InfId::new(id))
+}
+
+/// Returns `a` less `b` as multisets, each member of `b` taken from `a`
+/// once where `a` has it.
+pub(super) fn difference(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
+    let mut rest = a.to_vec();
+    for x in b {
+        if let Some(at) = rest.iter().position(|y| y == x) {
+            rest.swap_remove(at);
+        }
+    }
+    rest
+}
+
+/// What the builders of a derivation of LK or LJ share beside
+/// [`add`]: the structural steps they put below a derivation. Each builder
+/// keeps its own [`step`](Self::step) with its own memory charge: the
+/// builders measure what they hold differently, and one charge for all
+/// would move where each refuses.
+pub(super) trait Builder {
+    /// Returns the inference `d`.
+    fn inference(&mut self, d: InfId) -> &mut Inference;
+
+    /// Adds an inference of one premise and returns its id, within the
+    /// builder's bounds.
+    fn step(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        premise: InfId,
+    ) -> Result<InfId, Error>;
+
+    /// Returns whether a test planted a fault in the structural steps of
+    /// `rule`: the last formula they add or take is left out, which the
+    /// checker must refuse.
+    fn planted(&self, _rule: Rule) -> bool {
+        false
+    }
+
+    /// Weakens the derivation `d` until it concludes `want` left of `⊢`;
+    /// `want` holds every hypothesis of `d` as often.
+    fn weaken_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
+        let inference = self.inference(d);
+        let (mut have, right) = (inference.left.clone(), inference.right.clone());
+        let mut extra = difference(want, &have);
+        if self.planted(Rule::WeakenLeft) {
+            extra.pop();
+        }
+        let mut d = d;
+        for x in extra {
+            have.push(x);
+            let at = have.len() - 1;
+            d = self.step(
+                have.clone(),
+                right.clone(),
+                Rule::WeakenLeft,
+                Some((Side::Left, at)),
+                d,
+            )?;
+        }
+        Ok(d)
+    }
+
+    /// Contracts the derivation `d` until it concludes `want` left of
+    /// `⊢`; `want` holds each hypothesis of `d` at least once.
+    fn contract_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
+        let inference = self.inference(d);
+        let (mut have, right) = (inference.left.clone(), inference.right.clone());
+        let mut extra = difference(&have, want);
+        if self.planted(Rule::ContractLeft) {
+            extra.pop();
+        }
+        let mut d = d;
+        for x in extra {
+            if let Some(at) = have.iter().position(|&y| y == x) {
+                have.remove(at);
+            }
+            let at = have.iter().position(|&y| y == x);
+            d = self.step(
+                have.clone(),
+                right.clone(),
+                Rule::ContractLeft,
+                at.map(|at| (Side::Left, at)),
+                d,
+            )?;
+        }
+        Ok(d)
+    }
+
+    /// Writes the hypotheses of the root `d` in the order of `left`, the
+    /// sequent as written, where both hold the same formulas as often. The
+    /// checker reads them as a multiset, but the lambda-term, the
+    /// certificate and the drawings name them in their order. A principal
+    /// formula left of `⊢` is found again by formula.
+    fn in_order(&mut self, d: InfId, left: &[NodeId]) {
+        let inference = self.inference(d);
+        if !same(&inference.left, left) {
+            return;
+        }
+        if let Some((Side::Left, at)) = inference.principal {
+            let principal = inference.left[at];
+            if let Some(at) = left.iter().position(|&x| x == principal) {
+                inference.principal = Some((Side::Left, at));
+            }
+        }
+        inference.left = left.to_vec();
+    }
+}
+
 /// Returns whether two lists are the same multiset. Lists of different
 /// lengths, or equal as they stand, are answered at once; short lists are
 /// compared by counting, and only long ones by sorting copies, so that
@@ -1829,14 +1969,6 @@ impl Out {
                 needed_bytes: None,
             }));
         }
-        let n = self.inferences.len();
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n as u64 + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
         let lefts = members
             .iter()
             .filter(|&&(_, side)| side == Side::Left)
@@ -1857,15 +1989,17 @@ impl Out {
             }
             list.push(node);
         }
-        self.inferences.push(Inference {
-            term: None,
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-        });
-        Ok(InfId::new(id))
+        add(
+            &mut self.inferences,
+            Inference {
+                term: None,
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+            },
+        )
     }
 
     /// Adds below `id` the `¬` inferences that take the formula at `at`

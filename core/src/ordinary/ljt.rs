@@ -36,12 +36,13 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+use super::derivation::Builder;
 use super::{
     Derivation, Evidence, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side, Verdict,
 };
 use crate::Error;
 use crate::hash::{HashMap, HashSet};
-use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::Reason;
 use crate::linear::search::memory::Account;
@@ -894,6 +895,28 @@ struct Lj<'s, S> {
     plant: Option<Plant>,
 }
 
+impl<S: FnMut(Progress) -> bool> Builder for Lj<'_, S> {
+    fn inference(&mut self, d: InfId) -> &mut Inference {
+        &mut self.inferences[d.index()]
+    }
+
+    fn step(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        premise: InfId,
+    ) -> Result<InfId, Error> {
+        self.push(left, right, rule, principal, vec![premise])
+    }
+
+    fn planted(&self, rule: Rule) -> bool {
+        (rule == Rule::WeakenLeft && self.plant == Some(Plant::Weakening))
+            || (rule == Rule::ContractLeft && self.plant == Some(Plant::Contraction))
+    }
+}
+
 impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     /// A translation of a proof of `search`, within `limits` and, where
     /// `most_drawn` is given, a drawing of at most that many bytes.
@@ -940,11 +963,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         premises: Vec<InfId>,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        if (self.stop)(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
-        }
+        super::derivation::ask_read_back(&mut self.stop, n)?;
         if let Some(drawn) = &mut self.drawn {
             let estimate = super::derivation::inference_bytes(&drawn.widths, &left, &right);
             drawn.bytes = drawn.bytes.saturating_add(estimate);
@@ -966,28 +985,23 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 needed_bytes: None,
             }));
         }
-        // The ids of a derivation are `u32`: past them is a refusal.
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
         let before = self.inferences.capacity();
-        self.inferences.push(Inference {
-            term: None,
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-        });
+        let id = super::derivation::add(
+            &mut self.inferences,
+            Inference {
+                term: None,
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+            },
+        )?;
         // Charge the list by its capacity, not its length.
         let size = size_of::<Inference>();
         self.account
             .resize(before * size, self.inferences.capacity() * size);
-        Ok(InfId::new(id))
+        Ok(id)
     }
 
     /// `A ⊢ A`.
@@ -1028,77 +1042,6 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             (false, Side::Left) => Rule::ImpliesLeft,
             (false, Side::Right) => Rule::ImpliesRight,
         }
-    }
-
-    /// Weakens the derivation `d` until it concludes `want` left of `⊢`;
-    /// `want` holds every hypothesis of `d`.
-    fn weaken_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
-        let inference = &self.inferences[d.index()];
-        let (mut have, right) = (inference.left.clone(), inference.right.clone());
-        let mut extra = difference(want, &have);
-        if self.planted(Plant::Weakening) {
-            extra.pop();
-        }
-        let mut d = d;
-        for x in extra {
-            have.push(x);
-            let at = have.len() - 1;
-            d = self.push(
-                have.clone(),
-                right.clone(),
-                Rule::WeakenLeft,
-                Some((Side::Left, at)),
-                vec![d],
-            )?;
-        }
-        Ok(d)
-    }
-
-    /// Writes the hypotheses of the root `d` in the order of `left`, the
-    /// sequent as written, where both hold the same formulas as often.
-    /// The checker reads them as a multiset, but the lambda-term, the
-    /// certificate and the drawings name them in their order. A principal
-    /// formula left of `⊢` is found again by formula.
-    fn in_order(&mut self, d: InfId, left: &[NodeId]) {
-        let inference = &mut self.inferences[d.index()];
-        if !super::derivation::same(&inference.left, left) {
-            return;
-        }
-        if let Some((Side::Left, at)) = inference.principal {
-            let principal = inference.left[at];
-            let at = left
-                .iter()
-                .position(|&x| x == principal)
-                .unwrap_or_else(|| unreachable!("the same formulas as often"));
-            inference.principal = Some((Side::Left, at));
-        }
-        inference.left = left.to_vec();
-    }
-
-    /// Contracts the derivation `d` until it concludes `want` left of
-    /// `⊢`; `want` holds each hypothesis of `d` at least once.
-    fn contract_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
-        let inference = &self.inferences[d.index()];
-        let (mut have, right) = (inference.left.clone(), inference.right.clone());
-        let mut extra = difference(&have, want);
-        if self.planted(Plant::Contraction) {
-            extra.pop();
-        }
-        let mut d = d;
-        for x in extra {
-            if let Some(at) = have.iter().position(|&y| y == x) {
-                have.remove(at);
-            }
-            let at = have.iter().position(|&y| y == x);
-            d = self.push(
-                have.clone(),
-                right.clone(),
-                Rule::ContractLeft,
-                at.map(|at| (Side::Left, at)),
-                vec![d],
-            )?;
-        }
-        Ok(d)
     }
 
     /// Returns `p ⊢ x → c` for `p` the implication `antecedent → c` and
@@ -1326,18 +1269,6 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             }
         }
     }
-}
-
-/// Returns `a` less `b` as multisets, each member of `b` taken from `a`
-/// once where `a` has it.
-fn difference(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
-    let mut rest = a.to_vec();
-    for x in b {
-        if let Some(at) = rest.iter().position(|y| y == x) {
-            rest.swap_remove(at);
-        }
-    }
-    rest
 }
 
 #[cfg(all(test, feature = "parse"))]

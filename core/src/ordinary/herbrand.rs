@@ -48,7 +48,7 @@ use super::{
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId, Symbol};
 use crate::hash::{HashMap, HashSet};
-use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::Reason;
 use std::cell::RefCell;
@@ -1196,11 +1196,7 @@ impl Build<'_> {
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
-        }
+        super::derivation::ask_read_back(stop, n)?;
         // The inference in its list, which doubles as it grows, and each of
         // its three vectors with the allocator's header and rounding.
         let block = |len: usize| {
@@ -1215,22 +1211,17 @@ impl Build<'_> {
             + block(right.len())
             + block(premises.len());
         self.charge(held as u64)?;
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
-        self.inferences.push(Inference {
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-            term,
-        });
-        Ok(InfId::new(id))
+        super::derivation::add(
+            &mut self.inferences,
+            Inference {
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+                term,
+            },
+        )
     }
 
     /// Closes the branch if it can, else applies the first rule its order

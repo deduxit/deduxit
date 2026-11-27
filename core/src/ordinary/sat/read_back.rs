@@ -21,11 +21,11 @@
 //! it does not use is left out, and so is a split whose first branch does
 //! not use its disjunct.
 
-use super::super::derivation::same;
+use super::super::derivation::{self, Builder};
 use super::super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Side};
 use super::{Lemma, NEGATIVE, POSITIVE};
 use crate::Error;
-use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::memory::Account;
 
@@ -800,6 +800,23 @@ struct Lj<'s, S> {
     stop: &'s mut S,
 }
 
+impl<S: FnMut(Progress) -> bool> Builder for Lj<'_, S> {
+    fn inference(&mut self, d: InfId) -> &mut Inference {
+        &mut self.inferences[d.index()]
+    }
+
+    fn step(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        premise: InfId,
+    ) -> Result<InfId, Error> {
+        self.push(left, right, rule, principal, vec![premise])
+    }
+}
+
 impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     /// Starts an empty derivation over the arena, within `limits`, while
     /// the search still holds `held` bytes.
@@ -846,11 +863,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         premises: Vec<InfId>,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        if (self.stop)(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
-        }
+        derivation::ask_read_back(&mut *self.stop, n)?;
         self.account
             .charge((left.len() + right.len() + premises.len()) * size_of::<u32>());
         if self.account.over() {
@@ -860,27 +873,22 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 needed_bytes: None,
             }));
         }
-        // The ids of a derivation are `u32`: past them is a refusal.
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
         let before = self.inferences.capacity();
-        self.inferences.push(Inference {
-            term: None,
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-        });
+        let id = derivation::add(
+            &mut self.inferences,
+            Inference {
+                term: None,
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+            },
+        )?;
         let size = size_of::<Inference>();
         self.account
             .resize(before * size, self.inferences.capacity() * size);
-        Ok(InfId::new(id))
+        Ok(id)
     }
 
     /// Adds the axiom `a ⊢ a`.
@@ -945,25 +953,5 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             Some((Side::Right, 0)),
             vec![premise],
         )
-    }
-
-    /// Writes the hypotheses of the root `d` in the order of `left`, the
-    /// sequent as written, where it holds the same formulas as often: the
-    /// checker reads them as a multiset, while the lambda-term, the
-    /// certificate and the drawings name them in their order.
-    fn in_order(&mut self, d: InfId, left: &[NodeId]) {
-        let inference = &mut self.inferences[d.index()];
-        if !same(&inference.left, left) {
-            return;
-        }
-        if let Some((Side::Left, at)) = inference.principal {
-            let principal = inference.left[at];
-            let at = left
-                .iter()
-                .position(|&x| x == principal)
-                .unwrap_or_else(|| unreachable!("the same formulas as often"));
-            inference.principal = Some((Side::Left, at));
-        }
-        inference.left = left.to_vec();
     }
 }

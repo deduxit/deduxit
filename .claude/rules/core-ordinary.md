@@ -193,6 +193,26 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `ordinary_negation_*.v` the `rocq` check compiles). Minimal logic's `⊥` is Rocq's `False`, so a certificate
   of minimal logic proves the intuitionistic statement only (minimality
   rests on the checker).
+- **The builders of a derivation of LK or LJ share their mechanics,
+  not their charge** (`derivation.rs`: `ask_read_back`, the stop before
+  each inference; `add`, the `u32` refusal and the push; `difference`;
+  the trait `Builder`, whose default `weaken_to`, `contract_to` and
+  `in_order` go through each builder's own `step`, LJT's planted faults
+  a hook; 87c2). Each builder keeps its own charge, so every refusal
+  stays where it was; one charge rule for all is left for wave D (87d3,
+  measured). The six charges as they are: LJT (`ljt.rs`, `Lj::push`) and
+  the SAT read-back (`sat/read_back.rs`, `Lj::push`) 4 bytes per formula
+  and premise id to their `Account`, the list's growth by capacity
+  after the push, LJT also its drawn estimate against
+  `derivation_bytes` where preferred; the intuitionistic connection
+  read-back (`Emit::push`) the `Inference` and 4 bytes per id against
+  `limits.memory_bytes`; the classical one (`ReadBack::push`) the same
+  plus its arena (`account`, `arena_bytes`); Herbrand (`Build::push`)
+  twice the `Inference` and each vector's allocator block (rounded to 16
+  bytes, plus 16), plus its arena; the embedding's read-back
+  (`Out::push`) the `Inference` and 4 bytes per member and premise. The
+  SAT read-back keeps its own `weaken` (`without` keeps the order, which
+  the derivation drawn shows) and shares `in_order`.
 - **A derivation of LK or LJ is bounded by the memory it holds, not by
   the drawn text's estimate** (fixup-19's planning decision): every
   reader back (the embedding's `linear_derivation`, which unfolds with

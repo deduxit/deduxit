@@ -32,7 +32,7 @@ use super::terms::{Head, Seen, Terms};
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
-use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
 
@@ -512,27 +512,21 @@ impl ReadBack<'_, '_> {
         premises: Vec<InfId>,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<InfId, Error> {
-        let n = self.inferences.len() as u64;
         let held =
             size_of::<Inference>() + (left.len() + right.len() + premises.len()) * size_of::<u32>();
         self.bytes = self.bytes.saturating_add(held as u64);
         self.account(stop)?;
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
-        self.inferences.push(Inference {
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-            term,
-        });
-        Ok(InfId::new(id))
+        super::super::derivation::add(
+            &mut self.inferences,
+            Inference {
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+                term,
+            },
+        )
     }
 
     /// Asks the stop, and refuses where the derivation's inferences and its

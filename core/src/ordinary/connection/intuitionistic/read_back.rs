@@ -29,8 +29,9 @@ use super::super::terms::{Head, Terms};
 use crate::Error;
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
-use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
+use crate::ordinary::derivation::{self, Builder};
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
 
 /// The rules the search tries before it gives a proof up.
@@ -1184,17 +1185,6 @@ fn with(rest: &[Formula], added: &[Formula]) -> Vec<Formula> {
     out
 }
 
-/// Returns `a` without one copy of each of `b`, as multisets.
-fn difference(a: &[NodeId], b: &[NodeId]) -> Vec<NodeId> {
-    let mut rest = a.to_vec();
-    for x in b {
-        if let Some(at) = rest.iter().position(|y| y == x) {
-            rest.swap_remove(at);
-        }
-    }
-    rest
-}
-
 /// The derivation of LJ made from the steps.
 struct Emit<'s> {
     /// The inferences, premises first.
@@ -1206,6 +1196,23 @@ struct Emit<'s> {
     memory: Option<u64>,
     /// The caller's stop.
     stop: &'s mut dyn FnMut(Progress) -> bool,
+}
+
+impl Builder for Emit<'_> {
+    fn inference(&mut self, d: InfId) -> &mut Inference {
+        &mut self.inferences[d.index()]
+    }
+
+    fn step(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        premise: InfId,
+    ) -> Result<InfId, Error> {
+        self.push(left, right, rule, principal, vec![premise], None)
+    }
 }
 
 impl<'s> Emit<'s> {
@@ -1231,11 +1238,7 @@ impl<'s> Emit<'s> {
         term: Option<FoTermId>,
     ) -> Result<InfId, Error> {
         let n = self.inferences.len() as u64;
-        if (self.stop)(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
-        }
+        derivation::ask_read_back(&mut *self.stop, n)?;
         // The derivation is held in memory too, whatever its own bound.
         self.held = self.held.saturating_add(
             size_of::<Inference>()
@@ -1251,82 +1254,17 @@ impl<'s> Emit<'s> {
                 needed_bytes: None,
             }));
         }
-        let id = u32::try_from(n).map_err(|_| {
-            Error::Refused(Refusal::Index {
-                what: Space::Inference,
-                count: n + 1,
-                most: u64::from(u32::MAX),
-            })
-        })?;
-        self.inferences.push(Inference {
-            term,
-            left,
-            right,
-            rule,
-            principal,
-            premises,
-        });
-        Ok(InfId::new(id))
-    }
-
-    /// Weakens `d` until it concludes `want` left of `⊢`, which holds
-    /// every hypothesis of `d` as often.
-    fn weaken_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
-        let inference = &self.inferences[d.index()];
-        let (mut have, right) = (inference.left.clone(), inference.right.clone());
-        let mut d = d;
-        for x in difference(want, &have) {
-            have.push(x);
-            let at = have.len() - 1;
-            d = self.push(
-                have.clone(),
-                right.clone(),
-                Rule::WeakenLeft,
-                Some((Side::Left, at)),
-                vec![d],
-                None,
-            )?;
-        }
-        Ok(d)
-    }
-
-    /// Contracts `d` until it concludes `want` left of `⊢`, which holds
-    /// each hypothesis of `d` at least once.
-    fn contract_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
-        let inference = &self.inferences[d.index()];
-        let (mut have, right) = (inference.left.clone(), inference.right.clone());
-        let mut d = d;
-        for x in difference(&have, want) {
-            if let Some(at) = have.iter().position(|&y| y == x) {
-                have.remove(at);
-            }
-            let at = have.iter().position(|&y| y == x);
-            d = self.push(
-                have.clone(),
-                right.clone(),
-                Rule::ContractLeft,
-                at.map(|at| (Side::Left, at)),
-                vec![d],
-                None,
-            )?;
-        }
-        Ok(d)
-    }
-
-    /// Writes the hypotheses of the root `d` in the order of `left`, where
-    /// both hold the same formulas as often.
-    fn in_order(&mut self, d: InfId, left: &[NodeId]) {
-        let inference = &mut self.inferences[d.index()];
-        if !crate::ordinary::derivation::same(&inference.left, left) {
-            return;
-        }
-        if let Some((Side::Left, at)) = inference.principal {
-            let principal = inference.left[at];
-            if let Some(at) = left.iter().position(|&x| x == principal) {
-                inference.principal = Some((Side::Left, at));
-            }
-        }
-        inference.left = left.to_vec();
+        derivation::add(
+            &mut self.inferences,
+            Inference {
+                term,
+                left,
+                right,
+                rule,
+                principal,
+                premises,
+            },
+        )
     }
 
     /// Returns the derivation of the steps below `root`, premises first,
