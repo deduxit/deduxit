@@ -126,6 +126,16 @@ second number (0.1.x to 0.2.0), anything else the third.
   the kind `lambda.reduction` and the promises `reduces` and
   `principal`.
 
+- **Bounded forms of four calls of the linear suite.**
+  `Disproof::check_within(&limits, stop)` checks a refutation within
+  the limits and until the stop fires, a saturated set's and a basis's
+  checks within `limits.work`; `Interactive::split_passes_within(goal,
+  &step, &limits, stop)` charges the split test's count rows to the
+  memory bound; `Interactive::invert_within` and `invert_all_within`
+  ask a stop once per step. The forms without them stay as they were.
+- **`Error::InstanceTable`** (code `instance_table`, kind malformed):
+  an instance table built in Rust that `Proof::with_instances` refuses.
+
 ### Changed
 
 - The crates' descriptions, `deduxit --help` and the front pages name
@@ -215,6 +225,53 @@ second number (0.1.x to 0.2.0), anything else the third.
   calculus with `Error::NotApplicable`: its docs said it must be
   `rules::TABLEAU`, but nothing checked it, and a file of the same rule
   names with laxer rules would have been the review's checker.
+- **Readers keep the caller's bound on terms.** A proof, a proof
+  structure (with or without boxes) and a session read through
+  `wire::upgrade` built their sequent within the default limits, so a
+  lower `limits.terms` (`--term-limit`, a tab's settings) was ignored
+  on them: `check --file … --term-limit 1` checked a proof `prove`
+  refused at that bound.
+- **`prove -i` names the flag for an intuitionistic JSON sequent past
+  `--occurrence-limit`**, as for every other input, where it called the
+  file "not an intuitionistic sequent in JSON". `wire::Within`'s docs say
+  that its error is text only.
+- **`check` no longer leaves a thread checking a refutation past its
+  time limit.** It checks a disproof within its limits and stop
+  (`--occurrence-limit` and `--work-limit` too); the protocol's check of
+  `linear.decide` likewise.
+- **A refused check of a proof on a sequent with cut formulas is
+  unknown**, as `prove` documents, where it was `Error::Check`.
+- **`Interactive::split_passes` judges the step's own rule**: a Mix on
+  a `⊗` formula as a Mix, a `⊗` on another formula refused as `apply`
+  refuses it, and a rule that makes no split `StepError::NoSplit`.
+  Before, it judged a `⊗` formula's split as the `⊗`'s and any other as
+  a Mix, whatever the step, and the page greyed a Mix that could close.
+  `interact` warns of a lost Mix on a `⊗` formula now, and the command
+  and the page bound the test.
+- **The invertible run of the linear session ends at the bound on
+  terms**: a `∀` step past the session's bound (or past the
+  eigenvariables it numbers) ends it with that refusal, where the goal
+  was left open and the run answered that no invertible rule applied.
+  `interact` says `stopped by the term limit of N` there, where it
+  printed no refusal.
+- **The protocol's `linear.net` gives a net with boxes** for a proof
+  that cuts one occurrence twice, which the checker accepts, where it
+  answered `invalid_net`.
+- **A disconnected MLL structure and a Mix net of many parts** are
+  checked and sequentialized in time linear in the parts: at 80 000
+  parts the criterion's witness took 1.96 s and the Mix
+  sequentialization 8.56 s, now 5.8 ms and 0.88 s.
+- **`Proof::with_instances` names a bad table** with
+  `Error::InstanceTable`, where it was `Error::Json` and "not an
+  instance table of deduxit's wire form"; a table in a proof's JSON
+  stays that document's error.
+- **`Sequent::atom` finds an atom by a decomposed name** (a decomposed
+  `é`), as every reader composes the names it stores.
+- **The encodings `three_partition`, `three_partition_mll` and
+  `partition` take an item of size 0, no bin and no item**, where they
+  panicked; every other input gives the same sequent.
+- **An outcome naming an engine this build does not know is written
+  back with that name**, where it was written as `unknown`.
 
 ## [0.8.0] - 2026-11-23
 
