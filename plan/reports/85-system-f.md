@@ -5,6 +5,15 @@ session given this step), on `main@origin` with step 84's library part
 (`lvzsyywy`), rebased onto step 83's (`yntvykyq`) without conflicts;
 83 took no wire level, so System F's is 31.
 
+## Outcome
+
+System F is in deduxit (its library, command, manual, guide and
+bindings, on `main` since the planning session's push, with its docs
+fix `okrptpvw`) and on the page: the lambda tab's typing toggle reads
+"Simply typed", "System F", "Untyped", and a System F term is checked
+and its typing derivation drawn with `∀I` and `∀E`. The client's work
+is in `../deduxit.github.io-85`.
+
 ## Outcome (the deduxit part)
 
 System F is the third value of the lambda-terms' typing axis: three
@@ -167,6 +176,63 @@ export (read, not compiled). Not a finding: the parser's work on `n`
 nested `ΛX` over one long arrow is quadratic, within the occurrence
 bound it promises.
 
+## The client part
+
+Commits in the client's workspace `../deduxit.github.io-85`, on its
+`main@origin` (`klmtowxs`, steps 82, 83 and 84's page work):
+- `vsxvxznv` "flake.lock: Update deduxit": the input `deduxit` moved to
+  deduxit's `main` (`f59ca480`, `vqwqlqkl`), which holds System F.
+- `rsmzxsry` "Check and draw terms of System F":
+  - `src/lib/lambda.ts`: the calculi `system_f`, `system_f_linear`,
+    `system_f_affine`; the typing axis as `LambdaTyping` (`simple`,
+    `system_f`, `untyped`) with `typingOf`, `useOf` and `calculusWith`
+    joining and parting it with the use; `eraseTypes` drops
+    `forall X.`, `/\X.`/`ΛX.` and `[A]` for the switch to Untyped (the
+    binders' types first, since `/\` is also a type's ∧);
+    `SYSTEM_F_EXAMPLE`, `TYPING_WORDS`, `TYPING_TIPS`.
+  - `Toggles.tsx`: the typing `Seg` of three values. Its first value,
+    "Typed" before, is "Simply typed" (the page's existing name of that
+    calculus), since "Typed" beside "System F" would not say which.
+  - `Lambda.tsx`: `SystemFSetup`, the sentences and a term to try before
+    one is read. A System F term takes the typed path (`lambda_check`,
+    `lambda_draw`); a `λ` without its type is deduxit's parse error,
+    whose reason ("System F infers no types…") the field's note shows.
+  - `suites.ts`: the mark `λ2` (Barendregt's name in the λ-cube),
+    `λ2⊸` and `λ2⊸+aff`.
+  - The design guide's D12 rows (`design/redesign.md`), which the rules
+    make the spec, name the third typing; `.claude/rules/web.md` has a
+    bullet for it.
+  - Tests: `lambda.test.ts` (a System F term read and checked against
+    the module, `eraseTypes` on a polymorphic text and on `∧` in a
+    binder's type, the round trip of the nine calculi) and
+    `tests/lambda.spec.ts`'s "a term of System F is checked and drawn,
+    and loses its types for an untyped calculus" (the drawing's `∀I` and
+    `∀E`, the mark, the link's `m=system_f`, the refusal's reason, the
+    switch to Untyped); the first test now asks for "Simply typed".
+- Checks: `vitest` (the lambda and suites files, 12 passed), `biome lint`
+  and `astro check` clean, `playwright test tests/lambda.spec.ts` (9
+  passed); the full `nix flake check` under the machine lock passed
+  ("all checks passed!") before the reviewer's text fix and again at the
+  head `rsmzxsry` after it, nothing flaky.
+- The reviewer, the same agent continued on the client: nothing breaks
+  correctness; one low finding held, three texts still describing the
+  toggle as "Typed"/"Untyped" (the rules bullet, the design guide's D12
+  rows, `Toggles.tsx`'s header), fixed and folded into `rsmzxsry`. It ran
+  `eraseTypes`' regexes on 15 System F texts and read every result back
+  with deduxit's untyped reader.
+- Not shown: the panel's "Try" buttons do not show before a term is read
+  in the current layout (no test presses them for any calculus), so the
+  System F test types its term.
+
 ## Left open
 
-To be filled.
+- No export snapshot pins a System F drawing, so the `export` check
+  compiles none (the reviewer read the LaTeX, Typst and SVG output).
+- The parser's work on `n` nested `ΛX` over one long arrow is quadratic,
+  within the occurrence bound it promises.
+- A type prints with the names of the first equal type the term made
+  (the manual says it); a front end that wants the names as typed would
+  need the hint kept per place.
+- The client's `flake.nix` description still reads "deduxit in the
+  browser: linear logic proved by clicking", a suite named as the main
+  one (fixup-30's matter, in the client).
