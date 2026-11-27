@@ -8893,3 +8893,9 @@ move (D26).
   passed at this pace well before the reset). 87c9 splits in two (decided unattended, at its
   worker's proposal): 87c9 takes F-7b-21, F-7b-17, F-7b-16, F-7a-14 and F-7b-05's baseline;
   87c9b, in the same worker after it lands, takes the rest.
+- 2026-11-27, about 23:25: **Two step sessions at most, at the author's word.** The author first
+  answered "Keep four" (full pace until the weekly limit), then asked for two until they say four is
+  okay: they need the CPU. 87c7 (head `zvsuvwvs`; code and both target sets done, equal to 86) and
+  87c9 (`mklmyskz` committed; F-7a-14 unverified in its working copy; the before run at 2 019 of
+  5 340 rows, resumable from its CSV) paused by the graceful-stop skill, each with its checklist in
+  its report. 87d4 and 87c4 finish their checks; each resumes one paused step as it lands.
