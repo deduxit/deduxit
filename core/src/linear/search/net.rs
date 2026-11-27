@@ -28,7 +28,6 @@
 //! equation is the connectedness equation of a complete acyclic linking.
 //! The net is sequentialized into the proof term returned.
 
-use super::memory::Account;
 use super::planar::Planar;
 use super::{
     Answer, Cadence, Decide, Engine, NotTaken, Options, Reason, Statistics, Stop, Task, Work,
@@ -41,6 +40,7 @@ use crate::linear::nets::{Criterion, NetError, ProofStructure, Scratch, VertexId
 use crate::linear::occurrences::{Forest, OccId, Sign};
 use crate::linear::proofs::{Node, Proof};
 use crate::linear::sequents::{Atom, Kind};
+use crate::memory::Account;
 
 /// The raw index that stands for "no occurrence".
 const NONE: u32 = u32::MAX;

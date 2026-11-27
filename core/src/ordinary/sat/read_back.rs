@@ -27,7 +27,7 @@ use super::{Lemma, NEGATIVE, POSITIVE};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 
 /// How many facts the tableau derives between two polls of the stop.
 const POLL: u64 = 1 << 8;

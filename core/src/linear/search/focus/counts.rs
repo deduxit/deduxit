@@ -13,12 +13,12 @@ use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId, Sign};
 use crate::linear::proofs::Branch;
 use crate::linear::search::Bias;
-use crate::linear::search::memory::{Account, bytes_of};
 use crate::linear::search::{
     Equation, OneSided, OneSidedSymbol, Reason, Refutation, Unbalanced, UnbalancedSymbol,
     set_up_stopped,
 };
 use crate::linear::sequents::{Atom, Kind};
+use crate::memory::{Account, bytes_of};
 
 #[cfg(test)]
 thread_local! {

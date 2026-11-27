@@ -29,7 +29,6 @@
 //! Every sequent keeps one goal by itself. Neither weakening nor Mix can
 //! help a sequent of two formulas.
 
-use super::memory::{Account, bytes_of};
 use super::{Answer, Decide, Engine, Finished, NotTaken, Options, Reason, Statistics, Task, Work};
 use crate::Error;
 use crate::hash::HashMap;
@@ -38,6 +37,7 @@ use crate::linear::fragment::Fragment;
 use crate::linear::occurrences::{Forest, Member, OccId};
 use crate::linear::proofs::{Branch, Node, NodeId};
 use crate::linear::sequents::Kind;
+use crate::memory::{Account, bytes_of};
 
 /// The additive fast path, as the front door calls it.
 pub(crate) struct Additive;

@@ -19,11 +19,11 @@
 //! is bounded, one unit per term evaluated, and so is its memory, by the
 //! account.
 
-use super::memory::{Account, Charged};
 use super::refutation::Classical;
 use crate::limits::{Phase, Progress};
 use crate::linear::occurrences::{Forest, OccId};
 use crate::linear::sequents::{Term, TermId};
+use crate::memory::{Account, Charged};
 
 /// A truth value of three: the reading under a partial assignment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

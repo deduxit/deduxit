@@ -1,8 +1,9 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The memory a search may hold: a count of the bytes its growing
-//! structures have allocated, against `Limits::memory_bytes`.
+//! The memory a long call may hold, a search's or a checker's: a count of
+//! the bytes its growing structures have allocated, against
+//! `Limits::memory_bytes`.
 //!
 //! Whatever grows charges the count where it allocates: the memo, the
 //! proof arena, the counts, the buffers a level of recursion takes. It

@@ -11,9 +11,9 @@ use crate::Error;
 use crate::linear::families::FAMILIES;
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::Forest;
-use crate::linear::search::memory::Account;
 use crate::linear::search::{Engine, Options, Reason, Refutation, Task, Verdict, prove};
 use crate::linear::sequents::{Atom, Sequent};
+use crate::memory::Account;
 
 /// Returns the options that force the engine.
 fn horn() -> Options {

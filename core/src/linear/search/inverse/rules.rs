@@ -20,11 +20,11 @@
 //! asynchronous phase, whose holes the search fills.
 
 use super::super::Reason;
-use super::super::memory::{Charged, bytes_of};
 use crate::hash::HashMap;
 use crate::linear::occurrences::{Forest, OccId, Reading, Side};
 use crate::linear::proofs::Branch;
 use crate::linear::sequents::Kind;
+use crate::memory::{Charged, bytes_of};
 use std::ops::Range;
 
 /// A step of a rule's term, in postorder. A step's operands are the

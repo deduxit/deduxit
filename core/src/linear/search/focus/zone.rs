@@ -21,9 +21,9 @@ use super::scratch::{Pooled, Pools};
 use crate::linear::Instances;
 use crate::linear::occurrences::{Forest, Member, OccId, OccSet};
 use crate::linear::proofs::Node;
-use crate::linear::search::memory::Charged;
 use crate::linear::search::{Options, Reason};
 use crate::linear::sequents::{Eigen, FoTermId};
+use crate::memory::Charged;
 use std::fmt::Debug;
 use std::hash::Hash;
 

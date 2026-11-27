@@ -26,8 +26,8 @@
 
 use super::equation::Equation;
 use super::{Parents, Program};
-use crate::linear::search::memory::{Account, Charged, bytes_of};
 use crate::linear::search::{Reason, Statistics};
+use crate::memory::{Account, Charged, bytes_of};
 use std::cell::OnceCell;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;

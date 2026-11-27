@@ -102,7 +102,6 @@ use self::scratch::{Pooled, Pools};
 use self::split::Join;
 use self::waiting::Waiting;
 use self::zone::{Ground, Linear as _, Unrestricted as _, Zone};
-use super::memory::{Account, Charged};
 use super::{
     Answer, Decide, Finished, Options, Reason, Statistics, Stop, Task, Work, set_up_stopped,
 };
@@ -112,6 +111,7 @@ use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId, Reading};
 use crate::linear::proofs::{Branch, Node, NodeId};
 use crate::linear::sequents::Kind;
+use crate::memory::{Account, Charged};
 
 /// The stack depth that stands for "no pruned sequent depends on an
 /// ancestor".

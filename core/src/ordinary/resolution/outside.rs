@@ -16,7 +16,7 @@
 use super::{Clauses, Literal};
 use crate::Error;
 use crate::limits::{Limits, Progress, Refusal, Space};
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 use crate::ordinary::sat::ClausalProof;
 use crate::ordinary::sat::drup::{Flaw, Rejection, Step};
 use crate::ordinary::sat::solver::{Lit, MOST_VARIABLES};

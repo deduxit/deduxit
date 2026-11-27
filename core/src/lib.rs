@@ -343,6 +343,8 @@ pub mod kripke;
 pub mod lambda;
 pub mod limits;
 pub mod linear;
+/// The count of the bytes a long call holds, against its memory bound.
+mod memory;
 pub mod modal;
 /// Atom names: identifiers of the text syntax that no keyword takes.
 mod name;

@@ -28,7 +28,7 @@ use crate::Error;
 use crate::kripke::{Model, World};
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 use crate::ordinary::{Evidence, Formulas, Logic, Node, NodeId, Sequent, Verdict};
 
 /// The polarity of a formula that must be true where the sequent fails,

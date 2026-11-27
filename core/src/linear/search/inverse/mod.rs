@@ -36,7 +36,6 @@ mod rules;
 #[cfg(all(test, feature = "parse"))]
 mod tests;
 
-use super::memory::{Account, Charged, bytes_of};
 use super::{
     Answer, Decide, Engine, Finished, NotTaken, Options, Reason, Refutation, Saturated, Stable,
     Statistics, Task, Work,
@@ -47,6 +46,7 @@ use crate::limits::Limits;
 use crate::linear::fragment::Fragment;
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::{Node, NodeId};
+use crate::memory::{Account, Charged, bytes_of};
 use eval::{Calculus, Zone, within};
 use rules::{Rules, Shape};
 use std::cmp::Reverse;

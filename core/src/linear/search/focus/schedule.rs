@@ -30,9 +30,9 @@ use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId};
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Bias;
-use crate::linear::search::memory::Account;
 use crate::linear::search::{Finished, Options, Reason, Statistics, Stop};
 use crate::linear::sequents::Kind;
+use crate::memory::Account;
 #[cfg(feature = "parallel")]
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 #[cfg(feature = "parallel")]

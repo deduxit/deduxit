@@ -63,7 +63,7 @@ use crate::hash::{HashMap, HashSet};
 use crate::kripke::{Model, World as ModelWorld};
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 use std::collections::VecDeque;
 use std::rc::Rc;
 

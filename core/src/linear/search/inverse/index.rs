@@ -11,9 +11,9 @@
 //! of the unrestricted zone. A query walks only the paths whose members
 //! the zones given hold, instead of every sequent kept.
 
-use super::super::memory::bytes_of;
 use crate::hash::HashMap;
 use crate::linear::occurrences::OccId;
+use crate::memory::bytes_of;
 
 /// What separates the linear zone from the unrestricted one on a path. It
 /// is no occurrence, since a forest has fewer than `u32::MAX` of them.

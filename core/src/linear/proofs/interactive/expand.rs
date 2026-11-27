@@ -744,7 +744,7 @@ impl Interactive {
     /// [`StepError::NoSplit`] for a rule that makes no split, and the
     /// errors of `apply` for a rule that does not act on the formula.
     pub fn split_passes(&self, goal: GoalId, step: &Step) -> Result<bool, StepError> {
-        match self.split_test(goal, step, &search::memory::Account::new(None), &mut |_| {
+        match self.split_test(goal, step, &crate::memory::Account::new(None), &mut |_| {
             false
         }) {
             Ok(passes) => Ok(passes),
@@ -777,7 +777,7 @@ impl Interactive {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<bool, Error> {
-        let account = search::memory::Account::new(limits.memory_bytes);
+        let account = crate::memory::Account::new(limits.memory_bytes);
         let mut polled = |_| stop(Progress::new(Phase::Search, 0, 0));
         match self.split_test(goal, step, &account, &mut polled) {
             Ok(passes) => Ok(passes),
@@ -809,7 +809,7 @@ impl Interactive {
         &self,
         goal: GoalId,
         step: &Step,
-        account: &search::memory::Account,
+        account: &crate::memory::Account,
         stop: &mut dyn FnMut(u64) -> bool,
     ) -> Result<bool, Split> {
         let sequent = self.open(goal)?;

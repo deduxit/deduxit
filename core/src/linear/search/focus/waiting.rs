@@ -486,7 +486,7 @@ mod tests {
         use super::{Waited, Waiting};
         use crate::linear::occurrences::OccId;
         use crate::linear::search::focus::memo::Key;
-        use crate::linear::search::memory::{Account, Charged};
+        use crate::memory::{Account, Charged};
         let account = Account::new(None);
         let mut scratch = Charged::new(&account);
         let mut waiting = Waiting::default();

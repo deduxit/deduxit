@@ -35,8 +35,6 @@ pub(crate) mod generate;
 pub(crate) mod horn;
 /// The focused inverse method, a search forward from the axioms.
 mod inverse;
-/// The count of the bytes a search holds.
-pub(crate) mod memory;
 /// The proof-net engine.
 pub(crate) mod net;
 #[cfg(feature = "parallel")]
@@ -75,6 +73,7 @@ use crate::linear::nets::ProofStructure;
 use crate::linear::occurrences::{Forest, Member, OccId, Reading};
 use crate::linear::proofs::{Bytes, CheckError, Node, NodeId, Proof};
 use crate::linear::sequents::Sequent;
+use crate::memory;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::num::NonZeroUsize;
 use std::str::FromStr;

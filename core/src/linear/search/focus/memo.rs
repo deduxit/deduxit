@@ -47,7 +47,7 @@
 use super::scratch::Pooled;
 use crate::linear::occurrences::{OccId, OccSet};
 use crate::linear::proofs::NodeId;
-use crate::linear::search::memory::{Account, bytes_of};
+use crate::memory::{Account, bytes_of};
 use std::hash::{BuildHasher as _, Hasher as _};
 use std::sync::Mutex;
 

@@ -15,7 +15,7 @@ use batsat::{Callbacks, ClauseKind, Lit as BatLit, SolverOpts, Var, lbool};
 use super::drup::Step;
 use crate::limits::{Phase, Progress};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 
 /// A literal: a variable, by its index, and its sign.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

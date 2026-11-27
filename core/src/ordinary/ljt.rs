@@ -45,7 +45,7 @@ use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::Reason;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 
 /// What deciding a sequent by LJT found.
 #[non_exhaustive]

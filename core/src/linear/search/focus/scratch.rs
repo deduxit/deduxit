@@ -15,7 +15,7 @@ use super::split::Frame;
 use super::zone::{Cursors, Linear as _, Unrestricted as _, Zone};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::{Branch, NodeId};
-use crate::linear::search::memory::{Charged, bytes_of};
+use crate::memory::{Charged, bytes_of};
 
 impl<Z: Zone> Run<'_, Z> {
     /// Takes an empty unrestricted zone from the pool.

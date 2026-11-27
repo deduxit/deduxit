@@ -30,7 +30,6 @@ mod reach;
 #[cfg(test)]
 mod tests;
 
-use super::memory::{Account, Charged};
 use super::{
     Answer, Basis, Decide, Engine, Finished, Marking, NotTaken, Options, Reason, Refutation,
     StateEquation, Statistics, Task, Work,
@@ -41,6 +40,7 @@ use crate::limits::Limits;
 use crate::linear::fragment::Fragment;
 use crate::linear::occurrences::{Forest, OccId, Side, Sign};
 use crate::linear::sequents::{Atom, Kind};
+use crate::memory::{Account, Charged};
 use equation::Equation;
 
 /// The engine, as [`Engine::Horn`] names it.

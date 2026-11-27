@@ -79,7 +79,7 @@ use super::{Derivation, Evidence, Formulas, Logic, Node, NodeId, Sequent, Verdic
 use crate::Error;
 use crate::limits::{Limits, Progress, Refusal};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 
 /// What deciding a sequent by the SAT solver found.
 #[non_exhaustive]

@@ -42,7 +42,6 @@
 //! intuitionistic sequent that is a proof net, and it is sequentialized
 //! as the net engine's is.
 
-use super::memory::{Account, Charged, bytes_of};
 use super::net::{self, Correctness, Linker, Prunes};
 use super::planar::Planar;
 use super::{Answer, Decide, Engine, NotTaken, Options, Reason, Statistics, Stop, Task, Work};
@@ -53,6 +52,7 @@ use crate::linear::nets::essential::{fixed_successors, is_implication};
 use crate::linear::nets::{Criterion, ProofStructure, VertexId};
 use crate::linear::occurrences::{Forest, OccId, Reading, ShapeError, Side, Sign};
 use crate::linear::sequents::{Atom, Kind};
+use crate::memory::{Account, Charged, bytes_of};
 
 /// The raw index that stands for "no occurrence".
 const NONE: u32 = u32::MAX;
@@ -655,13 +655,13 @@ mod tests {
     use crate::linear::nets::{Criterion, ProofStructure};
     use crate::linear::occurrences::{Forest, Reading};
     use crate::linear::search::generate::{self, IllRules, Rng};
-    use crate::linear::search::memory::Account;
     use crate::linear::search::net::Correctness;
     use crate::linear::search::{
         Engine, Error, NotTaken, Options, Outcome, Reason, Verdict, prove,
     };
     use crate::linear::search::{Statistics, prove_within};
     use crate::linear::sequents::Sequent;
+    use crate::memory::Account;
 
     /// Unit-free IMLL.
     const IMLL: IllRules = IllRules {

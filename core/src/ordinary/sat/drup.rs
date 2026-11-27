@@ -27,7 +27,7 @@
 use super::solver::Lit;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
-use crate::linear::search::memory::Account;
+use crate::memory::Account;
 
 /// A step of a clausal proof.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -551,7 +551,7 @@ pub(crate) fn dimacs(variables: u32, formula: &[Vec<Lit>], proof: &[Step]) -> (S
 mod tests {
     use super::{Flaw, Rejection, Step, check};
     use crate::limits::{Limits, Refusal};
-    use crate::linear::search::memory::Account;
+    use crate::memory::Account;
     use crate::ordinary::sat::solver::Lit;
 
     /// The literal of a DIMACS number.

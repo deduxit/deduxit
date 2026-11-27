@@ -20,8 +20,8 @@ use super::{Clause, Program, clause_head};
 use crate::linear::occurrences::{Forest, Member, OccId, Sign};
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::{Account, Charged};
 use crate::linear::sequents::Kind;
+use crate::memory::{Account, Charged};
 
 /// The most nodes a proof may have, since its ids are `u32`.
 ///

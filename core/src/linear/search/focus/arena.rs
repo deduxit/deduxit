@@ -8,7 +8,7 @@
 
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Reason;
-use crate::linear::search::memory::{Account, Charged, bytes_of};
+use crate::memory::{Account, Charged, bytes_of};
 use std::sync::Mutex;
 
 /// Where the nodes of a run's proofs are kept: the engine's own arena in

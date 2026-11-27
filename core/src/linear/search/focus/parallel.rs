@@ -37,10 +37,10 @@ use super::{Alternative, Cuts, Found, Problem, Run, SetUp, Step, Unrestricted};
 use crate::Error;
 use crate::limits::Limits;
 use crate::linear::proofs::{Node, NodeId};
-use crate::linear::search::memory::{Account, bytes_of};
 use crate::linear::search::parallel::{Flags, Lent, RaiseOnPanic, Runtime, record};
 use crate::linear::search::{Finished, Options, Reason, Statistics, Stop, Task, Work};
 use crate::linear::search::{lock, taken};
+use crate::memory::{Account, bytes_of};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 

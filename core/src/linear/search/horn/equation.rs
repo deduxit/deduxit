@@ -26,7 +26,7 @@
 
 use super::Program;
 use crate::linear::search::Reason;
-use crate::linear::search::memory::{Account, Charged};
+use crate::memory::{Account, Charged};
 
 /// How many entries of its basis and columns the simplex may touch for
 /// each unit of work the search beside it has done, in affine mode.
