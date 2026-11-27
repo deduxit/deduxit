@@ -254,24 +254,7 @@ pub(super) fn decide(
         statistics.clauses = clauses.clauses.len() as u64;
         let work = limits.work.unwrap_or(u64::MAX);
         let mut solver = Batsat::recording(work, &account, &mut stop);
-        for _ in 0..clauses.variables {
-            solver.new_var();
-        }
-        // The solver copies the clauses and is charged for them. Polling it
-        // as they go in refuses a sequent past the memory bound before the
-        // solver holds them all.
-        for (n, clause) in clauses.clauses.iter().enumerate() {
-            solver.add_clause(clause);
-            if n % POLL == 0
-                && let Some(reason) = solver.poll(POLL as u64)
-            {
-                return Err(reason);
-            }
-        }
-        let answer = solver.solve(&[]);
-        statistics.calls = solver.calls();
-        statistics.conflicts = solver.conflicts();
-        match answer {
+        match solve(&clauses, &mut solver, &mut statistics)? {
             Answer::Satisfiable => {
                 let atoms = assignment(formulas, &clauses, &solver);
                 Ok(Found::Assignment(atoms))
@@ -377,27 +360,40 @@ pub(crate) fn falsify(
         statistics.clauses = clauses.clauses.len() as u64;
         let work = limits.work.unwrap_or(u64::MAX);
         let mut solver = Batsat::new(work, &account, &mut *stop);
-        for _ in 0..clauses.variables {
-            solver.new_var();
-        }
-        for (n, clause) in clauses.clauses.iter().enumerate() {
-            solver.add_clause(clause);
-            if n % POLL == 0
-                && let Some(reason) = solver.poll(POLL as u64)
-            {
-                return Err(reason);
-            }
-        }
-        let answer = solver.solve(&[]);
-        statistics.calls = solver.calls();
-        statistics.conflicts = solver.conflicts();
-        match answer {
+        match solve(&clauses, &mut solver, &mut statistics)? {
             Answer::Satisfiable => Ok(Some(assignment(formulas, &clauses, &solver))),
             Answer::Unsatisfiable => Ok(None),
             Answer::Stopped(reason) => Err(reason),
         }
     });
     (found, statistics)
+}
+
+/// Gives `solver` a variable per variable of `clauses` and the clauses,
+/// and returns its answer to one call without assumptions, its calls and
+/// conflicts counted in `statistics`. The solver copies the clauses and is
+/// charged for them, so it is polled every [`POLL`] clauses: a sequent past
+/// the memory bound is refused before the solver holds them all.
+fn solve(
+    clauses: &Encoding,
+    solver: &mut impl Solver,
+    statistics: &mut Statistics,
+) -> Result<Answer, Reason> {
+    for _ in 0..clauses.variables {
+        solver.new_var();
+    }
+    for (n, clause) in clauses.clauses.iter().enumerate() {
+        solver.add_clause(clause);
+        if n % POLL == 0
+            && let Some(reason) = solver.poll(POLL as u64)
+        {
+            return Err(reason);
+        }
+    }
+    let answer = solver.solve(&[]);
+    statistics.calls = solver.calls();
+    statistics.conflicts = solver.conflicts();
+    Ok(answer)
 }
 
 /// What the solver found.
