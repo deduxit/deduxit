@@ -34,41 +34,11 @@
 //! applying a unifier keeps them so (their Lemma 12), so a system is solved
 //! one equation at a time.
 
-use super::super::matrix::{Kind, Matrix, NONE, Shape};
+use super::super::matrix::{Budget, Kind, Matrix, NONE, Shape, union};
 use super::super::terms::Terms;
 use crate::hash::HashMap;
 use crate::ordinary::{Formulas, Node};
-use crate::{Error, Limits, Phase, Progress, Refusal};
-
-/// The build's account: the stop, the memory bound, and the work done.
-struct Budget<'a> {
-    /// The caller's stop.
-    stop: &'a mut dyn FnMut(Progress) -> bool,
-    /// The memory bound, `None` for none.
-    limit: Option<u64>,
-    /// The work done, for the stop's progress.
-    done: u64,
-}
-
-impl Budget<'_> {
-    /// Asks the stop and compares `bytes` with the bound.
-    fn poll(&mut self, work: u64, bytes: usize) -> Result<(), Error> {
-        self.done = self.done.saturating_add(work);
-        if (self.stop)(Progress::new(Phase::Search, work, self.done)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Search,
-            }));
-        }
-        match self.limit {
-            Some(limit) if bytes as u64 > limit => Err(Error::Refused(Refusal::Memory {
-                phase: Phase::Search,
-                limit_bytes: limit,
-                needed_bytes: None,
-            })),
-            _ => Ok(()),
-        }
-    }
-}
+use crate::{Error, Limits, Progress};
 
 /// What character a position adds to the prefixes below it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -138,7 +108,8 @@ impl Prefixes {
     /// The lists of free variables hold every variable above each literal,
     /// which a deep nest makes quadratic: they are charged to the memory
     /// bound, and the stop is asked every [`POLL`] nodes, either one
-    /// refusing ([`Refusal::Memory`], [`Refusal::Stopped`]).
+    /// refusing ([`Refusal::Memory`](crate::Refusal::Memory),
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped)).
     pub(super) fn of(
         matrix: &Matrix,
         formulas: &Formulas,
@@ -486,32 +457,6 @@ impl Tally {
             Ok(())
         }
     }
-}
-
-/// Returns the union of two sorted lists.
-fn union(a: &[u32], b: &[u32]) -> Vec<u32> {
-    let mut out = Vec::with_capacity(a.len() + b.len());
-    let (mut i, mut j) = (0, 0);
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            std::cmp::Ordering::Less => {
-                out.push(a[i]);
-                i += 1;
-            }
-            std::cmp::Ordering::Greater => {
-                out.push(b[j]);
-                j += 1;
-            }
-            std::cmp::Ordering::Equal => {
-                out.push(a[i]);
-                i += 1;
-                j += 1;
-            }
-        }
-    }
-    out.extend_from_slice(&a[i..]);
-    out.extend_from_slice(&b[j..]);
-    out
 }
 
 /// Returns whether the prefixes `s` and `t` can be unified at all: Otten

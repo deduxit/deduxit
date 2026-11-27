@@ -43,18 +43,19 @@ const POLL: usize = 1 << 16;
 const MOST: usize = (NONE - 1) as usize;
 
 /// The build's account: the stop, the memory bound, and the work done.
-struct Budget<'a> {
+/// The prefixes' build (`intuitionistic::prefix`) keeps one too.
+pub(super) struct Budget<'a> {
     /// The caller's stop.
-    stop: &'a mut dyn FnMut(Progress) -> bool,
+    pub(super) stop: &'a mut dyn FnMut(Progress) -> bool,
     /// The memory bound, `None` for none.
-    limit: Option<u64>,
+    pub(super) limit: Option<u64>,
     /// The work done, for the stop's progress.
-    done: u64,
+    pub(super) done: u64,
 }
 
 impl Budget<'_> {
     /// Asks the stop and compares `bytes` with the bound.
-    fn poll(&mut self, work: u64, bytes: usize) -> Result<(), Error> {
+    pub(super) fn poll(&mut self, work: u64, bytes: usize) -> Result<(), Error> {
         self.done = self.done.saturating_add(work);
         if (self.stop)(Progress::new(Phase::Search, work, self.done)) {
             return Err(Error::Refused(Refusal::Stopped {
@@ -1045,7 +1046,7 @@ impl Matrix {
 }
 
 /// Returns the union of two sorted lists.
-fn union(a: &[u32], b: &[u32]) -> Vec<u32> {
+pub(super) fn union(a: &[u32], b: &[u32]) -> Vec<u32> {
     let mut out = Vec::with_capacity(a.len() + b.len());
     let (mut i, mut j) = (0, 0);
     while i < a.len() && j < b.len() {
