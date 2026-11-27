@@ -348,31 +348,10 @@ impl Universe {
         let tables = formulas.first_order();
         let mut constants: Vec<FoTermId> = Vec::new();
         let mut functions: Vec<(Symbol, usize)> = Vec::new();
-        let mut seen_nodes: HashSet<NodeId> = HashSet::default();
-        let mut seen_terms: HashSet<FoTermId> = HashSet::default();
-        let mut nodes: Vec<NodeId> = clauses.iter().map(|c| c.matrix).collect();
-        let mut terms: Vec<FoTermId> = Vec::new();
-        while let Some(n) = nodes.pop() {
-            if !seen_nodes.insert(n) {
-                continue;
-            }
-            match formulas.node(n) {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
-                }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    nodes.extend([a, b]);
-                }
-            }
-        }
-        while let Some(t) = terms.pop() {
-            if !seen_terms.insert(t) {
-                continue;
-            }
+        // In the order the walk meets them, which numbers the universe's
+        // levels and so the instances and the solver's atoms.
+        let matrices = clauses.iter().map(|c| c.matrix);
+        for t in formulas.terms_in(matrices, std::iter::empty()) {
             if let FoTerm::App(f, args) = tables.terms[t.index()] {
                 let list = tables.list(args);
                 if list.is_empty() {
@@ -380,7 +359,6 @@ impl Universe {
                 } else if !functions.iter().any(|&(g, _)| g == f) {
                     functions.push((f, list.len()));
                 }
-                terms.extend_from_slice(list);
             }
         }
         constants.sort_unstable();
@@ -762,38 +740,9 @@ pub(super) fn deskolemized(
 /// Returns every closed term of the instances `roots` and every term
 /// inside one, the shallowest first.
 fn witnesses_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<FoTermId> {
-    let tables = formulas.first_order();
-    let mut seen_nodes: HashSet<NodeId> = HashSet::default();
-    let mut seen: HashSet<FoTermId> = HashSet::default();
-    let mut nodes = roots.to_vec();
-    let mut terms: Vec<FoTermId> = Vec::new();
-    while let Some(n) = nodes.pop() {
-        if !seen_nodes.insert(n) {
-            continue;
-        }
-        match formulas.node(n) {
-            Node::Atom(a) => {
-                if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                    terms.extend_from_slice(tables.list(args));
-                }
-            }
-            Node::True | Node::False => {}
-            Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
-            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                nodes.extend([a, b]);
-            }
-        }
-    }
-    let mut found = Vec::new();
-    while let Some(t) = terms.pop() {
-        if !seen.insert(t) {
-            continue;
-        }
-        found.push(t);
-        if let FoTerm::App(_, args) = tables.terms[t.index()] {
-            terms.extend_from_slice(tables.list(args));
-        }
-    }
+    let mut found: Vec<FoTermId> = formulas
+        .terms_in(roots.iter().copied(), std::iter::empty())
+        .collect();
     let depth = term_depths(formulas, &found);
     found.sort_unstable_by_key(|t| (depth[t], *t));
     found

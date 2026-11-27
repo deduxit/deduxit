@@ -120,41 +120,7 @@ impl Formulas {
     /// `roots`, as an argument of an atom or inside one. It walks on
     /// stacks of its own, each shared node and term once.
     pub(crate) fn mentions(&self, roots: impl Iterator<Item = NodeId>, term: FoTermId) -> bool {
-        let tables = self.tables();
-        let mut nodes_seen = HashSet::default();
-        let mut terms_seen = HashSet::default();
-        let mut nodes: Vec<NodeId> = roots.collect();
-        let mut terms: Vec<FoTermId> = Vec::new();
-        while let Some(k) = nodes.pop() {
-            if !nodes_seen.insert(k) {
-                continue;
-            }
-            match self.nodes()[k.index()] {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
-                }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    nodes.push(a);
-                    nodes.push(b);
-                }
-            }
-        }
-        while let Some(u) = terms.pop() {
-            if u == term {
-                return true;
-            }
-            if !terms_seen.insert(u) {
-                continue;
-            }
-            if let FoTerm::App(_, args) = tables.terms[u.index()] {
-                terms.extend_from_slice(tables.list(args));
-            }
-        }
-        false
+        self.terms_in(roots, std::iter::empty()).any(|u| u == term)
     }
 
     /// Returns the closed term `t` as text: `f(t, …)`, an eigenvariable by
@@ -250,40 +216,15 @@ impl Formulas {
         term: impl Iterator<Item = FoTermId>,
     ) -> Option<u32> {
         let tables = self.tables();
-        let mut nodes_seen = HashSet::default();
-        let mut terms_seen = HashSet::default();
-        let mut nodes: Vec<NodeId> = roots.collect();
-        let mut terms: Vec<FoTermId> = term.collect();
-        while let Some(k) = nodes.pop() {
-            if !nodes_seen.insert(k) {
-                continue;
-            }
-            match self.nodes()[k.index()] {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
+        self.terms_in(roots, term)
+            .filter_map(|u| {
+                if let FoTerm::Eigen(e) = tables.terms[u.index()] {
+                    Some(e.get())
+                } else {
+                    None
                 }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    nodes.push(a);
-                    nodes.push(b);
-                }
-            }
-        }
-        let mut largest = None;
-        while let Some(u) = terms.pop() {
-            if !terms_seen.insert(u) {
-                continue;
-            }
-            match tables.terms[u.index()] {
-                FoTerm::Eigen(e) => largest = largest.max(Some(e.get())),
-                FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
-                FoTerm::Bound(_) | FoTerm::Meta(_) => {}
-            }
-        }
-        largest
+            })
+            .max()
     }
 
     /// Returns whether the term `t` has no bound variable. It walks on a
@@ -373,39 +314,16 @@ impl Formulas {
         term: impl Iterator<Item = FoTermId>,
     ) -> Vec<u32> {
         let tables = self.tables();
-        let mut nodes_seen = HashSet::default();
-        let mut terms_seen = HashSet::default();
-        let mut nodes: Vec<NodeId> = roots.collect();
-        let mut terms: Vec<FoTermId> = term.collect();
-        while let Some(k) = nodes.pop() {
-            if !nodes_seen.insert(k) {
-                continue;
-            }
-            match self.nodes()[k.index()] {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
+        let mut metas: Vec<u32> = self
+            .terms_in(roots, term)
+            .filter_map(|u| {
+                if let FoTerm::Meta(k) = tables.terms[u.index()] {
+                    Some(k)
+                } else {
+                    None
                 }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => nodes.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    nodes.push(a);
-                    nodes.push(b);
-                }
-            }
-        }
-        let mut metas = Vec::new();
-        while let Some(u) = terms.pop() {
-            if !terms_seen.insert(u) {
-                continue;
-            }
-            match tables.terms[u.index()] {
-                FoTerm::Meta(k) => metas.push(k),
-                FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
-                FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
-            }
-        }
+            })
+            .collect();
         metas.sort_unstable();
         metas
     }

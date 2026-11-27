@@ -1512,42 +1512,15 @@ pub fn clauses_of(
 fn refuse_open_witnesses(sequent: &Sequent) -> Result<(), Error> {
     let formulas = sequent.formulas();
     let tables = formulas.first_order();
-    let mut seen_nodes: HashSet<NodeId> = HashSet::default();
-    let mut seen_terms: HashSet<FoTermId> = HashSet::default();
-    let mut nodes: Vec<NodeId> = sequent
-        .left()
-        .iter()
-        .chain(sequent.right())
-        .copied()
-        .collect();
-    let mut terms: Vec<FoTermId> = Vec::new();
-    while let Some(n) = nodes.pop() {
-        if !seen_nodes.insert(n) {
-            continue;
-        }
-        let node = formulas.node(n);
-        if let Node::Atom(a) = node
-            && let Some(&(_, args)) = tables.atoms.get(a as usize)
-        {
-            terms.extend_from_slice(tables.list(args));
-        }
-        let (a, b) = node.operands();
-        nodes.extend([a, b].into_iter().flatten());
-    }
-    while let Some(t) = terms.pop() {
-        if !seen_terms.insert(t) {
-            continue;
-        }
-        match tables.terms[t.index()] {
-            FoTerm::Meta(_) => {
-                return Err(Error::InvalidOption {
-                    key: "sequent",
-                    message: "an open witness stands only in a proof in progress".to_owned(),
-                });
-            }
-            FoTerm::App(_, args) => terms.extend_from_slice(tables.list(args)),
-            FoTerm::Bound(_) | FoTerm::Eigen(_) => {}
-        }
+    let roots = sequent.left().iter().chain(sequent.right()).copied();
+    if formulas
+        .terms_in(roots, std::iter::empty())
+        .any(|t| matches!(tables.terms[t.index()], FoTerm::Meta(_)))
+    {
+        return Err(Error::InvalidOption {
+            key: "sequent",
+            message: "an open witness stands only in a proof in progress".to_owned(),
+        });
     }
     Ok(())
 }

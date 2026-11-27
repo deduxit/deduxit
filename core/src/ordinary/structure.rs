@@ -191,38 +191,9 @@ impl Structure {
         // is no part of the sequent.
         let formulas = sequent.formulas();
         let tables = formulas.first_order();
-        let mut seen = vec![false; formulas.len()];
-        let mut stack: Vec<NodeId> = sequent
-            .left()
-            .iter()
-            .chain(sequent.right())
-            .copied()
-            .collect();
-        let mut terms: Vec<FoTermId> = Vec::new();
-        while let Some(n) = stack.pop() {
-            if std::mem::replace(&mut seen[n.index()], true) {
-                continue;
-            }
-            match formulas.node(n) {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
-                }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    stack.push(a);
-                    stack.push(b);
-                }
-            }
-        }
+        let roots = sequent.left().iter().chain(sequent.right()).copied();
         // The terms and their subterms, each once.
-        let mut met = vec![false; tables.terms.len()];
-        while let Some(t) = terms.pop() {
-            if std::mem::replace(&mut met[t.index()], true) {
-                continue;
-            }
+        for t in formulas.terms_in(roots, std::iter::empty()) {
             match tables.terms[t.index()] {
                 FoTerm::App(f, args) => {
                     let name = tables.symbols[f.index()].0.as_str();
@@ -248,7 +219,6 @@ impl Structure {
                             return Err(wrong(format!("has no table for the function {name}")));
                         }
                     }
-                    terms.extend_from_slice(args);
                 }
                 FoTerm::Bound(_) => {}
                 FoTerm::Eigen(_) | FoTerm::Meta(_) => {

@@ -298,41 +298,11 @@ fn written(
 fn applied(sequent: &Sequent) -> Vec<(&str, u32)> {
     let formulas = sequent.formulas();
     let tables = formulas.first_order();
-    let mut seen = vec![false; formulas.len()];
-    let mut stack: Vec<NodeId> = sequent
-        .left()
-        .iter()
-        .chain(sequent.right())
-        .copied()
-        .collect();
-    let mut terms: Vec<FoTermId> = Vec::new();
-    while let Some(n) = stack.pop() {
-        if std::mem::replace(&mut seen[n.index()], true) {
-            continue;
-        }
-        match formulas.node(n) {
-            Node::Atom(a) => {
-                if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                    terms.extend_from_slice(tables.list(args));
-                }
-            }
-            Node::True | Node::False => {}
-            Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
-            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                stack.push(a);
-                stack.push(b);
-            }
-        }
-    }
+    let roots = sequent.left().iter().chain(sequent.right()).copied();
     let mut used = vec![false; tables.symbols.len()];
-    let mut met = vec![false; tables.terms.len()];
-    while let Some(t) = terms.pop() {
-        if std::mem::replace(&mut met[t.index()], true) {
-            continue;
-        }
-        if let FoTerm::App(f, args) = tables.terms[t.index()] {
+    for t in formulas.terms_in(roots, std::iter::empty()) {
+        if let FoTerm::App(f, _) = tables.terms[t.index()] {
             used[f.index()] = true;
-            terms.extend_from_slice(tables.list(args));
         }
     }
     tables

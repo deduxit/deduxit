@@ -122,6 +122,8 @@ mod tableau;
 #[cfg(feature = "interactive")]
 mod transfer;
 mod translate;
+/// The terms that formulas reach, each once.
+mod walk;
 /// A tableau written by hand, read and reviewed.
 #[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
 mod written;

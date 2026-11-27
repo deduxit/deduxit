@@ -399,38 +399,9 @@ impl KripkeStructure {
         // function symbol with its arity.
         let formulas = sequent.formulas();
         let tables = formulas.first_order();
-        let mut seen = vec![false; formulas.len()];
-        let mut stack: Vec<NodeId> = sequent
-            .left()
-            .iter()
-            .chain(sequent.right())
-            .copied()
-            .collect();
-        let mut terms: Vec<FoTermId> = Vec::new();
-        while let Some(n) = stack.pop() {
-            if std::mem::replace(&mut seen[n.index()], true) {
-                continue;
-            }
-            match formulas.node(n) {
-                Node::Atom(a) => {
-                    if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                        terms.extend_from_slice(tables.list(args));
-                    }
-                }
-                Node::True | Node::False => {}
-                Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    stack.push(a);
-                    stack.push(b);
-                }
-            }
-        }
+        let roots = sequent.left().iter().chain(sequent.right()).copied();
         let mut arity: HashMap<&str, u32> = HashMap::default();
-        let mut met = vec![false; tables.terms.len()];
-        while let Some(t) = terms.pop() {
-            if std::mem::replace(&mut met[t.index()], true) {
-                continue;
-            }
+        for t in formulas.terms_in(roots, std::iter::empty()) {
             match tables.terms[t.index()] {
                 FoTerm::App(f, args) => {
                     let name = tables.symbols[f.index()].0.as_str();
@@ -442,7 +413,6 @@ impl KripkeStructure {
                         continue;
                     }
                     arity.insert(name, u32::try_from(args.len()).unwrap_or(u32::MAX));
-                    terms.extend_from_slice(args);
                 }
                 FoTerm::Bound(_) => {}
                 FoTerm::Eigen(_) | FoTerm::Meta(_) => {

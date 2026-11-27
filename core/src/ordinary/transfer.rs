@@ -294,33 +294,12 @@ fn reached(source: &Formulas, roots: Option<&[NodeId]>) -> (Vec<bool>, Vec<bool>
     };
     let mut nodes = vec![false; source.len()];
     let mut terms = vec![false; tables.terms.len()];
-    let mut stack: Vec<NodeId> = roots.to_vec();
-    let mut term_stack: Vec<FoTermId> = Vec::new();
-    while let Some(k) = stack.pop() {
-        if std::mem::replace(&mut nodes[k.index()], true) {
-            continue;
-        }
-        match source.nodes()[k.index()] {
-            Node::Atom(a) => {
-                if let Some(&(_, args)) = tables.atoms.get(a as usize) {
-                    term_stack.extend_from_slice(tables.list(args));
-                }
-            }
-            Node::True | Node::False => {}
-            Node::Not(a) | Node::Forall(a) | Node::Exists(a) => stack.push(a),
-            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                stack.push(a);
-                stack.push(b);
-            }
-        }
+    let mut walk = source.terms_in(roots.iter().copied(), std::iter::empty());
+    for t in walk.by_ref() {
+        terms[t.index()] = true;
     }
-    while let Some(t) = term_stack.pop() {
-        if std::mem::replace(&mut terms[t.index()], true) {
-            continue;
-        }
-        if let FoTerm::App(_, args) = tables.terms[t.index()] {
-            term_stack.extend_from_slice(tables.list(args));
-        }
+    for k in walk.nodes() {
+        nodes[k.index()] = true;
     }
     (nodes, terms)
 }

@@ -341,6 +341,18 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     atom has its predicate entry (`enter_first_order` gives the earlier
     atoms nullary ones, `atom` the later). An atom's name is its
     canonical text (`p(f(a), #0)`), so atoms stay keyed by names.
+  - **One walk to the terms formulas reach** (`walk.rs`,
+    `Formulas::terms_in(roots, extra)`): the nodes on a stack when it is
+    made, then each term once as it is iterated, subterms included, each
+    shared node and term once. The checker's eigenvariable condition
+    (`mentions`, a lazy `any`, so it stops at the first hit), the goal
+    state's `largest_eigenvariable` and `metas_in`, Herbrand's universe
+    and witnesses, resolution's door against open witnesses, the two
+    countermodel checks' up-front pass, the certificate's `applied` and
+    the copy's `reached` all read it; a new node or term variant is
+    added there once. Its order is the old walks' (the last argument list
+    first), which Herbrand's universe keeps as the order of its constants
+    and so of its instances and atoms.
   - **Closed formulas only**: `Sequent::new` refuses a root with a loose
     variable (`Error::LooseVariable`, the cold `closed` pass), and the
     derivation reader runs `closed` over every inference's formulas,
