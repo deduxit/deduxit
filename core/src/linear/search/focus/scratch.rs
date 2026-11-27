@@ -75,29 +75,23 @@ impl<Z: Zone> Run<'_, Z> {
 
     /// Takes an empty list from the pool.
     pub(super) fn take_list(&mut self) -> Pooled<Z::Member> {
-        let mut list = self.pools.lists.pop().unwrap_or_default();
-        list.clear();
-        list
+        take_pooled(&mut self.pools.lists)
     }
 
     /// Returns a list to the pool.
-    pub(super) fn give_list(&mut self, mut list: Pooled<Z::Member>) {
-        list.settle(&mut self.scratch);
-        self.pools.lists.push(list);
+    pub(super) fn give_list(&mut self, list: Pooled<Z::Member>) {
+        give_pooled(&mut self.pools.lists, &mut self.scratch, list);
     }
 
     /// Takes an empty list of the words of a memo's key from the pool. The
     /// memo is the table of sequents already decided.
     pub(super) fn take_words(&mut self) -> Pooled<OccId> {
-        let mut words = Z::word_lists(&mut self.pools).pop().unwrap_or_default();
-        words.clear();
-        words
+        take_pooled(Z::word_lists(&mut self.pools))
     }
 
     /// Returns a list of words to the pool.
-    pub(super) fn give_words(&mut self, mut words: Pooled<OccId>) {
-        words.settle(&mut self.scratch);
-        Z::word_lists(&mut self.pools).push(words);
+    pub(super) fn give_words(&mut self, words: Pooled<OccId>) {
+        give_pooled(Z::word_lists(&mut self.pools), &mut self.scratch, words);
     }
 
     /// Takes an empty tally from the pool.
@@ -144,28 +138,22 @@ impl<Z: Zone> Run<'_, Z> {
 
     /// Takes an empty trail from the pool.
     pub(super) fn take_trail(&mut self) -> Pooled<Branch> {
-        let mut trail = self.pools.trails.pop().unwrap_or_default();
-        trail.clear();
-        trail
+        take_pooled(&mut self.pools.trails)
     }
 
     /// Returns a trail to the pool.
-    pub(super) fn give_trail(&mut self, mut trail: Pooled<Branch>) {
-        trail.settle(&mut self.scratch);
-        self.pools.trails.push(trail);
+    pub(super) fn give_trail(&mut self, trail: Pooled<Branch>) {
+        give_pooled(&mut self.pools.trails, &mut self.scratch, trail);
     }
 
     /// Takes an empty list of links from the pool.
     pub(super) fn take_links(&mut self) -> Pooled<(Z::Member, NodeId, Branch)> {
-        let mut links = self.pools.links.pop().unwrap_or_default();
-        links.clear();
-        links
+        take_pooled(&mut self.pools.links)
     }
 
     /// Returns a list of links to the pool.
-    pub(super) fn give_links(&mut self, mut links: Pooled<(Z::Member, NodeId, Branch)>) {
-        links.settle(&mut self.scratch);
-        self.pools.links.push(links);
+    pub(super) fn give_links(&mut self, links: Pooled<(Z::Member, NodeId, Branch)>) {
+        give_pooled(&mut self.pools.links, &mut self.scratch, links);
     }
 
     /// Takes an empty list of the frames of a chain of free splits from
@@ -259,6 +247,20 @@ pub(super) struct Pooled<T> {
     items: Vec<T>,
     /// The bytes of its allocation that were charged.
     charged: usize,
+}
+
+/// Takes an empty list from `pool`, a new one where it has none: a list
+/// is charged when it is given back.
+fn take_pooled<T>(pool: &mut Vec<Pooled<T>>) -> Pooled<T> {
+    let mut list = pool.pop().unwrap_or_default();
+    list.clear();
+    list
+}
+
+/// Gives a list back to `pool`, its growth charged to `scratch`.
+fn give_pooled<T>(pool: &mut Vec<Pooled<T>>, scratch: &mut Charged<'_>, mut list: Pooled<T>) {
+    list.settle(scratch);
+    pool.push(list);
 }
 
 impl<T> Default for Pooled<T> {
