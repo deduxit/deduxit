@@ -1,0 +1,117 @@
+{
+  "units": [
+    {
+      "id": "1c",
+      "title": "cut elimination and the checked refutations of linear logic",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-proofs.md (the parts on cut elimination)",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-search.md (the parts on refutations)",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-inverse.md (the parts on the saturated refutation)"
+      ],
+      "extra": "Your unit is the cut elimination of linear proofs and the refutations a search answers with when a sequent has no proof (the counts, the weighted and basis equations, the classical refuter, the saturated set), each with its check. The checks are a trust boundary, and the Rocq library /home/tux/Projects/own/rocq-deduxit (read-only: `theories/Linear/Refutations.v`, `Weights.v`) proves the invariants the certificates of non-derivability rest on: a finding that touches a check or what a refutation states says so under net. handovers.md asks you what each kind of refutation promises and what an outside engine may build. type-sizes.txt is 12 MB: grep it for a type's name, never read it whole.",
+      "verifierExtra": "A change of what a refutation's check accepts touches a checker, and one that changes a refutation's content touches a certificate (the Rocq exporter writes them): check each finding's net."
+    },
+    {
+      "id": "2c",
+      "title": "the Horn engine, the inverse method, and the readers and families of benchmark inputs",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-horn.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-inverse.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-inputs.md"
+      ],
+      "extra": "Your unit is two engines of the linear search (the Horn engine for Petri-net shaped sequents, the inverse method) and three sources of inputs (`families.rs`, the generated benchmark families; `lltp.rs`, the reader of the LLTP library's TPTP files, whose clause syntax ordinary logic's reader also uses; `mist.rs`, the reader of `.spec` coverability problems). The journeys read-lltp, read-spec, read-tptp and search-spec-chain of ratchet.out and dhat.md run your code, and the focused target set's rows of Petri-net problems pin the Horn engine's verdicts (/home/tux/Projects/own/deduxit-wt-audit/bench/TARGETS.md): a change that would alter what an engine visits is kind `search change`. The readers are a public API for people with their own problem files: judge them as such a user would meet them. type-sizes.txt is 12 MB: grep it for a type's name, never read it whole.",
+      "verifierExtra": "A change that would alter what an engine visits is a search change, not a refactor: check each finding's kind against core-horn.md's and core-inverse.md's recorded measurements."
+    },
+    {
+      "id": "4f",
+      "title": "the step-by-step state of linear logic",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-derivations.md (916 lines: the parts on interactive proving)"
+      ],
+      "extra": "Your unit is the linear suite's session, the first of the crate's three types named `Interactive` and the model the other two followed. Unit 4e read the other two (`core/src/ordinary/interactive.rs`, `core/src/rules/interactive.rs`): its findings are /home/tux/Projects/own/deduxit-wt-audit/target/audit/units/4e/findings.md, and handovers.md lists what it asks you (the linear session's column of the table of shared operations in F-4e-01, the stop on `invert`, the two halves of code written twice, `split_passes`). The session is what the web page's practice and the command's `interact` drive, so its messages and refusals are text a learner reads (T1 to T4). A finished session's proof is checked by the linear checker; a finding that touches that says so under net. No journey of the ratchet runs a session. type-sizes.txt is 12 MB: grep it for a type's name, never read it whole.",
+      "verifierExtra": ""
+    },
+    {
+      "id": "5b",
+      "title": "calculi given as rule files, and the workspace",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-rules.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-workspace.md"
+      ],
+      "extra": "Your unit is two things: `rules`, which checks a derivation in a calculus given as a rule file (the format users write is /home/tux/Projects/own/deduxit-wt-audit/core/src/rules/calculus.schema.json, the built-in calculi are under core/src/rules/calculi/, and the manual's chapter on it is under /home/tux/Projects/own/deduxit-wt-audit/docs/src/), and `workspace`, values linked by the protocol's operations. `rules/interactive.rs` is unit 4e's; `rules/search.rs` (a session's close and hint) is yours. A rule file is how a logic the crate does not have is brought to it (X4's second way): judge the format, its errors and its docs as someone writing a calculus would meet them, and the generic checker as a trust boundary (a finding that touches it says so under net). handovers.md lists what the architecture reader and earlier units ask you. No journey of the ratchet runs this code. type-sizes.txt is 12 MB: grep it for a type's name, never read it whole.",
+      "verifierExtra": "A change of what the generic checker accepts touches a checker; a change of the rule-file format is an API break for people who wrote rule files: check each finding's kind and net."
+    },
+    {
+      "id": "7b",
+      "title": "the command's other files: the session, what it shows, and the suites' commands",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/cli.md (1 559 lines: the parts on your files)"
+      ],
+      "extra": "Unit 7a read the command's interface (its findings: /home/tux/Projects/own/deduxit-wt-audit/target/audit/units/7a/findings.md); yours is the rest: `interact` (the session at a terminal, its commands, prompts and messages), `show.rs` (what a verdict prints), and the commands of the suites (`ordinary.rs`, `modal.rs`, `calculus.rs`, `eliminate.rs`, `grade.rs`, `resolve.rs`, `term.rs`, `transform.rs`, `workspace.rs`, `tableau.rs`, `hint.rs`). Part of your unit: the `--help` of those commands (/home/tux/Projects/own/deduxit-wt-audit/target/audit/help/ and help.md) and the manual's chapters on them (list /home/tux/Projects/own/deduxit-wt-audit/docs/src/). Apply L1 to L13 beside the five dimensions, and D1 and D4 to every message and prompt. handovers.md lists what earlier units ask you. The built command is /home/tux/Projects/own/deduxit-wt-audit/target/debug/deduxit: you may run it on small inputs to see a message, a prompt or an exit status (in a capped scope, as the brief says; `interact` reads commands from standard input).",
+      "verifierExtra": ""
+    },
+    {
+      "id": "8",
+      "title": "the web bindings as a consumer of the library, and the protocol they call",
+      "finder": {
+        "model": "opus",
+        "effort": "high"
+      },
+      "verifier": {
+        "model": "fable",
+        "effort": "medium"
+      },
+      "rules": [
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/web.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core-protocol.md",
+        "/home/tux/Projects/own/deduxit-wt-audit/.claude/rules/core.md"
+      ],
+      "extra": "Your unit is the bindings (`web/`, `web-render/`, `web-tab/`) read as a consumer of the library, and the library's `protocol` module, which describes each suite's kinds and operations as data and runs them over JSON. Read the bindings for what they show about the library's API: where they write glue the library should give (a call written once per suite, a form built by hand, a default the library lacks), and where the two descriptions of what a suite offers (the library's `protocol`, the bindings' own table in `web/src/protocol.rs`) disagree. handovers.md lists what the architecture reader and earlier units ask you, among them a possible defect to settle by a run (the protocol's `linear.net` on a proof that cuts one occurrence twice: the command /home/tux/Projects/own/deduxit-wt-audit/target/debug/deduxit has a `workspace` command that runs protocol operations, and a small test program under target/agents may call `deduxit::protocol` directly) and the module's size (/home/tux/Projects/own/deduxit-wt-audit/target/audit/wasm.md). The page that loads the module is another repository, /home/tux/Projects/own/deduxit.github.io (read-only): grep its sources for which of the module's exports the page calls and how, and do not judge the page's own code. Skim how `bench/src` and `fuzz/` call the library for the same question (glue the library should give); do not read them in full. The bindings' tests run under Node only through nix, so do not run them.",
+      "verifierExtra": "A change of a call's name or JSON form in the bindings is a break for the web client (/home/tux/Projects/own/deduxit.github.io, read-only): check each finding's cost against the client's uses."
+    }
+  ]
+}
