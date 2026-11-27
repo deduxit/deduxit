@@ -94,6 +94,26 @@ findings so far, the finding's form, and its model and effort.
     against all theorems, the warnings of a build with every warning
     on, a build with `-mangle-names`, the build's time per file (Q5,
     Q6, Q10).
+  The scripts are `plan/audit/`: `stage0.sh PART…` runs each part
+  capped on cores 13 to 15 into `target/audit/` (`lines`, `api`,
+  `clippy`, `duplicates`, `text`, `help`, `sizes`, `llvm`, `dhat`), with
+  `lines.py`, `surface.py`, `clippy.py`, `duplicates.py`, `text.py` and
+  `help.py` behind it. Tried on 0.8.0's main on 2026-11-27, before the
+  go: all but `sizes`, `llvm` and `dhat`, and the Rocq library's
+  inventory, which is written at the go.
+  - CPD reads Rust, but its lexer stops at some literals (`'∨'`,
+    `"\\/"`, `"~"`) and skipped 14 of 280 files; `duplicates.py` first
+    copies the sources with comments and literals emptied, and then no
+    file is skipped: 165 duplicates of 100 tokens or more, 120 of them
+    between files.
+  - `surface.py`: 522 items at module level, 93 of them reachable under
+    several paths, 84 that nothing outside `core/src` names; 203 of 235
+    structs and 949 of 969 inherent methods have no example.
+  - `text.py`: 86 matches of the writing rules' patterns in 66 702
+    lines of prose, so text findings come from reading, not from
+    patterns.
+  - `help.py`: 32 commands and 79 flags, 14 of which differ between
+    commands in short form, value or heading.
 - **The architecture reader**: one agent over the whole crate, Fable
   5.2 at `high`. It reads every `mod.rs` and module doc, the public
   listing, `core.md`, the inventories and `consumer-test.md`, and code
