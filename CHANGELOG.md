@@ -130,6 +130,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   `=` as identity, and a model that lists `=` at a world is refused. A
   refutation of a sequent with `=` by a Kripke model that 0.8.0 accepted
   should be checked again.
+- **A Rocq certificate of a countermodel of a sequent with `=` did not
+  compile** where `=` holds anywhere, the equality axioms included, so
+  every such certificate `prove --format rocq` wrote: the library reads
+  `=` as any predicate and the certificate listed no equal pairs. It
+  lists each element equal to itself now. Nothing false was certified:
+  Rocq refused those files.
 
 ## [0.8.0] - 2026-11-23
 

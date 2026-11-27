@@ -1045,7 +1045,13 @@ for NanoYalla. What the code relies on:
   library compares every table it is given along the order, the Rust
   check only those, so an unused table that disagrees would make a
   certificate Rocq refuses. Facts are every predicate's tuples (the Rust
-  check checks every predicate's growth). The text is built in a
+  check checks every predicate's growth), and where the sequent has `=`
+  each world's `("=", [e; e])` (`facts`' `identity`): the checks read
+  `=` as identity and no model lists it, while the library reads it as
+  a predicate, so until fixup-31 a structure refuting a sequent with
+  the equality axioms made reflexivity false in Rocq, and every such
+  certificate failed to compile (`structure_equality.v`,
+  `countermodel_fo_equality.v`). The text is built in a
   `Bounded` buffer (refused past `limits.derivation_bytes` before `out`
   sees a byte); terms on a stack of their own (`terms`, `Piece`). The
   closure of the arrows is `ordinary::rocq::Closure`, now over a slice

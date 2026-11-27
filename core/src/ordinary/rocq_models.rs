@@ -12,7 +12,9 @@
 //! The model is written as the library reads it: per world its domain's
 //! size, a table `("f", arity, values)` per function symbol and constant
 //! the sequent applies (a constant at every world), its true facts
-//! `("p", [elements])`, the worlds above it (the closure of the arrows)
+//! `("p", [elements])` (with `("=", [e; e])` for each element where the
+//! sequent has `=`, which the checks read as identity and the library
+//! as a predicate), the worlds above it (the closure of the arrows)
 //! and the worlds that force `⊥`. Only the tables of the sequent's
 //! symbols are written: the library compares every table it is given
 //! along the order, and the check compared only those.
@@ -190,6 +192,8 @@ fn written(
         text.push("]")
     };
     let symbols = applied(sequent);
+    // `=` is identity at every world, which the library reads from facts.
+    let identity = sequent.formulas().has_equality();
     let constants: HashMap<&str, u32> = model
         .constants
         .iter()
@@ -211,7 +215,7 @@ fn written(
         text.push(";\n       functions := ")?;
         tables(&world.functions, &symbols, &constants, &mut text)?;
         text.push(";\n       predicates := ")?;
-        facts(&world.predicates, &mut text)?;
+        facts(&world.predicates, identity.then_some(world.size), &mut text)?;
         text.push(" |}).\n  vm_compute. reflexivity.\nQed.")?;
         out.write_str(&text.text)?;
         return Ok(());
@@ -281,7 +285,7 @@ fn written(
         if w > 0 {
             text.push("; ")?;
         }
-        facts(&world.predicates, &mut text)?;
+        facts(&world.predicates, identity.then_some(world.size), &mut text)?;
     }
     text.push("];\n       absurd := [")?;
     let mut first = true;
@@ -408,29 +412,44 @@ fn tables(
     text.push("]")
 }
 
-/// Writes a world's true facts: `[("p", [0]); ("r", [])]`.
-fn facts(predicates: &[(String, Vec<Vec<u32>>)], text: &mut Bounded) -> Result<(), Error> {
+/// Writes a world's true facts: `[("p", [0]); ("r", [])]`, and where
+/// `identity` gives the world's size, `=` of each element and itself.
+/// The library reads `=` as any predicate, and the checks read it as
+/// identity, which a model never lists: without these facts a structure
+/// refuting a sequent with the equality axioms made reflexivity false in
+/// Rocq, and the certificate did not compile.
+fn facts(
+    predicates: &[(String, Vec<Vec<u32>>)],
+    identity: Option<u32>,
+    text: &mut Bounded,
+) -> Result<(), Error> {
     text.push("[")?;
     let mut count = 0usize;
-    for (name, tuples) in predicates {
-        count = count.saturating_add(tuples.len());
+    let mut fact = |name: &str, tuple: &[u32], text: &mut Bounded| -> Result<(), Error> {
+        count = count.saturating_add(1);
         Bounded::entries(count)?;
-        for (at, tuple) in tuples.iter().enumerate() {
-            if count - tuples.len() + at > 0 {
+        if count > 1 {
+            text.push("; ")?;
+        }
+        Bounded::entries(tuple.len())?;
+        text.push("(")?;
+        text.push(&string(name))?;
+        text.push(", [")?;
+        for (k, &e) in tuple.iter().enumerate() {
+            if k > 0 {
                 text.push("; ")?;
             }
-            Bounded::entries(tuple.len())?;
-            text.push("(")?;
-            text.push(&string(name))?;
-            text.push(", [")?;
-            for (k, &e) in tuple.iter().enumerate() {
-                if k > 0 {
-                    text.push("; ")?;
-                }
-                text.number(e)?;
-            }
-            text.push("])")?;
+            text.number(e)?;
         }
+        text.push("])")
+    };
+    for (name, tuples) in predicates {
+        for tuple in tuples {
+            fact(name, tuple, text)?;
+        }
+    }
+    for e in 0..identity.unwrap_or(0) {
+        fact(crate::first_order::EQUALS, &[e, e], text)?;
     }
     text.push("]")
 }

@@ -3289,6 +3289,60 @@ fn first_order_countermodel_certificates() {
         rocq::write_structure(model, *logic, &options, &defaults, &mut out, |_| false).unwrap();
         snapshot(&format!("deduxit/structure_{name}.v"), &out);
     }
+    // With `=` each world states identity as facts, which the library
+    // reads as a predicate: without them `a = a` was false in Rocq and
+    // the certificate did not compile.
+    {
+        use deduxit::ordinary::{
+            FiniteCountermodel, KripkeCountermodel, KripkeStructure, KripkeWorld, Structure,
+        };
+        let structure = FiniteCountermodel::new(
+            "a = a |- a = b".parse().unwrap(),
+            Structure::new(
+                2,
+                vec![("a".to_owned(), 0), ("b".to_owned(), 1)],
+                Vec::new(),
+            ),
+        );
+        let mut out = String::new();
+        rocq::write_structure(
+            &structure,
+            Logic::Classical,
+            &options,
+            &defaults,
+            &mut out,
+            |_| false,
+        )
+        .unwrap();
+        assert!(
+            out.contains(r#"predicates := [("=", [0; 0]); ("=", [1; 1])]"#),
+            "{out}"
+        );
+        snapshot("deduxit/structure_equality.v", &out);
+        // The world above adds an element that is not `a`.
+        let growing = KripkeCountermodel::new(
+            "forall x. x = x |- exists x. ~x = a".parse().unwrap(),
+            KripkeStructure::new(
+                vec![
+                    KripkeWorld::new(1, Vec::new(), Vec::new(), false, vec![1]),
+                    KripkeWorld::new(2, Vec::new(), Vec::new(), false, Vec::new()),
+                ],
+                vec![("a".to_owned(), 0)],
+                0,
+            ),
+        );
+        let mut out = String::new();
+        rocq::write_kripke_structure(
+            &growing,
+            Logic::Intuitionistic,
+            &options,
+            &defaults,
+            &mut out,
+            |_| false,
+        )
+        .unwrap();
+        snapshot("deduxit/countermodel_fo_equality.v", &out);
+    }
     // A symbol listed twice has its last table, the one the check reads.
     {
         use deduxit::ordinary::{KripkeCountermodel, KripkeStructure, KripkeWorld};
