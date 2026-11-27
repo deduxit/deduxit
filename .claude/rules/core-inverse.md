@@ -18,7 +18,10 @@ the engine's `Decide`; `rules.rs` the derived rules compiled from the
 forest (`Shape`: polarity, coherence, positions, the goal's globals;
 `compile`, `goal`); `eval.rs` a rule's term evaluated forward over
 premises (`Calculus::derive`, `join`, `take`, `mix`), which with a node
-arena writes the proof; `index.rs` the tries subsumption asks;
+arena writes the proof, its sorted multisets kept by the functions over
+sorted lists that `proofs::multiset` has for `Multiset` too (`insert`,
+`remove`, `add`, `excess`, `within`; `add` a plain merge, not
+`Multiset`'s count of runs); `index.rs` the tries subsumption asks;
 `tests.rs` the differential test.
 
 - **A rule is a term with holes** (`Step`, postorder): the proof term of

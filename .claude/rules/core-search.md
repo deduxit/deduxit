@@ -1,7 +1,7 @@
 ---
 paths:
   - "core/src/linear/search/mod.rs"
-  - "core/src/linear/search/memory.rs"
+  - "core/src/memory.rs"
   - "core/src/linear/search/work.rs"
   - "core/src/linear/search/additive.rs"
   - "core/src/linear/search/reference.rs"
@@ -791,7 +791,7 @@ copies they had are gone (F103, F104).
 ## The memory bound
 
 `Limits::memory_bytes` (`DEFAULT_MEMORY_BYTES`, one gibibyte; `None`
-lifts it) bounds what a search holds, and `search/memory.rs` is how:
+lifts it) bounds what a search holds, and the root's `memory.rs` is how:
 an `Account` (the bound and an atomic count of bytes) that everything
 which grows charges where it allocates, by the capacity allocated and
 not by what is in use. `prove_goal` makes one per search.
@@ -861,7 +861,8 @@ not by what is in use. `prove_goal` makes one per search.
   what is left, the branch's own buffers and proofs as allocated, is
   still over, or when an empty memo cannot have its first chunk. The
   value in the reason is the option's, whatever share a search had
-  (`Reason::as_set`, which `conclude` applies to every engine's unknown:
+  (`Reason::as_set`, which `conclude` applies to every engine's unknown,
+  and no engine applies itself:
   the Horn engine named its race part's account, the bound less the
   input, and said "the memory limit of 0 B" under `--memory-limit 1MiB`;
   `the_memory_limit_named_is_the_one_given` in `cli/tests/cli.rs`). `relieve` does not squeeze the arena to fit: the

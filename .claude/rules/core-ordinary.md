@@ -739,8 +739,8 @@ its search and translation are untrusted, the checker is the trust.
   views and a session's open goals.
 - **What it copied from the linear engines** (for the kernel crate): the
   memo keyed by the sequent, the arena of proof steps, the stop's poll
-  cadence and the memory account (`linear::search::memory::Account`,
-  used as is).
+  cadence and the memory account (`crate::memory::Account`, used as
+  is).
 
 ## The connection prover (`connection/`)
 

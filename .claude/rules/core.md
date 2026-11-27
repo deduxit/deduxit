@@ -19,7 +19,7 @@ it; only what holds for the whole crate goes here.
 | `core-forest.md` | `occurrences/` | the occurrence forest (numbering, the bound on its size, literal lists), `OccSet`, the intuitionistic reading, the intuitionistic sequent as written (`IllSequent`) and how outputs are raised, the classical sequent as written (`ClassicalSequent`, `Written`) |
 | `core-proofs.md` | `proofs/mod.rs`, `check/`, `oracle.rs`, `cut/` | proof terms and their invariants, the checker: its one pass, its memory bound, its integers, the one-succedent condition; cut elimination on terms |
 | `core-derivations.md` | `proofs/derivation/`, `size.rs`, `fmt.rs`, `multiset.rs`, `interactive/` | the derivation view, the size estimate, the bounds of `ViewOptions`, the compact view, the two-sided view of a classical derivation (`TwoSided`), the text tree, interactive proving |
-| `core-search.md` | `search/mod.rs`, `memory.rs`, `work.rs`, `additive.rs`, `reference.rs`, `reference_fo.rs`, `refutation.rs`, `weighted.rs` | the front door (`prove_goal`, the one engine interface `Decide`, the check of every proof, `Outcome`, `Options`, refutations and their check, the weighted count, the dispatch, where every engine polls its stop), the memory bound, the work count, the additive path, the test-only reference provers, propositional and first-order |
+| `core-search.md` | `search/mod.rs`, the root's `memory.rs`, `work.rs`, `additive.rs`, `reference.rs`, `reference_fo.rs`, `refutation.rs`, `weighted.rs` | the front door (`prove_goal`, the one engine interface `Decide`, the check of every proof, `Outcome`, `Options`, refutations and their check, the weighted count, the dispatch, where every engine polls its stop), the memory bound, the work count, the additive path, the test-only reference provers, propositional and first-order |
 | `core-focus.md` | `search/focus/`, `search/generate.rs` | the focused engine, one- and two-sided: the atom bias, dyadic sequents, the copy bound and the memo, the two searches of the default bias, the arena, counts, interchangeable occurrences, the split search, recursion, allocation |
 | `core-inverse.md` | `search/inverse/`, `search/saturated.rs` | the inverse method: rules as terms with holes, what a derived sequent stands for, the evaluation that mirrors the checker, every filter that removes a sequent and why it removes none a proof needs, the tries, its limits and work, and the check of its refutation by a saturated set |
 | `core-horn.md` | `search/horn/` | the Horn engine: the shape it reads as a Petri net and why its refutations are sound in every mode, places, classes and dead transitions, the sparse markings, the frontier and the backward search beside it, coverability in affine mode and its trie, the state equation and its exact check, sharing memory and time, its limits, the proof read off a firing sequence |
@@ -76,7 +76,12 @@ re-exports `Error`, `ErrorKind`, `Described`, `Owner`, `ParseError`,
   `u32` refusals and the occurrence bound, which `ordinary::Formulas`
   and `modal::Formulas` each hold, with behind `parse` the parsers'
   shared text reader `arena::parse`) and the
-  crate's serde and hash tables. What `ordinary` and `lambda` use of the
+  crate's serde and hash tables, and the memory account `memory`
+  (crate-private: `Account`, `Charged`, `bytes_of`, which the searches
+  and checkers of every suite charge, and `table_bytes`, the estimate of
+  a hash table's buckets that the focused engine's memo and waiting
+  failures charge; the first-order zone and the checker's zones keep
+  their own). What `ordinary` and `lambda` use of the
   calculus itself (`Mode`, `Proof`, the search they decide through, the
   occurrences a lambda-term reads) is the linear suite's, and they name
   it as `crate::linear::…`.
@@ -96,7 +101,7 @@ parse error), `limits` (`Limits`, `Progress`, `Refusal`), `settings`
 for tests only, cut elimination `cut`, `derivation`, `size`, the text tree `fmt`, the rule
 labels `style`, the crate-private `multiset`, and `interactive` behind
 the feature of that name), `search` (the front door in `mod.rs`, the
-memory account in `memory`, the work count and the helpers for what
+work count and the helpers for what
 threads share in `work`, the focused engine in `focus/` with
 `arena`, `bias`, `classes`, `context`, `counts`, `memo`, `schedule`, `scratch`,
 `split`, `tests` and `parallel`, the net engine in
