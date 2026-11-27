@@ -82,8 +82,10 @@ pub(super) fn interact(
     input: Input,
 ) -> Result<Ran> {
     let mode = &args.mode;
-    if mode.intuitionistic || mode.affine || mode.mix {
-        bail!("the logic's translation decides the mode: leave out -i, -a and --mix");
+    if mode.given() {
+        bail!(
+            "the logic's translation decides the mode: leave out -i, -a, --mix, --cyclic and --lambek"
+        );
     }
     let limits = settings.limits;
     let state = match (saved, args.logic.logic) {

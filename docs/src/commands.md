@@ -320,6 +320,8 @@ provable (MLL1, classical, focus engine)
 
 The time limit and Ctrl-C also stop building and writing a derivation.
 An `--output` file then holds a whole output or is left as it was.
+`--output -` writes to standard output, as `--file -` reads standard
+input.
 
 ## Get the outcome as JSON
 

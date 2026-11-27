@@ -6,8 +6,8 @@
 //! the flags given on the command line, each the spelling of one key.
 
 use crate::argument_parsing::{
-    CheckArgs, CoresArg, EliminateArgs, GradeArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs,
-    RunArgs, SearchArgs, TransformArgs, WorkspaceArgs,
+    CheckArgs, CoresArg, EliminateArgs, GradeArgs, InteractArgs, LambdaArgs, LogicArgs, ProofArgs,
+    ProveArgs, RunArgs, SearchArgs, TransformArgs, WorkspaceArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -243,9 +243,16 @@ impl ProveArgs {
         }
         // The mode flags together are the batch's mode; each is asked, so
         // that one given overrides the file's.
-        if ["intuitionistic", "affine", "mix"]
-            .map(|id| apply.set(id))
-            .contains(&true)
+        if [
+            "intuitionistic",
+            "affine",
+            "mix",
+            "cyclic",
+            "lambek",
+            "empty_antecedents",
+        ]
+        .map(|id| apply.set(id))
+        .contains(&true)
         {
             settings.batch.mode = self.mode.mode();
         }
@@ -326,19 +333,10 @@ impl InteractArgs {
     }
 }
 
-impl CheckArgs {
-    /// Returns the settings `check` runs under: the bounds of the check
-    /// and of its derivation, and how that is shown.
-    ///
-    /// # Errors
-    ///
-    /// Those of reading the settings file.
-    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
-        let mut settings = read(self.settings.as_deref())?;
-        let apply = Apply {
-            file: self.settings.is_some(),
-            given,
-        };
+impl ProofArgs {
+    /// Applies the flags `check` and `eliminate` share to `settings`: the
+    /// bounds of the check and of its derivation, and how that is shown.
+    fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
         if apply.set("memory_limit") {
             settings.limits.memory_bytes = self.memory_limit.0;
         }
@@ -347,9 +345,6 @@ impl CheckArgs {
         }
         if apply.set("work_limit") {
             settings.limits.work = self.work_limit.0;
-        }
-        if apply.set("table_atoms") {
-            settings.limits.table_atoms = self.table_atoms.0;
         }
         if apply.set("occurrence_limit") {
             settings.limits.occurrences = self.occurrence_limit.0;
@@ -366,47 +361,93 @@ impl CheckArgs {
         if apply.set("classical_sides") {
             settings.view.classical = self.output.classical_sides.into();
         }
+        self.output.lambda_style.apply(settings, apply);
+    }
+}
+
+impl CheckArgs {
+    /// Returns the settings `check` runs under: the bounds of the check
+    /// and of its derivation, and how that is shown.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = read(self.common.settings.as_deref())?;
+        let apply = Apply {
+            file: self.common.settings.is_some(),
+            given,
+        };
+        self.common.apply(&mut settings, &apply);
+        if apply.set("table_atoms") {
+            settings.limits.table_atoms = self.table_atoms.0;
+        }
         if apply.set("layout") {
             settings.view.layout = self.layout.into();
         }
-        self.output.lambda_style.apply(&mut settings, &apply);
+        Ok(settings)
+    }
+}
+
+impl crate::argument_parsing::TermLimitsArgs {
+    /// Returns the settings file's settings with these flags applied: the
+    /// time limit, the memory bound and the work bound.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    fn settings(&self, path: Option<&Path>, given: &Given) -> Result<Settings> {
+        let mut settings = read(path)?;
+        let apply = Apply {
+            file: path.is_some(),
+            given,
+        };
+        if apply.set("timeout") {
+            settings.clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        if apply.set("memory_limit") {
+            settings.limits.memory_bytes = self.memory_limit.0;
+        }
+        if apply.set("work_limit") {
+            settings.limits.work = self.work_limit.0;
+        }
         Ok(settings)
     }
 }
 
 impl crate::argument_parsing::TermCheckArgs {
     /// Returns the settings `term check` runs under: the settings file's,
-    /// or the command's defaults.
+    /// or the command's defaults, with the limits' flags applied.
     ///
     /// # Errors
     ///
     /// Those of reading the settings file.
-    pub(crate) fn settings(&self) -> Result<Settings> {
-        read(self.settings.as_deref())
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        self.limits.settings(self.settings.as_deref(), given)
     }
 }
 
 impl crate::argument_parsing::TermReduceArgs {
     /// Returns the settings `term reduce` runs under: the settings file's,
-    /// or the command's defaults.
+    /// or the command's defaults, with the limits' flags applied.
     ///
     /// # Errors
     ///
     /// Those of reading the settings file.
-    pub(crate) fn settings(&self) -> Result<Settings> {
-        read(self.settings.as_deref())
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        self.limits.settings(self.settings.as_deref(), given)
     }
 }
 
 impl crate::argument_parsing::TermInferArgs {
     /// Returns the settings `term infer` runs under: the settings file's,
-    /// or the command's defaults.
+    /// or the command's defaults, with the limits' flags applied.
     ///
     /// # Errors
     ///
     /// Those of reading the settings file.
-    pub(crate) fn settings(&self) -> Result<Settings> {
-        read(self.settings.as_deref())
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        self.limits.settings(self.settings.as_deref(), given)
     }
 }
 
@@ -560,11 +601,12 @@ impl EliminateArgs {
     ///
     /// Those of reading the settings file.
     pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
-        let mut settings = self.check.settings(given)?;
+        let mut settings = read(self.common.settings.as_deref())?;
         let apply = Apply {
-            file: self.check.settings.is_some(),
+            file: self.common.settings.is_some(),
             given,
         };
+        self.common.apply(&mut settings, &apply);
         if apply.set("steps") {
             settings.cut.steps = self.steps.0;
         }
@@ -779,9 +821,11 @@ mod tests {
             }
             Command::Workspace { command } => workspace_settings(&command, &given),
             Command::Term { command } => match command {
-                crate::argument_parsing::TermCommand::Check(args) => args.settings().unwrap(),
-                crate::argument_parsing::TermCommand::Reduce(args) => args.settings().unwrap(),
-                crate::argument_parsing::TermCommand::Infer(args) => args.settings().unwrap(),
+                crate::argument_parsing::TermCommand::Check(args) => args.settings(&given).unwrap(),
+                crate::argument_parsing::TermCommand::Reduce(args) => {
+                    args.settings(&given).unwrap()
+                }
+                crate::argument_parsing::TermCommand::Infer(args) => args.settings(&given).unwrap(),
                 crate::argument_parsing::TermCommand::Inhabit(args) => {
                     args.common.settings(&given).unwrap()
                 }
@@ -846,6 +890,9 @@ mod tests {
             --affine                /batch/mode                "intuitionistic"  "affine"
             --mix                   /batch/mode                "intuitionistic"  "mix"
             -i --affine             /batch/mode                "intuitionistic"  "intuitionistic-affine"
+            --cyclic                /batch/mode                "intuitionistic"  "cyclic"
+            --lambek                /batch/mode                "intuitionistic"  "lambek"
+            --lambek --empty-antecedents /batch/mode           "intuitionistic" "lambek-star"
             --workers 3             /batch/workers             2                 3
             --batch-memory 2MiB     /batch/total_memory_bytes  1048576           2097152
             --compact never         /view/compact              "always"          "never"
@@ -857,15 +904,16 @@ mod tests {
             --lambda-types          /lambda/types              false             true
             --logic minimal --method ljt /ordinary/method      "embedding"       "ljt"
             --table-atoms 12        /limits/table_atoms        11                12"#;
-        const CHECK: &str = r#"
+        const PROOF: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --timeout 3s            /clock/time_limit_ms       5000              3000
             --work-limit 6          /limits/work               5                 6
-            --table-atoms 12        /limits/table_atoms        11                12
             --occurrence-limit 12   /limits/occurrences        11                12
             --term-limit 12         /limits/terms              11                12
             --derivation-limit 3KiB /limits/derivation_bytes   1024              3072
-            --compact never         /view/compact              "always"          "never"
+            --compact never         /view/compact              "always"          "never""#;
+        const CHECK: &str = r#"
+            --table-atoms 12        /limits/table_atoms        11                12
             --layout fitch          /view/layout               "tree"            "fitch""#;
         const LAMBDA: &str = r#"
             --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
@@ -899,8 +947,8 @@ mod tests {
         for (command, operand, table) in [
             (&["prove"][..], "A |- A", [SEARCH, PROVE].concat()),
             (&["interact"], "A |- A", [SEARCH, INTERACT].concat()),
-            (&["check"], "proof.json", [CHECK, LAMBDA].concat()),
-            (&["eliminate"], "proof.json", [CHECK, ELIMINATE].concat()),
+            (&["check"], "proof.json", [PROOF, CHECK, LAMBDA].concat()),
+            (&["eliminate"], "proof.json", [PROOF, ELIMINATE].concat()),
             (&["seq", "print"], "A |- A", PRINT.to_owned()),
             (&["seq", "translate"], "a", TRANSFORM.to_owned()),
             (&["seq", "normalize"], "a", [TRANSFORM, NORMALIZE].concat()),
@@ -1053,13 +1101,13 @@ mod tests {
                 Command::Workspace { command } => drop(workspace_settings(&command, &given)),
                 Command::Term { command } => match command {
                     crate::argument_parsing::TermCommand::Check(args) => {
-                        drop(args.settings().unwrap());
+                        drop(args.settings(&given).unwrap());
                     }
                     crate::argument_parsing::TermCommand::Reduce(args) => {
-                        drop(args.settings().unwrap());
+                        drop(args.settings(&given).unwrap());
                     }
                     crate::argument_parsing::TermCommand::Infer(args) => {
-                        drop(args.settings().unwrap());
+                        drop(args.settings(&given).unwrap());
                     }
                     crate::argument_parsing::TermCommand::Inhabit(args) => {
                         drop(args.common.settings(&given).unwrap());

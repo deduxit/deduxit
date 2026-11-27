@@ -504,7 +504,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   a file every flag applies, its default being the command's). The
   file may be the library's whole `Settings` JSON, as a front end keeps
   it: its `batch.mode` is a batch's mode unless a mode flag is given
-  (the three asked together), and `ordinary` applies under `--logic`,
+  (every mode flag asked together: `-i`, `-a`, `--mix`, `--cyclic`,
+  `--lambek`, `--empty-antecedents`; the first three alone once let a
+  file's mode beat `--cyclic`), and `ordinary` applies under `--logic`,
   which names the logic: the file's `ordinary.logic` is never read and
   its `ordinary.translation` is unless `--translation` is given
   (`ordinary_applies_under_logic_alone`; refusing the two keys, a first
@@ -597,7 +599,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   it as an answer); both write text only.
 - `term.rs`: `term check` (`TermCheckArgs`: the term as an argument,
   `--file` or standard input, `--calculus`, `--format`, `--output`,
-  `--settings` for `lambda` and `limits`; text `well typed` and the
+  `--settings` for `lambda`, `limits` and `clock`, and `TermLimitsArgs`'s
+  `--timeout`, `--memory-limit` and `--work-limit`, which `term reduce`
+  and `term infer` flatten in too: each starts a `Deadline` and asks
+  `interrupted() || deadline.passed()`, and a refusal of the check, the
+  reduction or the inference is `refused`'s `unknown:` line, exit 3 (a
+  term past the bounds on reading stays an error, as in `term inhabit`);
+  text `well typed` and the
   judgement with types on, so it reads back, or `ill typed: REASON`,
   exit 1; JSON the term's document flattened first, then `deduxit`,
   `verdict`, `typing`, `judgement`, so it reads back as the term),
@@ -608,7 +616,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   through `lambda::enumerate`, the count's line then one term a line,
   types shown; exit 0 for a type with a term, 1 for none, 3 for "no term
   found within depth" and a stop. JSON is the library's level-24
-  documents. A refusal at a bound is an `unknown:` line naming the flag.
+  documents. A refusal at a bound after the reading is an `unknown:`
+  line naming the flag, in all five subcommands.
   `--calculus` takes System F's calculi (`system-f`, `system-f-linear`,
   `system-f-affine`, `CalculusArg`); their records are at level 31
   (`term.rs`'s `level`), and `term reduce` prints a type β step after
@@ -630,8 +639,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   under the limits it keeps and a flag there would be ignored. A run
   (`running`) is on the large stack under the deadline and Ctrl-C; a
   stop keeps the nodes run before it and is exit 3. The exit status is
-  the worst verdict run (`verdict_status`: an outcome's verdict; a
-  refused run or a failed check exit 2). The listing (`shown`) is a line
+  the worst verdict run (`verdict_status`: the status the node's kind's
+  command gives, read off its value's JSON by kind: an outcome's
+  verdict, a resolution's `satisfiable` 1, an interpolant 0 only once the
+  node's check held (the value has no halves' outcomes, and the protocol
+  writes an interpolant whose half a search left undecided) and an
+  outcome not valid 1, a Herbrand search's anything but valid 3, an
+  inhabitation's `empty` and a count of exactly 0 1; a refused run or a
+  failed check exit 2). The library states no verdict per kind, so a new
+  kind with a verdict needs its arm here. The listing (`shown`) is a line
   per node, `N  KIND  SUMMARY`, then how it was made and its check
   (`none` left out), the bound that stopped it, and its state when not
   current. No command for a work node's steps, `rebound` or a restart
@@ -667,8 +683,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   limit or the time limit; `--format rocq` writes the certificate of a
   refutation that holds, the other drawn formats the verdict alone;
   `eliminate` still refuses an outcome without a proof);
-  `eliminate.rs` is `eliminate` (`EliminateArgs` flattens `CheckArgs`, so
-  its bounds, mode and output are `check`'s, plus `--steps` and
+  `eliminate.rs` is `eliminate` (`EliminateArgs` flattens `ProofArgs`,
+  the group `CheckArgs` flattens too: the proof file, the mode, the
+  bounds, the output and the settings file, so its bounds, mode and
+  output are `check`'s and `check`'s document selectors (`--tableau`,
+  `--dimacs`, `--system`, `--layout`, …) are unknown to it; `--lambda`,
+  which the output group carries, is refused at run time, plus `--steps` and
   `--node-limit` for `cut.steps` and `cut.nodes`, and `--at NODE`, the
   first step's cut, `cut::eliminate`'s `at`: an input of the call like
   the file, so no settings key, and refused beside `--net`, whose cut

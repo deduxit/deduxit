@@ -745,8 +745,10 @@ pub(crate) fn output_can_be_made(args: &ProveArgs, format: Format) -> Result<()>
 /// mode.
 pub(crate) fn ordinary_mode(args: &ProveArgs) -> Result<()> {
     let mode = &args.mode;
-    if args.logic.logic.is_some() && (mode.intuitionistic || mode.affine || mode.mix) {
-        bail!("the logic's translation decides the mode: leave out -i, -a and --mix");
+    if args.logic.logic.is_some() && mode.given() {
+        bail!(
+            "the logic's translation decides the mode: leave out -i, -a, --mix, --cyclic and --lambek"
+        );
     }
     Ok(())
 }

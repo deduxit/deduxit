@@ -419,9 +419,29 @@ An untyped term need not have a normal form, so the reduction ends at
 `--steps` (1 000 by default) not finished, never with "no normal form".
 A typed term, and an untyped linear or affine one, always reaches its
 normal form. `--node-limit` (100 000 by default) bounds the size of a
-term a step makes. The exit status is 0 at the normal form and at a
-`--steps` given, 1 for a term its calculus refuses, and 3 at the
-default bound of steps, at `--node-limit` and at a limit. `--format
+term a step makes. `--timeout` (2 s by default), `--memory-limit` and
+`--work-limit` bound the reduction as they bound a search, and `term
+check` and `term infer` take them too:
+
+```console
+$ deduxit term reduce --steps none --work-limit 100 '(\x. x x) (\x. x x)'
+(λx. x x) (λx. x x)
+  β: (λx. x x) (λx. x x)
+(λx. x x) (λx. x x)
+  β: (λx. x x) (λx. x x)
+(λx. x x) (λx. x x)
+  β: (λx. x x) (λx. x x)
+(λx. x x) (λx. x x)
+  β: (λx. x x) (λx. x x)
+(λx. x x) (λx. x x)
+  β: (λx. x x) (λx. x x)
+(λx. x x) (λx. x x)
+not finished after 5 steps: the call did the most work allowed, 100 units; raise it with --work-limit
+```
+
+The exit status is 0 at the normal form and at a `--steps` given, 1 for
+a term its calculus refuses, and 3 at the default bound of steps, at
+`--node-limit` and at a limit. `--format
 json` writes the term reached, each step's redex as a node of the term
 it was taken on, and how the reduction ended.
 

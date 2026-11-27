@@ -1689,7 +1689,7 @@ mod tests {
             unreachable!("a check command")
         };
         let settings = check.settings(&Given::default()).unwrap();
-        let show = Show::new(&check.output, &settings).unwrap();
+        let show = Show::new(&check.common.output, &settings).unwrap();
         // Past the nodes the checker passes between two polls of its stop.
         let atoms: Vec<String> = (0..1000).map(|i| format!("A{i}")).collect();
         let duals: Vec<String> = atoms.iter().map(|a| format!("~{a}")).collect();

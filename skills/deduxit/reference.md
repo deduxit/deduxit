@@ -398,8 +398,10 @@ redex after `β:`, then `normal form after N steps`, or `not finished
 after N steps` at `--steps N` (1000) or `--node-limit N` (100000):
 an untyped term need not have a normal form. `--strategy
 applicative-order` takes the leftmost innermost redex in place of the
-leftmost outermost. Exit 0 at the normal form or a `--steps` given, 3 at
-the default bound. `deduxit term infer TERM` prints an untyped term's
+leftmost outermost. `--timeout`, `--memory-limit` and `--work-limit`
+bound `term reduce`, `term check` and `term infer` as they bound a
+search. Exit 0 at the normal form or a `--steps` given, 3 at the default
+bound or a limit. `deduxit term infer TERM` prints an untyped term's
 principal simple type, the term with every `λ` typed, or `no simple
 type:` and the equation that cannot hold (exit 1).
 
@@ -581,7 +583,7 @@ atom's positive literal. It changes the search, never what is provable.
 `--format text|json|latex|typst|svg|png|pdf|rocq` names the format
 (`--format tex` is read as `latex`). Without it, `--output FILE` (`-o`)
 takes the format its extension names: `.txt`, `.json`, `.tex`, `.typ`,
-`.svg`, `.png`, `.pdf` or `.v`.
+`.svg`, `.png`, `.pdf` or `.v`. `-o -` is standard output.
 
 A file is made only when it holds a derivation or a net, and in JSON
 always. For an unprovable sequent the verdict goes to standard error and

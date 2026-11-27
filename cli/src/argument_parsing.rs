@@ -11,7 +11,7 @@ use deduxit::{
     Clock, Limits,
     linear::{Bias, Fragment, Mode},
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// The syntax of linear logic, for the help texts below.
@@ -103,6 +103,44 @@ pub(crate) struct Cli {
     /// What to do.
     #[command(subcommand)]
     pub(crate) command: Command,
+}
+
+impl Cli {
+    /// Reads `--output -` as standard output, as `--file -` reads standard
+    /// input: a command that writes to standard output by default then
+    /// takes the path `-` as no path at all.
+    pub(crate) fn dash_is_standard_output(&mut self) {
+        let output = match &mut self.command {
+            Command::Prove(args) => Some(&mut args.output.output),
+            Command::Check(args) => Some(&mut args.common.output.output),
+            Command::Eliminate(args) => Some(&mut args.common.output.output),
+            Command::Interpolate(args) => Some(&mut args.common.output),
+            Command::Resolve(args) => Some(&mut args.common.output),
+            Command::Herbrand(args) => Some(&mut args.common.output),
+            Command::Seq { command } => match command {
+                SeqCommand::Print { output, .. } | SeqCommand::Json { output, .. } => Some(output),
+                SeqCommand::Translate(args) => Some(&mut args.common.output),
+                SeqCommand::Normalize(args) => Some(&mut args.common.output),
+                SeqCommand::Fragment { .. } => None,
+            },
+            Command::Term { command } => match command {
+                TermCommand::Check(args) => Some(&mut args.output),
+                TermCommand::Reduce(args) => Some(&mut args.output),
+                TermCommand::Infer(args) => Some(&mut args.output),
+                TermCommand::Inhabit(args) => Some(&mut args.common.output),
+                TermCommand::Enumerate(args) => Some(&mut args.common.output),
+            },
+            Command::Workspace {
+                command: WorkspaceCommand::Show { output, .. },
+            } => Some(output),
+            Command::Grade(_) | Command::Interact(_) | Command::Workspace { .. } => None,
+        };
+        if let Some(output) = output
+            && output.as_deref() == Some(Path::new("-"))
+        {
+            *output = None;
+        }
+    }
 }
 
 /// The commands.
@@ -509,7 +547,7 @@ pub(crate) enum WorkspaceCommand {
         /// or for a node its value's document
         #[arg(long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
         format: AnswerFormat,
-        /// Write to this file instead of standard output
+        /// Write to this file instead of standard output, which `-` names
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
     },
@@ -646,9 +684,7 @@ impl Command {
     /// Returns whether the command would take `--logic` as it was called:
     /// it has the flag, and no mode flag that the flag refuses is given.
     pub(crate) fn takes_logic(&self) -> bool {
-        let plain = |mode: &ModeArgs| {
-            !(mode.intuitionistic || mode.affine || mode.mix || mode.cyclic || mode.lambek)
-        };
+        let plain = |mode: &ModeArgs| !mode.given();
         match self {
             Command::Prove(args) => plain(&args.mode),
             Command::Interact(args) => plain(&args.mode),
@@ -1205,7 +1241,7 @@ pub(crate) struct InteractArgs {
         help_heading = INPUT,
         long,
         value_name = "PATH",
-        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "logic", "calculus", "assume"]
+        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "cyclic", "lambek", "logic", "calculus", "assume"]
     )]
     pub(crate) state: Option<PathBuf>,
     /// Prove in a calculus given as data: a rule file, or one built in
@@ -1219,7 +1255,7 @@ pub(crate) struct InteractArgs {
     /// calculus's checker, and the finished derivation is "valid in the
     /// calculus given": the derivation keeps to the rules, which nothing
     /// checks for soundness. See `check --calculus`.
-    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "intuitionistic", "affine", "mix"])]
+    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "intuitionistic", "affine", "mix", "cyclic", "lambek"])]
     pub(crate) calculus: Option<PathBuf>,
     /// With --calculus, a hypothesis the derivation may use and leave
     /// undischarged, a sequent of the calculus; repeat it for more
@@ -1283,9 +1319,10 @@ pub(crate) struct InteractArgs {
 /// decides each wait the whole limit.
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(Clock::DEFAULT_TIME_LIMIT_MS);
 
-/// The arguments of `check`.
+/// What `check` and `eliminate` both read: the proof file, the mode it
+/// must hold in, the bounds, the output and the settings file.
 #[derive(Args, Debug)]
-pub(crate) struct CheckArgs {
+pub(crate) struct ProofArgs {
     /// The most memory the check may hold: a number of bytes with a unit
     /// such as 512MiB or 4GiB, or `none` for no limit
     ///
@@ -1311,13 +1348,6 @@ pub(crate) struct CheckArgs {
     /// node. Past the limit the verdict is unknown (exit status 3).
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
     pub(crate) work_limit: Count<u64>,
-    /// The most atoms a truth table may have, or `none`
-    /// (limits.table_atoms); see `prove --table-atoms`
-    ///
-    /// A truth table that `prove --method table --table-atoms N` made with
-    /// more atoms is checked only with the same bound.
-    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(Some(Limits::DEFAULT_TABLE_ATOMS)))]
-    pub(crate) table_atoms: Count<u32>,
     /// The most subformula occurrences the proof's sequent may have, or
     /// `none` (limits.occurrences); see `prove --occurrence-limit`
     #[arg(help_heading = INPUT, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_OCCURRENCES)))]
@@ -1337,6 +1367,43 @@ pub(crate) struct CheckArgs {
     /// The logic the proof must hold in.
     #[command(flatten)]
     pub(crate) mode: ModeArgs,
+    /// Where to write the result.
+    #[command(flatten)]
+    pub(crate) output: OutputArgs,
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"search":
+    /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
+    /// keeps the command's default, and a misspelt one is an error.
+    /// `ordinary` applies under --logic, which names the logic.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
+}
+
+impl ProofArgs {
+    /// Returns the proof file, from `--file` or the argument, or `None`
+    /// for standard input.
+    pub(crate) fn source(&self) -> Option<PathBuf> {
+        self.file.clone().or_else(|| self.proof.clone())
+    }
+}
+
+/// The arguments of `check`.
+#[derive(Args, Debug)]
+pub(crate) struct CheckArgs {
+    /// The proof file, its mode, the bounds and the output.
+    #[command(flatten)]
+    pub(crate) common: ProofArgs,
+    /// The most atoms a truth table may have, or `none`
+    /// (limits.table_atoms); see `prove --table-atoms`
+    ///
+    /// A truth table that `prove --method table --table-atoms N` made with
+    /// more atoms is checked only with the same bound.
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(Some(Limits::DEFAULT_TABLE_ATOMS)))]
+    pub(crate) table_atoms: Count<u32>,
     /// With a Kripke model, the ordinary logic to check it in
     ///
     /// The file is then a Kripke model in JSON, as `prove --logic
@@ -1436,27 +1503,13 @@ pub(crate) struct CheckArgs {
     /// order is left out with the reason, and the verdict stands.
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "LAYOUT", default_value_t = LayoutArg::Tree)]
     pub(crate) layout: LayoutArg,
-    /// Where to write the result.
-    #[command(flatten)]
-    pub(crate) output: OutputArgs,
-    /// Read the settings from a JSON file; the flags override it
-    ///
-    /// The file is an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
-    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
-    /// name in parentheses, such as `{"search":
-    /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
-    /// keeps the command's default, and a misspelt one is an error.
-    /// `ordinary` applies under --logic, which names the logic.
-    #[arg(long, value_name = "PATH")]
-    pub(crate) settings: Option<PathBuf>,
 }
 
 impl CheckArgs {
     /// Returns the proof file, from `--file` or the argument, or `None`
     /// for standard input.
     pub(crate) fn source(&self) -> Option<PathBuf> {
-        self.file.clone().or_else(|| self.proof.clone())
+        self.common.source()
     }
 }
 
@@ -1481,7 +1534,7 @@ pub(crate) struct GradeArgs {
     pub(crate) system: Option<deduxit::modal::System>,
     /// The problem is a sequent to derive in this calculus given as data: a
     /// rule file, or one built in (LK, LJ, LM, LL, tableau, NJ, NK, NM, …)
-    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "system", "intuitionistic", "affine", "mix"])]
+    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "system", "intuitionistic", "affine", "mix", "cyclic", "lambek"])]
     pub(crate) calculus: Option<PathBuf>,
     /// With --calculus, a sequent the derivation may assume; repeat it for
     /// more
@@ -1550,9 +1603,10 @@ pub(crate) struct EliminateArgs {
     /// same way.
     #[arg(long, value_name = "NODE", conflicts_with = "net")]
     pub(crate) at: Option<u32>,
-    /// The bounds, the mode and the output, as `check` takes them.
+    /// The proof file, its mode, the bounds and the output, as `check`
+    /// takes them.
     #[command(flatten)]
-    pub(crate) check: CheckArgs,
+    pub(crate) common: ProofArgs,
 }
 
 /// The subcommands of `seq`.
@@ -1594,7 +1648,7 @@ pub(crate) enum SeqCommand {
         /// to paste (latex and typst)
         #[arg(long)]
         standalone: bool,
-        /// Write to this file instead of standard output
+        /// Write to this file instead of standard output, which `-` names
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
         /// How the output looks.
@@ -1696,7 +1750,7 @@ pub(crate) enum SeqCommand {
         /// also reads
         #[arg(short, long, conflicts_with_all = ["cyclic", "optimize"])]
         intuitionistic: bool,
-        /// Write to this file instead of standard output
+        /// Write to this file instead of standard output, which `-` names
         #[arg(short, long, value_name = "PATH")]
         output: Option<PathBuf>,
         /// The most bytes of input read: a number of bytes with a unit such
@@ -1733,7 +1787,7 @@ pub(crate) struct TransformArgs {
     /// sequent, outcome and derivation
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
     pub(crate) format: AnswerFormat,
-    /// Write to this file instead of standard output
+    /// Write to this file instead of standard output, which `-` names
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
     /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
@@ -2041,6 +2095,27 @@ pub(crate) enum TermCommand {
     Enumerate(EnumerateArgs),
 }
 
+/// The limits of `term check`, `term reduce` and `term infer`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TermLimitsArgs {
+    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
+    /// (clock.time_limit_ms)
+    ///
+    /// It counts from the start of the command. When the time runs out,
+    /// the answer is unknown (exit status 3).
+    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
+    pub(crate) timeout: Time,
+    /// The most memory the call may hold: a number of bytes with a unit
+    /// such as 512MiB or 4GiB, or `none` for no limit; see `prove
+    /// --memory-limit` (limits.memory_bytes)
+    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
+    pub(crate) memory_limit: Bytes,
+    /// The most units of work the call may do, or `none`; see `prove
+    /// --work-limit` (limits.work)
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
+    pub(crate) work_limit: Count<u64>,
+}
+
 /// The arguments of `term check`.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct TermCheckArgs {
@@ -2060,7 +2135,7 @@ pub(crate) struct TermCheckArgs {
     /// judgement
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
     pub(crate) format: AnswerFormat,
-    /// Write to this file instead of standard output
+    /// Write to this file instead of standard output, which `-` names
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
     /// Read the settings from a JSON file
@@ -2068,10 +2143,14 @@ pub(crate) struct TermCheckArgs {
     /// The file is an object with any of the keys `clock`, `limits`,
     /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
     /// `input`, `cut` and `lambda`. `lambda` picks the notation
-    /// (lambda.notation) and `limits` bounds the term read and its check;
-    /// the others are read and not used. A misspelt field is an error.
+    /// (lambda.notation), `limits` bounds the term read and its check and
+    /// `clock` the time; the others are read and not used. A misspelt
+    /// field is an error.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
+    /// The time, memory and work the check may take.
+    #[command(flatten)]
+    pub(crate) limits: TermLimitsArgs,
 }
 
 /// A lambda calculus.
@@ -2172,7 +2251,7 @@ pub(crate) struct TermReduceArgs {
     /// steps
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
     pub(crate) format: AnswerFormat,
-    /// Write to this file instead of standard output
+    /// Write to this file instead of standard output, which `-` names
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
     /// Read the settings from a JSON file
@@ -2180,11 +2259,14 @@ pub(crate) struct TermReduceArgs {
     /// The file is an object with any of the keys `clock`, `limits`,
     /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
     /// `input`, `cut` and `lambda`. `lambda` picks the notation
-    /// (lambda.notation) and `limits` bounds the term read, each check
-    /// and the steps' work; the others are read and not used. A misspelt
-    /// field is an error.
+    /// (lambda.notation), `limits` bounds the term read, each check and
+    /// the steps' work, and `clock` the time; the others are read and not
+    /// used. A misspelt field is an error.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
+    /// The time, memory and work the reduction may take.
+    #[command(flatten)]
+    pub(crate) limits: TermLimitsArgs,
 }
 
 /// The arguments of `term infer`.
@@ -2205,7 +2287,7 @@ pub(crate) struct TermInferArgs {
     /// and the judgement
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
     pub(crate) format: AnswerFormat,
-    /// Write to this file instead of standard output
+    /// Write to this file instead of standard output, which `-` names
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
     /// Read the settings from a JSON file
@@ -2213,11 +2295,14 @@ pub(crate) struct TermInferArgs {
     /// The file is an object with any of the keys `clock`, `limits`,
     /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
     /// `input`, `cut` and `lambda`. `lambda` picks the notation
-    /// (lambda.notation) and `limits` bounds the term read, the inference
-    /// and the check; the others are read and not used. A misspelt field
-    /// is an error.
+    /// (lambda.notation), `limits` bounds the term read, the inference and
+    /// the check, and `clock` the time; the others are read and not used.
+    /// A misspelt field is an error.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
+    /// The time, memory and work the inference may take.
+    #[command(flatten)]
+    pub(crate) limits: TermLimitsArgs,
 }
 
 /// The arguments of `term inhabit`.
@@ -2667,7 +2752,7 @@ pub(crate) struct OutputArgs {
     /// text
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT")]
     pub(crate) format: Option<Format>,
-    /// Write to this file instead of standard output
+    /// Write to this file instead of standard output, which `-` names
     ///
     /// The file is made only when it holds a derivation or a net, and
     /// always in JSON. Otherwise the verdict goes to standard error.

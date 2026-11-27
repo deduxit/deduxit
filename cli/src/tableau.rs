@@ -29,7 +29,7 @@ pub(crate) fn check(
     (settings, show): (&deduxit::Settings, &Show),
     deadline: &Deadline,
 ) -> Result<Status> {
-    if args.mode.given() {
+    if args.common.mode.given() {
         bail!("a tableau is of classical logic, which has no mode: leave out the mode flags");
     }
     if !matches!(show.format, Format::Text | Format::Json) {
@@ -37,7 +37,7 @@ pub(crate) fn check(
     }
     let limits = settings.limits;
     let text = io::read(args.source().as_deref(), "tableau", limits.memory_bytes)?;
-    let mut out = io::Output::open(args.output.output.as_deref(), false)?;
+    let mut out = io::Output::open(args.common.output.output.as_deref(), false)?;
     let (status, keep) = review(
         &text,
         args.sequent.as_deref(),

@@ -3889,6 +3889,122 @@ fn workspace_check_answers_for_the_checks() {
     assert_eq!(status, 3, "{out}{err}");
 }
 
+/// `term reduce`, `term check` and `term infer` take the time limit, the
+/// memory bound and the work bound as flags: a reduction with no bound on
+/// steps ends at the time limit, unknown (exit status 3), where it ran
+/// until it was killed.
+#[test]
+fn the_term_commands_take_the_limits() {
+    let omega = r"(\x. x x) (\x. x x)";
+    let start = std::time::Instant::now();
+    let (status, out, err) = deduxit(
+        &[
+            "term",
+            "reduce",
+            "--steps",
+            "none",
+            "--timeout",
+            "200ms",
+            omega,
+        ],
+        "",
+    );
+    assert_eq!(status, 3, "{out}{err}");
+    assert!(out.contains("the time limit"), "{out}");
+    assert!(start.elapsed() < std::time::Duration::from_secs(30));
+    for command in ["check", "infer"] {
+        let (status, out, err) = deduxit(
+            &[
+                "term",
+                command,
+                "--calculus",
+                "untyped",
+                "--timeout",
+                "5s",
+                "--memory-limit",
+                "64MiB",
+                "--work-limit",
+                "none",
+                r"\x. x",
+            ],
+            "",
+        );
+        assert_eq!(status, 0, "{command}: {out}{err}");
+    }
+}
+
+/// `eliminate` takes only the flags it reads: `check`'s document
+/// selectors are unknown to it, and `--lambda` is refused, where they
+/// once ran and were ignored, exit status 0.
+#[test]
+fn eliminate_takes_only_its_flags() {
+    for flags in [
+        &["--tableau"][..],
+        &["--dimacs", "x.cnf"],
+        &["--system", "S4"],
+        &["--world", "0"],
+        &["--layout", "fitch"],
+        &["--lambda"],
+        &["--lambda-types"],
+        &["--lambda-notation", "ascii"],
+    ] {
+        let (status, _, err) = deduxit(&[&["eliminate"], flags, &["p.json"]].concat(), "");
+        assert_eq!(status, 2, "{flags:?}: {err}");
+    }
+    let (_, out, _) = deduxit(&["eliminate", "--help"], "");
+    for flag in [
+        "--tableau",
+        "--dimacs",
+        "--system",
+        "--sequent",
+        "--calculus",
+        "--layout",
+    ] {
+        assert!(
+            !out.lines().any(|line| line.trim_start().starts_with(flag)),
+            "{flag} in eliminate --help"
+        );
+    }
+}
+
+/// A logic decides the mode by its translation, so `--cyclic` and
+/// `--lambek` beside `--logic` are refused as `-i` is, where `prove` and
+/// `interact` once ran with the flag dropped.
+#[test]
+fn a_logic_refuses_every_mode_flag() {
+    for flag in ["--cyclic", "--lambek", "-i"] {
+        for command in ["prove", "interact"] {
+            let (status, _, err) = deduxit(&[command, "--logic", "classical", flag, "a |- a"], "");
+            assert!(
+                status == 2 && err.contains("decides the mode"),
+                "{command} {flag}: {status} {err}"
+            );
+        }
+    }
+}
+
+/// `--output -` writes to standard output, as `--file -` reads standard
+/// input, where it once made a file named `-`.
+#[test]
+fn a_dash_output_is_standard_output() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-dash-output");
+    std::fs::create_dir_all(&dir).unwrap();
+    let _ = std::fs::remove_file(dir.join("-"));
+    for args in [
+        &["prove", "-o", "-", "A |- A"][..],
+        &["seq", "print", "--output", "-", "A |- A"],
+    ] {
+        let out = Command::new(env!("CARGO_BIN_EXE_deduxit"))
+            .args(args)
+            .current_dir(&dir)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(out.status.success() && !text.is_empty(), "{args:?}: {text}");
+        assert!(!dir.join("-").exists(), "{args:?} made a file named -");
+    }
+}
+
 /// A workspace node exits as its kind's command does: resolution that
 /// finds the clauses satisfiable and an interpolation of a sequent that
 /// is not valid exit 1, as `resolve` and `interpolate` do.

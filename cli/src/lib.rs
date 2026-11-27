@@ -336,7 +336,8 @@ pub fn main() -> ExitCode {
     let matches = Cli::command()
         .try_get_matches_from(&os_args)
         .unwrap_or_else(|e| hint::command_line(e, &args).exit());
-    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let mut cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    cli.dash_is_standard_output();
     match run(&cli, &settings::Given::of(&matches)) {
         Ok(status) => status.into(),
         Err(e) => {

@@ -543,7 +543,7 @@ pub(crate) fn check_outside(
         ),
         Err(error) => return Err(error.into()),
     };
-    io::write(args.output.output.as_deref(), &line)?;
+    io::write(args.common.output.output.as_deref(), &line)?;
     Ok(status)
 }
 

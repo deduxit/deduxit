@@ -37,11 +37,11 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
     let settings = args.settings(given)?;
     let deadline = Deadline::start(time_limit(&settings), start)?;
-    let mode = args.mode.mode();
+    let mode = args.common.mode.mode();
     mode.check()?;
-    let quiet = args.output.quiet;
-    let show = Show::new(&args.output, &settings)?;
-    let path = args.output.output.clone();
+    let quiet = args.common.output.quiet;
+    let show = Show::new(&args.common.output, &settings)?;
+    let path = args.common.output.output.clone();
     exit_on_interrupt();
     if args.tableau {
         return crate::tableau::check(args, (&settings, &show), &deadline);
@@ -111,7 +111,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let proof = match document {
         Document::Proof(proof) => *proof,
         Document::Model(model) if args.system.is_some() => {
-            if args.mode.given() {
+            if args.common.mode.given() {
                 bail!("--system checks modal logic, which has no mode: leave out the mode flags");
             }
             let (Some(sequent), Some(system)) = (&args.sequent, args.system) else {
@@ -156,7 +156,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
             return Ok(status);
         }
         Document::Resolution(refutation) => {
-            if args.mode.given() || args.logic.is_some() {
+            if args.common.mode.given() || args.logic.is_some() {
                 bail!(
                     "a refutation by resolution is of classical clauses: leave out the mode \
                      flags and --logic"
@@ -173,7 +173,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
             );
         }
         Document::Modal(outcome) => {
-            if args.mode.given() || args.logic.is_some() {
+            if args.common.mode.given() || args.logic.is_some() {
                 bail!(
                     "a modal outcome is checked in its own system: leave out the mode flags and --logic"
                 );
@@ -188,7 +188,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         Document::Ordinary(outcome) => {
             return check_ordinary(
                 *outcome,
-                &args.mode,
+                &args.common.mode,
                 &settings,
                 show,
                 quiet,
@@ -207,7 +207,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
             })?;
         }
         Document::Rules(derivation) => {
-            if args.mode.given() || args.logic.is_some() {
+            if args.common.mode.given() || args.logic.is_some() {
                 bail!(
                     "a derivation in a calculus given as data is checked by its calculus's \
                      rules: leave out the mode flags and --logic"
@@ -238,7 +238,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         Document::Disproof(disproof) => {
             // A refutation is a claim about the mode it was found in.
-            if args.mode.given() && mode != disproof.mode() {
+            if args.common.mode.given() && mode != disproof.mode() {
                 bail!(
                     "the refutation is of {} and the flags ask for {mode}: pass the flags it was \
                      found with, or none",
@@ -256,7 +256,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     if proof.goal().is_some() {
         return Err(Error::GoalProof.into());
     }
-    let mode = proof_mode(&proof, &args.mode)?;
+    let mode = proof_mode(&proof, &args.common.mode)?;
     on_large_stack(settings.limits.stack_bytes(), move || {
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
         let (status, keep) = check_into(&proof, mode, &show, quiet, &deadline, &mut out)?;

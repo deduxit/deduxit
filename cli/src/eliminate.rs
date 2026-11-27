@@ -40,13 +40,10 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     let settings = args.settings(given)?;
     let asked = asked_steps(given, &settings);
     let deadline = Deadline::start(time_limit(&settings), start)?;
-    let check = &args.check;
-    if check.logic.is_some() || check.sequent.is_some() {
-        bail!("--logic and --sequent check a Kripke model, with `check`; eliminate reads proofs");
-    }
-    if check.calculus.is_some() {
+    let check = &args.common;
+    if check.output.lambda || given.has("lambda_notation") || given.has("lambda_types") {
         bail!(
-            "--calculus checks a derivation in a calculus given as data, with `check`; eliminate reads proofs"
+            "--lambda and its notation print a proof's lambda-term, with `check`; eliminate prints the steps"
         );
     }
     let mode = check.mode.mode();
@@ -95,7 +92,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     }
     let mode = proof_mode(&proof, &check.mode)?;
     if show.net {
-        let quiet = args.check.output.quiet;
+        let quiet = args.common.output.quiet;
         return on_large_stack(settings.limits.stack_bytes(), move || {
             eliminate_net(
                 &proof,
@@ -111,7 +108,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     }
     on_large_stack(settings.limits.stack_bytes(), move || {
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
-        let quiet = args.check.output.quiet;
+        let quiet = args.common.output.quiet;
         let at = args.at.map(NodeId::new);
         let (status, keep) = eliminate_into(
             &proof, mode, at, &settings, &show, quiet, asked, &deadline, &mut out,

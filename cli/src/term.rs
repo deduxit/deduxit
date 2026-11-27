@@ -27,9 +27,9 @@ use std::time::Instant;
 /// Those of the subcommand.
 pub(crate) fn run(command: &TermCommand, given: &Given) -> Result<Status> {
     match command {
-        TermCommand::Check(args) => check(args),
+        TermCommand::Check(args) => check(args, given),
         TermCommand::Reduce(args) => reduce(args, given),
-        TermCommand::Infer(args) => infer(args),
+        TermCommand::Infer(args) => infer(args, given),
         TermCommand::Inhabit(args) => inhabit(args, given),
         TermCommand::Enumerate(args) => enumerate(args, given),
     }
@@ -37,20 +37,30 @@ pub(crate) fn run(command: &TermCommand, given: &Given) -> Result<Status> {
 
 /// Runs `term check`: reads a term, checks it, and prints the judgement
 /// with every type, or why the term is ill typed. Returns yes for a well
-/// typed term, no for an ill typed one.
+/// typed term, no for an ill typed one, unknown where the time, a bound or
+/// Ctrl-C ended the check.
 ///
 /// # Errors
 ///
 /// An input that cannot be read or parsed, a limit, an output that
 /// cannot be written.
-fn check(args: &TermCheckArgs) -> Result<Status> {
-    let settings = args.settings()?;
+fn check(args: &TermCheckArgs, given: &Given) -> Result<Status> {
+    catch_interrupt();
+    let settings = args.settings(given)?;
     let limits = settings.limits;
+    let deadline = Deadline::start(time_limit(&settings), Instant::now())?;
     let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
     let calculus = Calculus::from(args.calculus);
     let words = Words::of(calculus);
-    let checked = Term::parse(&text, calculus, &limits)
-        .and_then(|term| term.check(&limits, |_| false).map(|typing| (term, typing)));
+    // A term past the bounds on reading stays an error; its check is
+    // what the time and the bounds can end.
+    let checked = match Term::parse(&text, calculus, &limits) {
+        Ok(term) => term
+            .check(&limits, |_| interrupted() || deadline.passed())
+            .map(|typing| (term, typing)),
+        Err(error @ Error::IllTyped { .. }) => Err(error),
+        Err(error) => return Err(error.into()),
+    };
     let (term, typing) = match checked {
         Ok(checked) => checked,
         Err(error @ Error::IllTyped { .. }) => {
@@ -62,7 +72,7 @@ fn check(args: &TermCheckArgs) -> Result<Status> {
                 args.output.as_deref(),
             );
         }
-        Err(error) => return Err(error.into()),
+        Err(error) => return refused(error, &deadline, args.format, args),
     };
     let judgement = judgement(&term, &settings.lambda, &limits)?;
     let out = match args.format {
@@ -227,8 +237,9 @@ fn judgement(term: &Term, options: &lambda::Options, limits: &Limits) -> Result<
 /// written, a defect the check of a step found.
 fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
     catch_interrupt();
-    let settings = args.settings()?;
+    let settings = args.settings(given)?;
     let limits = settings.limits;
+    let deadline = Deadline::start(time_limit(&settings), Instant::now())?;
     let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
     let calculus = Calculus::from(args.calculus);
     let term = match Term::parse(&text, calculus, &limits) {
@@ -254,7 +265,7 @@ fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
         term.reduce(
             &options,
             &limits,
-            |_| interrupted(),
+            |_| interrupted() || deadline.passed(),
             |before, step| {
                 let mut text = String::new();
                 match before.write_marked(&mut text, step.redex, &print, &limits, |_| false) {
@@ -272,7 +283,7 @@ fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
             let no = Words::of(calculus).no;
             return refuse(&error, calculus, no, args.format, args.output.as_deref());
         }
-        Err(error) => return Err(error.into()),
+        Err(error) => return refused(error, &deadline, args.format, args),
     };
     if let Some(error) = failed {
         return Err(error.into());
@@ -311,7 +322,10 @@ fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
         ),
         End::Refused(refusal) => (
             Status::Unknown,
-            format!("not finished after {steps}: {}", refused_why(refusal)),
+            format!(
+                "not finished after {steps}: {}",
+                refused_why(refusal, &deadline)
+            ),
         ),
         _ => (Status::Unknown, format!("not finished after {steps}")),
     };
@@ -328,15 +342,15 @@ fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
 }
 
 /// Says why a bound or the stop ended a call, with the flag that lifts
-/// the bound.
-fn refused_why(refusal: &Refusal) -> String {
+/// the bound: the time limit or Ctrl-C for the stop.
+fn refused_why(refusal: &Refusal, deadline: &Deadline) -> String {
     let flag = match refusal.setting() {
-        Some("limits.memory_bytes") => "; raise it with --settings (limits.memory_bytes)",
-        Some("limits.work") => "; raise it with --settings (limits.work)",
+        Some("limits.memory_bytes") => "; raise it with --memory-limit",
+        Some("limits.work") => "; raise it with --work-limit",
         _ => "",
     };
     if refusal.is_stop() {
-        "interrupted".to_owned()
+        Stop::why(stopped(deadline))
     } else {
         format!("{refusal}{flag}")
     }
@@ -357,34 +371,41 @@ struct Reduced<'a> {
 
 /// Runs `term infer`: reads an untyped term and prints it typed at its
 /// principal type, or why it has no simple type. Returns yes for a term
-/// with a type, no for one without.
+/// with a type, no for one without, unknown where the time, a bound or
+/// Ctrl-C ended the inference.
 ///
 /// # Errors
 ///
 /// An input that cannot be read or parsed, a typed calculus, a limit, an
 /// output that cannot be written.
-fn infer(args: &TermInferArgs) -> Result<Status> {
-    let settings = args.settings()?;
+fn infer(args: &TermInferArgs, given: &Given) -> Result<Status> {
+    catch_interrupt();
+    let settings = args.settings(given)?;
     let limits = settings.limits;
+    let deadline = Deadline::start(time_limit(&settings), Instant::now())?;
+    let stop = |_| interrupted() || deadline.passed();
     let text = term_text(args.term.as_ref(), args.file.as_deref(), &limits)?;
     let calculus = Calculus::from(args.calculus);
     let term = Term::parse(&text, calculus, &limits)?;
     // A term its calculus refuses is ill formed; only then is a failure
     // of the inference that the term has no simple type.
     let typed = match term
-        .check(&limits, |_| false)
+        .check(&limits, stop)
         .map_err(|error| (error, Words::of(calculus).no))
         .and_then(|_| {
-            term.principal_type(&limits, |_| false)
+            term.principal_type(&limits, stop)
                 .map_err(|error| (error, "no simple type"))
         }) {
         Ok(typed) => typed,
         Err((error @ Error::IllTyped { .. }, no)) => {
             return refuse(&error, calculus, no, args.format, args.output.as_deref());
         }
-        Err((error, _)) => return Err(error.into()),
+        Err((error, _)) => return refused(error, &deadline, args.format, args),
     };
-    let typing = typed.check(&limits, |_| false)?;
+    let typing = match typed.check(&limits, stop) {
+        Ok(typing) => typing,
+        Err(error) => return refused(error, &deadline, args.format, args),
+    };
     let judgement = judgement(&typed, &settings.lambda, &limits)?;
     let out = match args.format {
         AnswerFormat::Text => format!("principal type\n{judgement}"),
@@ -496,6 +517,24 @@ impl HasOutput for InhabitArgs {
 impl HasOutput for EnumerateArgs {
     fn output(&self) -> Option<&std::path::Path> {
         self.common.output.as_deref()
+    }
+}
+
+impl HasOutput for TermCheckArgs {
+    fn output(&self) -> Option<&std::path::Path> {
+        self.output.as_deref()
+    }
+}
+
+impl HasOutput for TermReduceArgs {
+    fn output(&self) -> Option<&std::path::Path> {
+        self.output.as_deref()
+    }
+}
+
+impl HasOutput for TermInferArgs {
+    fn output(&self) -> Option<&std::path::Path> {
+        self.output.as_deref()
     }
 }
 
