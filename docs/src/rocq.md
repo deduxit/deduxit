@@ -116,6 +116,24 @@ Proof.
 Qed.
 ```
 
+The term names formulas, so a formula it names at several places is
+written once, as a `let` inside the term, and named after that. The
+statement writes every formula out, so that you can read it against
+the calculus:
+
+```console
+$ deduxit prove --format rocq --kernel deduxit "!(A * B) |- (A * B) * (A * B)"
+(* provable (MELL, classical, horn engine) *)
+Lemma certificate : ll (atom := string) classical [wn (parr (covar "A") (covar "B")); tens (tens (var "A") (var "B")) (tens (var "A") (var "B"))].
+Proof.
+  apply (soundness_classical String.eqb String.eqb_spec
+    (let f'1 := parr (covar "A") (covar "B") in
+     let f'2 := tens (var "A") (var "B") in
+     (Quest f'1 (Copy f'1 (Par (covar "A") (covar "B") (Copy f'1 (Par (covar "A") (covar "B") (Tensor f'2 f'2 (Tensor (var "A") (var "B") (Ax "A") (Ax "B")) (Tensor (var "A") (var "B") (Ax "A") (Ax "B")))))))))).
+  vm_compute. reflexivity.
+Qed.
+```
+
 A first-order proof gets a certificate of the library's first-order
 development, in every mode:
 - the predicates are applied to terms (`tapp "f" [...]`);

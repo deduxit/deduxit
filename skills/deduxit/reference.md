@@ -2434,7 +2434,10 @@ at the tag of the version `deduxit::export::rocq::DEDUXIT` names
 - `deduxit` is the default for Mix, affine and intuitionistic logic and
   for a sequent with a quantifier: the Rocq library `rocq-deduxit`, in
   its own repository (`github.com/deduxit/rocq-deduxit`). Its
-  certificate is a proof term that the library's checker accepts.
+  certificate is a proof term that the library's checker accepts. A
+  compound formula the term names at several places is bound once,
+  `let f'1 := … in`, inside the term; the statement writes every
+  formula out.
 
 A first-order proof is stated in the library's first-order development
 (`ll (symbol := string) Calculus.classical`,

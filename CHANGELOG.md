@@ -150,6 +150,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   modal logic that holds `∀` or `∃`, is refused with a message that says
   the formula belongs to the other suite. It was serde's "unknown
   variant". The error's code stays `json`.
+- A certificate for deduxit's Rocq library (`--kernel deduxit`) writes a
+  formula its proof term names at several places once, `let f'1 := … in`
+  inside the term, and names it after that. The certificate of
+  `!A ⊢ A ⊗ … ⊗ A` with 256 copies is 29 KB, where it was 570 KB. The
+  statement still writes every formula out.
 
 ### Deprecated
 
@@ -160,6 +165,13 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- **A classical countermodel's Rocq certificate ignored
+  `derivation_bytes`.** `rocq::write_countermodel` in classical logic
+  writes the sequent over `Prop`, every formula in full, so a formula
+  that shares its subformulas doubled the text with each level: forty
+  levels would have been terabytes. It is now estimated first and
+  refused past the bound before anything is written, as in the other
+  logics.
 - **A Kripke model's refutation of a sequent with `=` was not
   checked.** In 0.8.0 `ordinary::KripkeCountermodel::check` read `=` as
   any predicate, so it accepted a model that lists no equal pairs as a

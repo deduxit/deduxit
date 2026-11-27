@@ -44,6 +44,7 @@
 //!   body and its witness.
 
 use super::library::{self, string};
+use super::shared::Shared;
 use super::{
     DEDUXIT_FIRST_ORDER_PRELUDE, DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE,
     DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE, DEDUXIT_PRELUDE, DEDUXIT_REFUTATION_PRELUDE,
@@ -52,6 +53,7 @@ use super::{
 use crate::Error;
 use crate::export::Form;
 use crate::export::notation::{Step, flush, walk};
+use crate::hash::HashMap;
 use crate::linear::occurrences::instances::Framing;
 use crate::linear::occurrences::{Forest, FrameId, Member, OccId, Reading, Side, Sign};
 use crate::linear::proofs::{Derivation, InfId, Rule};
@@ -185,6 +187,38 @@ pub(super) fn write(
         }
     };
     write!(term.out, ".\nProof.\n  apply ({theorem}\n    ")?;
+    // A first walk records the formulas the term names, which decides the
+    // ones it binds; the second writes the term.
+    let mut collector = Writer::new(derivation);
+    collector.shared = Some(Shared::default());
+    collector.collect = true;
+    walk(derivation, |step| {
+        if let Step::Enter(id, _) = step {
+            collector.enter(id);
+        }
+        collector.out.clear();
+        if stop() {
+            Err(Error::Refused(crate::limits::Refusal::Stopped {
+                phase: crate::limits::Phase::Write,
+            }))
+        } else {
+            Ok(())
+        }
+    })?;
+    let mut shared = collector.shared.take().unwrap_or_default();
+    shared.bind();
+    let binds = shared.binds();
+    term.pieces = std::mem::take(&mut collector.pieces);
+    term.shared = Some(shared);
+    if let Some(shared) = &term.shared {
+        for (n, (k, id)) in shared.lets().enumerate() {
+            term.out.push_str(if n == 0 { "(let " } else { "let " });
+            write!(term.out, "f'{k} := ")?;
+            shared.write(&mut term.out, id, false, true);
+            term.out.push_str(" in\n     ");
+            flush(out, &mut term.out, &mut stop)?;
+        }
+    }
     walk(derivation, |step| {
         match step {
             Step::Enter(id, _) => term.enter(id),
@@ -196,6 +230,9 @@ pub(super) fn write(
         }
         flush(out, &mut term.out, &mut stop)
     })?;
+    if binds {
+        out.write_char(')')?;
+    }
     out.write_str(").\n  vm_compute. reflexivity.\nQed.")?;
     Ok(())
 }
@@ -424,6 +461,14 @@ struct Writer<'a> {
     closes: Vec<u32>,
     /// Whether the next subterm follows text it needs a space after.
     spaced: bool,
+    /// The formulas the term names, from the term's first walk on; `None`
+    /// while the statement is written out.
+    shared: Option<Shared>,
+    /// Whether the term's formulas are recorded rather than written.
+    collect: bool,
+    /// The piece of each instance, keyed with the binders of its own
+    /// already open and whether it is read two-sided.
+    pieces: HashMap<(Instance, u32, bool), u32>,
 }
 
 impl<'a> Writer<'a> {
@@ -494,6 +539,9 @@ impl<'a> Writer<'a> {
             quests,
             closes: vec![0; count],
             spaced: false,
+            shared: None,
+            collect: false,
+            pieces: HashMap::default(),
         }
     }
 
@@ -515,6 +563,10 @@ impl<'a> Writer<'a> {
     /// its own already open, in brackets if `argument` is set and it is an
     /// application.
     fn formula(&mut self, instance: Instance, depth: u32, argument: bool) {
+        if self.shared.is_some() {
+            self.named(instance, depth, argument, false);
+            return;
+        }
         match self.fo {
             Some(fo) => fo.write_formula(&mut self.out, None, instance, depth, argument),
             None => formula(self.forest, None, &mut self.out, instance.0, argument),
@@ -525,6 +577,10 @@ impl<'a> Writer<'a> {
     /// binders of its own already open, in brackets if `argument` is set
     /// and it is an application.
     fn iformula(&mut self, instance: Instance, depth: u32, argument: bool) {
+        if self.shared.is_some() {
+            self.named(instance, depth, argument, true);
+            return;
+        }
         let reading = self.derivation.reading().expect("a two-sided derivation");
         match self.fo {
             Some(fo) => fo.write_formula(&mut self.out, Some(reading), instance, depth, argument),
@@ -536,6 +592,75 @@ impl<'a> Writer<'a> {
                 argument,
             ),
         }
+    }
+
+    /// Records a formula the term names, on its first walk, or writes it,
+    /// a bound formula by its name, on its second.
+    fn named(&mut self, instance: Instance, depth: u32, argument: bool, two_sided: bool) {
+        let id = self.piece(instance, depth, two_sided);
+        if let Some(shared) = &mut self.shared {
+            if self.collect {
+                shared.name(id);
+            } else {
+                shared.write(&mut self.out, id, argument, false);
+            }
+        }
+    }
+
+    /// Returns the piece of `instance` under `depth` binders of its own
+    /// already open, read two-sided or not, adding the pieces of its
+    /// subformulas first; on a stack of its own.
+    fn piece(&mut self, (o, frame): Instance, depth: u32, two_sided: bool) -> u32 {
+        let reading = if two_sided {
+            self.derivation.reading()
+        } else {
+            None
+        };
+        let forest = self.forest;
+        let mut stack = vec![(o, depth, false)];
+        while let Some((k, d, operands_done)) = stack.pop() {
+            if self.pieces.contains_key(&((k, frame), d, two_sided)) {
+                continue;
+            }
+            let t = forest.sequent().term(forest.term(k));
+            let inner = if matches!(t, Term::Forall(_) | Term::Exists(_)) {
+                d + 1
+            } else {
+                d
+            };
+            let (left, right) = (forest.left(k), forest.right(k));
+            if !operands_done {
+                stack.push((k, d, true));
+                stack.extend(
+                    [right, left]
+                        .into_iter()
+                        .flatten()
+                        .map(|c| (c, inner, false)),
+                );
+                continue;
+            }
+            let id = if let Some(left) = left {
+                let name = match reading {
+                    None => library::formula(t),
+                    Some(reading) => library::iformula(t, reading.position(k) == Side::Output),
+                };
+                let first = self.pieces[&((left, frame), inner, two_sided)];
+                let second = right.map(|r| self.pieces[&((r, frame), inner, two_sided)]);
+                let shared = self.shared.as_mut().expect("the term's formulas");
+                shared.node(name, first, second)
+            } else {
+                let mut text = String::new();
+                match self.fo {
+                    Some(fo) => fo.write_formula(&mut text, reading, (k, frame), d, false),
+                    None => formula(forest, reading, &mut text, k, false),
+                }
+                let application = !matches!(t, Term::One | Term::Bot | Term::Top | Term::Zero);
+                let shared = self.shared.as_mut().expect("the term's formulas");
+                shared.leaf(text, application)
+            };
+            self.pieces.insert(((k, frame), d, two_sided), id);
+        }
+        self.pieces[&((o, frame), depth, two_sided)]
     }
 
     /// Writes the literal of an axiom: its atom's name, and for a

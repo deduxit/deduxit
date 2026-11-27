@@ -894,6 +894,24 @@ for NanoYalla. What the code relies on:
   the library's statements or terms is made and pushed in its repository
   first; then `nix flake update rocq-deduxit` moves the pin here, with the
   exporter's change in the same commit.
+- **The kernel's term binds the formulas it names twice**
+  (`export/rocq/shared.rs`): the term names formulas, not occurrences,
+  so a formula deep in a sequent was written again at every rule above
+  it, and `!A ⊢ A ⊗ … ⊗ A` (256 copies) made 570 KB of text. A first
+  walk of the term (`Writer::collect`) hash-conses every formula it
+  names into pieces (a leaf's whole text, or a constructor over its
+  operands' pieces, keyed per instance, its open binders and whether it
+  is read two-sided), so equal text is one piece whatever the reading or
+  the frame; `Shared::bind` then binds each compound piece written at
+  two or more places, a piece being written once per name the term
+  gives it and once per operand place in a written piece above it, so a
+  piece named once is written in place. The second walk writes `(let
+  f'1 := … in` per bound piece, operands first, then the term with the
+  names. The statement is written out (the certificate is read against
+  the calculus alone, the audit's verdict), and the `let`s are inside
+  the term handed to the theorem, which `vm_compute` reduces. `f'` names
+  clash with no constructor (an identifier of the library has no `'`).
+  Leaves are never bound (`var "A"` is shorter than a `let`).
 - **The names of deduxit's Rocq library are in one table**
   (`export/rocq/library.rs`, crate-private, feature `rocq`): per module
   of the library, the formulas' constructors of linear logic (one- and
@@ -1057,7 +1075,14 @@ for NanoYalla. What the code relies on:
   library checks their growth as the Rust check does. Classical logic,
   whose model is one world, gets the certificate over `Prop` of that
   world's assignment (`falsified`, which `write_not_valid` shares): the
-  library has no LK. The kernel option is ignored, as for every ordinary
+  library has no LK. Its statement writes every formula out (no `let`:
+  a statement is read as it stands), so a formula that shares its
+  subformulas doubles the text per level; `falsified_bytes` estimates it
+  the same way, bottom up and saturating, and the countermodel's
+  certificate is refused past `limits.derivation_bytes` before anything
+  is written (`a_classical_countermodel_keeps_to_the_bound`: forty
+  levels; unbounded, the test is killed at its memory cap).
+  `write_not_valid` takes no limits and passes none. The kernel option is ignored, as for every ordinary
   certificate. Snapshots `deduxit/countermodel_*.v` and
   `not_valid_kripke_lk.v`; the `rocq-deduxit` check compiles four the
   command writes (two by `prove`, one by `check` of an outcome, one of a
