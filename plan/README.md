@@ -8631,3 +8631,15 @@ move (D26).
   the limit had reset: steps 82 and 84 and the audit session were told to carry on. fixup-30's CI
   passed and it is on `main` (`oomwolur`). The audit session runs in a mode that asks before acting,
   so it may wait on the author's approvals while unattended.
+- 2026-11-27, about 04:22: **Step 82's deduxit part reviewed; the audit's phase A reviewed and pushed.**
+  82 (`vswlmrws`, `qtxpnvlx`): `close` and `hint` on a first-order goal search for a proof (each
+  inference checked as it enters), else a finite countermodel, else unknown; a goal with an open
+  witness is never refuted; the bindings take the library's answer. Its full check runs on
+  `ci/step-82`; its page part next. The web module is at 2 894 918 of 2 900 000 bytes, so step 84
+  will need the ceiling raised. Phase A of 86 (`kwusxuuk` to `xyzuvtux`, notes only): criteria from
+  their sources, a consumer test of two toy engines on the public API with each obstacle witnessed,
+  the baselines at 0.8.0's main, the method (twenty units of at most about 14 000 lines, an
+  architecture reader, finders and verifiers on other models, six stages of at most ten agents,
+  about 8 to 10 M tokens on Opus and 2 to 3 M on Fable). (decided unattended) The full grid, as the
+  author asked for the entire libraries, gated after stage 2 by its measured use against the weekly
+  limit; phase B after step 85.
