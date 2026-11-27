@@ -1,0 +1,261 @@
+{
+  "1a": {
+    "area": 1,
+    "title": "the sequents, parsing, fragments and occurrences of linear logic, and the first-order terms and names every suite shares",
+    "paths": [
+      "core/src/linear/mod.rs",
+      "core/src/linear/sequents",
+      "core/src/linear/parse",
+      "core/src/linear/fragment.rs",
+      "core/src/linear/occurrences",
+      "core/src/first_order.rs",
+      "core/src/name.rs"
+    ],
+    "rules": ["core.md", "core-sequents.md", "core-forest.md"]
+  },
+  "1b": {
+    "area": 1,
+    "title": "the proofs of linear logic, their checker, derivations and sizes",
+    "paths": [
+      "core/src/linear/proofs/mod.rs",
+      "core/src/linear/proofs/rule.rs",
+      "core/src/linear/proofs/first_order.rs",
+      "core/src/linear/proofs/check",
+      "core/src/linear/proofs/derivation",
+      "core/src/linear/proofs/size.rs",
+      "core/src/linear/proofs/fmt.rs",
+      "core/src/linear/proofs/style.rs",
+      "core/src/linear/proofs/multiset.rs"
+    ],
+    "rules": ["core.md", "core-proofs.md", "core-derivations.md"]
+  },
+  "1c": {
+    "area": 1,
+    "title": "cut elimination and the checked refutations of linear logic",
+    "paths": [
+      "core/src/linear/proofs/cut",
+      "core/src/linear/search/refutation.rs",
+      "core/src/linear/search/saturated.rs",
+      "core/src/linear/search/weighted.rs",
+      "core/src/linear/search/basis.rs",
+      "core/src/linear/search/classical.rs"
+    ],
+    "rules": ["core.md", "core-proofs.md", "core-search.md", "core-inverse.md"]
+  },
+  "2a": {
+    "area": 2,
+    "title": "the front door of the linear search: options, outcomes, the choice of engine, memory, the batch and the parallel runtime",
+    "paths": [
+      "core/src/linear/search/mod.rs",
+      "core/src/linear/search/memory.rs",
+      "core/src/linear/search/work.rs",
+      "core/src/linear/search/additive.rs",
+      "core/src/linear/search/batch.rs",
+      "core/src/linear/search/parallel.rs"
+    ],
+    "rules": ["core.md", "core-search.md", "core-batch.md", "core-parallel.md"]
+  },
+  "2b": {
+    "area": 2,
+    "title": "the focused engine of linear logic",
+    "paths": ["core/src/linear/search/focus"],
+    "rules": ["core.md", "core-focus.md", "core-parallel.md"]
+  },
+  "2c": {
+    "area": 2,
+    "title": "the Horn engine, the inverse method, and the readers and families of benchmark inputs",
+    "paths": [
+      "core/src/linear/search/horn",
+      "core/src/linear/search/inverse",
+      "core/src/linear/families.rs",
+      "core/src/linear/lltp.rs",
+      "core/src/linear/mist.rs"
+    ],
+    "rules": ["core.md", "core-horn.md", "core-inverse.md", "core-inputs.md"]
+  },
+  "3": {
+    "area": 3,
+    "title": "proof nets and the net engine",
+    "paths": [
+      "core/src/linear/nets",
+      "core/src/linear/search/net.rs",
+      "core/src/linear/search/essential.rs",
+      "core/src/linear/search/planar.rs"
+    ],
+    "rules": ["core.md", "core-nets.md"]
+  },
+  "4a": {
+    "area": 4,
+    "title": "the core of ordinary logic: formulas, parsing, translation, derivations, the front door, models and truth tables",
+    "paths": [
+      "core/src/ordinary/mod.rs",
+      "core/src/ordinary/parse.rs",
+      "core/src/ordinary/translate.rs",
+      "core/src/ordinary/derivation.rs",
+      "core/src/ordinary/decide.rs",
+      "core/src/ordinary/bruijn.rs",
+      "core/src/ordinary/instance.rs",
+      "core/src/ordinary/equality.rs",
+      "core/src/ordinary/model.rs",
+      "core/src/ordinary/table.rs",
+      "core/src/ordinary/negative.rs",
+      "core/src/kripke.rs"
+    ],
+    "rules": ["core.md", "core-ordinary.md"]
+  },
+  "4b": {
+    "area": 4,
+    "title": "the propositional engines of ordinary logic: LJT, SAT, normal natural deduction, interpolants, tableaux, written proofs",
+    "paths": [
+      "core/src/ordinary/ljt.rs",
+      "core/src/ordinary/sat",
+      "core/src/ordinary/normal.rs",
+      "core/src/ordinary/interpolant.rs",
+      "core/src/ordinary/tableau.rs",
+      "core/src/ordinary/written"
+    ],
+    "rules": ["core.md", "core-ordinary.md"]
+  },
+  "4c": {
+    "area": 4,
+    "title": "the first-order engines of ordinary logic: the connection method, resolution, Herbrand",
+    "paths": [
+      "core/src/ordinary/connection",
+      "core/src/ordinary/resolution",
+      "core/src/ordinary/herbrand.rs"
+    ],
+    "rules": ["core.md", "core-ordinary.md"]
+  },
+  "4d": {
+    "area": 4,
+    "title": "countermodels and certificates of ordinary logic, and modal logic",
+    "paths": [
+      "core/src/ordinary/grounding.rs",
+      "core/src/ordinary/models.rs",
+      "core/src/ordinary/kripke_search.rs",
+      "core/src/ordinary/kripke_structure.rs",
+      "core/src/ordinary/structure.rs",
+      "core/src/ordinary/transfer.rs",
+      "core/src/ordinary/rocq.rs",
+      "core/src/ordinary/rocq_models.rs",
+      "core/src/modal"
+    ],
+    "rules": ["core.md", "core-ordinary.md", "core-modal.md"]
+  },
+  "4e": {
+    "area": 4,
+    "title": "the step-by-step states of ordinary logic and of calculi given as data, and what they share",
+    "paths": [
+      "core/src/ordinary/interactive.rs",
+      "core/src/ordinary/invert.rs",
+      "core/src/rules/interactive.rs",
+      "core/src/goal_tree.rs",
+      "core/src/unify.rs"
+    ],
+    "rules": ["core.md", "core-ordinary.md", "core-rules.md", "core-derivations.md"]
+  },
+  "4f": {
+    "area": 4,
+    "title": "the step-by-step state of linear logic",
+    "paths": ["core/src/linear/proofs/interactive"],
+    "rules": ["core.md", "core-derivations.md"]
+  },
+  "5a": {
+    "area": 5,
+    "title": "lambda-terms: untyped, simply typed, linear and System F",
+    "paths": ["core/src/lambda"],
+    "rules": ["core.md", "core-lambda.md"]
+  },
+  "5b": {
+    "area": 5,
+    "title": "calculi given as rule files, and the workspace",
+    "paths": [
+      "core/src/rules/mod.rs",
+      "core/src/rules/calculus.rs",
+      "core/src/rules/check.rs",
+      "core/src/rules/derivation.rs",
+      "core/src/rules/draw.rs",
+      "core/src/rules/fitch.rs",
+      "core/src/rules/natural.rs",
+      "core/src/rules/ordinary.rs",
+      "core/src/rules/print.rs",
+      "core/src/rules/search.rs",
+      "core/src/rules/tableau.rs",
+      "core/src/rules/terms.rs",
+      "core/src/rules/text.rs",
+      "core/src/workspace"
+    ],
+    "rules": ["core.md", "core-rules.md", "core-workspace.md"]
+  },
+  "6a": {
+    "area": 6,
+    "title": "what the suites share: the crate root, errors, limits, settings, the wire forms and serialization",
+    "paths": [
+      "core/src/lib.rs",
+      "core/src/errors",
+      "core/src/limits.rs",
+      "core/src/settings.rs",
+      "core/src/wire.rs",
+      "core/src/hash.rs",
+      "core/src/serialize"
+    ],
+    "rules": ["core.md", "core-sequents.md"]
+  },
+  "6b": {
+    "area": 6,
+    "title": "the exports: LaTeX, Typst, SVG, PNG, PDF and Rocq",
+    "paths": ["core/src/export"],
+    "rules": ["core.md", "core-export.md"]
+  },
+  "7a": {
+    "area": 7,
+    "title": "the command's interface: its arguments, help, settings, input and output, and prove, check, seq and the batch",
+    "paths": [
+      "cli/src/argument_parsing.rs",
+      "cli/src/lib.rs",
+      "cli/src/main.rs",
+      "cli/src/settings.rs",
+      "cli/src/io.rs",
+      "cli/src/limit.rs",
+      "cli/src/style.rs",
+      "cli/src/seq.rs",
+      "cli/src/prove.rs",
+      "cli/src/check.rs",
+      "cli/src/batch.rs"
+    ],
+    "rules": ["cli.md"]
+  },
+  "7b": {
+    "area": 7,
+    "title": "the command's other files: the session, what it shows, and the suites' commands",
+    "paths": [
+      "cli/src/interact",
+      "cli/src/show.rs",
+      "cli/src/ordinary.rs",
+      "cli/src/modal.rs",
+      "cli/src/calculus.rs",
+      "cli/src/eliminate.rs",
+      "cli/src/grade.rs",
+      "cli/src/hint.rs",
+      "cli/src/resolve.rs",
+      "cli/src/tableau.rs",
+      "cli/src/term.rs",
+      "cli/src/transform.rs",
+      "cli/src/workspace.rs"
+    ],
+    "rules": ["cli.md"]
+  },
+  "8": {
+    "area": 8,
+    "title": "the web bindings as a consumer of the library, and the protocol they call",
+    "paths": ["web/src", "web/build.rs", "web-render/src", "web-render/build.rs", "web-tab/src", "core/src/protocol"],
+    "rules": ["web.md", "core-protocol.md", "core.md"]
+  },
+  "9": {
+    "area": 9,
+    "root": "rocq",
+    "title": "the Rocq library rocq-deduxit",
+    "paths": ["theories", "tests", "bridges", "_RocqProject", "Makefile", "rocq-deduxit.opam", "modules", "README.md"],
+    "rules": ["CLAUDE.md", ".claude/rules/rocq.md", ".claude/rules/writing.md"]
+  }
+}

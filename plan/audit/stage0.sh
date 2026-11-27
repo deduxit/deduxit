@@ -8,7 +8,9 @@
 #   plan/audit/stage0.sh all             # every part, in order
 #   plan/audit/stage0.sh lines text     # the parts named
 #
-# Parts: lines, api, clippy, duplicates, text, help, sizes, llvm, dhat.
+# Parts: lines, api, clippy, duplicates, text, help, sizes, llvm, dhat,
+# rocq (the Rocq library's inventory), and `timings' (compile and test
+# times), which `all' leaves out.
 # `lines', `text' and `help' (once the command is built) take seconds; the
 # others build: every build and run is in a scope of its own, capped at
 # 8 GiB without swap, on the cores of `cores', with three jobs, and the
@@ -133,8 +135,24 @@ dhat() {
   done <bench/ceilings.csv
 }
 
+# The Rocq library's inventory, built in a copy under target/audit/rocq
+# with the Rocq of the library's own devshell.
+rocq_library() {
+  flock -o "$lock" nix develop --no-write-lock-file "$rocq" --command true
+  capped -- nix develop --no-write-lock-file "$rocq" --command \
+    python3 "$tools/rocq.py" "$rocq" "$root" "$out/rocq" >"$out/rocq.md"
+}
+
+# Compile and test times from an empty target directory. A timed run: not
+# a part of `all', and only with the cores to itself.
+timings() {
+  capped -- python3 "$tools/timings.py" "$root" "$root/target/timing" >"$out/timings.md"
+}
+
 for part in "$@"; do
   case $part in
+  timings) timings ;;
+  rocq) rocq_library ;;
   all)
     lines
     api
@@ -145,6 +163,7 @@ for part in "$@"; do
     sizes
     llvm
     dhat
+    rocq_library
     ;;
   lines | api | clippy | duplicates | text | help | sizes | llvm | dhat) "$part" ;;
   *)
