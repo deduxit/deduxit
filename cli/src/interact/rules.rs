@@ -244,16 +244,12 @@ impl Session {
                 })?);
             }
         }
-        if !self.state.goals().contains(&target) {
-            bail!(
-                "the step is refused: there is no open goal {}",
-                target.index()
-            );
-        }
-        let mut before = self.state.members(target);
+        // The library refuses a goal that is not open, in its own words;
+        // the goal's members stay as they were once the step closes it.
         let opened = self
             .state
             .extend(target, &Apply::new(rule).at(&at).given(&given))?;
+        let mut before = self.state.members(target);
         let calculus = self.state.calculus();
         let mut text = format!("opened {}", self.goal_line(opened));
         // Counted as multisets: a copy in a multiset zone is a member added.
