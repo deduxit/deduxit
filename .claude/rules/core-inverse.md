@@ -220,7 +220,10 @@ a scratch copy; the report lists them).
   `inverse/`: it re-reads the rules off the forest (`Calculus::rules`:
   `D1` foci, `D2` copies but negative literals, every `⊕` choice not
   ending in a `0`), writes each as postorder steps (`write`, no
-  recursion over the formula: forests can be deep), evaluates them with
+  recursion over the formula: forests can be deep; `write` counts a unit
+  per step and the members of each `&` it copies, and polls, since an
+  `&` under each `⅋` doubles the holes and a read set's goal phase alone
+  once ran 19 s past `check --timeout 1s`), evaluates them with
   its own `take`, `join` and shape test (`derive`), and applies every
   rule to every choice of premises among the set (candidates: exact
   sequents holding the hole's leaves, every weak one) and of partners,

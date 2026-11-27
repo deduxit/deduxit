@@ -497,6 +497,10 @@ code relies on:
   stop as a search's set-up does (`Counts::new_until`), which the
   command and the bindings call; `split_passes` alone has no bound. One
   ⊗ step on a nested tensor of 16 000 atoms once took 1.5 GiB there.
+  The counts' pass tells its stop no units, so `limits.work` does not
+  bound the test (its docs say so); a forest past what the counts index
+  is refused with `Refusal::Index` in the bounded form and passes in
+  `split_passes` (a "may close" answer, never a panic).
 - **Reading a state back** (`from_parts`, used by deserialization) checks
   the shape (root 0 concludes the sequent, every other inference is the
   premise of exactly one earlier one, sequents ascending and within the
