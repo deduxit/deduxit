@@ -8678,3 +8678,17 @@ move (D26).
   hint on a deep goal costs the root's search; a translation of a derivation with cuts may keep a
   detour; the module's growth (29.3 KB) is the audit's. Step 84's page part has its go; step 85
   rebases onto 83.
+- 2026-11-27, about 07:45: **Step 84 reviewed; steps 84 and 85 on `main`, with a red `main` fixed
+  forward.** 84 (Opus, high; the reviewer on Fable): the page's Untyped toggle, the β stepper (Next
+  step, Undo, To the end, the next redex marked) and the most general simple type; the reviewer's
+  finding (the principal type's unification linked function types early and could loop) fixed in
+  `przrnxvt` and tested against a textbook unifier on 3 000 random terms. Client full check passed
+  (Vitest 741, Playwright 373); client `main` is `klmtowxs`. **Left open:** only β-detours are reduced
+  (not pairs, `case` or the linear calculus's lets); the page replays each step from the term as read.
+  85's deduxit part (System F, `kvtrwrrz` to `ylqntuov`, the module 2 987 284 bytes under 3 020 000)
+  failed CI in `docs` alone: `(ΛX. M) [A]` in `term reduce`'s help read as a broken intra-doc link.
+  I pushed 84's report commits stacked on it in the same command before reading that verdict, which
+  put the failing chain on `main` again (the lesson of 2026-11-23 not kept: a push above a `push-ci`
+  head now waits for its verdict in a command of its own). Fixed forward: the redex written as code,
+  the docs with `-D warnings`, the lock and README's tests passing here, every other job having passed
+  on the same tree; pushed directly.
