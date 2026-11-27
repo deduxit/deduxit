@@ -915,8 +915,14 @@ for NanoYalla. What the code relies on:
   are bound, largest first (by their whole text's constructors), and of
   the first 0, 1, 2, 4, … and all of them, at most `MOST_LETS` (1 024),
   binds the number whose estimate (`cost`) is least. A chain such as
-  `!A ⊢ A^n` binds all (the text shrinks twentyfold), a balanced tree a
-  few dozen (the text shrinks by its height's factor only). The
+  `!A ⊢ A^n` binds all up to about a thousand copies (the text shrinks
+  twentyfold), a balanced tree a few dozen (the text shrinks by its
+  height's factor only). Past the cap a chain binds none: of 1 500
+  copies the largest 1 024 leave the smaller 475 written over and over,
+  and the estimate is above the base's, so the text is the base's (the
+  argument panel's note). A spread choice (every few pieces of a chain)
+  would bind it cheaply; the choice is never worse than the base, which
+  is what it must keep. The
   constant `LETS_PER_COPY` is the measured hundredth; a change of Rocq
   that moves it moves the choice, not the soundness. The second walk
   writes `(let f'1 := … in` per bound piece, operands first, then the
