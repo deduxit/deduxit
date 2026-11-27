@@ -856,7 +856,12 @@ serde_json, which the CLI and the core's tests already have.
 - **Every journey is deterministic**: one thread, and the rarer
   literal's search alone where the sequent has exponentials, since the
   default bias runs two searches in turns whose waiting thread wakes on
-  a clock. A journey fails when its search stops deciding, so that a
+  a clock. Two counts still move between runs of one build, by tens of
+  instructions (`ordinary-resolution-first-order` by up to 174,
+  `modal-tableau` by 41; their blocks not at all): std's `HashMap` and
+  `HashSet` are seeded per process (`ordinary/normal.rs`,
+  `ordinary/instance.rs`, `modal/model.rs`, theme D4 of the audit), which
+  the crate's own hasher, with its fixed seed, would not be. A journey fails when its search stops deciding, so that a
   count never silently measures something else. The net engine's two
   journeys (`search-wide-m2-256`, `check-wide-m1-2048`, whose proof it
   finds) force it, since the dispatch gives it only what the focused
