@@ -757,7 +757,9 @@ impl Interactive {
     /// [`StepError::NoSplit`] for a rule that makes no split, and the
     /// errors of `apply` for a rule that does not act on the formula.
     pub fn split_passes(&self, goal: GoalId, step: &Step) -> Result<bool, StepError> {
-        match self.split_test(goal, step, &search::memory::Account::new(None), &mut |_| false) {
+        match self.split_test(goal, step, &search::memory::Account::new(None), &mut |_| {
+            false
+        }) {
             Ok(passes) => Ok(passes),
             Err(Split::Step(error)) => Err(error),
             // With no bound and no stop, only the counts' indices end it.
@@ -769,8 +771,8 @@ impl Interactive {
     /// prunes, as [`split_passes`](Self::split_passes) does, within
     /// `limits` and until `stop` fires: the count rows are charged to
     /// `limits.memory_bytes`, and the pass asks `stop` ([`Phase::Search`])
-    /// as a search's set-up does, every 2¹⁶ occurrences or row entries
-    /// visited. It counts no work: `limits.work` does not bound it.
+    /// every 2¹⁶ occurrences or row entries visited, on a forest of any
+    /// size. It counts no work: `limits.work` does not bound it.
     ///
     /// # Errors
     ///

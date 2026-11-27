@@ -360,6 +360,22 @@ impl Counts {
         account: &Account,
         stop: &mut dyn FnMut(u64) -> bool,
     ) -> Result<Self, Reason> {
+        Self::new_polled(forest, bias, mode, account, &mut || {
+            set_up_stopped(forest, stop)
+        })
+    }
+
+    /// [`Counts::new_until`] with `poll` asked every so many occurrences
+    /// and row entries visited, whatever the forest's size: the split
+    /// test's rows can be quadratic in a forest below the size a search
+    /// polls its set-up at. `poll` returns whether to stop.
+    fn new_polled(
+        forest: &Forest,
+        bias: Bias,
+        mode: Mode,
+        account: &Account,
+        poll: &mut dyn FnMut() -> bool,
+    ) -> Result<Self, Reason> {
         /// How many occurrences are visited between two polls.
         const PERIOD: usize = 1 << 16;
         let mut visited = 0;
@@ -367,7 +383,7 @@ impl Counts {
             visited += steps;
             visited >= PERIOD && {
                 visited = 0;
-                set_up_stopped(forest, stop)
+                poll()
             }
         };
         let n = forest.len();
@@ -1245,7 +1261,8 @@ pub(crate) fn refutation(
 /// that passes may still fail. `fragment` is the goal's.
 ///
 /// The rows are built as a search's set-up builds them, charged to
-/// `account` and asking `stop`, whose refusal is the reason returned.
+/// `account`, and `stop` is asked every 2¹⁶ occurrences or row entries
+/// visited on a forest of any size; its refusal is the reason returned.
 #[cfg(feature = "interactive")]
 pub(crate) fn split_passes(
     forest: &Forest,
@@ -1256,7 +1273,9 @@ pub(crate) fn split_passes(
     account: &Account,
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Result<bool, Reason> {
-    let counts = Counts::new_until(forest, Bias::Auto, Mode::CLASSICAL, account, stop)?;
+    let counts = Counts::new_polled(forest, Bias::Auto, Mode::CLASSICAL, account, &mut || {
+        stop(0)
+    })?;
     let rules = Switches::new(fragment, mode, &counts);
     let mut split = counts.split();
     for (members, side) in [(left, Branch::Left), (right, Branch::Right)] {

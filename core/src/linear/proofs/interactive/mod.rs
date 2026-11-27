@@ -1914,11 +1914,9 @@ mod tests {
             s.split_passes_within(g, &step, &small, |_| false),
             Err(Error::Refused(Refusal::Memory { .. }))
         ));
-        // The pass asks the stop every 2¹⁶ occurrences visited, as a
-        // search's set-up does.
-        let atoms: Vec<String> = (1..=40_000).map(|i| format!("a{i}")).collect();
-        let text = format!("|- c * ({}), ~c", atoms.join(" * "));
-        let (s, g) = start(&text, Mode::CLASSICAL);
+        // The pass asks the stop every 2¹⁶ row entries visited, on a
+        // forest of 4 002 occurrences too, far below the size at which a
+        // search polls its set-up.
         let unbounded = Limits::default().with_memory_bytes(None);
         assert!(matches!(
             s.split_passes_within(g, &step, &unbounded, |_| true),

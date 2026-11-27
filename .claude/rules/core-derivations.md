@@ -494,8 +494,10 @@ code relies on:
   other rule `StepError::NoSplit`), and the rows it builds for the
   whole forest can be quadratic in it: `split_passes_within(goal, &step,
   &limits, stop)` charges them to `limits.memory_bytes` and asks the
-  stop as a search's set-up does (`Counts::new_until`), which the
-  command and the bindings call; `split_passes` alone has no bound. One
+  stop every 2¹⁶ occurrences or row entries on a forest of any size
+  (`Counts::new_polled`; a search's set-up, `new_until`, polls only
+  from `SET_UP_POLL` occurrences, and a forest of 32 002 had 1.5 GB of
+  rows below that), which the command and the bindings call; `split_passes` alone has no bound. One
   ⊗ step on a nested tensor of 16 000 atoms once took 1.5 GiB there.
   The counts' pass tells its stop no units, so `limits.work` does not
   bound the test (its docs say so); a forest past what the counts index
