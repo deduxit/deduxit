@@ -8702,3 +8702,14 @@ move (D26).
   drawing; the parser is quadratic in nested `ΛX` within its bound; the client's `flake.nix`
   description still names linear logic first (a client text fix for later). The audit's phase B runs
   (go given at 07:30); every other session is idle. Nothing else planned until the audit's findings.
+- 2026-11-27, about 08:25: **The audit's stage 2 reviewed; stages 3 to 5 at full size.** Stage 2 (units
+  1a, 1b, 6a, 7a, 9; five Opus finders, five Fable verifiers, 16 min): 91 findings, 79 confirmed,
+  8 candidates to measure, 4 rejected. Tokens: Opus 2.18 M written, 98.9 M cache read, 0.34 M out;
+  Fable 0.74 M, 24.2 M, 0.12 M; the cache reads come on top of the estimate. The account's weekly
+  use was 14 % (Fable 15 %) with 6 d 19 h left. (decided unattended) The full grid of 21 units
+  (steps 82 to 85 added 7 000 lines), the finders reading several files per request, a stop for my
+  word if a stage runs half again over stage 2's rate per unit. The deferred baselines at
+  `vqwqlqkl`: both target sets equal their oracles (`bench/targets/86.csv`, `net-86.csv`), the
+  refactor's reference; the audit's six commits (notes, inventories, the target sets) pushed
+  (`zpvqrsok`). A snag: the harness refuses a subagent's Write, so the findings were recovered from
+  the agents' transcripts (`plan/audit/recover.py`).
