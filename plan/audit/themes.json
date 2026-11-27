@@ -1,0 +1,456 @@
+{
+  "groups": [
+    {
+      "id": "A",
+      "title": "Defects: answers that are wrong or bounds that do not hold",
+      "intro": "These change behaviour, so they are fixes, not refactors. Each is small. They come first because a refactor must not carry a known defect along, and because two of them touch a checker."
+    },
+    {
+      "id": "B",
+      "title": "The public API for 0.9.0",
+      "intro": "What a user of the library or of the command meets. `api-proposal.md` turns these into the surface the author signs off; the refactor implements it after the sign-off."
+    },
+    {
+      "id": "C",
+      "title": "Duplication: one thing written more than once",
+      "intro": "Behaviour-preserving refactors. Each names the shared form; the net is the tests and, in the linear search, the target sets' counters. They rank by how much code one copy removes and how often the copies have already drifted apart."
+    },
+    {
+      "id": "D",
+      "title": "Performance",
+      "intro": "Measured hot spots first, then what reading suggests. A candidate is not a finding of fact: the refactor step measures before and after on the instrument named and drops the change if nothing moves. Most candidates have no instrument yet, which is itself the first item."
+    },
+    {
+      "id": "E",
+      "title": "Structure: files and modules that hold more than one thing",
+      "intro": "Moves and divisions with no change of behaviour. Their gain is for a reader of the code; they come after the API moves, which decide where things belong."
+    },
+    {
+      "id": "F",
+      "title": "Text: docs, messages and help",
+      "intro": "Text a person reads, judged by `.claude/rules/writing.md` and the documentation items of the API guidelines. Each is small; together they are one pass per area, made after the API is fixed so that no text is written twice."
+    },
+    {
+      "id": "G",
+      "title": "The command",
+      "intro": "What the command's user meets beside the selector of the logic, which is in group B."
+    },
+    {
+      "id": "H",
+      "title": "The Rocq library",
+      "intro": "All of unit 9. The library's own repository, its own checks; a change of a name the exporter writes moves deduxit's exporter in the same pair of changes."
+    },
+    {
+      "id": "I",
+      "title": "The build: features and the web module's size",
+      "intro": "What a user compiles and what a visitor downloads."
+    }
+  ],
+  "themes": [
+    {
+      "id": "A1",
+      "group": "A",
+      "title": "Two defects that fixup-31 mends",
+      "what": "The check of a first-order Kripke countermodel read `=` as an ordinary predicate, so `deduxit check` accepted a forged one-world model as a checked refutation of `⊢ a = a` (reproduced by the finder, the verifier and the leader). First-order resolution's read-back wrote a unifier's terms out in full with no bound, so `resolve --timeout 1s` ran 22 s on a family whose unifier doubles a term per variable.",
+      "change": "Being fixed by fixup-31, which the planning session started on 2026-11-27; not proposed again here. The refactor starts from the commit that holds the fix.",
+      "net": "A new test of the check with the forged document; the panel, since a checker is touched.",
+      "ids": ["F-4d-01", "F-4c-01"]
+    },
+    {
+      "id": "A2",
+      "group": "A",
+      "title": "Bounds that are not kept: calls without limits or a stop",
+      "what": "The crate's rule is that every long call takes `&Limits` and a stop. Eleven places break it: the JSON readers of proofs, nets and sessions build their sequent under the default limits whatever the caller gave; `Disproof::check` takes neither; `Interactive::split_passes`, documented as cheap, builds the forest's count rows on every call with no account and no stop; `invert` and `invert_all` of two sessions run to the end without a stop; the bindings build a session's whole derivation twice per view under the default limits; a rule file's `parse_sequent` applies the bound per member; the `term` commands take no `--timeout`; the first-order refutation's check takes no `&Limits`; the protocol's `ordinary.resolve` and Herbrand's term walks write or walk terms without bound (the part of F-4c-01 that fixup-31 does not cover); two steps of the MLL criterion are quadratic and ask no stop.",
+      "change": "Give each call the limits and the stop its neighbours take, with the short form kept as a wrapper where one exists (`check` beside `check_within`). `split_passes` gets a bounded form and its docs corrected.",
+      "net": "The tests of limits (`core/tests/limits.rs`), a test per call that a small bound refuses; `Disproof::check` and the refutation's check touch a checker's entry, not what it accepts.",
+      "ids": ["F-6a-01", "F-1c-01", "F-2b-01", "F-4e-07", "F-8-02", "F-5b-11", "F-7b-04", "F-4c-10", "F-8-12", "F-4c-09", "F-3-03"]
+    },
+    {
+      "id": "A3",
+      "group": "A",
+      "title": "Front ends that answer wrongly",
+      "what": "Which net a proof gets (a structure of multiplicative linear logic, or one with boxes when the proof has exponentials or cuts one occurrence twice) is chosen by hand in the command, the bindings and the protocol, and the protocol's copy lacks the fallback: `linear.net` answers `invalid_net` for a proof the checker accepts. Beside it: `split_passes` ignores its step's rule, so the page can grey a Mix that would close; `invert` skips a `∀` step at the bound on terms and reports that it finished; a workspace run ended by one of ordinary logic's three bounds loses its setting; the workspace's exit status reads a verdict from a string; `eliminate --net` panics on a closed pipe; `--output -` writes a file named `-`; three hand-written lists of the linear mode flags miss `--cyclic` and `--lambek`; `eliminate` offers flags of `check` that it ignores.",
+      "change": "One library call chooses a proof's net (a public sum of the two structures), and the three front ends call it. The others are local mends.",
+      "net": "A protocol test with the proof of `nets/cut/tests.rs:556`; the command's tests and the behaviour lock; the bindings' tests under Node.",
+      "ids": ["F-8-01", "F-3-01", "F-7b-14", "F-4f-03", "F-4f-07", "F-5b-01", "F-7b-01", "F-7b-02", "F-7a-07", "F-7a-02", "F-7b-03"]
+    },
+    {
+      "id": "A4",
+      "group": "A",
+      "title": "Library calls that mislead or panic on a valid use",
+      "what": "A refused proof check becomes `Verdict::Unknown` in one place and an `Err` in another; `ordinary::Derivation::check` reports any derivation that breaks a rule, a user's own included, as a defect of the read-back; `Sequent::atom` compares a name without composing it as every reader does; an instance table built through the API is refused as a JSON error; `wire::Within` drops the typed error; the public Partition encodings panic on a size of 0; the rule-file session panics on an id that is not its own; `pdf::Date` documents ranges nothing checks; `WrittenTableau::review` and `Workspace::read_own` trust what their names do not say they trust; `Engine::Unknown` is a value the options accept and the front door refuses at run time.",
+      "change": "Each returns the error that says what happened, or refuses at construction.",
+      "net": "The tests of each call; F-2a-01 and F-4a-01 change what a caller sees, so the changelog names them.",
+      "ids": ["F-2a-01", "F-4a-01", "F-1a-14", "F-1a-07", "F-6a-02", "F-2c-01", "F-4e-02", "F-6b-16", "F-4b-05", "F-5b-07", "F-2a-13"]
+    },
+    {
+      "id": "B1",
+      "group": "B",
+      "title": "No logic is the default (D1)",
+      "what": "Every command that reads a sequent falls back to classical linear logic by five mechanisms, the batch has a default mode of its own in the library, and `ordinary::Logic` defaults to intuitionistic, so the first call a user writes answers for a logic nobody named. The Rocq library's README and the bindings' `about` rest on the same defaults.",
+      "change": "A required selector of the suite on every command that reads a sequent; in the library, no `Default` for a logic, a mode or a modal system (`api-proposal.md`, sections 1 and 6).",
+      "net": "The examples of README, the manual and the guide, the behaviour lock, the settings tests. No checker or search is touched.",
+      "ids": ["F-7a-01", "F-2a-12", "F-4a-03"]
+    },
+    {
+      "id": "B2",
+      "group": "B",
+      "title": "What every suite uses leaves the linear suite (D4)",
+      "what": "Because linear logic came first, the vocabulary of every front door (`Reason`, four options only ordinary logic reads), the drawing layer (`Drawn`, `Labels`, `OpenGoal`, `TextOptions`, `Structural`, `InfId`, `GoalId`, `ViewOptions`), the formula walk and the printers' table, the memory account, the first-order terms' public path, TPTP's clause syntax and the session's `Inverted` and its options live under `linear`. A user of ordinary or modal logic writes `deduxit::linear::…` to name them, six bindings calls build a linear `Options` only to pass it on, and a user's own rule labels reach linear rules alone.",
+      "change": "Shared root modules, each named for what it holds; the linear suite re-exports none of them (`api-proposal.md`, section 2).",
+      "net": "No behaviour changes: the target sets' counters, the ratchet and the tests. Public paths change, so `breaks 0.8.0` lists them and the changelog carries the migration table.",
+      "ids": ["F-arch-01", "F-arch-02", "F-arch-06", "F-arch-07", "F-1a-02", "F-1a-03", "F-1b-01", "F-1b-04", "F-4b-15", "F-4c-04", "F-4d-14", "F-4e-03", "F-4f-09", "F-8-10", "F-5a-09"]
+    },
+    {
+      "id": "B3",
+      "group": "B",
+      "title": "The suites as peers in settings, errors, the registry and the front ends (D4)",
+      "what": "`Settings` gives the linear suite's options the generic keys (`search`, `view`, `input`) and `Error` has `Step` beside `OrdinaryStep`; the registry and the bindings list the linear suite first and export its calls without a prefix; the `seq` commands and the batch serve linear logic alone; the linear session's invertible steps, hint and cuts are computed in the bindings where ordinary logic's are library methods; the shared Kripke model documents itself in ordinary logic's words and has its methods in two suites; LaTeX and Typst have no call for a Kripke or modal countermodel; the labels of ordinary and modal statistics exist in the command alone.",
+      "change": "Each suite's items carry its name or none does; the page's order (ordinary, linear, modal, lambda) wherever an order shows (`api-proposal.md`, sections 2, 5 and 6).",
+      "net": "The wire forms change their keys once, with a wire level; the JSON Schema check, the behaviour lock and the client's calls show every site.",
+      "ids": ["F-arch-14", "F-arch-15", "F-6a-09", "F-7a-04", "F-7b-15", "F-4f-01", "F-6b-10", "F-4a-12", "F-arch-21"]
+    },
+    {
+      "id": "B4",
+      "group": "B",
+      "title": "Building values and running an engine from outside the crate (X1 to X5)",
+      "what": "The consumer test's findings, confirmed from inside: a linear sequent, a first-order ordinary formula, an ordinary derivation and a lambda-term can be made only from text or JSON; `Refusal` has no constructor and `Proof::build`, the stoppable form, is private; `Goal` hides its members; the engine interface is crate-private and an `Outcome` cannot be built; an outside engine can build three of the ten refutations; the exports draw a closed list of derivations; a rule file's positions and the ids of its derivation are not said. The crate itself works around the missing sequent builder in three places.",
+      "change": "Checked builders, constructors for refusals, a public `Decide` with `prove_with`, and the page of the manual that uses them (`api-proposal.md`, section 3).",
+      "net": "Additive but for `Outcome`'s fields. The checkers stay the only way to a checked verdict; the manual's page is run by the readme test.",
+      "ids": ["F-arch-03", "F-arch-04", "F-arch-05", "F-arch-10", "F-arch-26", "F-1a-01", "F-1a-08", "F-1b-09", "F-2a-02", "F-2a-03", "F-6a-03", "F-1c-02", "F-4a-02", "F-4a-16", "F-5a-02", "F-5a-04", "F-5b-03", "F-5b-04"]
+    },
+    {
+      "id": "B5",
+      "group": "B",
+      "title": "What a value in hand promises (X3)",
+      "what": "Whether a proof has passed its checker is a private flag in one suite and a writable `bool` beside the verdict in another; `Verdict`, `Refutation` and the countermodel types do not say which values are certificates and which are only a search's word; `NormalForm` and `Interpolant` keep checked results in public mutable fields; what refutes an ordinary sequent is three optional fields beside the verdict; a first-order refutation says why it was not read back in a `String`.",
+      "change": "One rule, stated on the types: a value in a verdict has passed its check unless the verdict says otherwise, and a value built or read has not until `check` is called; the evidence moves into the verdict's variants (`api-proposal.md`, section 4).",
+      "net": "The outcome's JSON form changes with a wire level; the tests of each front door.",
+      "ids": ["F-arch-23", "F-arch-13", "F-2a-09", "F-1c-03", "F-4d-13", "F-4b-04", "F-4c-05"]
+    },
+    {
+      "id": "B6",
+      "group": "B",
+      "title": "Names that agree across the suites",
+      "what": "The five formula stores name nodes, ids and atoms in five ways (`atom(name)` looks up in one suite and constructs in two); the three sessions call the same operations differently (`is_complete` and `is_finished`, `proof` and `derivation`, a `Result` and a panic); four functions of ordinary logic are `X` and `X_default` where the crate has `X` and `X_within`; `Error`'s variant names disagree with their stable codes; the names of values are snake case in one enum and kebab case in another, and the command mirrors them in 18 enums of its own.",
+      "change": "One table of names (`api-proposal.md`, section 5), applied in one step per suite.",
+      "net": "Renames only: the compiler, the tests and `breaks 0.8.0`. Value names in JSON change once, with the wire level.",
+      "ids": ["F-1a-05", "F-4e-01", "F-4f-06", "F-4a-13", "F-6a-13", "F-5a-06", "F-7a-03"]
+    },
+    {
+      "id": "B7",
+      "group": "B",
+      "title": "One path for each type, and nothing public without a user (C-HIDDEN, X9)",
+      "what": "93 items are reachable under two or three paths because leaf modules are public and re-exported; the crate root re-exports items of two suites; 82 items are named by nothing outside `core/src`; a public field is documented as always false; a public constant sits in a private module.",
+      "change": "Leaf modules become private where their items are re-exported at the suite's root; the 82 are judged one by one against `inventories/surface.md` (`api-proposal.md`, section 7).",
+      "net": "`breaks 0.8.0` and the workspace's other crates, which name the paths that stay.",
+      "ids": ["F-1a-04", "F-1b-08", "F-3-08", "F-6a-06", "F-2c-14", "F-4a-14", "F-4a-15", "F-6a-12"]
+    },
+    {
+      "id": "B8",
+      "group": "B",
+      "title": "Common traits, conversions and small signatures",
+      "what": "`Proof`, `Forest`, `ProofStructure`, `ordinary::Sequent` and the readers' problems have no `Eq`, so users and the crate's tests compare by fields or by text; the public `Walk` is neither `Send` nor `Sync`; two `into_sequent` clone what they consume; `Proof::with_instances` takes by value what it reads; `Derivation::sequent` returns id slices; `race` has two thread knobs; three variants of a marked enum lack `#[non_exhaustive]`.",
+      "change": "Derive or implement the trait, borrow where the body borrows, return the value the caller wants (`api-proposal.md`, section 7).",
+      "net": "The compiler and the tests.",
+      "ids": ["F-1b-10", "F-3-05", "F-4a-17", "F-2c-16", "F-1a-20", "F-1a-13", "F-1b-11", "F-4a-09", "F-2a-04", "F-2a-05"]
+    },
+    {
+      "id": "B9",
+      "group": "B",
+      "title": "Errors a front end can act on",
+      "what": "Only the linear checker's faults are structured: the Kripke model, the structures, a rule file's derivation and a calculus answer with a `String`, so a front end cannot point at the world or the node at fault, though the checker knows it. A refused step is three error types with two codes. The bindings write errors of the library's codes by hand, without the details the library writes.",
+      "change": "A structured fault per checker, one refusal of a step, and a library call that writes an error's JSON form (`api-proposal.md`, section 4).",
+      "net": "The errors' JSON forms (`docs/src`, the schema check) and the page's hints, which read them.",
+      "ids": ["F-6a-15", "F-4e-06", "F-8-05", "F-5b-05"]
+    },
+    {
+      "id": "B10",
+      "group": "B",
+      "title": "One description of what a suite offers: the protocol, the sessions, the documents",
+      "what": "The protocol's registry is written four times in one file and has drifted; the bindings hold a second protocol for the sessions, with every session call written three times; `describe` answers three hand-kept descriptions that already disagree; which document a text is gets probed in six places; reading one document from text is three lines written 45 times across the front ends; the table of built-in rule files by name is written three times with different contents; the protocol's lambda operations answer without the text its other terms carry; the workspace's states and the id newtypes have no serde form, which costs about 600 lines of mirror types.",
+      "change": "The registry written once and read for everything else; the session as a trait over JSON in the protocol; `read_document`, a table of the built-in calculi and a document's kind as library calls (`api-proposal.md`, section 5).",
+      "net": "The bindings' tests under Node, the protocol's tests, the wire-schema check; the client's calls change names once.",
+      "ids": ["F-arch-11", "F-arch-12", "F-8-06", "F-8-13", "F-8-16", "F-8-04", "F-7a-17", "F-5b-02", "F-7b-10", "F-8-07", "F-8-09", "F-8-11", "F-6a-07", "F-8-08", "F-7b-06"]
+    },
+    {
+      "id": "C1",
+      "group": "C",
+      "title": "The arena of propositional formulas, twice",
+      "what": "Ordinary and modal logic each have the hash-consed arena, its sequent, its parser and its JSON form: 17 duplicate pairs. The plan recorded the copy as waiting for step 74, which has landed.",
+      "change": "A crate-private `Arena<N>` at the root with the node's shape as a trait; the two `Formulas` stay public types that hold one each; the modal wire form is the ordinary one with two more tags.",
+      "net": "The parsers' and serializers' tests of both suites; `read-tptp` and `ordinary-pigeons` in the ratchet.",
+      "ids": ["F-arch-08", "F-6a-11"]
+    },
+    {
+      "id": "C2",
+      "group": "C",
+      "title": "Ordinary logic's provers and their builders of LK",
+      "what": "The intuitionistic connection prover is the classical one copied with seven hook points (the crate's largest duplicates, up to 115 lines), and nothing pins either search's counters. Six private builders of a derivation of LK or LJ write the same `push` with a memory estimate of their own, and Herbrand's builder repeats the connection read-back's.",
+      "change": "One connection search generic over what the intuitionistic prover adds, monomorphised; one derivation builder with one charge rule. Pin the connection searches' statistics on a set of problems first.",
+      "net": "The new pin (a set of ILTP rows with their statistics), then equality of it. A merge without the pin is a search change.",
+      "ids": ["F-arch-24", "F-4c-02", "F-4c-03", "F-4b-01", "F-4c-08"]
+    },
+    {
+      "id": "C3",
+      "group": "C",
+      "title": "The exports: two writers over two spellings, and the certificate writers",
+      "what": "LaTeX and Typst are one writer over two tables of spellings (six duplicates, the dispatch from `Drawable` in five places, an escape written four times); the two SVG net drawings repeat their emitters; the Rocq writers repeat their formula walks, their constructor tables and their helpers under three conventions for bounding text.",
+      "change": "One text writer parameterised by a format's spellings; one set of SVG emitters; one module of certificate helpers and one table of the Rocq library's constructor names, which is also the contract F-9-01 asks to be listed.",
+      "net": "The snapshot tests (`core/tests/export.rs`) byte for byte, the flake's `export`, `rocq` and `rocq-deduxit` checks. A certificate's text must not change.",
+      "ids": ["F-arch-25", "F-6b-13", "F-6b-14", "F-6b-04", "F-6b-11", "F-6b-05", "F-4d-08", "F-4d-09"]
+    },
+    {
+      "id": "C4",
+      "group": "C",
+      "title": "Proof nets: the graph kernel and the sequentialization, twice",
+      "what": "The correctness criterion's graph code (the layout, the scratch, Tarjan's bridges, the deletion rounds) and the assembly of a sequentialized proof exist once for nets without boxes and once for nets with them. The two structures stay two types: a vertex is an occurrence on the net engine's hot path.",
+      "change": "A shared graph kernel and a shared proof assembler, generic over what a vertex is, monomorphised.",
+      "net": "The net target set's `verdict`, `links` and `tests` equal to `net-47.csv`; touches the correctness criterion, a checker, so the panel.",
+      "ids": ["F-3-02", "F-3-06", "F-3-07", "F-3-13"]
+    },
+    {
+      "id": "C5",
+      "group": "C",
+      "title": "Walks over formulas and terms, and copies between arenas",
+      "what": "The walk that visits every node and term a formula reaches once is written nine times in ordinary logic with different seen-sets, three more times in cut elimination and ten times over lambda-terms; copying formulas from one arena into another is written five times beside `ordinary::transfer::copy`; two walkers substitute for de Bruijn variables; the polarity pass exists three times.",
+      "change": "One iterator per arena (public for lambda-terms, where a user needs it) and `transfer::copy` everywhere.",
+      "net": "The tests; `ordinary-pigeons` and `read-tptp` in the ratchet.",
+      "ids": ["F-4a-08", "F-4d-07", "F-4c-16", "F-4b-07", "F-4e-10", "F-4a-11", "F-5a-03", "F-1c-07", "F-4b-06"]
+    },
+    {
+      "id": "C6",
+      "group": "C",
+      "title": "Meters, refusals and memory helpers written per module",
+      "what": "The front door writes the same work meter three times, lambda-terms have three meters in three units, `rules` and `modal` hold one each, and `Refusal::Stopped` is built by hand at 103 sites with four private `stopped()` helpers. A hash table's bytes are estimated in three ways in one engine, and growing a heap within the account is written twice.",
+      "change": "The public `limits::Meter` and `Refusal` constructors of group B serve the crate first; one estimate of a table's bytes in the memory module.",
+      "net": "The tests of limits; the target sets' counters, since a meter counts work.",
+      "ids": ["F-2a-10", "F-5a-05", "F-2b-07", "F-2c-15"]
+    },
+    {
+      "id": "C7",
+      "group": "C",
+      "title": "Sorted-multiset operations beside `proofs::multiset::Multiset`",
+      "what": "The saturated set's check and the inverse method each write insert, remove, sum, difference and inclusion over sorted vectors, which the proof checker's `Multiset` has.",
+      "change": "Use `Multiset`, moved where both can name it.",
+      "net": "The saturated check is a checker (the panel); the inverse method's rows of the target set.",
+      "ids": ["F-1c-11", "F-2c-11"]
+    },
+    {
+      "id": "C8",
+      "group": "C",
+      "title": "The sessions and their drivers",
+      "what": "The reader of a witness term and `derivation_within` are written in two sessions; `formula` is one body three times; each session repeats blocks of its own; the command implements undo, the invertible switch, close, show, save and load once per session, and the bindings repeat their glue per suite.",
+      "change": "Shared functions at the root for what the sessions share; in the front ends, one driver over the session trait of B10.",
+      "net": "The sessions' tests, the command's tests of `interact`, the bindings' tests.",
+      "ids": ["F-4e-04", "F-4e-11", "F-4e-12", "F-4e-13", "F-4f-08", "F-1b-07", "F-7b-08", "F-8-14"]
+    },
+    {
+      "id": "C9",
+      "group": "C",
+      "title": "Repeats inside the linear suite",
+      "what": "Tables and loops written two to seven times within one module: the printer's two-sided layout, the fragment's names, the parser's application, the rule names' parallel tables, the 37 variants of `ClassicalRule` over six tables, the excess interval, two Horn readers, `Reason::as_set` applied by the engines and again by the front door, the focused engine's split loops, keys and buffer pools, the Horn engine's merge ladders. One touches the checker: the unrestricted zone's weight sum is changed inline, outside the functions Kani checks.",
+      "change": "One function or table each. F-1b-05 moves the arithmetic into the checked functions and changes Kani's harnesses with it.",
+      "net": "Both target sets' counters and the ratchet; Kani's harnesses and the panel for F-1b-05.",
+      "ids": ["F-1a-10", "F-1a-11", "F-1a-16", "F-1a-17", "F-1b-05", "F-1b-06", "F-1b-12", "F-1c-04", "F-1c-05", "F-1c-08", "F-1c-09", "F-1c-14", "F-2a-06", "F-2a-07", "F-2a-11", "F-2b-02", "F-2b-05", "F-2b-12", "F-2b-14", "F-2b-15", "F-2c-06", "F-2c-13", "F-2c-17"]
+    },
+    {
+      "id": "C10",
+      "group": "C",
+      "title": "Repeats inside ordinary and modal logic",
+      "what": "The rules of LK and LJ and their spellings exist in the library and again in the command; four enums repeat a `FromStr`; the finite structure and the Kripke model with domains each have an evaluator of one semantics; three SAT encodings write one writer; the SAT method's two entry points and the normal forms' helpers repeat themselves; the modal search iterates masked bits in four loops.",
+      "change": "One function or table each; the rules' table becomes public, since the command needs it.",
+      "net": "The tests; the model checks are checkers (the panel for F-4d-02).",
+      "ids": ["F-4a-07", "F-4a-18", "F-4b-10", "F-4b-11", "F-4b-16", "F-4d-02", "F-4d-03", "F-4d-15"]
+    },
+    {
+      "id": "C11",
+      "group": "C",
+      "title": "Repeats in lambda-terms, rule files, the workspace and the wire forms",
+      "what": "Untyped terms have a second parser for a subset of the typed syntax; naming code is written twice; a rule file's drawing and the typing derivation implement one tree layout with the same code; the mapping between ordinary logic's nodes and a rule file's connectives is written three times; how a connective is written and how it is read are two copies of the same defaults; the workspace rebuilds its index in three places; wire levels are bare numbers in four places.",
+      "change": "One function each.",
+      "net": "The tests of each module; the round trip of a rule file's text.",
+      "ids": ["F-5a-08", "F-5a-12", "F-5a-14", "F-5b-08", "F-5b-09", "F-5b-17", "F-5b-18", "F-6a-18"]
+    },
+    {
+      "id": "C12",
+      "group": "C",
+      "title": "Repeats in the command",
+      "what": "The decision of one sequent is written in `prove` and again in the batch; the command decides first-order ordinary sequents by its own copy of the library's default; the common flags are declared and applied per command; `check`'s JSON verdict is a ten-field literal written 16 times; the mapping from a refusal's setting to the flag that raises it is written about sixteen times with different coverage; a derivation in a rule file has two writers that support different formats; drawing an SVG and rendering it is written five times.",
+      "change": "One function each, the decision first: `prove` and the batch call one answer type, which `grade` reads instead of parsing text. F-7b-05 is a search change: the library's default replaces the command's copy, and the verdicts of the ILTP rows show whether anything moves.",
+      "net": "The behaviour lock and the examples; for F-7b-05 the benchmark's verdicts on the first-order ILTP problems.",
+      "ids": ["F-7a-12", "F-7a-13", "F-7a-14", "F-7b-05", "F-7b-07", "F-7b-09", "F-7b-16", "F-7b-17", "F-7b-21"]
+    },
+    {
+      "id": "D1",
+      "group": "D",
+      "title": "Instruments first: journeys for what nothing measures",
+      "what": "The ratchet and DHAT run the linear search, the readers, the linear checker and the exports. Nothing runs ordinary logic's own engines (the SAT method, LJT, the connection provers, resolution), a first-order search of either suite, modal logic, the model searches, lambda-terms, a session, cut elimination, a refutation's check, the inverse method, a rule file's checker or the workspace. Where a journey exists, its input generation weighs in its table: 51 % of one journey's blocks are the generator's.",
+      "change": "One journey per engine or checker named, each with a ceiling, and the generators' share taken out of the measured part. This is the first step of the performance work: without it the candidates of D4 cannot be judged.",
+      "net": "`bench/ceilings.csv` gains rows; a change of the ceilings is a commit of its own.",
+      "ids": ["F-4b-03", "F-5a-13", "F-2c-05", "F-2c-12"]
+    },
+    {
+      "id": "D2",
+      "group": "D",
+      "title": "Hot spots that DHAT or a run already shows",
+      "what": "In the SVG layout a fresh `String` per piece of text is 87 % of the journey's heap blocks. In the linear checker a boxed state and a hash table per leaf are 98 % of `check-qbf-20-2`'s blocks. The TPTP clause reader collects every line into a `Vec<char>` (57 % of `read-lltp`'s blocks, a third of `read-tptp`'s). `mist::merged` copies where `dedup_by` works in place (16 % of `read-spec`). An atom's name is stored twice per atom (43 % of `read-tptp`). The ordinary checker allocates several vectors per inference. Every step of a System F reduction copies all earlier steps' types, so a reduct's arena grows with the square of the steps.",
+      "change": "Each is a local change with its journey as the measure: blocks under DHAT and instructions under callgrind, before and after.",
+      "net": "The ratchet's ceilings (lowered when a count falls) and DHAT; the checker's change touches a checker's data layout, not what it accepts (Kani's harnesses, the panel).",
+      "ids": ["F-6b-01", "F-1b-02", "F-2c-02", "F-2c-07", "F-4a-06", "F-4a-05", "F-5a-01"]
+    },
+    {
+      "id": "D3",
+      "group": "D",
+      "title": "Long bodies generic over the stop, compiled once per caller",
+      "what": "The crate's rule is a `&mut dyn FnMut(Progress) -> bool` body behind a one-line generic shim. Bodies in the nets, the interpolants, the modal tableau, the exports, cut elimination and the rule files' checker are generic throughout, and the bindings' five `never` stops compile 51 library functions again. `Pass::rule` of the checker is compiled twelve times. It costs compile time and the web module's bytes, not run time.",
+      "change": "The shim at each entry. Measure with `cargo llvm-lines` and the module's bytes after wasm-opt.",
+      "net": "`inventories/llvm-lines.txt`, the budget check, the ratchet (a `dyn` call in a loop must not show).",
+      "ids": ["F-3-10", "F-4b-02", "F-4d-04", "F-6b-02", "F-6b-06", "F-1c-12", "F-5b-12", "F-8-03", "F-1b-03"]
+    },
+    {
+      "id": "D4",
+      "group": "D",
+      "title": "SipHash tables beside the crate's own hasher",
+      "what": "About thirty library sites build `std::collections` tables with SipHash beside the crate's `hash` module (foldhash), most of them cold, and nothing keeps new ones out.",
+      "change": "The crate's tables everywhere, and a `clippy.toml` with `disallowed-types` so that the lint holds it.",
+      "net": "The ratchet; iteration order must not reach an output (the behaviour lock shows it if it does).",
+      "ids": ["F-1a-12", "F-1b-13", "F-4a-19", "F-4e-14", "F-4f-12"]
+    },
+    {
+      "id": "D5",
+      "group": "D",
+      "title": "Candidates from reading, each waiting for a measurement",
+      "what": "Allocations in inner loops, clones of whole values to escape a borrow, quadratic scans, sorts whose key walks a term on every comparison, `#[inline(always)]` without a recorded measurement. Thirty-six places, most in code no journey runs.",
+      "change": "After D1: measure each on its journey, keep the changes that move a count, record the others as tried in the unit's rules file so that they are not raised again.",
+      "net": "The journey of each; the target sets' counters where a search's loop is touched (F-1c-13 and F-2a-08 would be search changes).",
+      "ids": ["F-1a-06", "F-1b-15", "F-1c-10", "F-1c-13", "F-2a-08", "F-2b-09", "F-2b-10", "F-2b-16", "F-2c-08", "F-2c-09", "F-2c-10", "F-4b-09", "F-4b-12", "F-4b-13", "F-4b-14", "F-4c-06", "F-4c-07", "F-4c-14", "F-4d-05", "F-4d-06", "F-4d-11", "F-4d-12", "F-4e-09", "F-4e-16", "F-4f-10", "F-5b-13", "F-5b-14", "F-5b-15", "F-5b-16", "F-6a-16", "F-6b-07", "F-6b-12"]
+    },
+    {
+      "id": "E1",
+      "group": "E",
+      "title": "Files that hold several things, with their seams",
+      "what": "`linear/search/mod.rs` (5 552 lines: the front door, the engine interface, the catalogue of engines, the options, the outcome types, and a third of it tests), `ordinary/interactive.rs` (5 900 lines where the linear session is nine files), `ordinary/mod.rs`, `ordinary/normal.rs`, `resolution/first_order.rs`, `herbrand.rs`, `focus/framed.rs`, `serialize/ordinary.rs`, and functions of 150 to 1 390 lines (`svg::mell::draw` is the crate's largest by LLVM lines). Each finding names the seams with line ranges.",
+      "change": "Divide along the seams named, moving code without changing it. One file per step, after the API moves of group B.",
+      "net": "No behaviour changes: the tests, the target sets' counters, the snapshots. `the_documented_dispatch_is_the_dispatch` reads `mod.rs` by path and moves with `Engine`.",
+      "ids": ["F-arch-19", "F-arch-20", "F-2b-06", "F-2b-13", "F-3-11", "F-4b-08", "F-4c-11", "F-4e-05", "F-6a-19", "F-6b-03"]
+    },
+    {
+      "id": "E2",
+      "group": "E",
+      "title": "Modules in the wrong place",
+      "what": "`rules`, which belongs to no suite, holds 2 213 lines of ordinary logic, and the two modules name each other; the count invariants and the atom bias serve four engines and the session from inside the focused engine; `occurrences` imports `proofs` to renumber a proof's instance table; the checks of refutations, a trust boundary, are spread over four files beside the engines; ordinary logic's countermodels are seven flat files with near names.",
+      "change": "Move each to where its users are: natural deduction and the tableau to `ordinary`, the counts and the bias beside the engines, the refutations' checks into a module of their own, the countermodels into a directory.",
+      "net": "No behaviour changes; the target sets' counters for the counts' move.",
+      "ids": ["F-arch-09", "F-2b-03", "F-1a-09", "F-1c-06", "F-4d-10"]
+    },
+    {
+      "id": "E3",
+      "group": "E",
+      "title": "Small matters of idiom",
+      "what": "A wildcard arm where the module's siblings deny one; the crate's only `#[allow]` attributes without a reason; a sentinel `u32::MAX` five callers test by hand; nine items each behind their own `cfg` where a module would hold them; production code after a test module; an `if` as the condition of an `if`; `is_some_and` followed by an unwrap with a dead default; six sites of a lint the workspace allows only because it fires; a hand-written const parser where the standard library has one.",
+      "change": "The idiomatic form at each place; a lint whose last site goes is turned on in the same commit.",
+      "net": "Clippy and the tests.",
+      "ids": ["F-1a-15", "F-2b-04", "F-2b-08", "F-2b-11", "F-3-14", "F-3-15", "F-4c-13", "F-4c-15", "F-6b-15", "F-7b-20", "F-8-15"]
+    },
+    {
+      "id": "F1",
+      "group": "F",
+      "title": "Docs that give one suite the place of honour (D4)",
+      "what": "The crate docs call intuitionistic logic the default and give four of their worked sections to linear logic; the exports' module docs start from a linear proof; the lambda module presents terms as proofs read back; the help's syntax section is linear logic's with ordinary logic appended, and modal syntax is nowhere; the manual's chapter on proving step by step describes the linear session alone; the Rocq library's opam description omits modal logic.",
+      "change": "One pass over the front pages in the page's order: ordinary logic, linear logic, modal logic, lambda-terms.",
+      "net": "The doc tests and the readme test, which runs the examples.",
+      "ids": ["F-arch-27", "F-6a-05", "F-6b-09", "F-5a-10", "F-7a-10", "F-7b-13"]
+    },
+    {
+      "id": "F2",
+      "group": "F",
+      "title": "Messages that do not say what is wrong",
+      "what": "A refusal that lists every cause it could have though the place that raises it knows which holds; a learner in minimal logic told about LJ; an axiom's refusal that says the opposite of the rule; refusals of a stored session and of a rule file that state a rule of the form instead of the fault, or leave out the name that is wrong; an index message that speaks of a proof's nodes for a workspace's; a `.spec` reader that names a token and never its line; a net's mode error that answers for four other cases; a session's advice in words the session does not have; the three sessions wording the same answers differently.",
+      "change": "Each message names the thing at fault and what to do, in the words of the calculus or command the user chose.",
+      "net": "The behaviour lock and the tests that pin messages; the page's hints, which show them.",
+      "ids": ["F-4f-04", "F-4e-08", "F-4f-02", "F-4f-11", "F-4e-18", "F-5b-06", "F-5b-10", "F-6a-08", "F-2c-03", "F-3-04", "F-7b-11", "F-7b-19"]
+    },
+    {
+      "id": "F3",
+      "group": "F",
+      "title": "Docs that say what the code does not, or leave out what it does",
+      "what": "Doc comments that describe an earlier state of the code, name a parameter that is gone or a private trait, omit JSON keys the code writes, omit System F or the modal certificates, or list eleven of thirteen kinds; the reference table of long calls and their bounds without five modules; an `# Errors` section that contradicts its own function; lists of commands in the manual that have fallen behind; a help text that is false about `--output`.",
+      "change": "Correct each from the code; where a list repeats a table of the code, generate or test it as `Engine::NAMES` is tested.",
+      "net": "The doc tests; `cargo test -p deduxit-cli --test readme` for the manual's names.",
+      "ids": ["F-1b-14", "F-2a-14", "F-4a-04", "F-4e-15", "F-4f-05", "F-5a-11", "F-6a-10", "F-6b-08", "F-6b-17", "F-2c-04", "F-7a-08", "F-7a-09", "F-7a-15"]
+    },
+    {
+      "id": "F4",
+      "group": "F",
+      "title": "Docs hard to read or without an example",
+      "what": "A comment that needs knowledge of code generation to follow; an example that uses `unwrap` where its neighbours use `?`; the connection module, the public entry of the first-order prover, without an example, its key promise one sentence of five lines; a test comment that is two comments interleaved; `--help` texts without an example or a link, one of 538 lines, with headings in a different order per command. The inventory counts 963 of 985 inherent methods and 210 of 242 structs without an example: the proposal says which public types get one.",
+      "change": "Shorter sentences, an example that runs on every type a user starts from, the help's long form cut to what the manual does not say.",
+      "net": "The doc tests; the readme test, which checks every flag the manual names.",
+      "ids": ["F-1a-18", "F-1a-19", "F-4c-12", "F-4c-17", "F-4e-17", "F-7a-06", "F-7a-16"]
+    },
+    {
+      "id": "G1",
+      "group": "G",
+      "title": "Flags and what the command offers",
+      "what": "One flag name means two things (`--to`, `--calculus`) and one thing has three names; a bound has a flag on one command and sends the user to a settings file on two others; a session in a rule file writes JSON alone where the other two draw; `interact` on a terminal prints a bare prompt; a command of 34 subcommands and 80 flags ships no man page and no shell completions.",
+      "change": "One name per meaning; the common flags on every command that honours them; a first line in `interact` that shows the goal and names `help`; `clap_complete` and `clap_mangen` behind a hidden subcommand or at build time (`api-proposal.md`, section 6).",
+      "net": "The readme test, the behaviour lock; two dev-dependencies or two small dependencies of the command, within the budget of 180 packages.",
+      "ids": ["F-7a-05", "F-7a-11", "F-7b-12", "F-7b-18"]
+    },
+    {
+      "id": "H1",
+      "group": "H",
+      "title": "The Rocq library: packaging, CI and the contract with the exporter",
+      "what": "The release publishes the checksum of an archive GitHub generates; CI never installs the package from its opam file on each Rocq it admits; `rocq-stdlib` has no upper bound; the project file passes no warning flags and sets no goal selector; the README's examples are compiled by no check; the names the exporter writes are a contract no file lists.",
+      "change": "An uploaded release archive, an install job per admitted version, a bound, named warnings as errors in the flake's check, a check that compiles the README's blocks, and `tests/Interface.v` with a README section that lists the contract.",
+      "net": "The library's own `nix flake check` and its CI.",
+      "ids": ["F-9-01", "F-9-02", "F-9-03", "F-9-09", "F-9-11", "F-9-12"]
+    },
+    {
+      "id": "H2",
+      "group": "H",
+      "title": "The Rocq library: proofs that rely on generated names and deprecated forms",
+      "what": "18 of 36 files fail the `-mangle-names` linter; 77 abbreviations use a form deprecated from Rocq 9.2, so the library warns on two of its four versions; one proof selects a goal by its number.",
+      "change": "Name what is introduced, write the abbreviations out, select the goal by its shape. Robustness alone is the gain, at a large cost, so it ranks last in the library.",
+      "net": "The build with `-mangle-names` in the audit's inventory (`plan/audit/rocq.py`), then as a check; every theorem's statement unchanged (`Print Assumptions`, the certificates).",
+      "ids": ["F-9-15", "F-9-04", "F-9-13"]
+    },
+    {
+      "id": "H3",
+      "group": "H",
+      "title": "The Rocq library: one copy of what the checkers share",
+      "what": "The checkers' multiset core and its lemmas are written up to four times, the two-sided checker's helpers and tactics twice, helpers of two namespaces under three names, and the first-order weights repeat the propositional file's lemmas. The rules record that the first-order files leave the propositional ones untouched; no reason beyond that is recorded, and the trusted statements are outside the code that would move.",
+      "change": "`Linear/Multiset.v` and `Deduxit.Base` for what two namespaces share; facts of first-order formulas beside their definitions; names and shapes of lemmas made to agree, with the changelog's list of renamings.",
+      "net": "The library's tests and `tests/Assumptions.v`; the certificates of deduxit's exporter against the library (the pair of changes).",
+      "ids": ["F-9-05", "F-9-06", "F-9-07", "F-9-14", "F-9-16", "F-9-17"]
+    },
+    {
+      "id": "H4",
+      "group": "H",
+      "title": "The Rocq library: text and two candidates of speed",
+      "what": "The opam description and the README name linear logic first and omit modal logic. Two candidates: every structural equality joins its recursive calls with `&&`, which `vm_compute` evaluates in full; a certificate's term restates each tensor's subformulas, so its text grows quadratically with a formula's depth.",
+      "change": "The texts in the page's order; measure the two candidates on `rocq compile` time of the snapshot certificates and of `!A ⊢ A^⊗n`, and mend the exporter (a `let` inside the term) only if the time shows.",
+      "net": "The library's check; for the exporter, the `rocq-deduxit` check and the snapshots.",
+      "ids": ["F-9-08", "F-9-10", "F-9-18"]
+    },
+    {
+      "id": "I1",
+      "group": "I",
+      "title": "The features",
+      "what": "`serialize`, named for the JSON forms, also turns on the rule files' checker and modal logic's decision procedure; `latex`, `typst` and `svg` are three features with no dependency of their own, 258 `cfg` sites and 21 of the 66 pairs the checks build; no feature gives the data model and the checkers without the engines; the serde feature is not named `serde`.",
+      "change": "One feature `export`; `serde` as the feature's name; `rules` and modal logic out from behind the JSON feature where their code does not need it. Whether a feature `search` is worth its `cfg` sites is a measurement the proposal asks for, and it meets the author's decision of 2026-11-09 against a feature per suite (`standing.md`).",
+      "net": "Both `cargo hack` runs and the `features` check, which get cheaper; the manifests of the workspace's other crates.",
+      "ids": ["F-arch-16", "F-arch-17", "F-arch-22", "F-6a-04", "F-6a-17"]
+    },
+    {
+      "id": "I2",
+      "group": "I",
+      "title": "The web module's size",
+      "what": "The module grew by 101 634 bytes at gzip in steps 82 to 85 and stands 1 % under its ceiling. `inventories/wasm.md` attributes its raw bytes: the linear suite a fifth, ordinary logic a seventh, the serde code a ninth. `lambda::Node` and `lambda::Type` deserialize through serde's buffered `Content`, and their two functions are a third of the lambda suite's bytes.",
+      "change": "In this order: the stop shims of D3 and one `never` in the bindings; serde forms that do not buffer; a registry the bindings build from the page's list of suites, so that the workspace links only what the page uses (it needs the registry as a value, B10); a module per suite only if the measurement after these still asks for it.",
+      "net": "The budget check; the module's bytes after wasm-opt (`inventories/wasm-opt.md`).",
+      "ids": ["F-arch-18", "F-5a-07"]
+    }
+  ]
+}

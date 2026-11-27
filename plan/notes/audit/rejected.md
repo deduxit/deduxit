@@ -67,3 +67,15 @@ second verification stands.
   lists the seven places in the crate where "stands as" does replace
   "is"; a text finding of this kind names one of those or shows the
   sentence.
+
+Stage 4 rejected none of its 80 findings.
+
+## Stage 5
+
+- **F-5b-19**, `core/src/rules/fitch.rs:187`. Claim: `Fitch::new`
+  borrows its options and then clones them, where taking them by value
+  would spare a caller the copy. Rejected: every caller outside the
+  tests borrows the options from styles it keeps, so by value each
+  would clone at the call site instead, and borrowing them for the
+  drawing's lifetime breaks the documented call with
+  `&FitchOptions::default()`.

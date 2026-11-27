@@ -13,7 +13,7 @@ generic of another crate instantiated with a type of a suite counts for
 that suite. The shares are of the raw module; gzip and wasm-opt shrink
 the parts unevenly, so read them as proportions.
 
-usage: wasm.py TWIGGY_TOP_JSON
+usage: wasm.py TWIGGY_TOP_JSON [STATE_OF_THE_MODULE]
 """
 
 import json
@@ -76,9 +76,8 @@ def main():
         sizes[place(item["name"])] += item["shallow_size"]
     total = sum(sizes.values())
     print("# The web module's bytes, by where they come from\n")
-    print(
-        f"{len(items)} items, {total} bytes raw (before wasm-bindgen and wasm-opt).\n"
-    )
+    state = sys.argv[2] if len(sys.argv) > 2 else "before wasm-bindgen and wasm-opt"
+    print(f"{len(items)} items, {total} bytes raw ({state}).\n")
 
     suites = Counter()
     for group, size in sizes.items():

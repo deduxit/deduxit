@@ -384,3 +384,56 @@ as findings of its own, naming the finding it follows.
   (`linear/sequents/mod.rs:851`, `:863`, `:869`, `:294`): out of reach
   in practice (an arena of 2^32 terms), but no rules file records the
   bound (unit 1a's verifier, beside the findings).
+
+### From stage 5, the last reading stage
+
+- **What each refutation of linear logic promises** (unit 1c's remark):
+  `Exhausted` promises only that a search ran out (anyone can build it,
+  and `check` answers `uncertified`); `Classical`, `Unbalanced`,
+  `OneSided`, `Equation`, `StateEquation` and the two symbol forms are
+  certificates backed by Rocq lemmas; `Saturated` and `Basis` rest on
+  their Rust check alone (the Rocq writer refuses them). An outside
+  engine can build only `Exhausted`, `Saturated` and `Basis`, and only
+  for the roots (F-1c-02). `Disproof::check` takes no limits and no
+  stop (F-1c-01); `prove_goal`'s last-resort block
+  (`search/mod.rs:1080-1115`) becomes a call to the bounded check.
+- `cli/src/check.rs:454-456` leaves a thread running past `--timeout`
+  (unit 1c's remark); `cut::Options::drawn_bytes` is a field the
+  library never reads.
+- `mist.rs:308-405` (`Arena`: a fresh atom, push a term, the roots, the
+  antecedents, over the crate-private `Sequent::from_parts`) is the
+  shape of the public sequent builder, and `families.rs` builds every
+  sequent by printing text and parsing it for want of one (unit 2c's
+  remark, with F-1a-01).
+- DHAT counts the whole process, so the journeys' input generation
+  weighs in their tables: 40 % of `read-text`'s blocks and 51 % of
+  `search-additive-14`'s (F-2c-12).
+- Defects beside the two that fixup-31 mends, each small and each a
+  fix, not a refactor: the protocol's `linear.net` answers
+  `invalid_net` for a checked proof that cuts one occurrence twice
+  (F-8-01, F-3-01, F-7b-14); the bindings' `split_passes` can answer
+  that a Mix cannot close when it can, so the page greys the step
+  (F-4f-03, unit 4f's verifier); `invert` skips a `∀` step at the
+  session's bound on terms and reports that it finished (F-4f-07); a
+  workspace run ended by `search.path_length`, `model_size` or
+  `model_worlds` is recorded without its setting (F-5b-01);
+  `rules::text::parse_sequent` applies `limits.occurrences` per member,
+  not per text (F-5b-11); `eliminate --net` with a drawn format panics
+  on a closed pipe (F-7b-02); the workspace's exit status reads a
+  node's verdict from a string (F-7b-01).
+- `grade` reads each check's verdict from the first line of its text
+  output (`grade.rs:248`), so the answer value that F-7a-12 proposes
+  should serve `grade` too; `--quiet` exists only on `prove`, `check`
+  and `eliminate` (unit 7b's remarks).
+- The client's checkout beside this repository
+  (`../deduxit.github.io`, files of 2026-11-20) names neither
+  `describe` nor the three `candidates` exports nor the newer calls, so
+  whether the bindings' own table of calls has a reader must be checked
+  against the client's main (unit 8's remark). `about` publishes the
+  library's defaults to the page (`ordinary::Options::default().logic`,
+  `Mode::default()`), so D1's answer for the library reaches the page.
+- `twiggy-top.json` lists 1 023 instantiations twice under identical
+  names (1.42 MB raw), most likely one copy per crate, which wasm-opt
+  may merge: the raw attribution of `wasm.md` overstates the repeated
+  generics, and `wasm-opt.md` measures the module after wasm-opt (unit
+  8's remark).
