@@ -475,7 +475,6 @@ fn formed(math: String, options: &Options) -> String {
     }
 }
 
-
 /// Returns a sequent as LaTeX math between `$`s, or a standalone document
 /// that holds it, as [`Options::form`] says.
 ///

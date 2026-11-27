@@ -1329,7 +1329,10 @@ pub(super) struct NetGroups<'a> {
 /// the reading writes it for an essential net), its description, and its
 /// groups in the order they stack, the switched premises dashed when
 /// `dashed`.
-#[expect(clippy::too_many_arguments, reason = "the parts of one document, from two drawings")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the parts of one document, from two drawings"
+)]
 pub(super) fn net_document(
     style: &Style,
     sequent: &Sequent,
@@ -1918,7 +1921,9 @@ pub fn countermodel(
     // The sequent's text before it is written, twice (the title and the
     // description) and escaped; the model's check refuses a first-order
     // sequent first, so no binder is counted.
-    within(limits, || super::models::sequent_bytes(sequent).saturating_mul(12))?;
+    within(limits, || {
+        super::models::sequent_bytes(sequent).saturating_mul(12)
+    })?;
     let title = format!("A countermodel of {sequent}");
     let last = super::models::last(sequent, logic, countermodel.model.world);
     let mut polls = 0u64;

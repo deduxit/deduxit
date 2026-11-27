@@ -151,6 +151,7 @@ pub(crate) const fn ordinary(node: Node) -> &'static str {
 }
 
 /// The constructor of the modal formula `node` in `Deduxit.Modal.Formulas`.
+#[cfg(feature = "serialize")]
 pub(crate) const fn modal_node(node: crate::modal::Node) -> &'static str {
     use crate::modal::Node;
     match node {
@@ -167,9 +168,18 @@ pub(crate) const fn modal_node(node: crate::modal::Node) -> &'static str {
     }
 }
 
+/// A labelled formula `x : A`, in `Deduxit.Modal.Labelled`.
+#[cfg(feature = "serialize")]
+pub(crate) const LAB: &str = "lab";
+/// An edge `x R y` of the accessibility relation, in
+/// `Deduxit.Modal.Labelled`.
+#[cfg(feature = "serialize")]
+pub(crate) const REL: &str = "rel";
+
 /// The constructor of `Deduxit.Modal.Formulas` for a connective of the
 /// labelled calculus, as [`modal_node`] names it, or `None` for a symbol
 /// that is none.
+#[cfg(feature = "serialize")]
 pub(crate) fn modal(connective: &str) -> Option<&'static str> {
     Some(match connective {
         "⊤" => "top",
@@ -188,6 +198,7 @@ pub(crate) fn modal(connective: &str) -> Option<&'static str> {
 /// The constructor of a labelled proof term's node for a rule of the
 /// labelled calculus, in `Deduxit.Modal.Check`, or `None` for a rule it
 /// has none for.
+#[cfg(feature = "serialize")]
 pub(crate) fn modal_proof(rule: &str) -> Option<&'static str> {
     Some(match rule {
         "ax" => "Ax",
@@ -249,7 +260,17 @@ impl Bounded {
 
     /// Appends `piece`, or refuses where the text would pass the bound.
     pub(crate) fn push(&mut self, piece: &str) -> Result<(), Error> {
-        self.text.push_str(piece);
+        self.push_all(&[piece])
+    }
+
+    /// Appends `pieces` as one piece, or refuses where the text would pass
+    /// the bound: the bound is compared once, after the last, so that a
+    /// refusal names the same length whether a name and its space are
+    /// pushed together or apart.
+    pub(crate) fn push_all(&mut self, pieces: &[&str]) -> Result<(), Error> {
+        for piece in pieces {
+            self.text.push_str(piece);
+        }
         match self.limit {
             Some(limit) if self.text.len() as u64 > limit => Err(Refusal::Output {
                 what: "certificate",

@@ -18,10 +18,10 @@ use super::{
 };
 use crate::Error;
 use crate::export::Form;
+use crate::export::rocq::library::{self, stopped, string};
 use crate::export::rocq::{
     CLASSICAL_PRELUDE, DEDUXIT_KRIPKE_PRELUDE, Options, Unsupported, identifiers,
 };
-use crate::export::rocq::library::{self, stopped, string};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
@@ -773,7 +773,7 @@ pub(crate) fn countermodel(
     text.clear();
     match sequent.right().first() {
         Some(&c) => formula(sequent, &mut text, c, true),
-        None => text.push_str("bot"),
+        None => text.push_str(library::ordinary(Node::False)),
     }
     write!(
         out,
@@ -956,5 +956,3 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
         }
     }
 }
-
-

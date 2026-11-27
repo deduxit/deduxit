@@ -546,7 +546,6 @@ fn formed(math: String, options: &Options) -> String {
     }
 }
 
-
 /// Returns a sequent as Typst math between `$`s, or a standalone document
 /// that holds it, as [`Options::form`] says.
 ///

@@ -895,10 +895,15 @@ for NanoYalla. What the code relies on:
   `TAPP`), its proof terms (`proof`, `iproof`, `QUEST`, `LEFT`, `RIGHT`),
   ordinary logic's formulas (`ordinary`, `top`, `neg` and `equiv` being
   the library's definitions) and modal logic's (`modal_node` over the
-  arena, `modal` over a rule file's connectives, `modal_proof`). Every
+  arena, `modal` over a rule file's connectives, `modal_proof`, and the
+  labelled items `LAB`, `REL`; the modal ones behind `serialize` too, as
+  their one user is). Every
   certificate writer (`deduxit.rs`, `ordinary/rocq.rs`,
   `ordinary/rocq_models.rs`, `modal/rocq.rs`) takes its constructors
-  from there, and no other place of the crate names one; rocq-deduxit's
+  from there, and no other place of the crate names one: the modal
+  writer's `head` matches on the calculus's rule names, and a
+  first-order literal's arguments are what follows the first space of
+  its formula, whatever the constructor is called; rocq-deduxit's
   `tests/Interface/` pins the same names at the types a certificate
   needs, so a rename is made in both repositories together. The
   theorems' names, the records' fields and the preludes stay where they
@@ -907,7 +912,12 @@ for NanoYalla. What the code relies on:
   also holds what the writers share: `string` (a name as a Rocq string,
   `"` doubled), `stopped` (the stop's refusal at `Phase::Write`) and
   `Bounded` (a text refused past `limits.derivation_bytes`, which the
-  model writer wraps to count its numbers).
+  model writer wraps to count its numbers). `Bounded` compares the bound
+  after each push, and the refusal names the length there, so a name
+  and its space go in one `push_all`, as they went in one push when the
+  writers spelled `"var "`: pushed apart, the refusal named a length up
+  to five bytes shorter for the same bound (the argument panel's
+  witness, a finite structure's certificate at `derivation_bytes` 59).
 - **Certificates of non-derivability** (`rocq::write_disproof`,
   `deduxit::disproof`): for deduxit's library whatever the mode
   (`Unsupported::Disproof` where the options name NanoYalla), the lemma

@@ -43,12 +43,12 @@
 //! - a `∀` step names its body and its eigenvariable, an `∃` step its
 //!   body and its witness.
 
+use super::library::{self, string};
 use super::{
     DEDUXIT_FIRST_ORDER_PRELUDE, DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE,
     DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE, DEDUXIT_PRELUDE, DEDUXIT_REFUTATION_PRELUDE,
     DEDUXIT_TWO_SIDED_PRELUDE, Options, Unsupported,
 };
-use super::library::{self, string};
 use crate::Error;
 use crate::export::Form;
 use crate::export::notation::{Step, flush, walk};
@@ -303,7 +303,8 @@ impl Fo<'_> {
             let (open, close) = if argument { ("(", ")") } else { ("", "") };
             match self.term(t) {
                 FoTerm::Bound(i) if i < depth => {
-                    write!(out, "{open}{} {i}{close}", library::BOUND).expect("a string takes the text");
+                    write!(out, "{open}{} {i}{close}", library::BOUND)
+                        .expect("a string takes the text");
                 }
                 // A frame holds closed terms.
                 FoTerm::Bound(i) => stack.push(Item::Term(frame[(i - depth) as usize], argument)),
@@ -527,7 +528,13 @@ impl<'a> Writer<'a> {
         let reading = self.derivation.reading().expect("a two-sided derivation");
         match self.fo {
             Some(fo) => fo.write_formula(&mut self.out, Some(reading), instance, depth, argument),
-            None => formula(self.forest, Some(reading), &mut self.out, instance.0, argument),
+            None => formula(
+                self.forest,
+                Some(reading),
+                &mut self.out,
+                instance.0,
+                argument,
+            ),
         }
     }
 
@@ -538,14 +545,12 @@ impl<'a> Writer<'a> {
         match self.fo {
             None => atom(self.forest, &mut self.out, instance.0),
             Some(fo) => {
-                // The literal written as a formula is `var "p" [ts]`; the
-                // axiom names what follows its constructor.
+                // The literal written as a formula is its constructor, a
+                // space and `"p" [ts]`; the axiom names what follows the
+                // constructor.
                 let mut text = String::new();
                 fo.write_formula(&mut text, None, instance, 0, false);
-                let args = text
-                    .strip_prefix("var ")
-                    .or_else(|| text.strip_prefix("covar "))
-                    .expect("a literal");
+                let (_, args) = text.split_once(' ').expect("a literal");
                 self.out.push_str(args);
             }
         }
@@ -722,19 +727,39 @@ impl<'a> Writer<'a> {
         let side = inference.rule.side;
         let constructor = match (inference.rule.rule, side) {
             (Rule::Forall, Some(Side::Output)) => {
-                self.quantifier(id, iconstructor(Rule::Forall, true), principal.expect("a principal formula"), true);
+                self.quantifier(
+                    id,
+                    iconstructor(Rule::Forall, true),
+                    principal.expect("a principal formula"),
+                    true,
+                );
                 return;
             }
             (Rule::Forall, _) => {
-                self.quantifier(id, iconstructor(Rule::Forall, false), principal.expect("a principal formula"), true);
+                self.quantifier(
+                    id,
+                    iconstructor(Rule::Forall, false),
+                    principal.expect("a principal formula"),
+                    true,
+                );
                 return;
             }
             (Rule::Exists, Some(Side::Output)) => {
-                self.quantifier(id, iconstructor(Rule::Exists, true), principal.expect("a principal formula"), true);
+                self.quantifier(
+                    id,
+                    iconstructor(Rule::Exists, true),
+                    principal.expect("a principal formula"),
+                    true,
+                );
                 return;
             }
             (Rule::Exists, _) => {
-                self.quantifier(id, iconstructor(Rule::Exists, false), principal.expect("a principal formula"), true);
+                self.quantifier(
+                    id,
+                    iconstructor(Rule::Exists, false),
+                    principal.expect("a principal formula"),
+                    true,
+                );
                 return;
             }
             (Rule::Ax, _) => {
@@ -798,7 +823,12 @@ impl<'a> Writer<'a> {
             ) => iconstructor(rule, side == Some(Side::Output)),
             (Rule::AffineWeakening, _) => {
                 let principal = principal.expect("a principal formula");
-                self.node(id, iconstructor(Rule::AffineWeakening, true), &[principal], true);
+                self.node(
+                    id,
+                    iconstructor(Rule::AffineWeakening, true),
+                    &[principal],
+                    true,
+                );
                 return;
             }
             (Rule::Cut, _) => {

@@ -20,12 +20,12 @@
 //! along the order, and the check compared only those.
 
 use super::rocq::Closure;
-use crate::export::rocq::library::{self, stopped, string};
 use super::{
     FiniteCountermodel, KripkeCountermodel, KripkeStructure, Logic, Node, NodeId, Sequent,
 };
 use crate::Error;
 use crate::export::Form;
+use crate::export::rocq::library::{self, stopped, string};
 use crate::export::rocq::{
     DEDUXIT_FIRST_ORDER_MODEL_PRELUDE, MOST_DOMAIN, MOST_ENTRIES, Options, Unsupported,
 };
@@ -81,6 +81,11 @@ impl Bounded {
     /// Appends `piece`, or refuses where the text would pass the bound.
     fn push(&mut self, piece: &str) -> Result<(), Error> {
         self.text.push(piece)
+    }
+
+    /// Appends `pieces` as one piece, the bound compared after the last.
+    fn push_all(&mut self, pieces: &[&str]) -> Result<(), Error> {
+        self.text.push_all(pieces)
     }
 }
 
@@ -212,7 +217,7 @@ fn written(
     text.push(" ")?;
     match sequent.right().first() {
         Some(&c) => formula(sequent, c, true, &mut text)?,
-        None => text.push("bot")?,
+        None => text.push(library::ordinary(Node::False))?,
     }
     write!(
         text.text.text,
@@ -445,37 +450,29 @@ fn formula(sequent: &Sequent, id: NodeId, argument: bool, text: &mut Bounded) ->
         match visit {
             Stop::Enter(k, argument) => {
                 let node = formulas.node(k);
-                if argument && !matches!(node, Node::True | Node::False) {
+                let nullary = matches!(node, Node::True | Node::False);
+                if argument && !nullary {
                     text.push("(")?;
                 }
-                text.push(library::ordinary(node))?;
-                match node {
-                    // A leaf has no exit, so its bracket closes here.
-                    Node::Atom(a) => {
-                        text.push(" ")?;
-                        match tables.atoms.get(a as usize) {
-                            Some(&(symbol, args)) => {
-                                text.push(&string(&tables.symbols[symbol.index()].0))?;
-                                text.push(" ")?;
-                                terms(sequent, tables.list(args), text)?;
-                            }
-                            None => {
-                                text.push(&string(formulas.atom_name(a)))?;
-                                text.push(" []")?;
-                            }
+                // The name and its space in one piece, as a refusal's
+                // length has always counted them.
+                text.push_all(&[library::ordinary(node), if nullary { "" } else { " " }])?;
+                // A leaf has no exit, so its bracket closes here.
+                if let Node::Atom(a) = node {
+                    match tables.atoms.get(a as usize) {
+                        Some(&(symbol, args)) => {
+                            text.push(&string(&tables.symbols[symbol.index()].0))?;
+                            text.push(" ")?;
+                            terms(sequent, tables.list(args), text)?;
                         }
-                        if argument {
-                            text.push(")")?;
+                        None => {
+                            text.push(&string(formulas.atom_name(a)))?;
+                            text.push(" []")?;
                         }
                     }
-                    Node::True | Node::False => {}
-                    Node::Not(_)
-                    | Node::And(..)
-                    | Node::Or(..)
-                    | Node::Implies(..)
-                    | Node::Iff(..)
-                    | Node::Forall(_)
-                    | Node::Exists(_) => text.push(" ")?,
+                    if argument {
+                        text.push(")")?;
+                    }
                 }
             }
             Stop::Between(_) => text.push(" ")?,
@@ -525,19 +522,15 @@ fn terms(sequent: &Sequent, list: &[FoTermId], text: &mut Bounded) -> Result<(),
             Piece::CloseApplication => text.push("])")?,
             Piece::Term(t) => match tables.terms[t.index()] {
                 FoTerm::Bound(n) => {
-                    text.push(library::BOUND)?;
-                    text.push(" ")?;
+                    text.push_all(&[library::BOUND, " "])?;
                     text.push(&n.to_string())?;
                 }
                 FoTerm::Eigen(a) => {
-                    text.push(library::EIGEN)?;
-                    text.push(" ")?;
+                    text.push_all(&[library::EIGEN, " "])?;
                     text.push(&a.get().to_string())?;
                 }
                 FoTerm::App(f, args) => {
-                    text.push("(")?;
-                    text.push(library::TAPP)?;
-                    text.push(" ")?;
+                    text.push_all(&["(", library::TAPP, " "])?;
                     text.push(&string(&tables.symbols[f.index()].0))?;
                     text.push(" [")?;
                     stack.push(Piece::CloseApplication);

@@ -131,10 +131,10 @@ fn item(terms: &Terms, id: TermId) -> Result<Item<'_>, Error> {
 fn write_item(terms: &Terms, item: Item<'_>, out: &mut Bounded) -> Result<(), Error> {
     match item {
         Item::At(x, a) => {
-            out.push(&format!("lab {} ", string(x)))?;
+            out.push(&format!("{} {} ", library::LAB, string(x)))?;
             formula(terms, a, true, out)
         }
-        Item::Edge(x, y) => out.push(&format!("rel {} {}", string(x), string(y))),
+        Item::Edge(x, y) => out.push(&format!("{} {} {}", library::REL, string(x), string(y))),
     }
 }
 
@@ -229,14 +229,14 @@ fn head(derivation: &Derivation, node: NodeRef<'_>, out: &mut Bounded) -> Result
     };
     let mut labels: Vec<&str> = Vec::new();
     let mut formulas: Vec<TermId> = Vec::new();
-    match (name, items.as_slice()) {
-        ("Ax", [Item::At(x, a), _]) => {
+    match (rule, items.as_slice()) {
+        ("ax", [Item::At(x, a), _]) => {
             labels.push(*x);
             formulas.push(*a);
         }
-        ("LBot" | "RTop", [Item::At(x, _)]) => labels.push(*x),
-        ("LBox" | "RBox" | "LDia", [Item::At(x, a), Item::Edge(_, y)])
-        | ("RDia", [Item::Edge(_, y), Item::At(x, a)]) => {
+        ("L⊥" | "R⊤", [Item::At(x, _)]) => labels.push(*x),
+        ("L□" | "R□" | "L◇", [Item::At(x, a), Item::Edge(_, y)])
+        | ("R◇", [Item::Edge(_, y), Item::At(x, a)]) => {
             labels.extend([*x, *y]);
             formulas.extend(parts(*a));
         }
