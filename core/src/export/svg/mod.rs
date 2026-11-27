@@ -1553,26 +1553,41 @@ fn drawn(
     drawable: Drawable<'_>,
     style: &Style,
     out: &mut impl Write,
-    mut stop: &mut dyn FnMut(crate::limits::Progress) -> bool,
+    stop: &mut dyn FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
     style.check()?;
-    let judgement = super::judgement(
-        drawable,
-        style.lambda.as_ref(),
-        &crate::lambda::print::SVG,
-        &mut stop,
-    )?;
-    let judgement = judgement.as_deref();
-    let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
-    match drawable {
-        Drawable::Linear(derivation) => tree::draw(derivation, style, judgement, out, stop),
-        Drawable::Ordinary(derivation) => tree::draw(derivation, style, judgement, out, stop),
-        Drawable::Classical(view) => tree::draw(view, style, judgement, out, stop),
-        #[cfg(feature = "serialize")]
-        Drawable::Rules(drawing) => tree::draw(drawing, style, judgement, out, stop),
-        #[cfg(feature = "serialize")]
-        Drawable::Fitch(proof) => fitch::draw(proof, style, out, stop),
-        Drawable::Lambda(drawing) => tree::draw(drawing, style, judgement, out, stop),
+    super::write_drawable::<Svg>(drawable, style, out, stop)
+}
+
+/// The target SVG for the writers every format shares.
+struct Svg;
+
+impl super::Target for Svg {
+    type Options = Style;
+    const SPELLING: &'static crate::lambda::print::Spelling = &crate::lambda::print::SVG;
+
+    fn lambda(style: &Style) -> Option<&crate::lambda::Options> {
+        style.lambda.as_ref()
+    }
+
+    fn tree<T: crate::linear::proofs::style::Drawn>(
+        derivation: &T,
+        style: &Style,
+        judgement: Option<&str>,
+        out: &mut impl Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), Error> {
+        tree::draw(derivation, style, judgement, out, stop)
+    }
+
+    #[cfg(feature = "serialize")]
+    fn fitch(
+        proof: &crate::rules::Fitch<'_>,
+        style: &Style,
+        out: &mut impl Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), Error> {
+        fitch::draw(proof, style, out, stop)
     }
 }
 

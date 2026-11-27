@@ -180,6 +180,120 @@ pub(crate) fn math(
     Ok(out)
 }
 
+/// A target that draws every kind of [`Drawable`] (LaTeX, Typst, SVG):
+/// a derivation as a tree of inferences, a Fitch proof as its own list.
+/// [`write_drawable`] matches the drawable once for all of them, so a new
+/// kind of derivation is one arm there.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+pub(crate) trait Target {
+    /// The target's options.
+    type Options;
+    /// The spelling of the lambda-term written under a tree.
+    const SPELLING: &'static crate::lambda::print::Spelling;
+    /// The lambda-term the options ask under the tree, if any.
+    fn lambda(options: &Self::Options) -> Option<&crate::lambda::Options>;
+    /// Writes a derivation as a tree, the judgement under its conclusion.
+    fn tree<T: crate::linear::proofs::style::Drawn>(
+        derivation: &T,
+        options: &Self::Options,
+        judgement: Option<&str>,
+        out: &mut impl std::fmt::Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), crate::Error>;
+    /// Writes a Fitch proof.
+    #[cfg(feature = "serialize")]
+    fn fitch(
+        fitch: &crate::rules::Fitch<'_>,
+        options: &Self::Options,
+        out: &mut impl std::fmt::Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), crate::Error>;
+}
+
+/// Writes a drawable in the target `F`: the lambda-term's judgement made
+/// first (so a refusal leaves `out` empty), then the tree or the list,
+/// asking `stop` as it writes.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+pub(crate) fn write_drawable<F: Target>(
+    drawable: Drawable<'_>,
+    options: &F::Options,
+    out: &mut impl std::fmt::Write,
+    mut stop: impl FnMut(crate::Progress) -> bool,
+) -> Result<(), crate::Error> {
+    let judgement = judgement(drawable, F::lambda(options), F::SPELLING, &mut stop)?;
+    let judgement = judgement.as_deref();
+    let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
+    match drawable {
+        Drawable::Linear(derivation) => F::tree(derivation, options, judgement, out, stop),
+        Drawable::Ordinary(derivation) => F::tree(derivation, options, judgement, out, stop),
+        Drawable::Classical(view) => F::tree(view, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(drawing) => F::tree(drawing, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Fitch(proof) => F::fitch(proof, options, out, stop),
+        Drawable::Lambda(drawing) => F::tree(drawing, options, judgement, out, stop),
+    }
+}
+
+/// A text target (LaTeX, Typst): a sequent is its math, and a first-order
+/// model a table, in a fragment or a document as the options say.
+#[cfg(any(feature = "latex", feature = "typst"))]
+pub(crate) trait Text: Target {
+    /// The target's symbols.
+    const NOTATION: crate::linear::sequents::notation::Notation;
+    /// Returns `math` as the options' form asks: as it is, or in a
+    /// standalone document.
+    fn formed(math: String, options: &Self::Options) -> String;
+    /// Writes a first-order model laid out as a table.
+    fn model_table(laid: &models::Laid) -> String;
+}
+
+/// The bytes a text target's sequent is estimated at per occurrence,
+/// besides its longest atom name: at least what any connective, its
+/// brackets and its separator take.
+#[cfg(any(feature = "latex", feature = "typst"))]
+pub(crate) const PER_OCCURRENCE: u64 = 32;
+
+/// Returns a sequent as the text target `F` writes it, refused past
+/// `limits.derivation_bytes` by [`PER_OCCURRENCE`].
+#[cfg(any(feature = "latex", feature = "typst"))]
+pub(crate) fn text_sequent<F: Text>(
+    sequent: &crate::linear::Sequent,
+    mode: crate::linear::Mode,
+    options: &F::Options,
+    limits: &crate::Limits,
+) -> Result<String, crate::Error> {
+    math(sequent, mode, PER_OCCURRENCE, limits, &F::NOTATION).map(|out| F::formed(out, options))
+}
+
+/// Returns a finite structure as the text target `F`'s table, after
+/// checking it.
+#[cfg(any(feature = "latex", feature = "typst"))]
+pub(crate) fn text_structure<F: Text>(
+    countermodel: &crate::ordinary::FiniteCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &F::Options,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, crate::Error> {
+    let laid = models::structure(countermodel, logic, limits, &mut stop)?;
+    Ok(F::formed(F::model_table(&laid), options))
+}
+
+/// Returns a Kripke model with growing domains as the text target `F`'s
+/// table, after checking it.
+#[cfg(any(feature = "latex", feature = "typst"))]
+pub(crate) fn text_kripke_structure<F: Text>(
+    countermodel: &crate::ordinary::KripkeCountermodel,
+    logic: crate::ordinary::Logic,
+    options: &F::Options,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, crate::Error> {
+    let laid = models::kripke(countermodel, logic, limits, &mut stop)?;
+    Ok(F::formed(F::model_table(&laid), options))
+}
+
 /// Returns the typing judgement of a derivation's lambda-term in a
 /// target's spelling, or `None` where `term` asks for none or the
 /// derivation is a typing derivation, whose last judgement is the

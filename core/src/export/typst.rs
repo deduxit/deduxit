@@ -546,10 +546,6 @@ fn formed(math: String, options: &Options) -> String {
     }
 }
 
-/// The bytes a sequent's text is estimated at per occurrence, besides
-/// its longest atom name: at least what any connective, its brackets and
-/// its separator take.
-const PER_OCCURRENCE: u64 = 32;
 
 /// Returns a sequent as Typst math between `$`s, or a standalone document
 /// that holds it, as [`Options::form`] says.
@@ -572,7 +568,7 @@ pub fn sequent(
     options: &Options,
     limits: &crate::Limits,
 ) -> Result<String, Error> {
-    super::math(sequent, mode, PER_OCCURRENCE, limits, &NOTATION).map(|out| formed(out, options))
+    super::text_sequent::<Typst>(sequent, mode, options, limits)
 }
 
 /// Returns a finite structure that refutes a first-order sequent as a
@@ -594,10 +590,9 @@ pub fn structure(
     logic: crate::ordinary::Logic,
     options: &Options,
     limits: &crate::Limits,
-    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<String, Error> {
-    let laid = super::models::structure(countermodel, logic, limits, &mut stop)?;
-    Ok(formed(model_table(&laid), options))
+    super::text_structure::<Typst>(countermodel, logic, options, limits, stop)
 }
 
 /// Returns a Kripke model with growing domains that refutes a
@@ -620,10 +615,9 @@ pub fn kripke_structure(
     logic: crate::ordinary::Logic,
     options: &Options,
     limits: &crate::Limits,
-    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<String, Error> {
-    let laid = super::models::kripke(countermodel, logic, limits, &mut stop)?;
-    Ok(formed(model_table(&laid), options))
+    super::text_kripke_structure::<Typst>(countermodel, logic, options, limits, stop)
 }
 
 /// Writes a first-order model laid out as a `#table`.
@@ -739,25 +733,50 @@ pub fn write<'a>(
     out: &mut impl Write,
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
-    let mut stop = stop;
-    let drawable = derivation.into();
-    let judgement = super::judgement(
-        drawable,
-        options.lambda.as_ref(),
-        &crate::lambda::print::TYPST,
-        &mut stop,
-    )?;
-    let judgement = judgement.as_deref();
-    let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
-    match drawable {
-        Drawable::Linear(derivation) => tree(derivation, options, judgement, out, stop),
-        Drawable::Ordinary(derivation) => tree(derivation, options, judgement, out, stop),
-        Drawable::Classical(view) => tree(view, options, judgement, out, stop),
-        #[cfg(feature = "serialize")]
-        Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
-        #[cfg(feature = "serialize")]
-        Drawable::Fitch(proof) => fitch(proof, options, out, stop),
-        Drawable::Lambda(drawing) => tree(drawing, options, judgement, out, stop),
+    super::write_drawable::<Typst>(derivation.into(), options, out, stop)
+}
+
+/// The target Typst for the writers every format shares.
+pub(crate) struct Typst;
+
+impl super::Target for Typst {
+    type Options = Options;
+    const SPELLING: &'static crate::lambda::print::Spelling = &crate::lambda::print::TYPST;
+
+    fn lambda(options: &Options) -> Option<&crate::lambda::Options> {
+        options.lambda.as_ref()
+    }
+
+    fn tree<T: Drawn>(
+        derivation: &T,
+        options: &Options,
+        judgement: Option<&str>,
+        out: &mut impl Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), Error> {
+        tree(derivation, options, judgement, out, stop)
+    }
+
+    #[cfg(feature = "serialize")]
+    fn fitch(
+        proof: &crate::rules::Fitch<'_>,
+        options: &Options,
+        out: &mut impl Write,
+        stop: impl FnMut() -> bool,
+    ) -> Result<(), Error> {
+        fitch(proof, options, out, stop)
+    }
+}
+
+impl super::Text for Typst {
+    const NOTATION: Notation = NOTATION;
+
+    fn formed(math: String, options: &Options) -> String {
+        formed(math, options)
+    }
+
+    fn model_table(laid: &super::models::Laid) -> String {
+        model_table(laid)
     }
 }
 
