@@ -8692,3 +8692,13 @@ move (D26).
   head now waits for its verdict in a command of its own). Fixed forward: the redex written as code,
   the docs with `-D warnings`, the lock and README's tests passing here, every other job having passed
   on the same tree; pushed directly.
+- 2026-11-27, about 07:57: **Step 85 reviewed and pushed; steps 81 to 85 complete.** 85 (Opus, high;
+  the reviewer on Fable): System F, Church style (types with `∀`, type abstraction and application,
+  checking in the unrestricted, linear and affine calculi, the typing derivation drawn and exported,
+  type β in the stepper, no inference); the reviewer's soundness finding (a JSON document binding
+  one type variable by two nested `ΛX` got `∀X. X → ∀X. X` accepted) fixed (`Fault::TypeTwice`); the
+  page's typing toggle has three values (Simply typed, System F, Untyped). Client full check passed;
+  pushed: client `rsmzxsry`, deduxit `kzxxpzvo`. **Left open:** no export snapshot of a System F
+  drawing; the parser is quadratic in nested `ΛX` within its bound; the client's `flake.nix`
+  description still names linear logic first (a client text fix for later). The audit's phase B runs
+  (go given at 07:30); every other session is idle. Nothing else planned until the audit's findings.
