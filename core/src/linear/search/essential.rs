@@ -334,20 +334,9 @@ impl<'a> Essential<'a> {
         // its parent, which comes before it. So the rows are filled for the
         // inputs from the last up, then for the outputs from the first
         // down, each from rows already complete.
-        for o in forest.ids().rev().filter(|&o| position(o) == Side::Input) {
-            if poll(stop) {
-                return Err(Reason::Stopped);
-            }
-            let (u, row) = (o.index(), o.index() * words);
-            set(&mut reach[row..row + words], u);
-            for s in fixed_successors(forest, reading, o) {
-                let from = s.index() * words;
-                for w in 0..words {
-                    reach[row + w] |= reach[from + w];
-                }
-            }
-        }
-        for o in forest.ids().filter(|&o| position(o) == Side::Output) {
+        let inputs = forest.ids().rev().filter(|&o| position(o) == Side::Input);
+        let outputs = forest.ids().filter(|&o| position(o) == Side::Output);
+        for o in inputs.chain(outputs) {
             if poll(stop) {
                 return Err(Reason::Stopped);
             }
