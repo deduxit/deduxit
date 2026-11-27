@@ -8912,3 +8912,7 @@ move (D26).
   the step: a first-order embedding's "unknown" writes a classical certificate Rocq refuses (on
   `main` too); a fixup once a slot is free. Rebased onto `main` with no conflict; in CI before
   `main`. 87c7 resumed from its checklist on cores 7-9.
+- 2026-11-28, about 00:40: **Four step sessions again, at the author's word; 87c9 resumed, 87c5
+  started.** 87c9 resumed from its checklist on cores 4-6; 87c5 (walks, copies, and the repeats of
+  ordinary and modal logic; the panel on F-4d-02's one evaluator) in 87d4's worker on `main`, cores
+  13-15.
