@@ -331,7 +331,7 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
     }
     for k in (0..source.len()).rev() {
         if reached[k] {
-            let (a, b) = source.nodes[k].operands();
+            let (a, b) = source.nodes()[k].operands();
             for id in [a, b].into_iter().flatten() {
                 reached[id.index()] = true;
             }
@@ -347,7 +347,7 @@ pub fn translate(sequent: &Sequent, options: &Options, limits: &Limits) -> Resul
     };
     // A node the sequent does not reach keeps a translation it never reads.
     let mut image: Vec<NodeId> = vec![NodeId(0); source.len()];
-    for (k, &node) in source.nodes.iter().enumerate() {
+    for (k, &node) in source.nodes().iter().enumerate() {
         if !reached[k] {
             continue;
         }

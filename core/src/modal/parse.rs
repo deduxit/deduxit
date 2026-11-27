@@ -7,8 +7,8 @@
 
 use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
-use crate::errors::ParseError;
-use crate::limits::{Limits, Refusal};
+use crate::arena::parse::{AFTER_FORMULA, End, IN_BRACKETS, Reads, Text, count_within, sides};
+use crate::limits::Limits;
 
 /// A binary connective.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,10 +111,8 @@ enum Pending {
 
 /// A text in the reading.
 struct Parser<'a> {
-    /// The text.
-    input: &'a str,
-    /// The byte offset of the next character.
-    at: usize,
+    /// The text and the place in it.
+    text: Text<'a>,
     /// The formulas read so far.
     formulas: &'a mut Formulas,
     /// What waits for its right operand, the innermost last.
@@ -126,51 +124,11 @@ struct Parser<'a> {
     limit: Option<u64>,
 }
 
-/// What a formula's list ended with.
-enum End {
-    /// A comma: another formula of the same side follows.
-    Comma,
-    /// The turnstile.
-    Turnstile,
-    /// The end of the text.
-    Stop,
-}
+impl<'a> Reads<'a> for Parser<'a> {
+    type Id = NodeId;
 
-impl<'a> Parser<'a> {
-    /// Returns the error for the character at byte `at`, where `expected`
-    /// could have stood.
-    fn unexpected(&self, at: usize, expected: &'static [&'static str]) -> Error {
-        Error::from(ParseError::new(self.input, at, expected))
-    }
-
-    /// Skips white space and returns the rest of the text.
-    fn rest(&mut self) -> &'a str {
-        let rest = &self.input[self.at..];
-        self.at += rest.len() - rest.trim_start().len();
-        &self.input[self.at..]
-    }
-
-    /// Consumes `token` if the text goes on with it.
-    fn eat(&mut self, token: &str) -> bool {
-        let found = self.rest().starts_with(token);
-        if found {
-            self.at += token.len();
-        }
-        found
-    }
-
-    /// Reads an identifier if one starts here.
-    fn identifier(&mut self) -> Option<&'a str> {
-        let rest = self.rest();
-        let first = rest.chars().next()?;
-        if !crate::name::starts_identifier(first) {
-            return None;
-        }
-        let end = rest
-            .find(|c| !unicode_ident::is_xid_continue(c))
-            .unwrap_or(rest.len());
-        self.at += end;
-        Some(&rest[..end])
+    fn text(&mut self) -> &mut Text<'a> {
+        &mut self.text
     }
 
     /// Reads one formula up to a comma, the turnstile or the end of the
@@ -179,7 +137,7 @@ impl<'a> Parser<'a> {
         loop {
             // An operand, after any prefix operators and parentheses.
             let mut operand = loop {
-                if self.eat("(") {
+                if self.text.eat("(") {
                     self.open += 1;
                     self.pending.push(Pending::Open);
                     // A parenthesis makes no formula, but no more than the
@@ -187,7 +145,7 @@ impl<'a> Parser<'a> {
                     count_within(self.open, self.limit)?;
                 } else if let Some((_, prefix)) = Prefix::SPELLINGS
                     .into_iter()
-                    .find(|(token, _)| self.eat(token))
+                    .find(|(token, _)| self.text.eat(token))
                 {
                     self.wait(Pending::Prefix(prefix))?;
                 } else {
@@ -196,45 +154,37 @@ impl<'a> Parser<'a> {
             };
             // The operators after it.
             loop {
-                let at = self.at;
+                let at = self.text.at;
                 if let Some((_, binary)) = Binary::SPELLINGS
                     .into_iter()
-                    .find(|(token, _)| self.eat(token))
+                    .find(|(token, _)| self.text.eat(token))
                 {
                     let left = self.reduce(operand, Some(binary))?;
                     self.wait(Pending::Binary(binary, left))?;
                     break;
                 }
-                if self.open > 0 && self.eat(")") {
+                if self.open > 0 && self.text.eat(")") {
                     operand = self.reduce(operand, None)?;
                     self.pending.pop();
                     self.open -= 1;
                     continue;
                 }
-                let end = if self.open > 0 {
-                    None
-                } else if self.eat(",") {
-                    Some(End::Comma)
-                } else if self.eat("|-") || self.eat("⊢") {
-                    Some(End::Turnstile)
-                } else if self.rest().is_empty() {
-                    Some(End::Stop)
-                } else {
-                    None
-                };
+                let end = if self.open > 0 { None } else { self.text.end() };
                 let Some(end) = end else {
-                    let expected: &[&str] = if self.open > 0 {
-                        &["a connective", "`)`"]
+                    let expected = if self.open > 0 {
+                        IN_BRACKETS
                     } else {
-                        &["a connective", "`,`", "`|-`", "the end"]
+                        AFTER_FORMULA
                     };
-                    return Err(self.unexpected(self.at.max(at), expected));
+                    return Err(self.text.unexpected(self.text.at.max(at), expected));
                 };
                 return Ok((self.reduce(operand, None)?, end));
             }
         }
     }
+}
 
+impl Parser<'_> {
     /// Notes an operator that waits for its right operand, and fails once
     /// more operators wait than the limit allows. Each will make a formula
     /// of its own, since all lie on one branch of the formula; without the
@@ -257,21 +207,21 @@ impl<'a> Parser<'a> {
 
     /// Reads a constant or an atom.
     fn constant_or_atom(&mut self) -> Result<NodeId, Error> {
-        let at = self.at;
-        if self.eat("⊤") {
+        let at = self.text.at;
+        if self.text.eat("⊤") {
             return self.add(Node::True);
         }
-        if self.eat("⊥") {
+        if self.text.eat("⊥") {
             return self.add(Node::False);
         }
-        match self.identifier() {
+        match self.text.identifier() {
             Some("true") => self.add(Node::True),
             Some("false") => self.add(Node::False),
             Some(name) => {
                 let id = self.formulas.atom(name)?;
                 self.within(id)
             }
-            None => Err(self.unexpected(at, &["a formula"])),
+            None => Err(self.text.unexpected(at, &["a formula"])),
         }
     }
 
@@ -320,74 +270,27 @@ impl Sequent {
     /// # Errors
     ///
     /// [`Error::Parse`] for text that is no sequent, [`Error::AtomName`]
-    /// for an atom named by a keyword, and [`Refusal::Occurrences`] past
+    /// for an atom named by a keyword, and [`Refusal::Occurrences`](crate::Refusal::Occurrences) past
     /// the bound.
     pub fn parse_within(s: &str, limits: &Limits) -> Result<Self, Error> {
         let mut formulas = Formulas::default();
         let mut parser = Parser {
-            input: s,
-            at: 0,
+            text: Text { input: s, at: 0 },
             formulas: &mut formulas,
             pending: Vec::new(),
             open: 0,
             limit: limits.occurrences,
         };
-        let (mut left, mut right) = (Vec::new(), Vec::new());
-        let mut turnstile = false;
-        // An empty side: the turnstile first, or nothing after it.
-        if parser.eat("|-") || parser.eat("⊢") {
-            turnstile = true;
-        }
-        if !(turnstile && parser.rest().is_empty()) {
-            loop {
-                let (formula, end) = parser.formula()?;
-                if turnstile { &mut right } else { &mut left }.push(formula);
-                count_within(left.len() + right.len(), limits.occurrences)?;
-                match end {
-                    End::Comma => {}
-                    End::Turnstile if !turnstile => {
-                        turnstile = true;
-                        if parser.rest().is_empty() {
-                            break;
-                        }
-                    }
-                    End::Turnstile => {
-                        // The second turnstile, `|-` or `⊢`, as one token.
-                        let read = &parser.input[..parser.at];
-                        let start = read.len() - if read.ends_with("|-") { 2 } else { "⊢".len() };
-                        let span = start..parser.at;
-                        let expected = &["a connective", "`,`", "the end"];
-                        return Err(ParseError::spanning(parser.input, span, expected).into());
-                    }
-                    End::Stop => break,
-                }
-            }
-        }
-        if !turnstile {
-            // One formula, or a list, to prove.
-            std::mem::swap(&mut left, &mut right);
-        }
+        let (left, right) = sides(&mut parser, limits.occurrences)?;
         super::bound(&formulas, &left, &right, limits)?;
         Sequent::new(formulas, left, right)
-    }
-}
-
-/// Fails once `count` formulas, of the arena or of a sequent, pass
-/// `limit`: each is at least one subformula occurrence, however much of
-/// the arena a formula of the sequent shares with the others.
-fn count_within(count: usize, limit: Option<u64>) -> Result<(), Error> {
-    match limit {
-        Some(limit) if count as u64 > limit => Err(Error::Refused(Refusal::Occurrences {
-            occurrences: limit.saturating_add(1),
-            limit,
-        })),
-        _ => Ok(()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::limits::Refusal;
 
     /// Both spellings of every connective and prefix, the precedences and
     /// the associativities read as documented, what is written reads back

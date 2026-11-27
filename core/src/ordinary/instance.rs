@@ -70,7 +70,7 @@ impl Formulas {
     /// builds nothing, finds the instance a right inference's premise
     /// holds.
     pub(crate) fn instance(&self, body: NodeId, term: FoTermId) -> Option<NodeId> {
-        if body.index() >= self.nodes.len()
+        if body.index() >= self.len()
             || term.index() >= self.tables().terms.len()
             || !self.is_closed(term)
         {
@@ -129,7 +129,7 @@ impl Formulas {
             if !nodes_seen.insert(k) {
                 continue;
             }
-            match self.nodes[k.index()] {
+            match self.nodes()[k.index()] {
                 Node::Atom(a) => {
                     if let Some(&(_, args)) = tables.atoms.get(a as usize) {
                         terms.extend_from_slice(tables.list(args));
@@ -258,7 +258,7 @@ impl Formulas {
             if !nodes_seen.insert(k) {
                 continue;
             }
-            match self.nodes[k.index()] {
+            match self.nodes()[k.index()] {
                 Node::Atom(a) => {
                     if let Some(&(_, args)) = tables.atoms.get(a as usize) {
                         terms.extend_from_slice(tables.list(args));
@@ -323,7 +323,7 @@ impl Formulas {
             if a == b || !seen.insert((a, b)) {
                 continue;
             }
-            match (self.nodes[a.index()], self.nodes[b.index()]) {
+            match (self.node(a), self.node(b)) {
                 (Node::Atom(p), Node::Atom(q)) => {
                     let (&(f, s), &(g, t)) =
                         (tables.atoms.get(p as usize)?, tables.atoms.get(q as usize)?);
@@ -353,7 +353,7 @@ impl Formulas {
     /// index of each, after terms were changed in place.
     pub(crate) fn rekey_atoms(&mut self) {
         let tables = self.tables();
-        if tables.atoms.len() != self.atoms.len() {
+        if tables.atoms.len() != self.atom_names().len() {
             return;
         }
         let keys: Vec<String> = tables
@@ -361,12 +361,7 @@ impl Formulas {
             .iter()
             .map(|&(p, args)| tables.atom_key(p, args))
             .collect();
-        self.names.clear();
-        for (i, key) in keys.into_iter().enumerate() {
-            // As many atoms as a `u32` numbers.
-            self.names.insert(key.clone(), i as u32);
-            self.atoms[i] = key;
-        }
+        self.arena.rekey(keys);
     }
 
     /// Returns the numbers of the open witnesses that occur in one of the
@@ -386,7 +381,7 @@ impl Formulas {
             if !nodes_seen.insert(k) {
                 continue;
             }
-            match self.nodes[k.index()] {
+            match self.nodes()[k.index()] {
                 Node::Atom(a) => {
                     if let Some(&(_, args)) = tables.atoms.get(a as usize) {
                         terms.extend_from_slice(tables.list(args));
@@ -476,9 +471,9 @@ impl Maker for Build<'_> {
     }
 
     fn node(&mut self, node: Node, like: NodeId) -> Result<Option<NodeId>, Error> {
-        let len = self.0.nodes.len();
+        let len = self.0.len();
         let id = self.0.add(node)?;
-        if self.0.nodes.len() > len
+        if self.0.len() > len
             && matches!(node, Node::Forall(_) | Node::Exists(_))
             && let Some(name) = self.0.tables().binder_name(like)
         {
@@ -527,9 +522,9 @@ impl Maker for Find<'_> {
         let key = self.0.tables().atom_key(symbol, args);
         Ok(self
             .0
-            .names
-            .get(&key)
-            .and_then(|&index| self.0.find(Node::Atom(index))))
+            .arena
+            .keyed_index(&key)
+            .and_then(|index| self.0.find(Node::Atom(index))))
     }
 }
 

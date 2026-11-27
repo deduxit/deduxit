@@ -66,7 +66,12 @@ re-exports `Error`, `ErrorKind`, `Described`, `Owner`, `ParseError`,
   (which draw an ordinary derivation as they draw a linear one), the
   wire forms (whose level counts the ordinary forms too), the Kripke
   model (`kripke`, data only: each suite checks it by its own rules, the
-  modal suite with its frame conditions) and the
+  modal suite with its frame conditions), the arena of formulas
+  (`arena`, crate-private: `Arena<N>` over a node's `Shape`, the nodes
+  topological and hash-consed, the atoms by name, the foreign-id and
+  `u32` refusals and the occurrence bound, which `ordinary::Formulas`
+  and `modal::Formulas` each hold, with behind `parse` the parsers'
+  shared text reader `arena::parse`) and the
   crate's serde and hash tables. What `ordinary` and `lambda` use of the
   calculus itself (`Mode`, `Proof`, the search they decide through, the
   occurrences a lambda-term reads) is the linear suite's, and they name

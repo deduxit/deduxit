@@ -333,7 +333,7 @@ impl Certificate<'_> {
             ImpliesLeft | NotLeft => {
                 let h = self.of(p, Left);
                 let (consequent, shown) = if inference.rule == NotLeft {
-                    let falsity = f.ids.get(&super::Node::False).copied();
+                    let falsity = f.find(super::Node::False);
                     (falsity.expect("a checked ¬L has ⊥"), "False".to_owned())
                 } else {
                     (b, fb.clone())
@@ -371,9 +371,7 @@ impl Certificate<'_> {
 fn implications(formulas: &Formulas, a: NodeId, b: NodeId) -> (NodeId, NodeId) {
     let id = |node| {
         formulas
-            .ids
-            .get(&node)
-            .copied()
+            .find(node)
             .expect("a checked derivation holds the implications of its equivalences")
     };
     (

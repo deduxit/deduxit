@@ -83,7 +83,7 @@ pub(super) fn copy(
         || nodes
             .iter()
             .enumerate()
-            .any(|(n, &r)| r && matches!(source.nodes[n], Node::Forall(_) | Node::Exists(_)));
+            .any(|(n, &r)| r && matches!(source.nodes()[n], Node::Forall(_) | Node::Exists(_)));
     if first_order {
         target.enter_first_order()?;
     }
@@ -156,7 +156,7 @@ pub(super) fn copy(
         };
         copied.terms[t] = Some(made);
     }
-    for (n, &node) in source.nodes.iter().enumerate() {
+    for (n, &node) in source.nodes().iter().enumerate() {
         if !nodes[n] {
             continue;
         }
@@ -300,7 +300,7 @@ fn reached(source: &Formulas, roots: Option<&[NodeId]>) -> (Vec<bool>, Vec<bool>
         if std::mem::replace(&mut nodes[k.index()], true) {
             continue;
         }
-        match source.nodes[k.index()] {
+        match source.nodes()[k.index()] {
             Node::Atom(a) => {
                 if let Some(&(_, args)) = tables.atoms.get(a as usize) {
                     term_stack.extend_from_slice(tables.list(args));

@@ -66,10 +66,9 @@ pub use model::{CHECKED, Countermodel, Frame, Truth};
 pub use system::{Condition, System};
 
 use crate::Error;
-use crate::hash::HashMap;
-use crate::limits::{Refusal, Space};
+use crate::arena::Arena;
 use crate::linear::sequents::{Stop, Stops};
-use std::fmt::{Display, Formatter, Result as FmtResult, Write};
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult, Write};
 
 /// The index of a formula in a [`Formulas`] arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -140,21 +139,49 @@ impl Node {
 /// The formulas of modal sequents, as an arena in which every subformula
 /// precedes the formulas built from it and equal formulas are one node,
 /// so that two formulas are equal exactly when their ids are.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Formulas {
-    /// The nodes, each after its subformulas.
-    nodes: Vec<Node>,
-    /// The atom names, by the index `Node::Atom` holds.
-    atoms: Vec<String>,
-    /// The index of every atom name.
-    names: HashMap<String, u32>,
-    /// The id of every node, for sharing.
-    ids: HashMap<Node, NodeId>,
+    /// The nodes and the atom names.
+    arena: Arena<Node>,
+}
+
+impl Debug for Formulas {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let mut out = f.debug_struct("Formulas");
+        self.arena.fields(&mut out);
+        out.finish()
+    }
+}
+
+impl crate::arena::Id for NodeId {
+    fn at(index: u32) -> Self {
+        Self(index)
+    }
+
+    fn place(self) -> usize {
+        self.index()
+    }
+}
+
+impl crate::arena::Shape for Node {
+    type Id = NodeId;
+
+    fn operands(self) -> (Option<NodeId>, Option<NodeId>) {
+        Self::operands(self)
+    }
+
+    fn atom(self) -> Option<u32> {
+        if let Self::Atom(atom) = self {
+            Some(atom)
+        } else {
+            None
+        }
+    }
 }
 
 impl Formulas {
     /// The most nodes an arena holds: the ids are `u32`.
-    pub const MOST: usize = u32::MAX as usize;
+    pub const MOST: usize = Arena::<Node>::MOST;
 
     /// Returns the node with the id given, which must belong to this arena.
     ///
@@ -163,33 +190,33 @@ impl Formulas {
     /// If the id is past the arena's end, as an id of another arena may
     /// be.
     pub fn node(&self, id: NodeId) -> Node {
-        self.nodes[id.index()]
+        self.arena.node(id)
     }
 
     /// Returns the nodes, each after its subformulas.
     #[cfg(feature = "serialize")]
     pub(crate) fn nodes(&self) -> &[Node] {
-        &self.nodes
+        self.arena.nodes()
     }
 
     /// Returns the number of nodes.
     pub fn len(&self) -> usize {
-        self.nodes.len()
+        self.arena.len()
     }
 
     /// Returns whether the arena has no node.
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.arena.len() == 0
     }
 
     /// Returns the name of the atom with the index given.
     pub fn atom_name(&self, atom: u32) -> &str {
-        &self.atoms[atom as usize]
+        self.arena.atom_name(atom)
     }
 
     /// Returns the atom names, in the order of their indices.
     pub fn atom_names(&self) -> &[String] {
-        &self.atoms
+        self.arena.atom_names()
     }
 
     /// Returns the id of `node`, adding it unless the arena has it.
@@ -199,54 +226,10 @@ impl Formulas {
     /// [`Error::IndexOutOfBounds`] for a subformula that is no node of
     /// this arena (an id of another one) or an atom that is not one of its
     /// names, and [`Refusal::Index`] when the arena is full.
-    #[cfg_attr(
-        target_pointer_width = "32",
-        expect(
-            clippy::absurd_extreme_comparisons,
-            reason = "`MOST` is `usize::MAX` on 32 bits, where the test still holds"
-        )
-    )]
+    ///
+    /// [`Refusal::Index`]: crate::Refusal::Index
     pub fn add(&mut self, node: Node) -> Result<NodeId, Error> {
-        if let Some(&id) = self.ids.get(&node) {
-            return Ok(id);
-        }
-        let (a, b) = node.operands();
-        for id in [a, b].into_iter().flatten() {
-            self.holds(id)?;
-        }
-        if let Node::Atom(atom) = node
-            && atom as usize >= self.atoms.len()
-        {
-            return Err(Error::IndexOutOfBounds {
-                space: Space::Atom,
-                index: atom as usize,
-                len: self.atoms.len(),
-            });
-        }
-        if self.nodes.len() >= Self::MOST {
-            return Err(Error::Refused(Refusal::Index {
-                what: Space::Formula,
-                count: Self::MOST as u64 + 1,
-                most: Self::MOST as u64,
-            }));
-        }
-        let id = NodeId(self.nodes.len() as u32);
-        self.nodes.push(node);
-        self.ids.insert(node, id);
-        Ok(id)
-    }
-
-    /// Fails unless `id` is a node of this arena.
-    fn holds(&self, id: NodeId) -> Result<(), Error> {
-        if id.index() < self.nodes.len() {
-            Ok(())
-        } else {
-            Err(Error::IndexOutOfBounds {
-                space: Space::Formula,
-                index: id.index(),
-                len: self.nodes.len(),
-            })
-        }
+        self.arena.add(node)
     }
 
     /// Returns the atom named `name`, adding it unless the arena has it.
@@ -261,18 +244,10 @@ impl Formulas {
     /// (`true`, `false`, and the linear syntax's `par`, `top` and `bot`)
     /// or a word reserved for a later version of the syntax (`forall`,
     /// `exists`), and [`Refusal::Index`] when the arena is full.
+    ///
+    /// [`Refusal::Index`]: crate::Refusal::Index
     pub fn atom(&mut self, name: &str) -> Result<NodeId, Error> {
-        let name = &*crate::name::normalized(name);
-        let index = match self.names.get(name) {
-            Some(&index) => index,
-            None => {
-                crate::name::check_ordinary(name)?;
-                let index = self.atoms.len() as u32;
-                self.atoms.push(name.to_owned());
-                self.names.insert(name.to_owned(), index);
-                index
-            }
-        };
+        let index = self.arena.atom(name, |_| Ok(()))?;
         self.add(Node::Atom(index))
     }
 
@@ -404,7 +379,7 @@ impl Sequent {
     /// node of `formulas`.
     pub fn new(formulas: Formulas, left: Vec<NodeId>, right: Vec<NodeId>) -> Result<Self, Error> {
         for &id in left.iter().chain(&right) {
-            formulas.holds(id)?;
+            formulas.arena.holds(id)?;
         }
         Ok(Self {
             formulas,
@@ -450,20 +425,6 @@ impl Display for Sequent {
     }
 }
 
-/// Returns the number of subformula occurrences the formulas unfold to,
-/// saturating.
-#[cfg(any(feature = "parse", feature = "serialize"))]
-fn occurrences<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> u64 {
-    // Every subformula precedes the formulas built from it.
-    let mut size: Vec<u64> = Vec::with_capacity(formulas.len());
-    for node in &formulas.nodes {
-        let (a, b) = node.operands();
-        let of = |k: Option<NodeId>| k.map_or(0, |k| size[k.index()]);
-        size.push(1u64.saturating_add(of(a)).saturating_add(of(b)));
-    }
-    roots.fold(0, |sum, id| sum.saturating_add(size[id.index()]))
-}
-
 /// Checks that a sequent over the formulas unfolds to at most
 /// `limits.occurrences` subformula occurrences.
 #[cfg(any(feature = "parse", feature = "serialize"))]
@@ -473,18 +434,13 @@ pub(crate) fn bound(
     right: &[NodeId],
     limits: &crate::Limits,
 ) -> Result<(), Error> {
-    let occurrences = occurrences(formulas, left.iter().chain(right));
-    match limits.occurrences {
-        Some(limit) if occurrences > limit => {
-            Err(Error::Refused(Refusal::Occurrences { occurrences, limit }))
-        }
-        _ => Ok(()),
-    }
+    formulas.arena.bound(left, right, limits)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::limits::Space;
 
     /// An arena shares equal formulas, refuses a subformula of another
     /// arena and an atom outside its names, and a sequent refuses an id

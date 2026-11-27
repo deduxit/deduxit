@@ -12,7 +12,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
 - **Layout.** `mod.rs`: `Logic`, `Translation` (`Affine`, `CallByName`,
   `CallByValue`, `ZeroOne`; short names `affine`, `cbn`, `cbv`, `01`),
   `Options`, the hash-consed arena `Formulas` (`Node`, `NodeId`; equal
-  formulas are one id, which the checker's multiset comparisons rely on),
+  formulas are one id, which the checker's multiset comparisons rely on;
+  the nodes and names are the shared `crate::arena::Arena`, core.md,
+  beside the first-order tables `fo` that only this suite has, and `add`
+  is the arena's `find`, `admit`, `push` with the binder's entries
+  between),
   `Sequent` (two-sided, its syntax documented on it) and the printers;
   `parse.rs` (behind `parse`): the precedence parser in two dialects,
   this crate's (`->`, `/\`, `\/`, `~`, `<->`, `true`, `false` and their
@@ -392,13 +396,16 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   - **The parser** (`parse.rs`): `starts_binder` is one byte compare on
     the operand path (white space is skipped by then), `binder`,
     `predicate` and `close_binder` are cold, and the cold paths read names
-    with `word`, a copy of `identifier`, and add atoms by `entry`, never
+    with `word`, an out-of-line call of `arena::parse::Text::identifier`,
+    and add atoms by `entry` (`Arena::keyed`), never
     `Formulas::atom`'s `get` and `insert`: a function the operand loop
     is the one caller of inlines there, and each second caller cost the
     `read-tptp` journey hundreds of thousands of instructions (with them,
     1.5 M more; now 0.5 % over the parser before, the clause splitter's
-    bracket arm a third of it). `rest` stays out of line: inlined, the
-    operator tokens' comparisons became `memcmp` calls. Natively a
+    bracket arm a third of it). `Text::identifier` is `#[inline(always)]`
+    for that reason, since the modal parser calls it too. `Text::rest`
+    stays out of line: inlined, the operator tokens' comparisons became
+    `memcmp` calls. Natively a
     binder (`forall x y.`, `∀x.`) is a `Pending::Binder` that `reduce`
     does not take while a connective follows, so it reaches right; in
     TPTP (`! [X] :`) it takes its unit at once. **TPTP names are renamed

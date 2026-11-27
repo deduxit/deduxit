@@ -9,9 +9,10 @@
 
 use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
+use crate::arena::parse::{AFTER_FORMULA, End, IN_BRACKETS, Reads, Text, count_within, sides};
 use crate::errors::ParseError;
 use crate::first_order::FoTermId;
-use crate::limits::{Limits, Refusal};
+use crate::limits::Limits;
 use crate::linear::lltp::{Clauses, Status, clauses};
 
 /// A binary connective as it is written.
@@ -80,10 +81,8 @@ enum Dialect {
 
 /// A text in the reading.
 struct Parser<'a> {
-    /// The text.
-    input: &'a str,
-    /// The byte offset of the next character.
-    at: usize,
+    /// The text and the place in it.
+    text: Text<'a>,
     /// The dialect.
     dialect: Dialect,
     /// The formulas read so far.
@@ -181,83 +180,18 @@ fn words(code: &str) -> impl Iterator<Item = std::borrow::Cow<'_, str>> {
         .map(crate::name::normalized)
 }
 
-/// What a formula's list ended with.
-enum End {
-    /// A comma: another formula of the same side follows.
-    Comma,
-    /// The turnstile.
-    Turnstile,
-    /// The end of the text.
-    Stop,
-}
+impl<'a> Reads<'a> for Parser<'a> {
+    type Id = NodeId;
 
-impl<'a> Parser<'a> {
-    /// Returns the error for the character at byte `at`, where `expected`
-    /// could have stood.
-    fn unexpected(&self, at: usize, expected: &'static [&'static str]) -> Error {
-        Error::from(ParseError::new(self.input, at, expected))
+    fn text(&mut self) -> &mut Text<'a> {
+        &mut self.text
     }
 
-    /// Skips white space and returns where the next character stands.
-    fn next_at(&mut self) -> usize {
-        self.rest();
-        self.at
-    }
-
-    /// Skips white space and returns the rest of the text. Out of line:
-    /// inlined, the operator tokens' comparisons became calls of `memcmp`
-    /// (the `read-tptp` journey counted 2 % more).
-    #[inline(never)]
-    fn rest(&mut self) -> &'a str {
-        let rest = &self.input[self.at..];
-        self.at += rest.len() - rest.trim_start().len();
-        &self.input[self.at..]
-    }
-
-    /// Consumes `token` if the text goes on with it.
-    fn eat(&mut self, token: &str) -> bool {
-        let found = self.rest().starts_with(token);
-        if found {
-            self.at += token.len();
-        }
-        found
-    }
-
-    /// Consumes a negation if one starts here: `~` or `¬`, and in TPTP a
-    /// `~` that does not start `~|` or `~&`.
-    fn negation(&mut self) -> bool {
-        match self.dialect {
-            Dialect::Native => self.eat("~") || self.eat("¬"),
-            Dialect::Tptp => {
-                let rest = self.rest();
-                !rest.starts_with("~|") && !rest.starts_with("~&") && self.eat("~")
-            }
-        }
-    }
-
-    /// Reads an identifier if one starts here. The operand loop is its one
-    /// caller, so that it inlines there; the first-order paths read their
-    /// names with [`word`](Self::word).
-    fn identifier(&mut self) -> Option<&'a str> {
-        let rest = self.rest();
-        let first = rest.chars().next()?;
-        if !crate::name::starts_identifier(first) {
-            return None;
-        }
-        let end = rest
-            .find(|c| !unicode_ident::is_xid_continue(c))
-            .unwrap_or(rest.len());
-        self.at += end;
-        Some(&rest[..end])
-    }
-
-    /// Reads one formula up to a comma, the turnstile or the end of the
-    /// text outside every parenthesis, which it says.
     fn formula(&mut self) -> Result<(NodeId, End), Error> {
         loop {
             // An operand, after any prefix operators and parentheses.
             let mut operand = loop {
-                if self.eat("(") {
+                if self.text.eat("(") {
                     self.open += 1;
                     self.pending.push(Pending::Open);
                     // A parenthesis makes no formula, but no more than the
@@ -273,7 +207,7 @@ impl<'a> Parser<'a> {
             };
             // The operators after it.
             loop {
-                let at = self.at;
+                let at = self.text.at;
                 let binary = match self.dialect {
                     Dialect::Native => [
                         ("<->", Binary::Iff),
@@ -286,7 +220,7 @@ impl<'a> Parser<'a> {
                         ("∧", Binary::And),
                     ]
                     .into_iter()
-                    .find(|(token, _)| self.eat(token)),
+                    .find(|(token, _)| self.text.eat(token)),
                     Dialect::Tptp => [
                         ("<=>", Binary::Iff),
                         ("<~>", Binary::Xor),
@@ -298,14 +232,14 @@ impl<'a> Parser<'a> {
                         ("&", Binary::And),
                     ]
                     .into_iter()
-                    .find(|(token, _)| self.eat(token)),
+                    .find(|(token, _)| self.text.eat(token)),
                 };
                 if let Some((_, binary)) = binary {
                     let left = self.reduce(operand, Some(binary))?;
                     self.wait(Pending::Binary(binary, left))?;
                     break;
                 }
-                if self.open > 0 && self.eat(")") {
+                if self.open > 0 && self.text.eat(")") {
                     operand = self.reduce(operand, None)?;
                     self.pending.pop();
                     self.open -= 1;
@@ -314,28 +248,36 @@ impl<'a> Parser<'a> {
                 let end = if self.open > 0 {
                     None
                 } else if self.dialect == Dialect::Tptp {
-                    self.rest().is_empty().then_some(End::Stop)
-                } else if self.eat(",") {
-                    Some(End::Comma)
-                } else if self.eat("|-") || self.eat("⊢") {
-                    Some(End::Turnstile)
-                } else if self.rest().is_empty() {
-                    Some(End::Stop)
+                    self.text.rest().is_empty().then_some(End::Stop)
                 } else {
-                    None
+                    self.text.end()
                 };
                 let Some(end) = end else {
                     let expected: &[&str] = if self.open > 0 {
-                        &["a connective", "`)`"]
+                        IN_BRACKETS
                     } else if self.dialect == Dialect::Tptp {
                         &["a connective", "the end"]
                     } else {
-                        &["a connective", "`,`", "`|-`", "the end"]
+                        AFTER_FORMULA
                     };
-                    let at = self.at.max(at);
-                    return Err(ParseError::new(self.input, at, expected).into());
+                    let at = self.text.at.max(at);
+                    return Err(ParseError::new(self.text.input, at, expected).into());
                 };
                 return Ok((self.reduce(operand, None)?, end));
+            }
+        }
+    }
+}
+
+impl<'a> Parser<'a> {
+    /// Consumes a negation if one starts here: `~` or `¬`, and in TPTP a
+    /// `~` that does not start `~|` or `~&`.
+    fn negation(&mut self) -> bool {
+        match self.dialect {
+            Dialect::Native => self.text.eat("~") || self.text.eat("¬"),
+            Dialect::Tptp => {
+                let rest = self.text.rest();
+                !rest.starts_with("~|") && !rest.starts_with("~&") && self.text.eat("~")
             }
         }
     }
@@ -362,24 +304,26 @@ impl<'a> Parser<'a> {
 
     /// Reads a constant or an atom.
     fn constant_or_atom(&mut self) -> Result<NodeId, Error> {
-        let at = self.at;
+        let at = self.text.at;
         let native = self.dialect == Dialect::Native;
-        if native && self.eat("⊤") {
+        if native && self.text.eat("⊤") {
             return self.add(Node::True);
         }
-        if native && self.eat("⊥") {
+        if native && self.text.eat("⊥") {
             return self.add(Node::False);
         }
-        if !native && self.eat("$true") {
+        if !native && self.text.eat("$true") {
             return self.add(Node::True);
         }
-        if !native && self.eat("$false") {
+        if !native && self.text.eat("$false") {
             return self.add(Node::False);
         }
-        match self.identifier() {
+        match self.text.identifier() {
             Some("true") if native => self.add(Node::True),
             Some("false") if native => self.add(Node::False),
-            Some(name) if self.input.as_bytes().get(self.at) == Some(&b'(') => self.predicate(name),
+            Some(name) if self.text.input.as_bytes().get(self.text.at) == Some(&b'(') => {
+                self.predicate(name)
+            }
             Some(name) if self.equality_follows() => self.equality_after(name, at),
             Some(name) => {
                 let id = match self.formulas.atom(name) {
@@ -388,25 +332,17 @@ impl<'a> Parser<'a> {
                 };
                 self.within(id)
             }
-            None => Err(self.unexpected(at, &["a formula"])),
+            None => Err(self.text.unexpected(at, &["a formula"])),
         }
     }
 
-    /// Reads an identifier if one starts here, as
-    /// [`identifier`](Self::identifier) does, for the first-order paths.
+    /// Reads an identifier if one starts here, out of line, for the
+    /// first-order paths, so that the operand loop's copy is the only one
+    /// inlined there.
     #[cold]
     #[inline(never)]
     fn word(&mut self) -> Option<&'a str> {
-        let rest = self.rest();
-        let first = rest.chars().next()?;
-        if !crate::name::starts_identifier(first) {
-            return None;
-        }
-        let end = rest
-            .find(|c| !unicode_ident::is_xid_continue(c))
-            .unwrap_or(rest.len());
-        self.at += end;
-        Some(&rest[..end])
+        self.text.identifier()
     }
 
     /// Returns whether a binder may start here: the first character is
@@ -414,7 +350,7 @@ impl<'a> Parser<'a> {
     /// reads nothing, so a propositional text pays one comparison; the
     /// white space before it is skipped already.
     fn starts_binder(&self) -> bool {
-        let first = self.input.as_bytes().get(self.at).copied();
+        let first = self.text.input.as_bytes().get(self.text.at).copied();
         match self.dialect {
             Dialect::Native => matches!(first, Some(b'f' | b'e' | 0xE2)),
             Dialect::Tptp => matches!(first, Some(b'!' | b'?')),
@@ -428,67 +364,67 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn binder(&mut self) -> Result<bool, Error> {
-        let start = self.at;
+        let start = self.text.at;
         let forall = match self.dialect {
             Dialect::Native => {
-                if self.eat("∀") {
+                if self.text.eat("∀") {
                     true
-                } else if self.eat("∃") {
+                } else if self.text.eat("∃") {
                     false
                 } else {
                     match self.word() {
                         Some("forall") => true,
                         Some("exists") => false,
                         _ => {
-                            self.at = start;
+                            self.text.at = start;
                             return Ok(false);
                         }
                     }
                 }
             }
             Dialect::Tptp => {
-                let forall = self.eat("!");
-                if !forall && !self.eat("?") {
+                let forall = self.text.eat("!");
+                if !forall && !self.text.eat("?") {
                     return Ok(false);
                 }
-                if !self.eat("[") {
-                    let at = self.next_at();
-                    return Err(self.unexpected(at, &["`[`"]));
+                if !self.text.eat("[") {
+                    let at = self.text.next_at();
+                    return Err(self.text.unexpected(at, &["`[`"]));
                 }
                 forall
             }
         };
         let mut count = 0;
         loop {
-            let at = self.next_at();
+            let at = self.text.next_at();
             let done = match self.dialect {
-                Dialect::Native => self.eat("."),
-                Dialect::Tptp => self.eat("]"),
+                Dialect::Native => self.text.eat("."),
+                Dialect::Tptp => self.text.eat("]"),
             };
             if done {
                 if count == 0 {
-                    return Err(self.unexpected(at, &["a variable"]));
+                    return Err(self.text.unexpected(at, &["a variable"]));
                 }
-                if self.dialect == Dialect::Tptp && !self.eat(":") {
-                    let at = self.next_at();
-                    return Err(self.unexpected(at, &["`:`"]));
+                if self.dialect == Dialect::Tptp && !self.text.eat(":") {
+                    let at = self.text.next_at();
+                    return Err(self.text.unexpected(at, &["`:`"]));
                 }
                 return Ok(true);
             }
-            if count > 0 && self.dialect == Dialect::Tptp && !self.eat(",") {
-                return Err(self.unexpected(at, &["`,`", "`]`"]));
+            if count > 0 && self.dialect == Dialect::Tptp && !self.text.eat(",") {
+                return Err(self.text.unexpected(at, &["`,`", "`]`"]));
             }
-            let at = self.next_at();
+            let at = self.text.next_at();
             let Some(name) = self.word() else {
                 let expected: &[&str] = match self.dialect {
                     Dialect::Native if count > 0 => &["a variable", "`.`"],
                     Dialect::Native | Dialect::Tptp => &["a variable"],
                 };
-                return Err(self.unexpected(at, expected));
+                return Err(self.text.unexpected(at, expected));
             };
             let name = crate::name::normalized(name).into_owned();
             if crate::name::check_ordinary(&name).is_err() {
-                return Err(self.unexpected(at, &["a variable"]));
+                return Err(self.text.unexpected(at, &["a variable"]));
             }
             self.scope.push(name);
             self.wait(Pending::Binder(forall))?;
@@ -558,14 +494,14 @@ impl<'a> Parser<'a> {
         let mut name = name;
         loop {
             // A `(` follows `name`: its arguments start.
-            self.at += 1;
+            self.text.at += 1;
             open.push((name, Vec::new()));
             loop {
-                let here = self.next_at();
+                let here = self.text.next_at();
                 let Some(word) = self.word() else {
-                    return Err(self.unexpected(here, &["a term"]));
+                    return Err(self.text.unexpected(here, &["a term"]));
                 };
-                if self.input[self.at..].starts_with('(') {
+                if self.text.input[self.text.at..].starts_with('(') {
                     name = word;
                     break;
                 }
@@ -579,12 +515,12 @@ impl<'a> Parser<'a> {
                             .1
                             .push(term);
                     }
-                    if self.eat(",") {
+                    if self.text.eat(",") {
                         break;
                     }
-                    let close = self.next_at();
-                    if !self.eat(")") {
-                        return Err(self.unexpected(close, &["`,`", "`)`"]));
+                    let close = self.text.next_at();
+                    if !self.text.eat(")") {
+                        return Err(self.text.unexpected(close, &["`,`", "`)`"]));
                     }
                     let (symbol, args) = open.pop().expect("an application is open");
                     if open.is_empty() {
@@ -617,7 +553,9 @@ impl<'a> Parser<'a> {
         match self.scope.find(&word) {
             Some(index) => Ok(self.formulas.variable(index)),
             None if self.dialect == Dialect::Tptp && word.starts_with(char::is_uppercase) => {
-                Err(self.unexpected(here, &["a bound variable", "a constant"]))
+                Err(self
+                    .text
+                    .unexpected(here, &["a bound variable", "a constant"]))
             }
             None => {
                 let word = self.symbol_name(&word, true);
@@ -632,8 +570,8 @@ impl<'a> Parser<'a> {
     fn equality_follows(&self) -> bool {
         // An inline scan, not `rest`: a call per atom cost the `read-tptp`
         // journey 2 %.
-        let bytes = self.input.as_bytes();
-        let mut at = self.at;
+        let bytes = self.text.input.as_bytes();
+        let mut at = self.text.at;
         while bytes.get(at).is_some_and(u8::is_ascii_whitespace) {
             at += 1;
         }
@@ -644,7 +582,7 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn equality_sign(&self, at: usize) -> bool {
-        let rest = &self.input[at..];
+        let rest = &self.text.input[at..];
         (rest.starts_with('=') && !(self.dialect == Dialect::Tptp && rest.starts_with("=>")))
             || rest.starts_with("!=")
             || (self.dialect == Dialect::Native && rest.starts_with('≠'))
@@ -656,15 +594,15 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn equality(&mut self, left: FoTermId) -> Result<NodeId, Error> {
-        let negated = self.eat("!=") || self.eat("≠");
+        let negated = self.text.eat("!=") || self.text.eat("≠");
         if !negated {
-            self.eat("=");
+            self.text.eat("=");
         }
-        let here = self.next_at();
+        let here = self.text.next_at();
         let Some(word) = self.word() else {
-            return Err(self.unexpected(here, &["a term"]));
+            return Err(self.text.unexpected(here, &["a term"]));
         };
-        let right = if self.input[self.at..].starts_with('(') {
+        let right = if self.text.input[self.text.at..].starts_with('(') {
             let (symbol, args) = self.application(word)?;
             let symbol = self.symbol_name(symbol, true);
             self.formulas.function(&symbol, &args)?
@@ -755,13 +693,12 @@ impl Sequent {
     /// # Errors
     ///
     /// [`Error::Parse`] for text that is no sequent, [`Error::AtomName`]
-    /// for an atom named by a keyword, and [`Refusal::Occurrences`] past
+    /// for an atom named by a keyword, and [`Refusal::Occurrences`](crate::Refusal::Occurrences) past
     /// the bound.
     pub fn parse_within(s: &str, limits: &Limits) -> Result<Self, Error> {
         let mut formulas = Formulas::default();
         let mut parser = Parser {
-            input: s,
-            at: 0,
+            text: Text { input: s, at: 0 },
             dialect: Dialect::Native,
             formulas: &mut formulas,
             pending: Vec::new(),
@@ -770,41 +707,7 @@ impl Sequent {
             scope: Scope::default(),
             renames: None,
         };
-        let (mut left, mut right) = (Vec::new(), Vec::new());
-        let mut turnstile = false;
-        // An empty side: the turnstile first, or nothing after it.
-        if parser.eat("|-") || parser.eat("⊢") {
-            turnstile = true;
-        }
-        if !(turnstile && parser.rest().is_empty()) {
-            loop {
-                let (formula, end) = parser.formula()?;
-                if turnstile { &mut right } else { &mut left }.push(formula);
-                count_within(left.len() + right.len(), limits.occurrences)?;
-                match end {
-                    End::Comma => {}
-                    End::Turnstile if !turnstile => {
-                        turnstile = true;
-                        if parser.rest().is_empty() {
-                            break;
-                        }
-                    }
-                    End::Turnstile => {
-                        // The second turnstile, `|-` or `⊢`, as one token.
-                        let read = &parser.input[..parser.at];
-                        let start = read.len() - if read.ends_with("|-") { 2 } else { "⊢".len() };
-                        let span = start..parser.at;
-                        let expected = &["a connective", "`,`", "the end"];
-                        return Err(ParseError::spanning(parser.input, span, expected).into());
-                    }
-                    End::Stop => break,
-                }
-            }
-        }
-        if !turnstile {
-            // One formula, or a list, to prove.
-            std::mem::swap(&mut left, &mut right);
-        }
+        let (left, right) = sides(&mut parser, limits.occurrences)?;
         Sequent::new(formulas, left, right)
     }
 }
@@ -817,7 +720,7 @@ impl Sequent {
 ///
 /// [`Error::Parse`] where the span holds no formula or more than one,
 /// [`Error::AtomName`] for an atom named by a keyword, and
-/// [`Refusal::Occurrences`] past the bound.
+/// [`Refusal::Occurrences`](crate::Refusal::Occurrences) past the bound.
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(super) fn formula_in(
     text: &str,
@@ -827,8 +730,10 @@ pub(super) fn formula_in(
 ) -> Result<NodeId, Error> {
     let input = &text[..span.end];
     let mut parser = Parser {
-        input,
-        at: span.start,
+        text: Text {
+            input,
+            at: span.start,
+        },
         dialect: Dialect::Native,
         formulas,
         pending: Vec::new(),
@@ -837,7 +742,7 @@ pub(super) fn formula_in(
         scope: Scope::default(),
         renames: None,
     };
-    let at = parser.at;
+    let at = parser.text.at;
     let (formula, end) = match parser.formula() {
         Ok(read) => read,
         // The parser read the text up to the formula's end, so an error
@@ -856,7 +761,7 @@ pub(super) fn formula_in(
     match end {
         End::Stop => Ok(formula),
         End::Comma | End::Turnstile => {
-            let read = &input[at..parser.at];
+            let read = &input[at..parser.text.at];
             let token = if read.ends_with("|-") {
                 2
             } else if read.ends_with('⊢') {
@@ -864,25 +769,12 @@ pub(super) fn formula_in(
             } else {
                 1
             };
-            let span = parser.at - token..parser.at;
+            let span = parser.text.at - token..parser.text.at;
             Err(
                 ParseError::spanning(input, span, &["a connective", "the end of the formula"])
                     .into(),
             )
         }
-    }
-}
-
-/// Fails once `count` formulas, of the arena or of a sequent, pass
-/// `limit`: each is at least one occurrence of the image, however much of
-/// the arena a formula of the sequent shares with the others.
-fn count_within(count: usize, limit: Option<u64>) -> Result<(), Error> {
-    match limit {
-        Some(limit) if count as u64 > limit => Err(Error::Refused(Refusal::Occurrences {
-            occurrences: limit.saturating_add(1),
-            limit,
-        })),
-        _ => Ok(()),
     }
 }
 
@@ -937,7 +829,7 @@ pub struct Problem {
 /// [`Error::AtomName`] for an atom named by a keyword of the ordinary
 /// syntax, such as `true`, [`Error::Symbol`] for a name used with two
 /// arities or as a predicate and a function symbol, and
-/// [`Refusal::Occurrences`] past the bound.
+/// [`Refusal::Occurrences`](crate::Refusal::Occurrences) past the bound.
 pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Tptp { message }, true)?;
     // A name TPTP allows and this syntax refuses is renamed, and the file
@@ -1081,8 +973,7 @@ fn read_clauses(
             None => (formula, 0),
         };
         let mut parser = Parser {
-            input,
-            at: 0,
+            text: Text { input, at: 0 },
             dialect: Dialect::Tptp,
             formulas: &mut formulas,
             pending: Vec::new(),

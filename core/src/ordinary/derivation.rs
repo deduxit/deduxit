@@ -1028,7 +1028,7 @@ pub(super) fn check_inference(
             Err("LK's ¬L has one premise".to_owned())
         }
         (NotRight, Right, Node::Not(a)) => unary(&[(Left, a)]).or_else(|_| {
-            let falsity = formulas.ids.get(&Node::False).copied();
+            let falsity = formulas.find(Node::False);
             unary(&[
                 (Left, a),
                 (Right, falsity.ok_or("no ⊥ for the form of →R")?),
@@ -1036,13 +1036,13 @@ pub(super) fn check_inference(
         }),
         (NotLeft, Left, Node::Not(a)) if premises.len() == 1 => unary(&[(Right, a)]),
         (NotLeft, Left, Node::Not(a)) => {
-            let falsity = formulas.ids.get(&Node::False).copied();
+            let falsity = formulas.find(Node::False);
             let falsity = falsity.ok_or("no ⊥ for the form of →L")?;
             binary(&[(Right, a)], &[(Left, falsity)])
         }
         (IffLeft | IffLeft1 | IffLeft2 | IffRight, _, Node::Iff(a, b)) => {
-            let forward = formulas.ids.get(&Node::Implies(a, b)).copied();
-            let backward = formulas.ids.get(&Node::Implies(b, a)).copied();
+            let forward = formulas.find(Node::Implies(a, b));
+            let backward = formulas.find(Node::Implies(b, a));
             let (Some(forward), Some(backward)) = (forward, backward) else {
                 return Err("the implications of the equivalence are missing".to_owned());
             };
@@ -1274,7 +1274,7 @@ pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
 /// node of the arena: for a caller that adds nodes as it goes.
 pub(super) fn extend_widths(formulas: &Formulas, weight: &mut Vec<u64>) {
     // One pass: every subformula precedes the formulas built from it.
-    for node in &formulas.nodes[weight.len()..] {
+    for node in &formulas.nodes()[weight.len()..] {
         let of = |k: NodeId| weight[k.index()];
         let w = match *node {
             Node::Atom(a) => formulas.atom_name(a).chars().count() as u64,
@@ -2601,7 +2601,7 @@ mod tests {
         // once (through a weakening), on either side: `a, b ⊢ a` and
         // `a ⊢ a, b` from `a ⊢ a`.
         let base = read("a -> b, a |- b", Logic::Classical, Translation::Affine);
-        let atom = |i| base.formulas.ids[&Node::Atom(i)];
+        let atom = |i| base.formulas.find(Node::Atom(i)).unwrap();
         let (a, b) = (atom(0), atom(1));
         let sides = [
             (Rule::ContractLeft, Rule::WeakenLeft, Side::Left),

@@ -114,7 +114,7 @@ impl Formulas {
             if !seen.insert((n, depth)) {
                 continue;
             }
-            match self.nodes[n.index()] {
+            match self.nodes()[n.index()] {
                 Node::Atom(a) => {
                     if let Some(&(_, args)) = tables.atoms.get(a as usize) {
                         terms.extend(tables.list(args).iter().map(|&t| (t, depth)));
@@ -163,9 +163,9 @@ impl Formulas {
     ///
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub(crate) fn add_named(&mut self, node: Node, name: Option<&str>) -> Result<NodeId, Error> {
-        let len = self.nodes.len();
+        let len = self.len();
         let id = self.add(node)?;
-        if self.nodes.len() > len
+        if self.len() > len
             && matches!(node, Node::Forall(_) | Node::Exists(_))
             && let Some(name) = name
             && let Some(entry) = self.interner().tables.binders.last_mut()
@@ -241,7 +241,7 @@ impl Formulas {
             if nodes.contains_key(&(n, depth)) {
                 continue;
             }
-            let node = self.nodes[n.index()];
+            let node = self.nodes()[n.index()];
             if !ready {
                 stack.push((n, depth, true));
                 let inner = match node {

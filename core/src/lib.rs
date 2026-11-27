@@ -326,6 +326,8 @@
 //! defaults' numbers and the engines' counters are not promised. The
 //! repository's changelog lists what each release changed.
 
+/// The hash-consed arena of formulas that ordinary and modal logic share.
+mod arena;
 /// The error types of this crate.
 mod errors;
 pub mod export;

@@ -1527,10 +1527,15 @@ impl Interactive {
                 logic: self.logic,
             });
         }
-        let ids = &self.formulas.ids;
+        let formulas = &self.formulas;
+        let id = |node| {
+            formulas
+                .find(node)
+                .expect("the state's arena holds its extra nodes")
+        };
         // Equivalences have their implications in the arena, which the
         // state added at its start.
-        let iff = |a, b| (ids[&Node::Implies(a, b)], ids[&Node::Implies(b, a)]);
+        let iff = |a, b| (id(Node::Implies(a, b)), id(Node::Implies(b, a)));
         let falsity = self.falsity;
         Ok(match (rule, node) {
             (ForallLeft | ForallRight | ExistsLeft | ExistsRight, _) => Shape::Instance,
@@ -2654,7 +2659,7 @@ impl Interactive {
     fn ids_of(formulas: &mut Formulas, other: &Formulas) -> Result<Vec<NodeId>, Error> {
         let mut ids: Vec<NodeId> = Vec::with_capacity(other.len());
         // Every subformula precedes the formulas built from it.
-        for &node in &other.nodes {
+        for &node in other.nodes() {
             let at = |k: NodeId| ids[k.index()];
             let id = match node {
                 Node::Atom(a) => formulas.atom(other.atom_name(a))?,

@@ -483,7 +483,7 @@ pub(crate) fn atoms_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<bool> {
         if !reached[k] {
             continue;
         }
-        let node = formulas.nodes[k];
+        let node = formulas.nodes()[k];
         if let Node::Atom(a) = node {
             atoms[a as usize] = true;
         }

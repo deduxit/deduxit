@@ -146,13 +146,13 @@ pub use translate::{FALSE, Image, translate};
 pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
+use crate::arena::Arena;
 use crate::first_order::{Args, FirstOrder, FoTerm, FoTermId, Interner};
 use crate::hash::HashMap;
-use crate::limits::{Refusal, Space};
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::sequents::notation::TEXT;
 use crate::linear::sequents::{Stop, Stops};
-use std::fmt::{Display, Formatter, Result as FmtResult, Write};
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult, Write};
 
 /// What an arm of a propositional method says of a binder: the method
 /// refused the first-order sequent at its door
@@ -768,17 +768,11 @@ impl Node {
 /// A bound variable is the de Bruijn index of its binder, so two formulas
 /// that differ only in the names of their bound variables are one node.
 /// A binder keeps the name it was first written with, for printing.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Formulas {
-    /// The nodes, each after its subformulas.
-    nodes: Vec<Node>,
-    /// The atom names, by the index `Node::Atom` holds. The name of an
-    /// atom with arguments is its canonical text, `p(f(a), #0)`.
-    atoms: Vec<String>,
-    /// The index of every atom name.
-    names: HashMap<String, u32>,
-    /// The id of every node, for sharing.
-    ids: HashMap<Node, NodeId>,
+    /// The nodes and the atom names. The name of an atom with arguments
+    /// is its canonical text, `p(f(a), #0)`.
+    arena: Arena<Node>,
     /// The first-order tables and their lookup maps: the symbols, the
     /// terms, each atom's predicate and arguments, and every binder's
     /// name. Made at the first binder, predicate with arguments or term;
@@ -796,14 +790,48 @@ pub(crate) type OfTables = (Formulas, Vec<u32>, Vec<FoTermId>);
 /// The tables of an arena that has none.
 static NO_TABLES: FirstOrder<NodeId> = FirstOrder::new();
 
+impl Debug for Formulas {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let mut out = f.debug_struct("Formulas");
+        self.arena.fields(&mut out);
+        out.field("fo", &self.fo).finish()
+    }
+}
+
+impl crate::arena::Id for NodeId {
+    fn at(index: u32) -> Self {
+        Self(index)
+    }
+
+    fn place(self) -> usize {
+        self.index()
+    }
+}
+
+impl crate::arena::Shape for Node {
+    type Id = NodeId;
+
+    fn operands(self) -> (Option<NodeId>, Option<NodeId>) {
+        Self::operands(self)
+    }
+
+    fn atom(self) -> Option<u32> {
+        if let Self::Atom(atom) = self {
+            Some(atom)
+        } else {
+            None
+        }
+    }
+}
+
 impl Formulas {
     /// Returns the id of a node the arena holds, if it holds it.
     pub(crate) fn find(&self, node: Node) -> Option<NodeId> {
-        self.ids.get(&node).copied()
+        self.arena.find(node)
     }
 
     /// The most nodes an arena holds: the ids are `u32`.
-    pub const MOST: usize = u32::MAX as usize;
+    pub const MOST: usize = Arena::<Node>::MOST;
 
     /// Returns the node with the id given, which must belong to this arena.
     ///
@@ -812,38 +840,32 @@ impl Formulas {
     /// If the id is past the arena's end, as an id of another arena may
     /// be.
     pub fn node(&self, id: NodeId) -> Node {
-        self.nodes[id.index()]
+        self.arena.node(id)
     }
 
     /// Returns the nodes, each after its subformulas.
-    #[cfg(any(
-        feature = "serialize",
-        feature = "svg",
-        feature = "latex",
-        feature = "typst"
-    ))]
     pub(crate) fn nodes(&self) -> &[Node] {
-        &self.nodes
+        self.arena.nodes()
     }
 
     /// Returns the number of nodes.
     pub fn len(&self) -> usize {
-        self.nodes.len()
+        self.arena.len()
     }
 
     /// Returns whether the arena has no node.
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.arena.len() == 0
     }
 
     /// Returns the name of the atom with the index given.
     pub fn atom_name(&self, atom: u32) -> &str {
-        &self.atoms[atom as usize]
+        self.arena.atom_name(atom)
     }
 
     /// Returns the atom names, in the order of their indices.
     pub fn atom_names(&self) -> &[String] {
-        &self.atoms
+        self.arena.atom_names()
     }
 
     /// Returns the id of `node`, adding it unless the arena has it.
@@ -852,45 +874,17 @@ impl Formulas {
     ///
     /// [`Error::IndexOutOfBounds`] for a subformula that is no node of
     /// this arena (an id of another one) or an atom that is not one of its
-    /// names, and [`Refusal::Index`] when the arena
+    /// names, and [`Refusal::Index`](crate::Refusal::Index) when the arena
     /// is full.
-    #[cfg_attr(
-        target_pointer_width = "32",
-        expect(
-            clippy::absurd_extreme_comparisons,
-            reason = "`MOST` is `usize::MAX` on 32 bits, where the test still holds"
-        )
-    )]
     pub fn add(&mut self, node: Node) -> Result<NodeId, Error> {
-        if let Some(&id) = self.ids.get(&node) {
+        if let Some(id) = self.arena.find(node) {
             return Ok(id);
         }
-        let (a, b) = node.operands();
-        for id in [a, b].into_iter().flatten() {
-            self.holds(id)?;
-        }
-        if let Node::Atom(atom) = node
-            && atom as usize >= self.atoms.len()
-        {
-            return Err(Error::IndexOutOfBounds {
-                space: Space::Atom,
-                index: atom as usize,
-                len: self.atoms.len(),
-            });
-        }
-        if self.nodes.len() >= Self::MOST {
-            return Err(Error::Refused(Refusal::Index {
-                what: Space::Formula,
-                count: Self::MOST as u64 + 1,
-                most: Self::MOST as u64,
-            }));
-        }
+        self.arena.admit(node)?;
         if matches!(node, Node::Forall(_) | Node::Exists(_)) {
             self.enter_first_order()?;
         }
-        let id = NodeId(self.nodes.len() as u32);
-        self.nodes.push(node);
-        self.ids.insert(node, id);
+        let id = self.arena.push(node);
         if matches!(node, Node::Forall(_) | Node::Exists(_)) {
             // A binder made without a name prints its variable as `x`.
             self.interner().tables.binders.push((id, "x".to_owned()));
@@ -900,15 +894,7 @@ impl Formulas {
 
     /// Fails unless `id` is a node of this arena.
     fn holds(&self, id: NodeId) -> Result<(), Error> {
-        if id.index() < self.nodes.len() {
-            Ok(())
-        } else {
-            Err(Error::IndexOutOfBounds {
-                space: Space::Formula,
-                index: id.index(),
-                len: self.nodes.len(),
-            })
-        }
+        self.arena.holds(id)
     }
 
     /// Returns the atom named `name`, adding it unless the arena has it.
@@ -922,22 +908,16 @@ impl Formulas {
     ///
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// the quantifiers' `forall` and `exists` among them, and
-    /// [`Refusal::Index`] when the arena is full.
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub fn atom(&mut self, name: &str) -> Result<NodeId, Error> {
-        let name = &*crate::name::normalized(name);
-        let index = match self.names.get(name) {
-            Some(&index) => index,
-            None => {
-                crate::name::check_ordinary(name)?;
-                if self.is_first_order() {
-                    self.nullary(name)?;
-                }
-                let index = self.atoms.len() as u32;
-                self.atoms.push(name.to_owned());
-                self.names.insert(name.to_owned(), index);
-                index
+        let Self { arena, fo } = self;
+        let index = arena.atom(name, |name| {
+            if fo.as_deref().is_some_and(|fo| !fo.tables.is_empty()) {
+                nullary(fo, name)
+            } else {
+                Ok(())
             }
-        };
+        })?;
         self.add(Node::Atom(index))
     }
 
@@ -1014,16 +994,10 @@ impl Formulas {
             let args = formulas.interner().list(&items);
             let symbol = symbols[p.index()];
             let key = formulas.tables().atom_key(symbol, args);
-            let len = formulas.atoms.len() as u32;
-            let index = match formulas.names.entry(key) {
-                std::collections::hash_map::Entry::Occupied(found) => *found.get(),
-                std::collections::hash_map::Entry::Vacant(vacant) => {
-                    formulas.atoms.push(vacant.key().clone());
-                    vacant.insert(len);
-                    formulas.interner().tables.atoms.push((symbol, args));
-                    len
-                }
-            };
+            let (index, new) = formulas.arena.keyed(key);
+            if new {
+                formulas.interner().tables.atoms.push((symbol, args));
+            }
             indices.push(index);
         }
         Ok(Some((formulas, indices, terms)))
@@ -1059,10 +1033,7 @@ impl Formulas {
     /// Returns the first-order tables and their maps, made empty where the
     /// arena has none yet.
     fn interner(&mut self) -> &mut Interner<NodeId> {
-        let fo = self.fo.get_or_insert_with(Box::default);
-        // The names printed follow the tables, which the caller may change.
-        fo.eigens.take();
-        fo
+        interner(&mut self.fo)
     }
 
     /// Returns whether a symbol of the arena is named `name`.
@@ -1082,33 +1053,15 @@ impl Formulas {
     #[inline(never)]
     fn enter_first_order(&mut self) -> Result<(), Error> {
         let had = self.tables().atoms.len();
-        for n in had..self.atoms.len() {
-            let name = std::mem::take(&mut self.atoms[n]);
-            let result = self.nullary(&name);
-            self.atoms[n] = name;
+        for n in had..self.arena.atom_names().len() {
+            let Self { arena, fo } = self;
+            let result = nullary(fo, &arena.atom_names()[n]);
             if let Err(error) = result {
                 // All or none, so that the entries stay parallel.
                 self.interner().tables.atoms.truncate(had);
                 return Err(error);
             }
         }
-        Ok(())
-    }
-
-    /// Adds the nullary predicate `name` to the tables, as the entry of
-    /// the next atom.
-    #[cold]
-    #[inline(never)]
-    fn nullary(&mut self, name: &str) -> Result<(), Error> {
-        let symbol = self
-            .interner()
-            .symbol(name, 0, true)
-            .map_err(|fault| Error::Symbol {
-                name: name.to_owned(),
-                fault,
-            })?;
-        let args = self.interner().list(&[]);
-        self.interner().tables.atoms.push((symbol, args));
         Ok(())
     }
 
@@ -1151,7 +1104,7 @@ impl Formulas {
     ///
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// [`Error::Symbol`] where the name is a function symbol or has another
-    /// arity, and [`Refusal::Index`] when the arena is full.
+    /// arity, and [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     #[cfg(any(test, feature = "parse"))]
     pub(crate) fn predicate(&mut self, name: &str, args: &[FoTermId]) -> Result<NodeId, Error> {
         let name = &*crate::name::normalized(name);
@@ -1183,7 +1136,7 @@ impl Formulas {
     /// # Errors
     ///
     /// [`Error::Symbol`] where an atom's name is a function symbol's, and
-    /// [`Refusal::Index`] when the arena is full.
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub(crate) fn equality(&mut self, left: FoTermId, right: FoTermId) -> Result<NodeId, Error> {
         self.enter_first_order()?;
         let name = crate::first_order::EQUALS;
@@ -1220,16 +1173,10 @@ impl Formulas {
         let key = self.tables().atom_key(symbol, args);
         // By `entry`, so that `atom`'s lookup and insertion keep the
         // parsers as their one caller and inline there.
-        let len = self.atoms.len() as u32;
-        let index = match self.names.entry(key) {
-            std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                self.atoms.push(entry.key().clone());
-                entry.insert(len);
-                self.interner().tables.atoms.push((symbol, args));
-                len
-            }
-        };
+        let (index, new) = self.arena.keyed(key);
+        if new {
+            self.interner().tables.atoms.push((symbol, args));
+        }
         self.add(Node::Atom(index))
     }
 
@@ -1241,7 +1188,7 @@ impl Formulas {
     ///
     /// [`Error::AtomName`] for a name that is no identifier or a keyword,
     /// [`Error::IndexOutOfBounds`] for a body of another arena, and
-    /// [`Refusal::Index`] when the arena is full.
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub(crate) fn binder(
         &mut self,
         forall: bool,
@@ -1250,13 +1197,13 @@ impl Formulas {
     ) -> Result<NodeId, Error> {
         let name = crate::name::normalized(name);
         crate::name::check_ordinary(&name)?;
-        let len = self.nodes.len();
+        let len = self.len();
         let id = self.add(if forall {
             Node::Forall(body)
         } else {
             Node::Exists(body)
         })?;
-        if self.nodes.len() > len
+        if self.len() > len
             && let Some(entry) = self.interner().tables.binders.last_mut()
         {
             // The node is new, so its entry is the last.
@@ -1270,8 +1217,8 @@ impl Formulas {
     /// binds, `0` for a closed formula.
     fn loose(&self) -> Vec<u32> {
         let terms = self.tables().loose();
-        let mut loose: Vec<u32> = Vec::with_capacity(self.nodes.len());
-        for &node in &self.nodes {
+        let mut loose: Vec<u32> = Vec::with_capacity(self.len());
+        for &node in self.nodes() {
             let of = |k: NodeId| loose[k.index()];
             loose.push(match node {
                 Node::Atom(a) => match self.tables().atoms.get(a as usize) {
@@ -1542,6 +1489,31 @@ impl Formulas {
     }
 }
 
+/// Returns the first-order tables and their maps of an arena, made empty
+/// where it has none yet.
+fn interner(fo: &mut Option<Box<Interner<NodeId>>>) -> &mut Interner<NodeId> {
+    let fo = fo.get_or_insert_with(Box::default);
+    // The names printed follow the tables, which the caller may change.
+    fo.eigens.take();
+    fo
+}
+
+/// Adds the nullary predicate `name` to an arena's tables, as the entry of
+/// the next atom.
+#[cold]
+#[inline(never)]
+fn nullary(fo: &mut Option<Box<Interner<NodeId>>>, name: &str) -> Result<(), Error> {
+    let symbol = interner(fo)
+        .symbol(name, 0, true)
+        .map_err(|fault| Error::Symbol {
+            name: name.to_owned(),
+            fault,
+        })?;
+    let args = interner(fo).list(&[]);
+    interner(fo).tables.atoms.push((symbol, args));
+    Ok(())
+}
+
 /// How a target spells the connectives and constants of ordinary
 /// formulas.
 #[derive(Clone, Copy, Debug)]
@@ -1739,19 +1711,6 @@ pub(crate) fn closed<'a>(
     Ok(())
 }
 
-/// Returns the number of subformula occurrences the formulas unfold to,
-/// saturating.
-fn occurrences<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> u64 {
-    // Every subformula precedes the formulas built from it.
-    let mut size: Vec<u64> = Vec::with_capacity(formulas.len());
-    for node in &formulas.nodes {
-        let (a, b) = node.operands();
-        let of = |k: Option<NodeId>| k.map_or(0, |k| size[k.index()]);
-        size.push(1u64.saturating_add(of(a)).saturating_add(of(b)));
-    }
-    roots.fold(0, |sum, id| sum.saturating_add(size[id.index()]))
-}
-
 /// Checks that a sequent over the formulas unfolds to at most
 /// `limits.occurrences` subformula occurrences.
 pub(crate) fn bound(
@@ -1760,18 +1719,13 @@ pub(crate) fn bound(
     right: &[NodeId],
     limits: &crate::Limits,
 ) -> Result<(), Error> {
-    let occurrences = occurrences(formulas, left.iter().chain(right));
-    match limits.occurrences {
-        Some(limit) if occurrences > limit => {
-            Err(Error::Refused(Refusal::Occurrences { occurrences, limit }))
-        }
-        _ => Ok(()),
-    }
+    formulas.arena.bound(left, right, limits)
 }
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
+    use crate::limits::{Refusal, Space};
     use crate::linear::search::generate::Rng;
     use crate::linear::{Options as Search, Verdict, prove};
 
