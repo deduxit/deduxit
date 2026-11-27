@@ -846,7 +846,7 @@ fn the_program_s_own_document_keeps_its_checks_and_a_claim_does_not() {
             .find(|node| node.id == translated)
             .and_then(|node| node.check.map(|check| check.status))
     };
-    let own = Workspace::read_own(&json, &limits).unwrap();
+    let own = Workspace::read_trusted(&json, &limits).unwrap();
     assert_eq!(status(&own), Some(Status::Held));
     assert_eq!(seen(&own), seen(&workspace));
     assert!(own.records.iter().flatten().all(|record| record.trusted));
@@ -855,7 +855,7 @@ fn the_program_s_own_document_keeps_its_checks_and_a_claim_does_not() {
     // The bounds hold for the program's own document too.
     let one = Limits::default().with_workspace(WorkspaceLimits::UNBOUNDED.with_nodes(Some(1)));
     assert_eq!(
-        Workspace::read_own(&json, &one).unwrap_err().code(),
+        Workspace::read_trusted(&json, &one).unwrap_err().code(),
         "workspace_limit"
     );
 }

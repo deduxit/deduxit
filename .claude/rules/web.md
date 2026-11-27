@@ -537,7 +537,7 @@ for `THIRD-PARTY-NOTICES.txt`.
 - **The workspace** (`workspace.rs`, exported `workspace_…`): the
   linked tabs a page keeps, over the library's `workspace`
   (`core-workspace.md`). The page holds the document and sends it with
-  every call, read by `Workspace::read_own`, its runs and checks as
+  every call, read by `Workspace::read_trusted`, its runs and checks as
   written: read as a claim each call, a search's check would turn
   `recorded` and run again. A link or a file comes in through
   `workspace_open` alone, the claim reader, which also gives its recipes

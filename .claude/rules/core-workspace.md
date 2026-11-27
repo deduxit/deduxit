@@ -112,7 +112,10 @@ and redo, the bounds and the JSON form. The design is
 - **`rebound` reaches the log's recipes too**, so undo and redo bring
   back no recipe outside the caller's bounds.
 - **Two readers**: `wire::upgrade` reads a document from elsewhere as a
-  claim (above); `Workspace::read_own` reads one the program wrote and
+  claim (above); `Workspace::read_trusted` (named so in 0.9.0, with a
+  `# Security` section, for what it trusts; `read_own`, its name in 0.8.0,
+  stays as a deprecated wrapper until the API's part 2) reads one the
+  program wrote and
   kept itself, a page's between two stateless calls, with the same
   checks of numbers, order, log, bounds and values but its runs and
   checks as written, this build's records trusted. Read through the

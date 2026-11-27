@@ -37,7 +37,7 @@ fn read(document: &str, limits: &Limits) -> Result<Workspace, Failure> {
     if document.trim().is_empty() {
         return Ok(Workspace::new());
     }
-    Ok(Workspace::read_own(document, limits)?)
+    Ok(Workspace::read_trusted(document, limits)?)
 }
 
 /// Writes a workspace's document.

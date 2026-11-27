@@ -366,24 +366,43 @@ enum Trust {
 
 impl Workspace {
     /// Reads a document this program wrote and kept itself, such as a
-    /// page's between two calls: the numbers, the order, the log and the
-    /// bounds are checked and every value is read by its kind's reader, as
-    /// [`wire::upgrade`] does, but the runs and the checks stand as written
-    /// (another build's records are still another build's). A document from
-    /// elsewhere, a link's or a file's, is read by [`wire::upgrade`], which
-    /// makes each instant run again and reads a search's check as
-    /// `recorded`.
+    /// page's between two calls, trusting its records: the numbers, the
+    /// order, the log and the bounds are checked and every value is read
+    /// by its kind's reader, as [`wire::upgrade`] does, but the runs and
+    /// the checks stand as written (another build's records are still
+    /// another build's).
+    ///
+    /// # Security
+    ///
+    /// A record read here answers a check's own runs, so a document that
+    /// claims a check held makes it hold. A document from elsewhere, a
+    /// link's, a file's or another program's, goes through
+    /// [`wire::upgrade`], which makes each instant run again and reads a
+    /// search's check as `recorded`.
     ///
     /// # Errors
     ///
     /// A document that is no workspace's, and what [`wire::upgrade`]
     /// refuses but the runs.
-    pub fn read_own(document: &str, limits: &Limits) -> Result<Self, Error> {
+    pub fn read_trusted(document: &str, limits: &Limits) -> Result<Self, Error> {
         let form: Form = serde_json::from_str(document).map_err(|error| Error::Json {
             form: "workspace",
             message: error.to_string(),
         })?;
         built(form, limits, Trust::Own)
+    }
+
+    /// [`read_trusted`](Self::read_trusted), under its earlier name.
+    ///
+    /// # Errors
+    ///
+    /// Those of [`read_trusted`](Self::read_trusted).
+    #[deprecated(
+        since = "0.9.0",
+        note = "named `read_trusted`, which says that it trusts the document's records"
+    )]
+    pub fn read_own(document: &str, limits: &Limits) -> Result<Self, Error> {
+        Self::read_trusted(document, limits)
     }
 }
 

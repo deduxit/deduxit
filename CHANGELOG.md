@@ -119,6 +119,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   lambda-terms and calculi given as rule files. The crate `deduxit`
   has the keyword `logic` in place of `proof-nets`.
 
+### Deprecated
+
+- `workspace::Workspace::read_own` is named `read_trusted`, which says
+  that it trusts the document's records and checks; its docs say, under
+  "Security", that a document from elsewhere goes through
+  `wire::upgrade`. `read_own` calls it.
+
 ### Fixed
 
 - **A Kripke model's refutation of a sequent with `=` was not
