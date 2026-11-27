@@ -413,6 +413,12 @@ pub trait Readable: Sized + crate::sealed::Readable {
 /// Reads a value of the form `T` within limits, as a serde seed. It is
 /// for a value nested in a document of the caller's, where [`upgrade`]
 /// reads a whole document.
+///
+/// Its error is the deserializer's, which holds text only: a refusal at
+/// a bound, a version too new or an index out of range is described
+/// there, not given as the library's [`Error`] with its
+/// kind and code. To tell those apart, read the whole document with
+/// [`upgrade`].
 #[derive(Clone, Copy, Debug)]
 pub struct Within<'a, T> {
     /// The limits.

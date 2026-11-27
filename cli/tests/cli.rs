@@ -3533,8 +3533,14 @@ fn an_intuitionistic_json_sequent_is_read_within_the_limit() {
         ],
         &json,
     );
-    assert_eq!(status, 2, "{err}");
-    assert!(err.contains("more than the limit of 1000"), "{err}");
+    assert_eq!(
+        (status, err.as_str()),
+        (
+            2,
+            "error: the sequent has more subformula occurrences than the limit of 1000; raise it \
+             with --occurrence-limit\n"
+        )
+    );
 }
 
 /// What 0.2.0 wrote, under the name linlog, is read: a proof file and a

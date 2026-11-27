@@ -398,13 +398,22 @@ pub(crate) fn sequent_in(
     match format {
         InputFormat::Json if intuitionistic && is_ill_json(text) => {
             let mut document = serde_json::Deserializer::from_str(text);
-            // Read within the bound: the reading builds the forest.
-            let sequent = Within::<IllSequent>::new(&within)
-                .deserialize(&mut document)
-                .and_then(|sequent| document.end().map(|()| sequent));
-            Ok(sequent
-                .context("not an intuitionistic sequent in JSON")?
-                .into_sequent())
+            // Read within the bound: the reading builds the forest. The
+            // library's error says what refused it; a refusal gets the flag
+            // that raises the bound.
+            let sequent = match deduxit::wire::upgrade::<IllSequent, _>(&mut document, &within) {
+                Ok(sequent) => sequent,
+                Err(error @ deduxit::Error::Refused(_)) => return Err(refused(error)),
+                Err(error) => {
+                    return Err(
+                        anyhow::Error::from(error).context("not an intuitionistic sequent in JSON")
+                    );
+                }
+            };
+            document
+                .end()
+                .context("not an intuitionistic sequent in JSON")?;
+            Ok(sequent.into_sequent())
         }
         InputFormat::Json => {
             let mut document = serde_json::Deserializer::from_str(text);
