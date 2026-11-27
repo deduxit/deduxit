@@ -64,6 +64,7 @@
 
 use super::derivation::ArenaSize;
 use super::polarity::{FALSE, TRUE, polarities};
+use super::transfer::{self, Parameters};
 use super::{Formulas, Logic, Node, NodeId, Outcome, Sequent, Verdict, decide_within};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
@@ -1325,173 +1326,40 @@ fn law_claim(result: &Sequent, step: &Step) -> Result<Sequent, Error> {
 
 /// Returns `roots`, formulas of `from` (open ones among them), made again in
 /// `to` with every node and term they reach and nothing else: atoms and
-/// symbols by name, a bound variable by its index, a binder by its name.
+/// symbols by name, a bound variable by its index, a binder by its name. A
+/// step's formulas hold no eigenvariable or open witness (a result's arena
+/// holds neither), so one is [`Error::ClaimFails`].
 fn copy_formulas(
     from: &Formulas,
     roots: &[NodeId],
     to: &mut Formulas,
 ) -> Result<Vec<NodeId>, Error> {
-    let tables = from.first_order();
-    let mut symbols: HashMap<crate::first_order::Symbol, crate::first_order::Symbol> =
-        HashMap::new();
-    let mut terms: HashMap<FoTermId, FoTermId> = HashMap::new();
-    let mut nodes: HashMap<NodeId, NodeId> = HashMap::new();
-    let mut symbol_in = |to: &mut Formulas,
-                         s: crate::first_order::Symbol,
-                         predicate: bool|
-     -> Result<crate::first_order::Symbol, Error> {
-        if let Some(&t) = symbols.get(&s) {
-            return Ok(t);
-        }
-        let (name, arity) = &tables.symbols[s.index()];
-        let t = to
-            .interner()
-            .symbol(name, *arity, predicate)
-            .map_err(|fault| Error::Symbol {
-                name: name.clone(),
-                fault,
-            })?;
-        symbols.insert(s, t);
-        Ok(t)
-    };
-    let mut stack: Vec<(NodeId, bool)> = roots.iter().map(|&r| (r, false)).collect();
-    while let Some((n, ready)) = stack.pop() {
-        if nodes.contains_key(&n) {
-            continue;
-        }
-        let node = from.node(n);
-        if !ready {
-            stack.push((n, true));
-            let (a, b) = node.operands();
-            stack.extend([a, b].into_iter().flatten().map(|k| (k, false)));
-            continue;
-        }
-        let image = match node {
-            Node::Atom(a) => match tables.atoms.get(a as usize) {
-                Some(&(p, args)) => {
-                    // The terms after the terms they name.
-                    let mut pending: Vec<(FoTermId, bool)> =
-                        tables.list(args).iter().map(|&t| (t, false)).collect();
-                    while let Some((t, done)) = pending.pop() {
-                        if terms.contains_key(&t) {
-                            continue;
-                        }
-                        let made = match tables.terms[t.index()] {
-                            FoTerm::Bound(i) => to.interner().term(FoTerm::Bound(i)),
-                            FoTerm::App(f, list) => {
-                                let items = tables.list(list);
-                                if !done {
-                                    pending.push((t, true));
-                                    pending.extend(items.iter().map(|&u| (u, false)));
-                                    continue;
-                                }
-                                let items: Vec<FoTermId> = items.iter().map(|u| terms[u]).collect();
-                                let f = symbol_in(to, f, false)?;
-                                let list = to.interner().list(&items);
-                                to.interner().term(FoTerm::App(f, list))
-                            }
-                            // A result's arena holds neither.
-                            FoTerm::Eigen(_) | FoTerm::Meta(_) => {
-                                return Err(Error::ClaimFails {
-                                    claim: "a normal form".to_owned(),
-                                    reason: "a step holds an eigenvariable or an open witness"
-                                        .to_owned(),
-                                });
-                            }
-                        };
-                        terms.insert(t, made);
-                    }
-                    let items: Vec<FoTermId> = tables.list(args).iter().map(|u| terms[u]).collect();
-                    let p = symbol_in(to, p, true)?;
-                    let list = to.interner().list(&items);
-                    to.predicate_atom(p, list)?
-                }
-                None => to.atom(from.atom_name(a))?,
-            },
-            Node::True | Node::False => to.add(node)?,
-            Node::Not(a) => to.add(Node::Not(nodes[&a]))?,
-            Node::And(a, b) => to.add(Node::And(nodes[&a], nodes[&b]))?,
-            Node::Or(a, b) => to.add(Node::Or(nodes[&a], nodes[&b]))?,
-            Node::Implies(a, b) => to.add(Node::Implies(nodes[&a], nodes[&b]))?,
-            Node::Iff(a, b) => to.add(Node::Iff(nodes[&a], nodes[&b]))?,
-            Node::Forall(a) => to.add_named(Node::Forall(nodes[&a]), tables.binder_name(n))?,
-            Node::Exists(a) => to.add_named(Node::Exists(nodes[&a]), tables.binder_name(n))?,
-        };
-        nodes.insert(n, image);
+    let copied = transfer::copy(to, from, Some(roots), &Parameters::Constants)?;
+    if !copied.constants.is_empty() {
+        return Err(Error::ClaimFails {
+            claim: "a normal form".to_owned(),
+            reason: "a step holds an eigenvariable or an open witness".to_owned(),
+        });
     }
-    Ok(roots.iter().map(|r| nodes[r]).collect())
+    Ok(roots.iter().map(|&r| copied.node(r)).collect())
 }
 
 /// Returns the formulas of `sequent` added to `formulas`, built again by
 /// their atoms' names, so that they are formulas of that arena whatever
-/// arena the sequent has.
+/// arena the sequent has. A sequent's arena holds no eigenvariable or open
+/// witness, so one is [`Error::ClaimFails`].
 fn transfer(
     sequent: &Sequent,
     formulas: &mut Formulas,
 ) -> Result<(Vec<NodeId>, Vec<NodeId>), Error> {
-    let from = sequent.formulas();
-    let tables = from.first_order();
-    let symbol = |formulas: &mut Formulas, s: crate::first_order::Symbol, predicate: bool| {
-        let (name, arity) = &tables.symbols[s.index()];
-        formulas
-            .interner()
-            .symbol(name, *arity, predicate)
-            .map_err(|fault| Error::Symbol {
-                name: name.clone(),
-                fault,
-            })
-    };
-    // The terms by their symbols' names, each after the terms it names.
-    let mut terms: Vec<FoTermId> = Vec::with_capacity(tables.terms.len());
-    for &term in &tables.terms {
-        let made = match term {
-            FoTerm::Bound(i) => formulas.interner().term(FoTerm::Bound(i)),
-            FoTerm::App(f, args) => {
-                let f = symbol(formulas, f, false)?;
-                let items: Vec<FoTermId> =
-                    tables.list(args).iter().map(|a| terms[a.index()]).collect();
-                let list = formulas.interner().list(&items);
-                formulas.interner().term(FoTerm::App(f, list))
-            }
-            // A sequent's arena holds neither.
-            FoTerm::Eigen(_) | FoTerm::Meta(_) => {
-                return Err(Error::ClaimFails {
-                    claim: "a normal form".to_owned(),
-                    reason: "the input holds an eigenvariable or an open witness".to_owned(),
-                });
-            }
-        };
-        terms.push(made);
+    let copied = transfer::copy(formulas, sequent.formulas(), None, &Parameters::Constants)?;
+    if !copied.constants.is_empty() {
+        return Err(Error::ClaimFails {
+            claim: "a normal form".to_owned(),
+            reason: "the input holds an eigenvariable or an open witness".to_owned(),
+        });
     }
-    let mut image: Vec<NodeId> = Vec::with_capacity(from.len());
-    for k in 0..from.len() {
-        let map = |x: NodeId| image[x.index()];
-        let id = NodeId(k as u32);
-        let made = match from.node(id) {
-            Node::Atom(a) => match tables.atoms.get(a as usize) {
-                Some(&(p, args)) => {
-                    formulas.enter_first_order()?;
-                    let p = symbol(formulas, p, true)?;
-                    let items: Vec<FoTermId> =
-                        tables.list(args).iter().map(|t| terms[t.index()]).collect();
-                    let list = formulas.interner().list(&items);
-                    formulas.predicate_atom(p, list)?
-                }
-                None => formulas.atom(from.atom_name(a))?,
-            },
-            Node::True => formulas.add(Node::True)?,
-            Node::False => formulas.add(Node::False)?,
-            Node::Not(a) => formulas.add(Node::Not(map(a)))?,
-            Node::And(a, b) => formulas.add(Node::And(map(a), map(b)))?,
-            Node::Or(a, b) => formulas.add(Node::Or(map(a), map(b)))?,
-            Node::Implies(a, b) => formulas.add(Node::Implies(map(a), map(b)))?,
-            Node::Iff(a, b) => formulas.add(Node::Iff(map(a), map(b)))?,
-            Node::Forall(a) => formulas.add_named(Node::Forall(map(a)), tables.binder_name(id))?,
-            Node::Exists(a) => formulas.add_named(Node::Exists(map(a)), tables.binder_name(id))?,
-        };
-        image.push(made);
-    }
-    let map = |ids: &[NodeId]| ids.iter().map(|x| image[x.index()]).collect();
+    let map = |ids: &[NodeId]| ids.iter().map(|&x| copied.node(x)).collect();
     Ok((map(sequent.left()), map(sequent.right())))
 }
 

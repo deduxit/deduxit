@@ -2587,23 +2587,15 @@ impl Interactive {
     /// Returns the id in `formulas` of every formula of `other`, adding to
     /// `formulas` those it lacks.
     fn ids_of(formulas: &mut Formulas, other: &Formulas) -> Result<Vec<NodeId>, Error> {
-        let mut ids: Vec<NodeId> = Vec::with_capacity(other.len());
-        // Every subformula precedes the formulas built from it.
-        for &node in other.nodes() {
-            let at = |k: NodeId| ids[k.index()];
-            let id = match node {
-                Node::Atom(a) => formulas.atom(other.atom_name(a))?,
-                Node::True | Node::False => formulas.add(node)?,
-                Node::Not(a) => formulas.add(Node::Not(at(a)))?,
-                Node::And(a, b) => formulas.add(Node::And(at(a), at(b)))?,
-                Node::Or(a, b) => formulas.add(Node::Or(at(a), at(b)))?,
-                Node::Implies(a, b) => formulas.add(Node::Implies(at(a), at(b)))?,
-                Node::Iff(a, b) => formulas.add(Node::Iff(at(a), at(b)))?,
-                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
-            };
-            ids.push(id);
-        }
-        Ok(ids)
+        let copied = super::transfer::copy(
+            formulas,
+            other,
+            None,
+            &super::transfer::Parameters::Constants,
+        )?;
+        Ok((0..other.len())
+            .map(|k| copied.node(NodeId(k as u32)))
+            .collect())
     }
 
     /// Grafts a derivation of the open goal onto it as one step, its root

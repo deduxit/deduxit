@@ -773,27 +773,17 @@ impl WrittenTableau {
     /// its side (as sets).
     fn differs(&self, expected: &Sequent) -> Result<Option<String>, Error> {
         let mut formulas = self.formulas.clone();
-        let source = expected.formulas();
-        let mut ids: Vec<NodeId> = Vec::with_capacity(source.len());
-        for &node in source.nodes() {
-            let at = |id: NodeId| ids[id.index()];
-            let id = match node {
-                Node::Atom(atom) => formulas.atom(source.atom_name(atom))?,
-                Node::True | Node::False => formulas.add(node)?,
-                Node::Not(a) => formulas.add(Node::Not(at(a)))?,
-                Node::And(a, b) => formulas.add(Node::And(at(a), at(b)))?,
-                Node::Or(a, b) => formulas.add(Node::Or(at(a), at(b)))?,
-                Node::Implies(a, b) => formulas.add(Node::Implies(at(a), at(b)))?,
-                Node::Iff(a, b) => formulas.add(Node::Iff(at(a), at(b)))?,
-                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
-            };
-            ids.push(id);
-        }
+        let copied = super::transfer::copy(
+            &mut formulas,
+            expected.formulas(),
+            None,
+            &super::transfer::Parameters::Constants,
+        )?;
         let mut wanted: Vec<(bool, NodeId)> = expected
             .left()
             .iter()
-            .map(|&x| (true, ids[x.index()]))
-            .chain(expected.right().iter().map(|&x| (false, ids[x.index()])))
+            .map(|&x| (true, copied.node(x)))
+            .chain(expected.right().iter().map(|&x| (false, copied.node(x))))
             .collect();
         let mut written: Vec<(bool, NodeId)> = self
             .root_lines()

@@ -3,7 +3,9 @@
 
 //! Formulas copied from one arena into another: a goal of a proof in
 //! progress into an arena of its own, which a search takes, and the
-//! derivation the search found back into the proof's arena.
+//! derivation the search found back into the proof's arena; a normal
+//! form's input and a step's law into the arena of its claims; a written
+//! tableau's expected sequent into the tableau's arena.
 //!
 //! Every pass is in index order (an operand and a subterm precede what is
 //! made of them), so nothing recurses over a formula.
@@ -27,6 +29,10 @@ pub(super) enum Parameters<'a> {
     /// itself (a fresh constant, a Skolem symbol), is renamed apart from
     /// the target's names, so that it meets none of the target's other
     /// formulas in another role.
+    #[cfg_attr(
+        not(feature = "interactive"),
+        expect(dead_code, reason = "only the goal state copies a derivation back")
+    )]
     Back {
         /// The constants made by [`Parameters::Constants`], by name.
         constants: &'a HashMap<String, FoTermId>,

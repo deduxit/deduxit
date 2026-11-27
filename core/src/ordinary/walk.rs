@@ -16,10 +16,6 @@ pub(crate) struct TermsIn<'a> {
     /// The arena the formulas and terms are of.
     formulas: &'a Formulas,
     /// The nodes the formulas reach, each once.
-    #[cfg_attr(
-        not(feature = "interactive"),
-        expect(dead_code, reason = "only the copy between arenas reads the nodes")
-    )]
     nodes: HashSet<NodeId>,
     /// The terms still to visit, the last first.
     terms: Vec<FoTermId>,
@@ -73,7 +69,6 @@ impl Formulas {
 
 impl TermsIn<'_> {
     /// Returns the nodes the formulas reach, each once, in no order.
-    #[cfg(feature = "interactive")]
     pub(crate) fn nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes.iter().copied()
     }
