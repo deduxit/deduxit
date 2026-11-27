@@ -116,8 +116,8 @@ Proof.
 Qed.
 ```
 
-The term names formulas, so a formula it names at several places is
-written once, as a `let` inside the term, and named after that. The
+The term names formulas, so a large formula it names at several places
+is written once, as a `let` inside the term, and named after that. The
 statement writes every formula out, so that you can read it against
 the calculus:
 

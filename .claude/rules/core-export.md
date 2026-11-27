@@ -902,12 +902,25 @@ for NanoYalla. What the code relies on:
   names into pieces (a leaf's whole text, or a constructor over its
   operands' pieces, keyed per instance, its open binders and whether it
   is read two-sided), so equal text is one piece whatever the reading or
-  the frame; `Shared::bind` then binds each compound piece written at
-  two or more places, a piece being written once per name the term
-  gives it and once per operand place in a written piece above it, so a
-  piece named once is written in place. The second walk writes `(let
-  f'1 := … in` per bound piece, operands first, then the term with the
-  names. The statement is written out (the certificate is read against
+  the frame. A piece is written once per name the term gives it and,
+  per operand place in a piece above it, once if that piece is bound and
+  as often as it is written otherwise (`Shared::writes`). **A `let` is
+  not free**: `apply` elaborates every constructor in a context holding
+  every `let` around it, so Rocq's time is about the constructors
+  written times (1 + `let`s/100), and its stack overflows between 3 000
+  and 5 000 nested `let`s (the argument panel's witness: a balanced `⊗`
+  tree of 4 096 leaves, 8 188 `let`s, compiled by the base in 85 s and
+  refused with "Stack overflow" bound; at 1 024 leaves 7 s against 78 s).
+  So `Shared::bind` takes the compound pieces written twice even when all
+  are bound, largest first (by their whole text's constructors), and of
+  the first 0, 1, 2, 4, … and all of them, at most `MOST_LETS` (1 024),
+  binds the number whose estimate (`cost`) is least. A chain such as
+  `!A ⊢ A^n` binds all (the text shrinks twentyfold), a balanced tree a
+  few dozen (the text shrinks by its height's factor only). The
+  constant `LETS_PER_COPY` is the measured hundredth; a change of Rocq
+  that moves it moves the choice, not the soundness. The second walk
+  writes `(let f'1 := … in` per bound piece, operands first, then the
+  term with the names. The statement is written out (the certificate is read against
   the calculus alone, the audit's verdict), and the `let`s are inside
   the term handed to the theorem, which `vm_compute` reduces. `f'` names
   clash with no constructor (an identifier of the library has no `'`).

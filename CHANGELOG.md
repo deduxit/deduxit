@@ -150,11 +150,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   modal logic that holds `∀` or `∃`, is refused with a message that says
   the formula belongs to the other suite. It was serde's "unknown
   variant". The error's code stays `json`.
-- A certificate for deduxit's Rocq library (`--kernel deduxit`) writes a
-  formula its proof term names at several places once, `let f'1 := … in`
-  inside the term, and names it after that. The certificate of
-  `!A ⊢ A ⊗ … ⊗ A` with 256 copies is 29 KB, where it was 570 KB. The
-  statement still writes every formula out.
+- A certificate for deduxit's Rocq library (`--kernel deduxit`) writes
+  the largest formulas its proof term names at several places once,
+  `let f'1 := … in` inside the term, and names them after that, as many
+  as make Rocq's check faster by an estimate. The certificate of
+  `!A ⊢ A ⊗ … ⊗ A` with 256 copies is 29 KB, where it was 570 KB, and
+  Rocq checks it 3.8 times as fast. The statement still writes every
+  formula out.
 
 ### Deprecated
 

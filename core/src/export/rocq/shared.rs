@@ -7,14 +7,33 @@
 //! formula deep in a sequent is written again at every rule above it: the
 //! text of `!A ⊢ A ⊗ … ⊗ A` grows with the square of the formula. Here the
 //! formulas are hash-consed as they are written (equal text is one piece),
-//! and every compound formula that the term would write at two or more
-//! places is bound once, `let f'1 := … in`, inside the term handed to the
-//! soundness theorem. The statement stays written out, so that a reader
-//! checks it against the calculus alone. `vm_compute` reduces the `let`s
-//! with the rest of the term.
+//! and the largest compound formulas that the term would write at two or
+//! more places are bound once, `let f'1 := … in`, inside the term handed to
+//! the soundness theorem. The statement stays written out, so that a
+//! reader checks it against the calculus alone. `vm_compute` reduces the
+//! `let`s with the rest of the term.
+//!
+//! A `let` is not free: Rocq's `apply` elaborates every constructor of the
+//! term in a context that holds every `let` around it, so its time grows
+//! with the constructors written times the `let`s in scope, and Rocq's
+//! stack overflows between 3 000 and 5 000 nested `let`s. So as many of the
+//! largest shared formulas are bound as make the estimate least (the
+//! constructors written, times one more hundredth per `let`, the cost
+//! measured on balanced trees of formulas), and never more than
+//! [`MOST_LETS`].
 
 use crate::hash::HashMap;
 use std::fmt::Write;
+
+/// The most `let`s a term binds, well below the nesting at which Rocq's
+/// stack overflows.
+const MOST_LETS: usize = 1024;
+
+/// The `let`s whose cost in Rocq's elaboration equals that of writing every
+/// constructor of the term once more: each `let` in scope adds about a
+/// hundredth to the cost of each constructor (measured on balanced trees
+/// of formulas, 256 to 2 048 leaves).
+const LETS_PER_COPY: u64 = 100;
 
 /// A formula as the term writes it: a leaf's whole text, or a constructor
 /// and the pieces of its operands.
@@ -68,36 +87,104 @@ impl Shared {
 
     /// Records that the term names the piece `id` once more.
     pub(super) fn name(&mut self, id: u32) {
-        self.named[id as usize] += 1;
+        let named = &mut self.named[id as usize];
+        *named = named.saturating_add(1);
     }
 
-    /// Decides which pieces are bound, once every name is recorded: each
-    /// compound piece written at two or more places. A piece is written
-    /// once per name the term gives it and once per operand place in a
-    /// written piece built from it, whether that piece is bound (its `let`
-    /// is written once) or written in place (at the one place that names
-    /// it). The pieces are numbered in their order, operands first, so
-    /// that every `let` names only earlier ones.
+    /// Decides which pieces are bound, once every name is recorded.
+    ///
+    /// The candidates are the compound pieces written at two or more places
+    /// even when every candidate is bound, largest first (by the
+    /// constructors of their whole text). Of the first `0, 1, 2, 4, …`
+    /// candidates and all of them, up to [`MOST_LETS`], it binds the number
+    /// whose estimate is least: the constructors the term then writes, times
+    /// one more [`LETS_PER_COPY`]th per `let`. The pieces are numbered in
+    /// their order, operands first, so that every `let` names only earlier
+    /// ones.
     pub(super) fn bind(&mut self) {
-        let mut uses = self.named.clone();
-        for id in (0..self.pieces.len()).rev() {
-            if uses[id] == 0 {
-                continue;
-            }
-            if let Piece::Node(_, first, second) = self.pieces[id] {
-                uses[first as usize] += 1;
-                if let Some(second) = second {
-                    uses[second as usize] += 1;
-                }
-            }
-        }
-        self.names = vec![0; self.pieces.len()];
+        let count = self.pieces.len();
+        let none = vec![false; count];
+        let all: Vec<bool> = self
+            .pieces
+            .iter()
+            .map(|piece| matches!(piece, Piece::Node(..)))
+            .collect();
+        let uses = self.writes(&all);
+        // The constructors of each piece's whole text, operands first.
+        let mut size = vec![0u64; count];
         for (id, piece) in self.pieces.iter().enumerate() {
-            if uses[id] >= 2 && matches!(piece, Piece::Node(..)) {
+            size[id] = match *piece {
+                Piece::Leaf(..) => 1,
+                Piece::Node(_, first, second) => second
+                    .map_or(0, |second| size[second as usize])
+                    .saturating_add(size[first as usize])
+                    .saturating_add(1),
+            };
+        }
+        let mut candidates: Vec<usize> =
+            (0..count).filter(|&id| all[id] && uses[id] >= 2).collect();
+        candidates.sort_by_key(|&id| (std::cmp::Reverse(size[id]), id));
+        candidates.truncate(MOST_LETS);
+        let mut best = (self.cost(&none, 0), 0);
+        let mut bound = none;
+        let mut taken = 0;
+        let mut next = 1;
+        while taken < candidates.len() {
+            let to = next.min(candidates.len());
+            for &id in &candidates[taken..to] {
+                bound[id] = true;
+            }
+            taken = to;
+            let cost = self.cost(&bound, taken);
+            if cost < best.0 {
+                best = (cost, taken);
+            }
+            next *= 2;
+        }
+        let mut chosen = vec![false; count];
+        for &id in &candidates[..best.1] {
+            chosen[id] = true;
+        }
+        self.names = vec![0; count];
+        for (id, &bound) in chosen.iter().enumerate() {
+            if bound {
                 self.bound += 1;
                 self.names[id] = self.bound;
             }
         }
+    }
+
+    /// Returns how many times the term writes each piece when the pieces
+    /// `bound` are bound: once per name the term gives it, and per operand
+    /// place in a piece built from it, once if that piece is bound (its
+    /// `let` is written once) and as often as it is written otherwise.
+    fn writes(&self, bound: &[bool]) -> Vec<u64> {
+        let mut writes: Vec<u64> = self.named.iter().map(|&n| u64::from(n)).collect();
+        for id in (0..self.pieces.len()).rev() {
+            if writes[id] == 0 {
+                continue;
+            }
+            let each = if bound[id] { 1 } else { writes[id] };
+            if let Piece::Node(_, first, second) = self.pieces[id] {
+                for operand in std::iter::once(first).chain(second) {
+                    let w = &mut writes[operand as usize];
+                    *w = w.saturating_add(each);
+                }
+            }
+        }
+        writes
+    }
+
+    /// Returns the estimated cost in Rocq of the term with the pieces
+    /// `bound` bound, `lets` of them: the constructors it writes (a bound
+    /// piece's once, in its `let`), times one more [`LETS_PER_COPY`]th per
+    /// `let`.
+    fn cost(&self, bound: &[bool], lets: usize) -> u64 {
+        let writes = self.writes(bound);
+        let constructors = writes.iter().zip(bound).fold(0u64, |sum, (&w, &b)| {
+            sum.saturating_add(if b { 1 } else { w })
+        });
+        constructors.saturating_mul(LETS_PER_COPY + lets as u64) / LETS_PER_COPY
     }
 
     /// Returns whether any piece is bound.
