@@ -76,16 +76,10 @@ impl<'a> Shown<'a> {
             .get(name)
             .map(|&index| &self.calculus.form().connectives[index as usize]);
         let symbol = declared.and_then(|c| c.symbol.as_deref()).unwrap_or(name);
-        let fixity = match (declared.and_then(|c| c.fixity), arity) {
-            (Some(Fixity::Prefix) | None, 1) => Fixity::Prefix,
-            (Some(Fixity::Postfix), 1) => Fixity::Postfix,
-            (Some(Fixity::Infix) | None, 2) => Fixity::Infix,
-            _ => Fixity::Function,
-        };
-        let precedence = declared.and_then(|c| c.precedence).unwrap_or(match fixity {
-            Fixity::Infix => 0,
-            Fixity::Prefix | Fixity::Postfix | Fixity::Function => u32::MAX,
-        });
+        let fixity = Fixity::fitting(declared.and_then(|c| c.fixity), arity);
+        let precedence = declared
+            .and_then(|c| c.precedence)
+            .unwrap_or(fixity.default_precedence());
         let associativity = declared
             .and_then(|c| c.associativity)
             .unwrap_or(Associativity::None);

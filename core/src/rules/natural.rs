@@ -17,7 +17,9 @@
 //! Every pass is a loop over an explicit stack: a derivation may be as
 //! high as it is long.
 
-use super::{Calculus, Derivation, FORMULA, Node as Written, ScopeId, Step, TermId};
+#[cfg(all(feature = "interactive", feature = "parse"))]
+use super::TermId;
+use super::{Calculus, Derivation, Node as Written, ScopeId, Step};
 use crate::hash::HashMap;
 use crate::ordinary::{self, Formulas, Logic, Node, NodeId, Rule, Side};
 use crate::{Error, Limits, Phase, Progress, Refusal};
@@ -853,32 +855,9 @@ impl<'a> Translator<'a> {
     /// scope, every open leaf an assumption of the root scope.
     fn derivation(&self, tree: usize, name: &str) -> Result<Derivation, Error> {
         let mut derivation = Derivation::new(name, 1);
-        // Every formula's term, operands first.
-        let mut terms: Vec<TermId> = Vec::with_capacity(self.formulas.len());
-        for &node in self.formulas.nodes() {
-            let at = |k: NodeId| terms[k.index()];
-            let (connective, operands) = match node {
-                Node::Atom(atom) => {
-                    let term = derivation
-                        .terms_mut()
-                        .atom(self.formulas.atom_name(atom), FORMULA)?;
-                    terms.push(term);
-                    continue;
-                }
-                Node::True => ("⊤", vec![]),
-                Node::False => ("⊥", vec![]),
-                Node::Not(a) => ("¬", vec![at(a)]),
-                Node::And(a, b) => ("∧", vec![at(a), at(b)]),
-                Node::Or(a, b) => ("∨", vec![at(a), at(b)]),
-                Node::Implies(a, b) => ("→", vec![at(a), at(b)]),
-                Node::Iff(a, b) => ("↔", vec![at(a), at(b)]),
-                Node::Forall(_) | Node::Exists(_) => {
-                    unreachable!("the translation takes propositional derivations")
-                }
-            };
-            let term = derivation.terms_mut().apply(connective, &operands)?;
-            terms.push(term);
-        }
+        // Every formula's term, operands first; the translation takes
+        // propositional derivations alone.
+        let terms = super::ordinary::terms_of(&self.formulas, derivation.terms_mut())?;
         /// What the emitter has yet to do.
         enum Frame {
             /// Write a tree in a scope.

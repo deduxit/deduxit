@@ -187,20 +187,7 @@ impl<'a> Fitch<'a> {
         options: &FitchOptions,
         limits: &Limits,
     ) -> Result<Self, Error> {
-        let invalid = |reason: String| Error::InvalidDerivation {
-            calculus: calculus.name().into(),
-            reason,
-        };
-        if derivation.zones() != calculus.zones.len() {
-            return Err(invalid(format!(
-                "its sequents have {} zones, the calculus's {}",
-                derivation.zones(),
-                calculus.zones.len()
-            )));
-        }
-        let Some(root) = derivation.root() else {
-            return Err(invalid("it has no node".to_owned()));
-        };
+        let root = super::draw::drawn_root(calculus, derivation)?;
         let refused = |reason: String| Error::NotFitch { reason };
         let count = derivation.len();
         let parents = derivation.scope_parents();

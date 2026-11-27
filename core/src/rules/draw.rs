@@ -5,7 +5,7 @@
 //! exports.
 
 use super::derivation::Kind;
-use super::{Calculus, Derivation, NodeId, Step};
+use super::{Calculus, Derivation, NodeId, NodeRef, Step};
 use crate::hash::HashMap;
 use crate::linear::InfId;
 use crate::linear::proofs::Labels;
@@ -87,20 +87,7 @@ impl<'a> Drawing<'a> {
         derivation: &'a Derivation,
         limits: &Limits,
     ) -> Result<Self, Error> {
-        let invalid = |reason: String| Error::InvalidDerivation {
-            calculus: calculus.name().into(),
-            reason,
-        };
-        if derivation.zones() != calculus.zones.len() {
-            return Err(invalid(format!(
-                "its sequents have {} zones, the calculus's {}",
-                derivation.zones(),
-                calculus.zones.len()
-            )));
-        }
-        let Some(root) = derivation.root() else {
-            return Err(invalid("it has no node".to_owned()));
-        };
+        let root = drawn_root(calculus, derivation)?;
         let refused = |estimate, limit| {
             Error::Refused(crate::limits::Refusal::Output {
                 what: "drawing",
@@ -370,4 +357,30 @@ impl Drawn for Drawing<'_> {
         let members = (0..self.derivation.zones()).map(|z| node.zone(z).len());
         (0..members.sum()).collect()
     }
+}
+
+/// Returns the root of a derivation that a layout of `calculus` draws:
+/// its sequents have the calculus's zones, and it has a node.
+///
+/// # Errors
+///
+/// [`Error::InvalidDerivation`] for other zones or no node.
+pub(super) fn drawn_root<'d>(
+    calculus: &Calculus,
+    derivation: &'d Derivation,
+) -> Result<NodeRef<'d>, Error> {
+    let invalid = |reason: String| Error::InvalidDerivation {
+        calculus: calculus.name().into(),
+        reason,
+    };
+    if derivation.zones() != calculus.zones.len() {
+        return Err(invalid(format!(
+            "its sequents have {} zones, the calculus's {}",
+            derivation.zones(),
+            calculus.zones.len()
+        )));
+    }
+    derivation
+        .root()
+        .ok_or_else(|| invalid("it has no node".to_owned()))
 }

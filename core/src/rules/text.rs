@@ -206,17 +206,8 @@ impl Calculus {
     fn reading(&self, index: u32) -> Reading {
         let form = &self.form().connectives[index as usize];
         let arity = form.arity as usize;
-        let fixity = match (form.fixity, arity) {
-            (_, 0) => Fixity::Function,
-            (Some(Fixity::Prefix) | None, 1) => Fixity::Prefix,
-            (Some(Fixity::Postfix), 1) => Fixity::Postfix,
-            (Some(Fixity::Infix) | None, 2) => Fixity::Infix,
-            _ => Fixity::Function,
-        };
-        let precedence = form.precedence.unwrap_or(match fixity {
-            Fixity::Infix => 0,
-            Fixity::Prefix | Fixity::Postfix | Fixity::Function => u32::MAX,
-        });
+        let fixity = Fixity::fitting(form.fixity, arity);
+        let precedence = form.precedence.unwrap_or(fixity.default_precedence());
         Reading {
             fixity,
             precedence,

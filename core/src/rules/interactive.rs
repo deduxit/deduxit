@@ -345,6 +345,26 @@ impl From<Error> for Unplanned {
     }
 }
 
+impl From<Unplanned> for Error {
+    /// Returns the error a step answers: what it needs given, or why it
+    /// does not apply.
+    fn from(unplanned: Unplanned) -> Self {
+        match unplanned {
+            Unplanned::Needs(needs) => Self::StepNeeds { needs },
+            Unplanned::Error(error) => error,
+        }
+    }
+}
+
+/// Returns the checker's refusal of a step as the step's refusal, any
+/// other error as it is.
+fn check_refused(error: Error) -> Error {
+    match error {
+        Error::InvalidDerivation { reason, .. } => refused(StepFault::Check { reason }),
+        other => other,
+    }
+}
+
 impl Interactive {
     /// Returns a session that derives the sequent `goal` in `calculus`
     /// from the hypotheses `assumptions`, each a sequent of the calculus,
@@ -745,6 +765,20 @@ impl Interactive {
         Ok(())
     }
 
+    /// Returns the calculus's rule named `name`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::StepRefused`] for a name no rule has.
+    fn rule(&self, name: &str) -> Result<&Rule, Error> {
+        match self.calculus.rule_ids.get(name) {
+            Some(&index) => Ok(&self.calculus.rules[index as usize]),
+            None => Err(refused(StepFault::NoRule {
+                rule: name.to_owned(),
+            })),
+        }
+    }
+
     /// Checks the node at `node` of the session against its rule, or as
     /// a hypothesis, the rest taken as it is.
     fn verify(&self, node: u32) -> Result<(), Error> {
@@ -756,10 +790,7 @@ impl Interactive {
                 &self.limits,
                 |_| false,
             )
-            .map_err(|error| match error {
-                Error::InvalidDerivation { reason, .. } => refused(StepFault::Check { reason }),
-                other => other,
-            })
+            .map_err(check_refused)
     }
 
     /// Checks every closed node of the session, the open goals taken as
@@ -768,10 +799,7 @@ impl Interactive {
         let (derivation, _) = self.derived()?;
         derivation
             .check_open(&self.calculus, &self.limits, |_| false)
-            .map_err(|error| match error {
-                Error::InvalidDerivation { reason, .. } => refused(StepFault::Check { reason }),
-                other => other,
-            })
+            .map_err(check_refused)
     }
 
     /// Lists the rules that apply to the goal `goal`: for each rule and
@@ -922,17 +950,8 @@ impl Interactive {
     /// and a refusal of a bound.
     pub fn apply(&mut self, goal: GoalId, step: &Apply<'_>) -> Result<Vec<GoalId>, Error> {
         self.open(goal)?;
-        let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(StepFault::NoRule {
-                rule: step.rule.to_owned(),
-            }));
-        };
-        let rule = self.calculus.rules[index as usize].clone();
-        let plan = match self.plan(goal, &rule, step) {
-            Ok(plan) => plan,
-            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
-            Err(Unplanned::Error(error)) => return Err(error),
-        };
+        let rule = self.rule(step.rule)?.clone();
+        let plan = self.plan(goal, &rule, step)?;
         self.commit(goal, step.rule, plan)
     }
 
@@ -1029,12 +1048,7 @@ impl Interactive {
     /// a bound.
     pub fn derive(&mut self, goal: GoalId, step: &Derive<'_>) -> Result<LineId, Error> {
         let scope = self.open(goal)?.scope;
-        let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(StepFault::NoRule {
-                rule: step.rule.to_owned(),
-            }));
-        };
-        let rule = self.calculus.rules[index as usize].clone();
+        let rule = self.rule(step.rule)?.clone();
         if rule.premises.iter().any(|p| !p.discharges.is_empty()) {
             return Err(refused(StepFault::Discharges {
                 rule: step.rule.to_owned(),
@@ -1056,11 +1070,7 @@ impl Interactive {
             .iter()
             .map(|&place| self.place_sequent(place).to_vec())
             .collect();
-        let (sequent, at) = match self.forward(&rule, &cited, step) {
-            Ok(planned) => planned,
-            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
-            Err(Unplanned::Error(error)) => return Err(error),
-        };
+        let (sequent, at) = self.forward(&rule, &cited, step)?;
         self.shaped(&sequent)?;
         let copies: Vec<Sequent> = places
             .iter()
@@ -1133,12 +1143,7 @@ impl Interactive {
     /// that does not read forwards, with the reason.
     pub fn extend(&mut self, goal: GoalId, step: &Apply<'_>) -> Result<GoalId, Error> {
         let before = self.open(goal)?.sequent.clone();
-        let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
-            return Err(refused(StepFault::NoRule {
-                rule: step.rule.to_owned(),
-            }));
-        };
-        let rule = self.calculus.rules[index as usize].clone();
+        let rule = self.rule(step.rule)?.clone();
         let backwards = |why: Backwards| {
             Err(refused(StepFault::Backwards {
                 rule: step.rule.to_owned(),
@@ -1183,11 +1188,7 @@ impl Interactive {
                 first: zone(0),
             });
         }
-        let plan = match self.plan(goal, &rule, step) {
-            Ok(plan) => plan,
-            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
-            Err(Unplanned::Error(error)) => return Err(error),
-        };
+        let plan = self.plan(goal, &rule, step)?;
         let mut gained = false;
         for (z, (old, new)) in before.iter().zip(&plan.premises[0].0).enumerate() {
             // Counted as multisets: a set zone holds each member once.
@@ -1857,18 +1858,9 @@ impl Interactive {
         rule: &str,
         premises: &[TermId],
     ) -> Result<Vec<(String, TermId)>, Error> {
-        let Some(&index) = self.calculus.rule_ids.get(rule) else {
-            return Err(refused(StepFault::NoRule {
-                rule: rule.to_owned(),
-            }));
-        };
-        let rule = &self.calculus.rules[index as usize];
+        let rule = self.rule(rule)?;
         let mut bindings: Vec<Option<TermId>> = vec![None; self.calculus.variables as usize];
-        match self.bind_premises(rule, premises, &mut bindings) {
-            Ok(()) => {}
-            Err(Unplanned::Error(error)) => return Err(error),
-            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
-        }
+        self.bind_premises(rule, premises, &mut bindings)?;
         Ok(bindings
             .iter()
             .enumerate()

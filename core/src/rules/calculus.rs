@@ -48,6 +48,32 @@ pub enum Fixity {
     Function,
 }
 
+impl Fixity {
+    /// Returns where a connective of `arity` arguments stands, both as it
+    /// is written and as it is read: its declared fixity where that fits
+    /// the arity (prefix and postfix take one argument, infix two),
+    /// undeclared prefix for one argument and infix for two, else a
+    /// function.
+    pub(crate) const fn fitting(declared: Option<Self>, arity: usize) -> Self {
+        match (declared, arity) {
+            (_, 0) => Self::Function,
+            (Some(Self::Prefix) | None, 1) => Self::Prefix,
+            (Some(Self::Postfix), 1) => Self::Postfix,
+            (Some(Self::Infix) | None, 2) => Self::Infix,
+            _ => Self::Function,
+        }
+    }
+
+    /// Returns the precedence of a connective of this fixity that declares
+    /// none: the loosest for infix, the tightest for the others.
+    pub(crate) const fn default_precedence(self) -> u32 {
+        match self {
+            Self::Infix => 0,
+            Self::Prefix | Self::Postfix | Self::Function => u32::MAX,
+        }
+    }
+}
+
 /// How a chain of an infix connective is read without brackets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
