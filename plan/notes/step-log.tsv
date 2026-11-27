@@ -149,5 +149,6 @@ fixup-29	small	opus-5-5	high	reviewer (fable)	local_c4869735	2026-11-26 08:40	20
 84	library	opus-5-5	high	reviewer (fable)	local_f82f76ce	2026-11-27 00:23		untyped lambda calculi, a β stepper, principal types; the page's Untyped toggle (client part after 83's)
 fixup-30	text	opus-5-5	high	reviewer (fable)	local_323b92cf	2026-11-27 00:23	2026-11-27 01:00	the front texts name no suite as the main one
 82	step	-	-	-	-	-	2026-11-27 04:59	complete: a first-order goal closed by proof search or refuted, in the goal state and on the page
-83	library	opus-5-5	high	reviewer (fable)	local_444bd43f	2026-11-27 04:59		natural deduction proofs from translated sequent proofs; the page's natural deduction goal menu; 82's symbol clash first
+83	library	opus-5-5	high	reviewer (fable)	local_444bd43f	2026-11-27 04:59	2026-11-27 07:16	natural deduction proofs from translated sequent proofs; the page's natural deduction goal menu; 82's symbol clash first
 85	library	opus-5-5	high	reviewer (fable)	local_323b92cf	2026-11-27 05:54		System F, Church style, checking only; the page (client part after 83's and 84's)
+83	step	-	-	-	-	-	2026-11-27 07:16	complete: natural deduction proofs from translated sequent proofs, its goal menu on the page

@@ -8665,3 +8665,16 @@ move (D26).
   Its page part waits for 83's. (decided unattended) Step 85 starts now on 84's library part rather
   than after 84's page part, in fixup-30's worker (the app starts no new session from an automated
   turn), cores 10-12; its page part after 83's and 84's.
+- 2026-11-27, about 07:16: **Step 83 reviewed and pushed; 84's page part started.** 83 (Opus, high; the
+  reviewer on Fable): a grafted derivation's own symbols renamed apart from the session's (82's open
+  item, `lpxzzsoy`); `Derivation::natural` translates a cut-free LK, LJ or LM derivation into a normal
+  proof of every shipped natural deduction rule file, checked against the file (a test holds each
+  file to normality); the rules suite's session closes and hints a goal through it; the bindings; the
+  page's natural deduction `?` gets Close goal, Hint with Take it, Go back and the no-proof marking,
+  and its steps list greys a rule that does not apply with its reason (`rules_candidates`). The
+  reviewer's findings (classical hints that looped, a three-formula LK translation, a Go back race)
+  fixed. With 82 and 84 the module is 2 954 598 bytes at gzip, ceiling 3 020 000. Client full check
+  passed (Vitest 737, Playwright 370). Pushed: deduxit `okmktows`, client `zmvvktrn`. **Left open:** a
+  hint on a deep goal costs the root's search; a translation of a derivation with cuts may keep a
+  detour; the module's growth (29.3 KB) is the audit's. Step 84's page part has its go; step 85
+  rebases onto 83.
