@@ -403,6 +403,21 @@ the default bound. `deduxit term infer TERM` prints an untyped term's
 principal simple type, the term with every `λ` typed, or `no simple
 type:` and the equation that cannot hold (exit 1).
 
+System F: `--calculus system-f` (over the simple calculus),
+`system-f-linear` or `system-f-affine` adds types `forall X. A` (`∀X.
+A`), the type abstraction `/\X. M` (`ΛX. M`) and the type application
+`M [A]`. Every type abstraction and application is written and every
+`λ` typed: `term check` checks and infers nothing (type inference is
+undecidable there), and a `λ` without its type is an error (exit 2). A
+name in a type is the nearest `forall` or `/\` variable of its name,
+else an atom; types equal up to bound names are one, and a `∀` whose
+name would capture another variable is printed with an index (`∀Y₁`).
+`ΛX. M` is refused where a variable bound outside it has `X` in its
+type. `term reduce --calculus system-f` reduces `(/\X. M) [A]` too.
+JSON terms of System F are at wire level 31: the types `forall`
+(`variable`, `body`), `bound` (`index`) and `variable`, the nodes
+`type_lambda` and `type_apply`, and `type_variables`.
+
 ```console
 $ deduxit term check '\x:a. \y:b. x'
 well typed
@@ -424,6 +439,16 @@ normal form after 2 steps
 $ deduxit term infer '\f. \x. f (f x)'
 principal type
 ⊢ λf:(a → a). λx:a. f (f x) : (a → a) → (a → a)
+$ deduxit term check --calculus system-f '/\X. \x:X. x'
+well typed
+⊢ ΛX. λx:X. x : ∀X. X → X
+$ deduxit term reduce --calculus system-f 'y:a |- (/\X. \x:X. x) [a] y'
+(ΛX. λx. x) [a] y
+  β: (ΛX. λx. x) [a]
+(λx. x) y
+  β: (λx. x) y
+y
+normal form after 2 steps
 ```
 
 ## 5. Why unprovable, why unknown

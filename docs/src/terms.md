@@ -296,7 +296,7 @@ exit 1
 Declare free variables before `⊢`, as in `x : a |- \y:b. x`, and give a
 type after a last `:` to have it compared with the term's. `--calculus`
 is `simple` by default, or `linear` or `affine`, or one of the untyped
-calculi below. The exit status is 0
+calculi or of System F below. The exit status is 0
 for a well-typed term and 1 for an ill-typed one. `--format json` writes
 the term's document with the type of every node under `typing`.
 
@@ -320,6 +320,58 @@ exit 1
 A name that no `λ` binds is a free variable. Name the free variables
 before `⊢` to fix their order and to have every other name refused, as
 in `f, x |- f (\y. x)`.
+
+## System F
+
+System F, the polymorphic lambda calculus of J.-Y. Girard (1972) and J.
+C. Reynolds (1974), adds types that hold for every type: `∀X. A`
+(`forall X. A`). A type abstraction `ΛX. M` (`/\X. M`) makes a term of
+such a type, and a type application `M [A]` uses it at the type `A`. The
+notation is that of J.-Y. Girard, Y. Lafont and P. Taylor, *Proofs and
+Types* (1989), chapter 11, with `∀X` for their `ΠX`, and the type
+argument in brackets so that it never reads as a term. Three calculi take these terms: `system-f`, over the simply
+typed calculus, and `system-f-linear` and `system-f-affine`, over the
+linear and the affine one, which use each term variable as those do.
+
+```console
+$ deduxit term check --calculus system-f '/\X. \x:X. x'
+well typed
+⊢ ΛX. λx:X. x : ∀X. X → X
+$ deduxit term check --calculus system-f '\f:forall X. X -> X. f [forall X. X -> X] f'
+well typed
+⊢ λf:(∀X. X → X). f [∀X. X → X] f : (∀X. X → X) → (∀X. X → X)
+$ deduxit term check --calculus system-f-linear '/\X. \x:X. \y:X. x'; echo "exit $?"
+ill typed: the variable y is not used, and linear System F uses every variable exactly once
+exit 1
+```
+
+The terms are typed in Church's style: every `λ` says its variable's
+type and every type abstraction and application is written, so the
+command checks a term and infers nothing. Type inference is undecidable
+in System F (J. B. Wells, "Typability and type checking in System F are
+equivalent and undecidable", *Annals of Pure and Applied Logic* 98,
+1999), and a `λ` without its type is refused with that reason.
+
+A name in a type is the type variable of the nearest `∀` or `Λ` of that
+name around it, and otherwise an atom. Types that differ only in the
+names of their bound variables are equal, and a type is printed with
+the names of the first equal one the term made. Putting a type for a
+type variable captures nothing: where a `∀`'s name would take in a
+variable of the type put in, it is printed with an index, as `∀Y₁`
+here, where `Y` is an atom:
+
+```console
+$ deduxit term check --calculus system-f '\f:forall X. forall Y. X -> Y. f [Y]'
+well typed
+⊢ λf:(∀X. ∀Y. X → Y). f [Y] : (∀X. ∀Y. X → Y) → (∀Y₁. Y → Y₁)
+```
+
+`ΛX. M` has the type `∀X. A` only where no term variable that `M` uses
+and binds outside it has `X` in its type: the condition of the rule
+`∀I` of natural deduction, that `X` is free in no hypothesis. The check
+refuses such a term, a type variable named outside the abstraction that
+binds it, and a type abstraction whose variable has an atom's name or
+would take in another type variable of its name.
 
 ## Reduce a term step by step
 
@@ -373,9 +425,21 @@ default bound of steps, at `--node-limit` and at a limit. `--format
 json` writes the term reached, each step's redex as a node of the term
 it was taken on, and how the reduction ended.
 
-Only the application of a `λ` is a redex: a pair taken apart, a `case`
-of an injection and the linear calculus's other constructs stay as they
-are.
+In System F a type application of a type abstraction is a redex too:
+`(ΛX. M) [A]` reduces to `M` with `A` for `X` in its types.
+
+```console
+$ deduxit term reduce --calculus system-f 'y:a |- (/\X. \x:X. x) [a] y'
+(ΛX. λx. x) [a] y
+  β: (ΛX. λx. x) [a]
+(λx. x) y
+  β: (λx. x) y
+y
+normal form after 2 steps
+```
+
+Only these applications are redexes: a pair taken apart, a `case` of an
+injection and the linear calculus's other constructs stay as they are.
 
 ## The principal type of an untyped term
 
@@ -484,7 +548,8 @@ inference concludes the judgement `Γ ⊢ M : A` of a subterm `M`, and its
 rule is the rule of natural deduction the term's last construction
 stands for: `ax` for a variable, `→I` for `λ`, `→E` for an application,
 `∧I`, `∧E₁`, `∨I₁`, `∨E` and so on, with `⊸`, `⊗`, `&`, `⊕` and the
-rules of `!` in the linear calculi.
+rules of `!` in the linear calculi, and `∀I` for a type abstraction and
+`∀E` for a type application in System F.
 
 In the simple calculus every premise has its conclusion's context, with
 the variables the rule binds added. In the linear calculus the context

@@ -1958,6 +1958,12 @@ pub(crate) enum TermCommand {
     /// as `\x. x x`, and the check is that it uses its variables as the
     /// calculus allows; names no λ binds are free variables.
     ///
+    /// System F (--calculus system-f, system-f-linear or system-f-affine)
+    /// adds types `forall X. A` (∀X. A), the type abstraction `/\X. M`
+    /// (ΛX. M) and the type application `M [A]`, such as `/\X. \x:X. x :
+    /// forall X. X -> X`. Every abstraction and application of a type is
+    /// written: the command checks a term and infers no types.
+    ///
     /// The command prints `well typed` (`well formed` for an untyped
     /// term) and the judgement with every type, or `ill typed` (`ill
     /// formed`) and why, with exit status 1. With `--format json` the
@@ -1969,7 +1975,8 @@ pub(crate) enum TermCommand {
     /// Reduce a lambda-term step by step by β
     ///
     /// Each step replaces a redex (λx. M) N by M with N in place of x,
-    /// renaming a λ where it would take in a free variable of its name.
+    /// renaming a λ where it would take in a free variable of its name; in
+    /// System F, a redex (ΛX. M) [A] by M with the type A in place of X.
     /// The command prints each term, the redex its step reduces after `β:`,
     /// and the term reached. An untyped term need not have a normal form,
     /// such as (λx. x x) (λx. x x): the reduction then ends at --steps,
@@ -2045,7 +2052,8 @@ pub(crate) struct TermCheckArgs {
     #[arg(help_heading = INPUT, short, long, value_name = "PATH")]
     pub(crate) file: Option<PathBuf>,
     /// The calculus: simple (any number of uses), linear (every variable
-    /// used once) or affine (at most once), or one of them untyped
+    /// used once) or affine (at most once), or one of them untyped or in
+    /// System F
     #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Simple)]
     pub(crate) calculus: CalculusArg,
     /// The output format: text, or json for the term, its typing and the
@@ -2081,6 +2089,12 @@ pub(crate) enum CalculusArg {
     UntypedLinear,
     /// The untyped affine lambda calculus
     UntypedAffine,
+    /// System F, the polymorphic lambda calculus
+    SystemF,
+    /// Linear System F
+    SystemFLinear,
+    /// Affine System F
+    SystemFAffine,
 }
 
 impl From<CalculusArg> for deduxit::lambda::Calculus {
@@ -2093,6 +2107,9 @@ impl From<CalculusArg> for deduxit::lambda::Calculus {
             CalculusArg::Untyped => Self::Untyped,
             CalculusArg::UntypedLinear => Self::UntypedLinear,
             CalculusArg::UntypedAffine => Self::UntypedAffine,
+            CalculusArg::SystemF => Self::SystemF,
+            CalculusArg::SystemFLinear => Self::SystemFLinear,
+            CalculusArg::SystemFAffine => Self::SystemFAffine,
         }
     }
 }
@@ -2130,7 +2147,8 @@ pub(crate) struct TermReduceArgs {
     pub(crate) file: Option<PathBuf>,
     /// The calculus: untyped (any number of uses), untyped-linear (every
     /// variable used once), untyped-affine (at most once), or one of them
-    /// typed: simple, linear, affine
+    /// typed: simple, linear, affine, or in System F: system-f,
+    /// system-f-linear, system-f-affine
     #[arg(help_heading = INPUT, long, value_enum, value_name = "CALCULUS", default_value_t = CalculusArg::Untyped)]
     pub(crate) calculus: CalculusArg,
     /// Which redex each step reduces

@@ -319,8 +319,14 @@ in use.
   linear and the untyped affine lambda calculus are read, written and
   checked for how they use their variables (`term check --calculus
   untyped`).
+- [Terms of System F](terms.md#system-f), over the simply typed, the
+  linear and the affine calculus, are read, written, checked in Church's
+  style (every type abstraction and application written, no type
+  inference) and drawn with the rules `∀I` and `∀E` (`term check
+  --calculus system-f`).
 - [A term is reduced step by step](terms.md#reduce-a-term-step-by-step)
-  by β, typed or untyped, in normal or applicative order, each step's
+  by β, typed or untyped, and by type β in System F, in normal or
+  applicative order, each step's
   redex named, each term reached checked, within bounds on steps and
   size (`term reduce`, `lambda::Term::reduce`).
 - [An untyped term's principal simple type](terms.md#the-principal-type-of-an-untyped-term)

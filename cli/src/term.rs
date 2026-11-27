@@ -153,9 +153,16 @@ fn refuse(
 }
 
 /// Returns the wire level of a term of `calculus`, which the records of
-/// `term` carry: 23 for a typed term, 30 for an untyped one.
+/// `term` carry: 23 for a typed term, 30 for an untyped one, 31 for one of
+/// System F.
 const fn level(calculus: Calculus) -> u32 {
-    if calculus.is_typed() { 23 } else { 30 }
+    if calculus.is_polymorphic() {
+        31
+    } else if calculus.is_typed() {
+        23
+    } else {
+        30
+    }
 }
 
 /// `term check`'s record of a well-typed term: the term's document, its

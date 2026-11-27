@@ -610,6 +610,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   types shown; exit 0 for a type with a term, 1 for none, 3 for "no term
   found within depth" and a stop. JSON is the library's level-24
   documents. A refusal at a bound is an `unknown:` line naming the flag.
+  `--calculus` takes System F's calculi (`system-f`, `system-f-linear`,
+  `system-f-affine`, `CalculusArg`); their records are at level 31
+  (`term.rs`'s `level`), and `term reduce` prints a type β step after
+  `β:` as any other.
 - `workspace.rs`: `deduxit workspace …` over the library's `workspace`
   (`core-workspace.md`), its file read through `wire::upgrade` within
   `limits.workspace` and written whole (`io::write`, beside and
