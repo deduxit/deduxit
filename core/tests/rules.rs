@@ -1675,3 +1675,24 @@ fn random_labelled_steps_keep_a_checked_session() {
         "{steps} steps, {refused} refused, {extended} forward, {finished} finished"
     );
 }
+
+/// A sequent's text is held to `limits.occurrences` as a whole: a
+/// sequent of many short members passed when each member was bounded
+/// alone.
+#[test]
+fn a_sequent_s_text_is_bounded_as_a_whole() {
+    let lk = calculus(LK).unwrap();
+    let mut terms = deduxit::rules::Terms::default();
+    let text = "a, b, c, d ⊢ a";
+    let bound = |n| Limits::default().with_occurrences(Some(n));
+    // Nine tokens: five atoms, three commas and the turnstile.
+    assert!(lk.parse_sequent(&mut terms, text, &bound(9)).is_ok());
+    assert!(matches!(
+        lk.parse_sequent(&mut terms, text, &bound(8)),
+        Err(Error::Refused(Refusal::Occurrences {
+            occurrences: 9,
+            limit: 8,
+            ..
+        }))
+    ));
+}

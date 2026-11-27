@@ -183,6 +183,19 @@ impl<'a> Lexer<'a> {
     }
 }
 
+/// Refuses a text of more tokens than `limits.occurrences`, counted over
+/// the whole text: each member's term is bounded too, but a bound per
+/// member lets a sequent of many short members through.
+fn within(tokens: &[(Token<'_>, usize)], limits: &Limits) -> Result<(), Error> {
+    match limits.occurrences {
+        Some(limit) if tokens.len() as u64 > limit => Err(Error::Refused(Refusal::Occurrences {
+            occurrences: tokens.len() as u64,
+            limit,
+        })),
+        _ => Ok(()),
+    }
+}
+
 /// Returns the parse error at byte `at` of `text`.
 fn error(text: &str, at: usize, expected: &'static [&'static str]) -> Error {
     Error::Parse(Box::new(ParseError::new(text, at, expected)))
@@ -478,6 +491,7 @@ impl Calculus {
         limits: &Limits,
     ) -> Result<Vec<TermId>, Error> {
         let tokens = Lexer::new(self, text).tokens()?;
+        within(&tokens, limits)?;
         self.members(terms, text, &tokens, sort, limits)
     }
 
@@ -529,6 +543,7 @@ impl Calculus {
         limits: &Limits,
     ) -> Result<Vec<Vec<TermId>>, Error> {
         let tokens = Lexer::new(self, text).tokens()?;
+        within(&tokens, limits)?;
         let zones = self.zones.len();
         let mut sequent = vec![Vec::new(); zones];
         let mut zone = 0;

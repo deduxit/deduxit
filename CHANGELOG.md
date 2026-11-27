@@ -152,6 +152,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   30 February, an hour past 23) with `Error::InvalidOption`, key
   `pdf.date`; the renderer clamped each field, so `"month": 13` in a
   settings file wrote December.
+- **A rule file's sequent is bounded as a whole.**
+  `rules::Calculus::parse_sequent`, and with it `interact --calculus`'s
+  sequent and `--assume`, count the whole text's tokens against
+  `limits.occurrences`, as their docs say; each member was bounded
+  alone, so a sequent of many short members passed.
 
 ## [0.8.0] - 2026-11-23
 
