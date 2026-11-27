@@ -38,3 +38,32 @@ full text, confirmed all 18 (16 confirmed, 2 candidates), F-9-01 with
 its witness corrected (the library's tests do use the exporter's names;
 what is missing is the list that marks them as the contract). The
 second verification stands.
+
+## Stage 3
+
+- **F-3-09**, `core/src/linear/nets/mod.rs:275`. Claim:
+  `NetError::NoVertex` names its vertex as a bare `u32` where every
+  other variant has a `VertexId`. Rejected: the number names no vertex
+  of the structure (passing it to `partner` or `occurrence` answers
+  `None`, `core-nets.md:36-39`), and the bare number says so.
+- **F-3-12**, `core/src/linear/nets/mod.rs:1278`. Claim: the nets module
+  holds 36 `must_use_candidate` sites, predicates among them. Rejected:
+  `must_use_candidate` is one of the ten lints set aside on purpose
+  (`Cargo.toml:95-100`); E7 admits a finding on one only if its reason
+  no longer holds, and marking 36 of 556 sites would not turn the lint
+  on. The same holds for the other nine: `many_single_char_names`,
+  `similar_names`, `too_many_lines`, `enum_glob_use`,
+  `single_match_else`, `match_bool`, `if_not_else`,
+  `items_after_statements`, `naive_bytecount`.
+- **F-4a-10**, `core/src/ordinary/decide.rs:885`. Claim: two places
+  decide between "unknown" and "defect" by comparing an error's message
+  with a sentinel string. Rejected: both sides use the one private
+  constant `OPEN_WITNESS`, so rewording cannot turn one into the other;
+  and the criterion cited (an AIP) applies to the JSON wire forms only.
+- **F-4a-20**, `core/src/ordinary/mod.rs:720`. Claim: seven comments
+  use "refers to" and "stands as". Rejected: at those places the verbs
+  carry their own meaning (a node refers to its subformulas by index;
+  terms "stand as they are", that is, stay unchanged). `text-read.md`
+  lists the seven places in the crate where "stands as" does replace
+  "is"; a text finding of this kind names one of those or shows the
+  sentence.

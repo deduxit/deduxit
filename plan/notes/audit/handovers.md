@@ -75,6 +75,21 @@ as findings of its own, naming the finding it follows.
   `with_logic` (`ordinary/mod.rs:610`). Its point 6 stands:
   `Options::default()` is intuitionistic, which D1 questions.
 
+## Unit 2c (the Horn engine, the inverse method, the readers)
+
+- F-2b-03: the count invariants and the atom bias are shared by four
+  engines and the session but live in the focused engine;
+  `horn/mod.rs:88` and `inverse/mod.rs:144` reach into `focus::counts`
+  and `focus::bias`. Say what your engines need of them.
+- F-2a-06: `Reason::as_set` is applied by the engines and again by
+  `conclude`; the calls in `inverse/` are among the leftovers.
+- Unit 4a's remark: 6 004 of the `read-tptp` journey's 18 418
+  allocations are in `linear::lltp::clauses`, which ordinary logic's
+  TPTP reader calls (`ordinary/parse.rs:942`).
+- F-arch-07: the clause syntax of TPTP (`linear::lltp::{Clauses,
+  Status}`) serves ordinary logic's reader from inside the linear
+  suite.
+
 ## Unit 4c (the first-order engines of ordinary logic)
 
 - F-arch-24: the intuitionistic connection prover repeats the classical
@@ -94,7 +109,19 @@ as findings of its own, naming the finding it follows.
   suites (`ordinary/model.rs:175`, `modal/model.rs:176`), and the modal
   check is bounded by `ordinary::MODEL_CELLS` (`modal/model.rs:18`).
 - F-arch-08, from the modal side: the arena, the parser and the JSON
-  form that `modal` copies from `ordinary`.
+  form that `modal` copies from `ordinary` (unit 4a confirms it from
+  the ordinary side: `ordinary/mod.rs:864` and `modal/mod.rs:206`).
+- Unit 4a confirms F-arch-13 and F-arch-21: the three countermodel
+  fields beside `Verdict::NotValid` force ten `structure: None, kripke:
+  None` lines in `decide.rs` and `table.rs`, and `Countermodel::check`
+  is a one-line wrapper of `Model::refutes`. How does the modal outcome
+  carry its countermodel, and what would one shape for both be?
+- F-6b-10 and F-6b-08: LaTeX and Typst have no call for a propositional
+  Kripke countermodel or a modal one, and the Rocq module's table of
+  calls leaves out the modal suite's three certificates.
+- F-4a-12: the shared `kripke::Model` documents and prints its arrows
+  in ordinary logic's reading, so the modal command writes a printer of
+  its own.
 
 ## Units 4e and 4f (the step-by-step states)
 
@@ -108,6 +135,13 @@ as findings of its own, naming the finding it follows.
   session calls each of these, with its signature.
 - `Interactive::formula` (linear) is the third copy of one body, with
   `Proof::formula` and `Derivation::formula` (F-1b-07).
+- Unit 4f: F-2b-01, the public `Interactive::split_passes`, documented
+  as a cheap test, builds the whole forest's count rows with no memory
+  account and no stop on every call
+  (`linear/search/focus/counts.rs:1254`); its callers are
+  `cli/src/interact/mod.rs:536` and `web/src/calls.rs:815`. And F-2b-03:
+  `linear/proofs/interactive/expand.rs:768` reaches into
+  `focus::counts`.
 
 ## Unit 5a (lambda-terms)
 
@@ -131,6 +165,16 @@ as findings of its own, naming the finding it follows.
   constructor and the registry is a static; the registry is written
   four times in `protocol/mod.rs`, and `KINDS` names none of the lambda
   suite's five kinds.
+- F-3-01, and a possible defect for you to settle by a run: the
+  protocol's `linear.net` (`core/src/protocol/linear.rs:556-563`) has no
+  fallback to `MellStructure`, so by unit 3's reading it answers
+  `NetError::Placement { fault: Cut }` (malformed) for a checked proof
+  of multiplicative linear logic that cuts one occurrence twice
+  (`core/src/linear/nets/cut/tests.rs:556` builds one), where the
+  command and the bindings' own call draw the net. Unit 3 did not run
+  it.
+- F-2b-01: `web/src/calls.rs:815` calls `Interactive::split_passes` per
+  candidate, which is not the cheap test its docs promise.
 - F-arch-12 and F-arch-15, against the client's calls: every session
   call is written three times in the bindings (`candidates`,
   `ordinary_candidates`, `rules_candidates`) and described in a second
@@ -192,6 +236,18 @@ as findings of its own, naming the finding it follows.
   (F-7a-04).
 - `cli/src/grade.rs` chooses its suite in a way of its own, which the
   selector of F-7a-01 would replace (D1).
+- Unit 4a's remark: `cli/src/interact/ordinary.rs:672` (`binders`)
+  walks a hash-consed formula with no set of nodes seen, which is
+  exponential on a shared arena read from JSON.
+- F-2b-01: `cli/src/interact/mod.rs:536` calls
+  `Interactive::split_passes`, which builds the forest's count rows on
+  every call.
+- F-4a-07: the list of LK's and LJ's rules and their ASCII spellings
+  are crate-private, so `cli/src/interact/ordinary.rs:625` keeps copies
+  of both tables.
+- F-3-01: the command chooses the net of a proof by hand
+  (`ProofStructure`, falling back to `MellStructure`), as two other
+  front ends do.
 
 ## The leader (stage 6)
 
@@ -209,7 +265,30 @@ as findings of its own, naming the finding it follows.
   library's README line 66 shows a `deduxit prove` that relies on the
   default.
 - `core-derivations.md:297` says `Named::ALL` is "a public array of
-  34"; it has 41 (unit 1b's remark): a rules file to correct.
+  34"; it has 41 (unit 1b's remark): a rules file to correct. So is
+  `core-search.md:403-407`, which says the command calls `engine_for`
+  (it calls `race`; unit 2a's remark).
+- F-2a-01 changes behaviour (an error becomes a documented verdict): a
+  fix, not a refactor (unit 2a's remark). `cli/src/prove.rs:66-85`
+  holds the caller's side of F-2a-04 (`race`'s two thread knobs).
+- The engine interface must cover ordinary logic too (unit 4a's
+  remark): `ordinary::Outcome` is `#[non_exhaustive]` with no
+  constructor and `Search` has no variant for a method from outside.
+  From inside the focused engine (unit 2b's remark): `Focused::decide`
+  needs the memory account, the work counter and a stop counted in
+  work units; a public `Decide` carries these three or hides them
+  behind `&Limits` and the stop.
+- `Refusal::Stopped { phase }` is built by hand at 103 sites, and four
+  modules define a `stopped()` helper of their own (unit 6b's remark):
+  the constructor of F-arch-03 and F-6a-03 serves the crate first.
+- `ordinary::Derivation` implements serde's `Deserialize` publicly,
+  outside the limits `wire::upgrade` applies (`derivation.rs:2661`;
+  unit 4a's remark, beside F-6a-01).
+- No journey of the ratchet or of DHAT runs a first-order search (unit
+  2b's remark), so the first-order zone's performance candidates
+  (F-2b-09) have no instrument yet: adding a journey serves P1.
+- `render-svg` stands 1.12 % over its ceiling, within the tolerance
+  (unit 6b's remark).
 - `Sequent::add` and `add_cut` offset indices with an unchecked `+`
   (`linear/sequents/mod.rs:851`, `:863`, `:869`, `:294`): out of reach
   in practice (an arena of 2^32 terms), but no rules file records the
