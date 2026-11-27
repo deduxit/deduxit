@@ -205,7 +205,11 @@ a `let` per shared subterm in the exporter's Rocq certificates compiles
 output*: every certificate's text and its snapshots, not their
 statements; after 87c3 (which keeps the text byte for byte). The
 `rocq`, `rocq-deduxit` and `check-certificate` checks; panel
-(certificates). Added 2026-11-27 by the planning session.
+(certificates). Also 87c3's integers member's finding: in classical
+logic `rocq::write_countermodel` ignores `derivation_bytes`, and a shared
+formula graph doubles the text per level; the `let`s shrink it and the
+writer is held to the bound, with a test. Added 2026-11-27 by the
+planning session.
 
 **87d3. The candidates.** D5, on 87a's journeys: each measured, kept if
 a count moves, recorded as tried in its unit's rules file if not.
