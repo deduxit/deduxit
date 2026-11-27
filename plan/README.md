@@ -8764,3 +8764,15 @@ move (D26).
   certificates, measured 3.8 times faster to compile at `!A ⊢ A^256` (570 KB to 27 KB) but changes
   every certificate's text, which 87c3 forbids; it becomes its own step after 87c3 in wave D (87d4),
   a change of output with its snapshots, not of the API. F-9-10 measured: no change needed.
+- 2026-11-27, about 12:59: **87a reviewed; wave B started.** 87a (Opus, high; the reviewer on Fable):
+  the baselines again at the refactor's base (both target sets equal to their oracles), 42 ratchet
+  journeys with a heap-block ceiling each (every engine and checker no instrument ran before: the
+  SAT method, LJT, both connection provers, resolution, first-order linear search, the modal
+  tableau, both model searches, lambda-terms, one session per suite, cut elimination, a
+  saturated refutation's check, the inverse method, a rule file's checker, a workspace run), the
+  connection provers' statistics pinned on ILTP (`bench/connection-targets.sh`). (departs from the
+  plan) F-2c-12's generators were already outside the measured part; the blocks are counted inside
+  it instead. The reviewer's three findings fixed (a journey that checked no verdict among them). Full
+  check passed; rebased onto the Rocq lock move, its head (`qzkqqqtp`) in CI before `main`. Wave B
+  on it: 87b1 (the linear suite, with the panel; 87a's worker, cores 4-6, panel 13-15) beside 87b2
+  (the other suites; fixup-31's worker, cores 10-12); 87b3 after 87b1.
