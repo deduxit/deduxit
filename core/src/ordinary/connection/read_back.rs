@@ -26,6 +26,7 @@
 //! no rule closes is [`Error::ReadBack`], a defect, never a verdict. Every
 //! walk keeps a stack of its own.
 
+use super::super::branch::{self, Emits, Placed, closes_a_premise, position, replaced, sides};
 use super::matrix::{Kind, Matrix, NONE, Symbol};
 use super::sizes::TermBudget;
 use super::terms::{Head, Seen, Terms};
@@ -35,6 +36,13 @@ use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side};
+
+/// A branch of the construction.
+type Branch = branch::Branch<Item>;
+/// A rule applied to a branch.
+type Step = branch::Step<Item>;
+/// A step of the construction's stack.
+type Frame = branch::Frame<Item>;
 
 // The arena's tables and indices grow by doubling, so each figure below is
 // twice what an entry takes: with them at their lengths the estimate was
@@ -73,40 +81,6 @@ struct Item {
     done: Vec<FoTermId>,
     /// Whether it is left alone: a δ-formula the branch took apart already.
     inert: bool,
-}
-
-/// A branch: its formulas and the eigenvariables it introduced.
-#[derive(Clone, Debug, Default)]
-struct Branch {
-    /// The formulas, hypotheses and goals in the order they came.
-    items: Vec<Item>,
-    /// The eigenvariables of `∀R` and `∃L` below it.
-    introduced: Vec<FoTermId>,
-    /// The eigenvariables of Skolem terms a witness below it holds though
-    /// the branch never introduced them: constants here, which no `∀R` or
-    /// `∃L` above may introduce.
-    constants: Vec<FoTermId>,
-}
-
-/// A step of the construction.
-enum Frame {
-    /// Derive the branch.
-    Expand(Branch),
-    /// Make the inference whose premises are the last results.
-    Emit {
-        /// Its hypotheses.
-        left: Vec<NodeId>,
-        /// Its goals.
-        right: Vec<NodeId>,
-        /// Its rule.
-        rule: Rule,
-        /// Its principal formula.
-        principal: Option<(Side, usize)>,
-        /// Its term.
-        term: Option<FoTermId>,
-        /// How many premises.
-        premises: usize,
-    },
 }
 
 /// The state of a read-back.
@@ -222,18 +196,33 @@ pub(super) fn read_back(
     ))
 }
 
-/// Returns the hypotheses and the goals of a branch, in order.
-fn sides(branch: &Branch) -> (Vec<NodeId>, Vec<NodeId>) {
-    let left = branch.items.iter().filter(|i| i.left).map(|i| i.node);
-    let right = branch.items.iter().filter(|i| !i.left).map(|i| i.node);
-    (left.collect(), right.collect())
+impl Placed for Item {
+    fn left(&self) -> bool {
+        self.left
+    }
+
+    fn node(&self) -> NodeId {
+        self.node
+    }
 }
 
-/// Returns the position of item `at` among the items of its side.
-fn position(branch: &Branch, at: usize) -> (Side, usize) {
-    let left = branch.items[at].left;
-    let before = branch.items[..at].iter().filter(|i| i.left == left).count();
-    (if left { Side::Left } else { Side::Right }, before)
+impl Emits for ReadBack<'_, '_> {
+    fn formulas(&self) -> &Formulas {
+        &self.formulas
+    }
+
+    fn emit(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        term: Option<FoTermId>,
+        premises: Vec<InfId>,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<InfId, Error> {
+        self.push(left, right, rule, principal, term, premises, stop)
+    }
 }
 
 impl ReadBack<'_, '_> {
@@ -615,82 +604,7 @@ impl ReadBack<'_, '_> {
         branch: &Branch,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Option<InfId>, Error> {
-        let (left, right) = sides(branch);
-        if let Some(at) = right
-            .iter()
-            .position(|&k| self.formulas.node(k) == Node::True)
-        {
-            return self
-                .push(
-                    left,
-                    right,
-                    Rule::TrueRight,
-                    Some((Side::Right, at)),
-                    None,
-                    Vec::new(),
-                    stop,
-                )
-                .map(Some);
-        }
-        if let Some(at) = left
-            .iter()
-            .position(|&k| self.formulas.node(k) == Node::False)
-        {
-            return self
-                .push(
-                    left,
-                    right,
-                    Rule::FalseLeft,
-                    Some((Side::Left, at)),
-                    None,
-                    Vec::new(),
-                    stop,
-                )
-                .map(Some);
-        }
-        let Some(&shared) = left.iter().find(|k| right.contains(k)) else {
-            return Ok(None);
-        };
-        // `A ⊢ A`, then every other formula weakened in, in order.
-        let mut id = self.push(
-            vec![shared],
-            vec![shared],
-            Rule::Axiom,
-            None,
-            None,
-            Vec::new(),
-            stop,
-        )?;
-        let (mut l, mut r) = (vec![shared], vec![shared]);
-        let mut skipped = (false, false);
-        for item in &branch.items {
-            let side = if item.left {
-                &mut skipped.0
-            } else {
-                &mut skipped.1
-            };
-            if item.node == shared && !*side {
-                *side = true;
-                continue;
-            }
-            let (rule, principal) = if item.left {
-                l.push(item.node);
-                (Rule::WeakenLeft, (Side::Left, l.len() - 1))
-            } else {
-                r.push(item.node);
-                (Rule::WeakenRight, (Side::Right, r.len() - 1))
-            };
-            id = self.push(
-                l.clone(),
-                r.clone(),
-                rule,
-                Some(principal),
-                None,
-                vec![id],
-                stop,
-            )?;
-        }
-        Ok(Some(id))
+        branch::close(self, branch, stop)
     }
 
     /// Returns the first rule the order gives for the branch, with its
@@ -712,7 +626,7 @@ impl ReadBack<'_, '_> {
                     rule,
                     principal: position(branch, at),
                     term: None,
-                    premises: vec![Self::replaced(branch, at, Vec::new())],
+                    premises: vec![replaced(branch, at, Vec::new())],
                 }));
             }
         }
@@ -773,7 +687,9 @@ impl ReadBack<'_, '_> {
         // 5: two premises, one that closes a premise at once first.
         let closing = (0..branch.items.len()).find(|&at| {
             let item = &branch.items[at];
-            self.relevant[item.occ as usize] && !item.inert && self.closes_a_premise(branch, at)
+            self.relevant[item.occ as usize]
+                && !item.inert
+                && closes_a_premise(&self.formulas, branch, at)
         });
         if let Some(at) = closing
             && let Some(step) = self.binary(branch, at)?
@@ -883,28 +799,6 @@ impl ReadBack<'_, '_> {
             .is_none_or(|witnesses| witnesses.iter().all(|t| item.done.contains(t)))
     }
 
-    /// Returns whether a rule of two premises on item `at` would close one
-    /// of them at once: an operand that stands on the other side, or `⊤`
-    /// going right or `⊥` going left.
-    fn closes_a_premise(&self, branch: &Branch, at: usize) -> bool {
-        let item = &branch.items[at];
-        let operands = match (self.formulas.node(item.node), item.left) {
-            (Node::And(a, b), false) => [(a, false), (b, false)],
-            (Node::Or(a, b), true) => [(a, true), (b, true)],
-            (Node::Implies(a, b), true) => [(a, false), (b, true)],
-            _ => return false,
-        };
-        operands.iter().any(|&(node, left)| {
-            let shape = self.formulas.node(node);
-            (left && shape == Node::False)
-                || (!left && shape == Node::True)
-                || branch
-                    .items
-                    .iter()
-                    .any(|other| other.left != left && other.node == node)
-        })
-    }
-
     /// Returns the item for operand `k` of item `at`'s occurrence, with
     /// the formula `node`.
     fn child(&self, branch: &Branch, at: usize, k: usize, node: NodeId) -> Item {
@@ -918,14 +812,6 @@ impl ReadBack<'_, '_> {
             done: Vec::new(),
             inert: false,
         }
-    }
-
-    /// Returns the branch without item `at` and with `added`.
-    fn replaced(branch: &Branch, at: usize, added: Vec<Item>) -> Branch {
-        let mut premise = branch.clone();
-        premise.items.remove(at);
-        premise.items.extend(added);
-        premise
     }
 
     /// The rule of one premise on item `at`, if its formula has one.
@@ -970,7 +856,7 @@ impl ReadBack<'_, '_> {
             rule,
             principal,
             term: None,
-            premises: vec![Self::replaced(branch, at, added)],
+            premises: vec![replaced(branch, at, added)],
         }))
     }
 
@@ -1012,8 +898,8 @@ impl ReadBack<'_, '_> {
             principal,
             term: None,
             premises: vec![
-                Self::replaced(branch, at, vec![first]),
-                Self::replaced(branch, at, vec![second]),
+                replaced(branch, at, vec![first]),
+                replaced(branch, at, vec![second]),
             ],
         }))
     }
@@ -1053,7 +939,7 @@ impl ReadBack<'_, '_> {
             premise.items.push(child);
             premise
         } else {
-            let mut premise = Self::replaced(branch, at, vec![child]);
+            let mut premise = replaced(branch, at, vec![child]);
             premise.introduced.push(t);
             premise
         };
@@ -1064,17 +950,4 @@ impl ReadBack<'_, '_> {
             premises: vec![premise],
         })
     }
-}
-
-/// A rule applied to a branch: the inference's rule, principal formula
-/// and term, and the premises' branches.
-struct Step {
-    /// The rule.
-    rule: Rule,
-    /// The principal formula.
-    principal: (Side, usize),
-    /// The term of a quantifier rule.
-    term: Option<FoTermId>,
-    /// The premises.
-    premises: Vec<Branch>,
 }

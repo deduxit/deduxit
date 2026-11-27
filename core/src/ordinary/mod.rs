@@ -64,6 +64,8 @@
 // existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+/// A branch of a derivation of LK as two builders make it.
+mod branch;
 /// What moving or removing a binder does to de Bruijn indices.
 mod bruijn;
 pub mod connection;

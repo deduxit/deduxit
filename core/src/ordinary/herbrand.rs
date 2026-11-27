@@ -38,6 +38,7 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+use super::branch::{Emits, Placed, closes_a_premise, position, replaced, sides};
 use super::bruijn::Replaced;
 use super::derivation::{ArenaSize, Inference};
 use super::normal::{self, NormalForm, Rule as NormalRule};
@@ -971,82 +972,12 @@ impl Item {
     }
 }
 
-/// A branch: its formulas and the Skolem terms it introduced.
-#[derive(Clone, Debug, Default)]
-struct Branch {
-    /// The formulas, in the order they came.
-    items: Vec<Item>,
-    /// The Skolem terms of the `∀R` and `∃L` below it.
-    introduced: Vec<FoTermId>,
-    /// The Skolem terms a witness below it holds that the branch never
-    /// introduced: constants here, which no `∀R` or `∃L` above may
-    /// introduce.
-    constants: Vec<FoTermId>,
-}
-
-/// Returns the hypotheses and the goals of a branch, in order, each vector
-/// exactly as long as its side: every inference keeps both.
-fn sides(branch: &Branch) -> (Vec<NodeId>, Vec<NodeId>) {
-    let n = branch.items.iter().filter(|i| i.left).count();
-    let mut left = Vec::with_capacity(n);
-    let mut right = Vec::with_capacity(branch.items.len() - n);
-    for item in &branch.items {
-        if item.left {
-            left.push(item.node);
-        } else {
-            right.push(item.node);
-        }
-    }
-    (left, right)
-}
-
-/// Returns the position of item `at` among the items of its side.
-fn position(branch: &Branch, at: usize) -> (Side, usize) {
-    let left = branch.items[at].left;
-    let before = branch.items[..at].iter().filter(|i| i.left == left).count();
-    (if left { Side::Left } else { Side::Right }, before)
-}
-
-/// Returns the branch without item `at` and with `added`.
-fn replaced(branch: &Branch, at: usize, added: Vec<Item>) -> Branch {
-    let mut premise = branch.clone();
-    premise.items.remove(at);
-    premise.items.extend(added);
-    premise
-}
-
+/// A branch of the construction.
+type Branch = super::branch::Branch<Item>;
 /// A rule applied to a branch.
-struct Step {
-    /// The rule.
-    rule: Rule,
-    /// The principal formula.
-    principal: (Side, usize),
-    /// The term of a quantifier rule, a Skolem term for `∀R` and `∃L`.
-    term: Option<FoTermId>,
-    /// The premises.
-    premises: Vec<Branch>,
-}
-
-/// A step of the construction.
-enum Frame {
-    /// Derive the branch.
-    Expand(Branch),
-    /// Make the inference whose premises are the last results.
-    Emit {
-        /// Its hypotheses.
-        left: Vec<NodeId>,
-        /// Its goals.
-        right: Vec<NodeId>,
-        /// Its rule.
-        rule: Rule,
-        /// Its principal formula.
-        principal: Option<(Side, usize)>,
-        /// Its term.
-        term: Option<FoTermId>,
-        /// How many premises.
-        premises: usize,
-    },
-}
+type Step = super::branch::Step<Item>;
+/// A step of the construction's stack.
+type Frame = super::branch::Frame<Item>;
 
 impl Frame {
     /// Returns the bytes the frame holds, estimated: a branch's formulas
@@ -1107,6 +1038,35 @@ struct Build<'l> {
     nesting_memo: RefCell<HashMap<FoTermId, u32>>,
     /// The bounds.
     limits: &'l Limits,
+}
+
+impl Placed for Item {
+    fn left(&self) -> bool {
+        self.left
+    }
+
+    fn node(&self) -> NodeId {
+        self.node
+    }
+}
+
+impl Emits for Build<'_> {
+    fn formulas(&self) -> &Formulas {
+        &self.formulas
+    }
+
+    fn emit(
+        &mut self,
+        left: Vec<NodeId>,
+        right: Vec<NodeId>,
+        rule: Rule,
+        principal: Option<(Side, usize)>,
+        term: Option<FoTermId>,
+        premises: Vec<InfId>,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<InfId, Error> {
+        self.push(left, right, rule, principal, term, premises, stop)
+    }
 }
 
 impl Build<'_> {
@@ -1278,80 +1238,7 @@ impl Build<'_> {
         branch: &Branch,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Option<InfId>, Error> {
-        let (left, right) = sides(branch);
-        if let Some(at) = right
-            .iter()
-            .position(|&k| self.formulas.node(k) == Node::True)
-        {
-            let id = self.push(
-                left,
-                right,
-                Rule::TrueRight,
-                Some((Side::Right, at)),
-                None,
-                Vec::new(),
-                stop,
-            )?;
-            return Ok(Some(id));
-        }
-        if let Some(at) = left
-            .iter()
-            .position(|&k| self.formulas.node(k) == Node::False)
-        {
-            let id = self.push(
-                left,
-                right,
-                Rule::FalseLeft,
-                Some((Side::Left, at)),
-                None,
-                Vec::new(),
-                stop,
-            )?;
-            return Ok(Some(id));
-        }
-        let Some(&shared) = left.iter().find(|k| right.contains(k)) else {
-            return Ok(None);
-        };
-        // `A ⊢ A`, then every other formula weakened in, in order.
-        let mut id = self.push(
-            vec![shared],
-            vec![shared],
-            Rule::Axiom,
-            None,
-            None,
-            Vec::new(),
-            stop,
-        )?;
-        let (mut l, mut r) = (vec![shared], vec![shared]);
-        let mut skipped = (false, false);
-        for item in &branch.items {
-            let side = if item.left {
-                &mut skipped.0
-            } else {
-                &mut skipped.1
-            };
-            if item.node == shared && !*side {
-                *side = true;
-                continue;
-            }
-            let (rule, principal) = if item.left {
-                l.push(item.node);
-                (Rule::WeakenLeft, (Side::Left, l.len() - 1))
-            } else {
-                r.push(item.node);
-                (Rule::WeakenRight, (Side::Right, r.len() - 1))
-            };
-            id = self.push(
-                l.clone(),
-                r.clone(),
-                rule,
-                Some(principal),
-                None,
-                vec![id],
-                stop,
-            )?;
-        }
-        Ok(Some(id))
+        super::branch::close(self, branch, stop)
     }
 
     /// Returns the first rule the order gives on the branch, if any: one
@@ -1424,7 +1311,8 @@ impl Build<'_> {
                 return self.instance(branch, at, t, true).map(Some);
             }
         }
-        let closing = (0..branch.items.len()).find(|&at| self.closes_a_premise(branch, at));
+        let closing =
+            (0..branch.items.len()).find(|&at| closes_a_premise(&self.formulas, branch, at));
         if let Some(at) = closing
             && let Some(step) = self.binary(branch, at)?
         {
@@ -1563,27 +1451,6 @@ impl Build<'_> {
     /// witness in.
     fn useless(&self, item: &Item) -> bool {
         item.inert || (self.weak(item) && self.witnesses.iter().all(|t| item.done.contains(t)))
-    }
-
-    /// Returns whether a rule of two premises on item `at` closes one of
-    /// them at once.
-    fn closes_a_premise(&self, branch: &Branch, at: usize) -> bool {
-        let item = &branch.items[at];
-        let operands = match (self.formulas.node(item.node), item.left) {
-            (Node::And(a, b), false) => [(a, false), (b, false)],
-            (Node::Or(a, b), true) => [(a, true), (b, true)],
-            (Node::Implies(a, b), true) => [(a, false), (b, true)],
-            _ => return false,
-        };
-        operands.iter().any(|&(node, left)| {
-            let shape = self.formulas.node(node);
-            (left && shape == Node::False)
-                || (!left && shape == Node::True)
-                || branch
-                    .items
-                    .iter()
-                    .any(|other| other.left != left && other.node == node)
-        })
     }
 
     /// The rule of one premise on item `at`, if its formula has one.

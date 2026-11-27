@@ -213,6 +213,12 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`Out::push`) the `Inference` and 4 bytes per member and premise. The
   SAT read-back keeps its own `weaken` (`without` keeps the order, which
   the derivation drawn shows) and shares `in_order`.
+- **The classical connection read-back and Herbrand's construction share
+  their branches** (`branch.rs`: `Branch`, `Step`, `Frame`, `sides`,
+  `position`, `replaced`, `closes_a_premise`, and `close`, the `⊤R`,
+  `⊥L` or axiom with its weakenings, through the traits `Placed` for an item and `Emits` for
+  the builder's own `push`). Each keeps its oracle, its rule order and
+  its `Frame`'s charge (`bytes`, Herbrand's), since those differ.
 - **A derivation of LK or LJ is bounded by the memory it holds, not by
   the drawn text's estimate** (fixup-19's planning decision): every
   reader back (the embedding's `linear_derivation`, which unfolds with
