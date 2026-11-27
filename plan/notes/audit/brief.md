@@ -28,6 +28,8 @@ In the first tree (`A` below stands for it):
   budget, the public API's size, Clippy's allowed lints, lines).
 - `A/plan/notes/audit/rejected.md`: findings a verifier refuted. Do not
   raise one again unless you bring a witness it lacked.
+- `A/plan/notes/audit/handovers.md`: what the finders of earlier units
+  ask of later ones, by unit: pointers to look at, not findings.
 - `A/.claude/rules/*.md`: the rules files. They record choices made on
   purpose, with their reasons. A finding against a recorded choice must
   say why its reason no longer holds.
@@ -58,9 +60,15 @@ In the first tree (`A` below stands for it):
 ## Rules
 
 - **Read-only.** No edit of either repository, no `jj` command that
-  writes, no `git`, no `gh`, no push, nothing installed. The one place
-  you write is your unit's directory, `A/target/audit/units/UNIT/` (the
-  build's output directory, which the repository ignores).
+  writes, no `git`, no `gh`, no push, nothing installed. The one file
+  you write is your notes, `A/target/audit/units/UNIT/notes.md` (in the
+  build's output directory, which the repository ignores). Your result
+  goes back through the schema your prompt gives, in full; the leader
+  writes the result files from it, so write no `findings.md` and no
+  `verdicts.md` yourself.
+- Each request you make reads your whole context again, so make few of
+  them: ask for several files, or several searches, in one message
+  whenever they do not depend on each other.
 - Read files with the Read tool or `grep`, `head`, `tail`, `cut`, `wc`.
   Never `sed` or `awk`, no `VAR=…` before a command, no `$` in a
   pattern.
@@ -123,28 +131,33 @@ duplication, performance, the public API and its extensibility, text.
 `A/plan/notes/audit/method.md` ("The grid") says which criteria each
 dimension holds.
 
-1. Read `criteria.md`, `consumer-test.md` and `rejected.md`. In your
-   unit's rules files, read the parts on your unit's modules (`grep -n`
-   for a file's name finds them); they are long, so do not read them
-   whole unless they are under 700 lines.
+1. Read `criteria.md`, `consumer-test.md`, `rejected.md` and the lines
+   of `handovers.md` for your unit and for every unit. In your unit's
+   rules files, read the parts on your unit's modules (`grep -n` for a
+   file's name finds them); they are long, so do not read them whole
+   unless they are under 700 lines.
 2. Read your unit's entries of the inventories: `grep` each of
    `surface.md`, `duplicates.md`, `clippy.md`, `deps.md`, `text.md` for
    your files.
 3. Read every file of `A/target/audit/units/UNIT/files.txt` in full, in
-   an order that follows the module's structure (its `mod.rs` first).
-   After each file, append what you noticed to
-   `A/target/audit/units/UNIT/notes.md`, each note with `path:line` and
-   the few lines that show it. Your context may be compacted while you
-   read; the notes file is your memory, so keep it current and read it
-   again when you have finished reading.
+   an order that follows the module's structure (its `mod.rs` first),
+   several files per message. After every few files, append what you
+   noticed to `A/target/audit/units/UNIT/notes.md` (with a shell
+   here-document), each note with `path:line` and the few lines that
+   show it. Your context may be compacted while you read; the notes
+   file is your memory, so keep it current and read it again when you
+   have finished reading.
 4. Open code outside your unit only where a finding needs it (a
    duplicate's other place, a caller, a test).
 5. Choose at most 25 findings, the most valuable first: what many users
    or readers gain from, at a cost the gain is worth. Fewer is fine; do
    not pad. Open each place again and check the line number and the
    quote before you write it.
-6. Write `A/target/audit/units/UNIT/findings.md` in the layout below,
-   then return the index your prompt's schema asks for.
+6. Return the findings through your prompt's schema, every field of
+   the form filled: the witness with its lines quoted exactly (Markdown,
+   a fenced block for code), the change, the value and the net. The
+   leader writes `A/target/audit/units/UNIT/findings.md` from them in
+   the layout below.
 
 For a unit of the command, `help.md` and `help/` are part of the unit,
 and so are the chapters of the manual on its commands
@@ -186,9 +199,9 @@ the lines, exactly
 
 ## The verifier
 
-You get one unit's `findings.md`, written by an agent on another model.
-Your task is to refute each finding; one survives only if you fail to.
-For each:
+You get one unit's findings in your prompt, in full, written by an
+agent on another model. Your task is to refute each finding; one
+survives only if you fail to. For each:
 
 1. Open the place. Is the witness there, at that line, and does it show
    what the claim says? A quote that is not in the file, or a claim the
@@ -215,12 +228,13 @@ Your verdict on each is one of:
 - `rejected`: with the reason, in a sentence or two that a later finder
   can check.
 
-Write `A/target/audit/units/UNIT/verdicts.md`: a heading `## F-UNIT-NN:
-verdict` per finding, in the findings' order, then the reason and any
-correction. Then return the index your prompt's schema asks for. You do
-not add findings of your own, with one exception: if checking a finding
-shows a defect of correctness (a wrong verdict, a panic, an unsound
-check), report it under a heading `## Beside the findings`.
+Return your verdicts through your prompt's schema: for each finding, in
+the findings' order, its id, the verdict, the reason in a short
+paragraph that a later reader can check (the places you opened), and
+any correction. The leader writes `A/target/audit/units/UNIT/verdicts.md`
+from them. You do not add findings of your own, with one exception: if
+checking a finding shows a defect of correctness (a wrong verdict, a
+panic, an unsound check), report it in the schema's `beside`.
 
 ## The architecture reader
 
