@@ -202,16 +202,21 @@ fn run(
         };
         return unknown(reason, statistics);
     }
+    // With `=` no Kripke model is tried, so the levels are the structures'
+    // sizes alone: the Kripke encoding reads `=` as a predicate, and the
+    // check reads it as identity at every world and refuses a world that
+    // lists it. (With the worlds unbounded the loop once ran to
+    // `u32::MAX` levels without a poll, then asked for a model of that
+    // many worlds and overflowed.)
+    let equality = sequent.formulas().has_equality();
     let worlds = match logic {
         Logic::Classical => 1,
+        Logic::Intuitionistic | Logic::Minimal if equality => 1,
         Logic::Intuitionistic | Logic::Minimal => worlds_bound.unwrap_or(u32::MAX).max(1),
     };
     // Minimal logic's `⊥` makes a model of one world more than a finite
     // structure, which forces it nowhere.
-    // With `=` no Kripke model is tried: the Kripke encoding reads `=` as
-    // a predicate, and the check reads it as identity at every world and
-    // refuses a world that lists it.
-    let least = if sequent.formulas().has_equality() {
+    let least = if equality {
         u32::MAX
     } else {
         match logic {
@@ -295,7 +300,7 @@ fn run(
             Err(error) => unknown(unknown_for(error, limits)?, statistics),
         };
     }
-    let reason = if logic != Logic::Classical {
+    let reason = if logic != Logic::Classical && !equality {
         Reason::KripkeSize { worlds, size: most }
     } else {
         Reason::ModelSize { size: most }
@@ -1222,6 +1227,29 @@ mod tests {
                     Verdict::Unknown(Reason::KripkeSize { worlds: 3, size: 3 })
                 ),
                 "{text}: {:?}",
+                outcome.verdict
+            );
+        }
+    }
+
+    /// With `=` and no bound on worlds the search tries the structures up
+    /// to the size bound and ends there, unknown: it once ran to
+    /// `u32::MAX` levels without a poll and then overflowed asking for a
+    /// Kripke model of that many worlds.
+    #[test]
+    fn equality_ends_at_the_size_bound() {
+        let sequent: Sequent = "|- a = b \\/ ~a = b".parse().unwrap();
+        let options = search::Options::default()
+            .with_model_size(Some(2))
+            .with_model_worlds(None);
+        for logic in [Logic::Intuitionistic, Logic::Minimal] {
+            let outcome = decide(&sequent, logic, &options, &Limits::default(), |_| false).unwrap();
+            assert!(
+                matches!(
+                    outcome.verdict,
+                    Verdict::Unknown(Reason::ModelSize { size: 2 })
+                ),
+                "{logic:?}: {:?}",
                 outcome.verdict
             );
         }

@@ -136,6 +136,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   `=` as any predicate and the certificate listed no equal pairs. It
   lists each element equal to itself now. Nothing false was certified:
   Rocq refused those files.
+- **The model search ends at its size bound on a sequent with `=`**
+  in intuitionistic and minimal logic. With `--model-size` given and
+  no `--model-worlds`, it ran past the time limit and then crashed.
 - **First-order resolution keeps its bounds after the refutation.**
   Reading a refutation back as a derivation of LK wrote its instances'
   terms out in full, and the text wrote every binding whole, so a

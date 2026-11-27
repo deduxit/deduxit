@@ -580,7 +580,11 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   one world with no facts as a refutation of `⊢ a = a`
   (`equality_is_identity_at_every_world`, the protocol's and the
   command's tests of that document). The model search still tries no
-  Kripke model for a sequent with `=` (`least` above every level): its
+  Kripke model for a sequent with `=` (one world, `least` above every
+  level, the size bound's `ModelSize` at the end; with the worlds
+  unbounded the loop once ran to `u32::MAX` levels without a poll and
+  overflowed, the argument member's witness,
+  `equality_ends_at_the_size_bound`): its
   encoding reads `=` as a predicate, and `within` drops
   `outcome.kripke` with any other "not valid" it turns unknown. A search
   whose worlds read `=` as identity, or a congruence growing along the
