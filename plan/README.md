@@ -8823,3 +8823,11 @@ move (D26).
   waits for 87b1) where the files differ; the plan's "waves in order" holds per file. Part 2 (the
   signed API) follows part 1's duplication and structure steps, whose moves it would otherwise
   conflict with.
+- 2026-11-27, about 18:06: **87c1 reviewed and pushed.** (Opus, high; the reviewer on Fable.) One
+  crate-private formula arena and text reader (`crate::arena`, a `Shape` per node) shared by ordinary
+  and modal logic, the two `Formulas` public as before; modal logic's JSON sequent is the ordinary
+  form with `□` and `◇`. Every test of both suites passed, the ratchet within tolerance, the wire forms
+  as before. (departs from the plan, foreseen by F-6a-11's verdict) A JSON sequent with the other
+  suite's tags is refused with a message that names them (kind and code unchanged), pinned and in the
+  changelog. The reviewer's three unresolved doc links fixed. Full check passed; pushed
+  (`uruprwvn`). Its worker waits for 87b1 to land before 87c8 or 87c5, which touch 87b1's files.
