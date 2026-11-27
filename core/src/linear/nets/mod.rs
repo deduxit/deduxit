@@ -1171,11 +1171,7 @@ impl ProofStructure {
     /// Returns the other end of the cut link at a vertex, `None` for a
     /// vertex at no cut link.
     pub fn cut_partner(&self, v: VertexId) -> Option<VertexId> {
-        self.cuts.iter().find_map(|&(x, y)| match v {
-            v if v == x => Some(y),
-            v if v == y => Some(x),
-            _ => None,
-        })
+        cut_partner_in(&self.cuts, v)
     }
 
     /// Returns whether the structure has no cut link.
@@ -1564,23 +1560,13 @@ impl ProofStructure {
                 y.get()
             )?;
         }
-        match self.is_correct(|_| false) {
-            Ok(()) if self.criterion.mix => {
-                f.write_str("proof net with Mix (the correctness criterion with Mix holds)")
-            }
-            Ok(()) if self.criterion.order != Order::Commutative => f.write_str(
-                "planar proof net (the correctness criterion holds, and no two links cross)",
-            ),
-            Ok(()) => f.write_str("proof net (the correctness criterion holds)"),
-            Err(e) => match mode {
-                Some(mode) => write!(
-                    f,
-                    "not a proof net: {}",
-                    e.describe(&self.forest).in_mode(mode)
-                ),
-                None => write!(f, "not a proof net: {}", e.describe(&self.forest)),
-            },
-        }
+        write_verdict(
+            f,
+            self.is_correct(|_| false),
+            self.criterion,
+            &self.forest,
+            mode,
+        )
     }
 }
 
@@ -1646,6 +1632,40 @@ pub(crate) fn net_of_proof(
         }
         made => made.map(Net::Plain),
     }
+}
+
+/// Writes a structure's verdict under `criterion`, the reason described
+/// from `owner` and, in an intuitionistic mode, as the mode reads it.
+fn write_verdict(
+    f: &mut Formatter<'_>,
+    verdict: Result<(), NetError>,
+    criterion: Criterion,
+    owner: &impl Owner,
+    mode: Option<Mode>,
+) -> FmtResult {
+    match verdict {
+        Ok(()) if criterion.mix => {
+            f.write_str("proof net with Mix (the correctness criterion with Mix holds)")
+        }
+        Ok(()) if criterion.order != Order::Commutative => f.write_str(
+            "planar proof net (the correctness criterion holds, and no two links cross)",
+        ),
+        Ok(()) => f.write_str("proof net (the correctness criterion holds)"),
+        Err(e) => match mode {
+            Some(mode) => write!(f, "not a proof net: {}", e.describe(owner).in_mode(mode)),
+            None => write!(f, "not a proof net: {}", e.describe(owner)),
+        },
+    }
+}
+
+/// Returns the other end of the cut link at `v` among `cuts`, `None` for a
+/// vertex at no cut link.
+fn cut_partner_in(cuts: &[(VertexId, VertexId)], v: VertexId) -> Option<VertexId> {
+    cuts.iter().find_map(|&(x, y)| match v {
+        v if v == x => Some(y),
+        v if v == y => Some(x),
+        _ => None,
+    })
 }
 
 #[cfg(all(test, feature = "parse"))]

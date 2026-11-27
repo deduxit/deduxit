@@ -371,11 +371,7 @@ impl crate::sealed::Net for ProofStructure {
                     self.partner(x).expect("a proof net links every literal"),
                     self.partner(y).expect("a proof net links every literal"),
                 );
-                let ends =
-                    |&(u, v): &(VertexId, VertexId)| [x, y].contains(&u) || [x, y].contains(&v);
-                let first = links.iter().position(ends).expect("the literal's link");
-                links[first] = (px, py);
-                links.retain(|link| !ends(link));
+                relink(&mut links, (x, y), (px, py));
                 cuts.remove(at);
                 Case::Axiom
             }
@@ -421,4 +417,15 @@ impl crate::sealed::Net for ProofStructure {
         };
         Ok((made, step))
     }
+}
+
+/// The axiom case's links: the first link at either end of the cut
+/// `(x, y)` becomes the link of their partners `(px, py)`, and the other
+/// goes. A proof net links every literal and never a cut's two ends to each
+/// other, so both links exist and are two.
+fn relink<V: Copy + PartialEq>(links: &mut Vec<(V, V)>, (x, y): (V, V), partners: (V, V)) {
+    let ends = |&(u, v): &(V, V)| [x, y].contains(&u) || [x, y].contains(&v);
+    let first = links.iter().position(ends).expect("the literal's link");
+    links[first] = partners;
+    links.retain(|link| !ends(link));
 }

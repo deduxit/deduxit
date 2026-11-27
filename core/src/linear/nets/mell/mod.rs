@@ -623,11 +623,7 @@ impl MellStructure {
     /// Returns the other end of the cut link at a vertex, `None` for a
     /// vertex at no cut link.
     pub fn cut_partner(&self, v: VertexId) -> Option<VertexId> {
-        self.cuts.iter().find_map(|&(x, y)| match v {
-            v if v == x => Some(y),
-            v if v == y => Some(x),
-            _ => None,
-        })
+        super::cut_partner_in(&self.cuts, v)
     }
 
     /// Returns whether the structure has no cut link.
@@ -812,16 +808,7 @@ impl MellStructure {
             vertex(f, y)?;
             f.write_str("\n")?;
         }
-        match self.is_correct(|_| false) {
-            Ok(()) if self.criterion.mix => {
-                f.write_str("proof net with Mix (the correctness criterion with Mix holds)")
-            }
-            Ok(()) => f.write_str("proof net (the correctness criterion holds)"),
-            Err(e) => match mode {
-                Some(mode) => write!(f, "not a proof net: {}", e.describe(self).in_mode(mode)),
-                None => write!(f, "not a proof net: {}", e.describe(self)),
-            },
-        }
+        super::write_verdict(f, self.is_correct(|_| false), self.criterion, self, mode)
     }
 }
 
