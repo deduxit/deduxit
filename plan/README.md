@@ -8852,3 +8852,13 @@ move (D26).
   countermodel's writer ignores `derivation_bytes` (to 87d4). Rebased onto 87b1 with no conflict; in CI
   before `main`. 87d4 (the certificates' `let`s, 3.8 times faster to compile at `!A ⊢ A^256`, and that
   writer bounded; the panel) in its worker on 87c3's head, cores 13-15.
+- 2026-11-27, about 20:17: **87c2 reviewed; 87c4 started.** 87c2 (Opus, high; the panel, the reviewer
+  on Fable): one connection search shared by the classical and the intuitionistic prover (the
+  intuitionistic file down from 1 078 lines to its calculus, 293), one `Budget` and union, the
+  builders of LK and LJ sharing their mechanics with each engine's own memory charge kept (decided
+  unattended: one charge rule would move refusals; it goes to wave D, measured), the connection
+  read-back's and Herbrand's branches shared. 87a's pin unchanged on all 1 312 rows. The panel's
+  refutation fixed (a choice point 4 bytes larger made the classical search refuse earlier at a
+  memory bound). (departs from the plan) each builder keeps its loop and rule order. Rebased onto
+  87b1 and 87c3 with no conflict; in CI before `main`. 87c4 (the nets; the panel) in its worker on
+  87c2's head, cores 10-12; 87c7 waits for 87c8 (both touch refusals across the suites).
