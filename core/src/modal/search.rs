@@ -338,6 +338,20 @@ fn bit(set: &[u64], i: usize) -> bool {
     set[i / 64] >> (i % 64) & 1 == 1
 }
 
+/// Returns the nodes whose bits are set in `bits`, the word at `word` of a
+/// set over the arena, in ascending order. It takes the word by value, so a
+/// loop over it may change the branch the word was read from.
+fn ones(word: usize, bits: u64) -> impl Iterator<Item = u32> {
+    let mut bits = bits;
+    std::iter::from_fn(move || {
+        (bits != 0).then(|| {
+            let b = bits.trailing_zeros();
+            bits &= bits - 1;
+            (word * 64) as u32 + b
+        })
+    })
+}
+
 impl<'a> Search<'a> {
     /// Returns a search of `sequent` in `system` within `limits`.
     pub(super) fn new(sequent: &'a Sequent, system: System, limits: &Limits) -> Self {
@@ -391,6 +405,12 @@ impl<'a> Search<'a> {
                 && !has(Condition::Symmetric)
                 && !has(Condition::Euclidean),
         }
+    }
+
+    /// Returns whether `w` holds a `□` true or a `◇` false of its own.
+    fn has_own_modal(&self, w: &World) -> bool {
+        (0..self.words)
+            .any(|i| w.truth[i] & self.boxes[i] != 0 || w.falsity[i] & self.diamonds[i] != 0)
     }
 
     /// Counts `units` of work and those owed, refuses past the bound,
@@ -732,20 +752,14 @@ impl<'a> Search<'a> {
             let world = &branch.worlds[w as usize];
             self.owed = self.owed.saturating_add((words + world.sees.len()) as u64);
             for i in 0..words {
-                let mut boxes = world.truth[i] & self.boxes[i];
-                while boxes != 0 {
-                    let node = (i * 64) as u32 + boxes.trailing_zeros();
-                    boxes &= boxes - 1;
+                for node in ones(i, world.truth[i] & self.boxes[i]) {
                     written.push(Member::Formula {
                         world: w,
                         node,
                         right: false,
                     });
                 }
-                let mut diamonds = world.falsity[i] & self.diamonds[i];
-                while diamonds != 0 {
-                    let node = (i * 64) as u32 + diamonds.trailing_zeros();
-                    diamonds &= diamonds - 1;
+                for node in ones(i, world.falsity[i] & self.diamonds[i]) {
                     written.push(Member::Formula {
                         world: w,
                         node,
@@ -1058,11 +1072,9 @@ impl<'a> Search<'a> {
         self.owed = self.owed.saturating_add(self.words as u64);
         for word in 0..self.words {
             let w = &branch.worlds[x as usize];
-            let mut boxes = w.truth[word] & self.boxes[word];
-            let mut diamonds = w.falsity[word] & self.diamonds[word];
-            while boxes != 0 {
-                let id = NodeId((word * 64) as u32 + boxes.trailing_zeros());
-                boxes &= boxes - 1;
+            let boxes = w.truth[word] & self.boxes[word];
+            let diamonds = w.falsity[word] & self.diamonds[word];
+            for id in ones(word, boxes).map(NodeId) {
                 let Node::Box(a) = self.sequent.formulas().node(id) else {
                     unreachable!("a box's bit")
                 };
@@ -1075,9 +1087,7 @@ impl<'a> Search<'a> {
                     false,
                 );
             }
-            while diamonds != 0 {
-                let id = NodeId((word * 64) as u32 + diamonds.trailing_zeros());
-                diamonds &= diamonds - 1;
+            for id in ones(word, diamonds).map(NodeId) {
                 let Node::Diamond(a) = self.sequent.formulas().node(id) else {
                     unreachable!("a diamond's bit")
                 };
@@ -1293,10 +1303,7 @@ impl<'a> Search<'a> {
             for x in 0..branch.worlds.len() as u32 {
                 self.tick(1, stop)?;
                 let w = &branch.worlds[x as usize];
-                let own = (0..self.words).any(|i| {
-                    w.truth[i] & self.boxes[i] != 0 || w.falsity[i] & self.diamonds[i] != 0
-                });
-                if w.sees.is_empty() && own && !self.blocked(branch, x, stop)? {
+                if w.sees.is_empty() && self.has_own_modal(w) && !self.blocked(branch, x, stop)? {
                     let y = self.world(branch)?;
                     self.linear(
                         branch,
@@ -1335,9 +1342,7 @@ impl<'a> Search<'a> {
                 && self.serial
                 && !Self::cached(branch, x)
                 && w.sees.is_empty()
-                && (0..self.words).any(|i| {
-                    w.truth[i] & self.boxes[i] != 0 || w.falsity[i] & self.diamonds[i] != 0
-                });
+                && self.has_own_modal(w);
             if (demand.is_some() || serial) && !self.blocked(branch, x, stop)? {
                 let y = self.make(branch, x, demand)?;
                 branch.open.push(y);
@@ -1483,16 +1488,7 @@ impl<'a> Search<'a> {
             } else {
                 self.owed = self.owed.saturating_add(self.words as u64);
                 let mut atoms: Vec<u32> = (0..self.words)
-                    .flat_map(|j| {
-                        let mut bits = w.truth[j] & self.atoms[j];
-                        std::iter::from_fn(move || {
-                            (bits != 0).then(|| {
-                                let b = bits.trailing_zeros();
-                                bits &= bits - 1;
-                                (j * 64) as u32 + b
-                            })
-                        })
-                    })
+                    .flat_map(|j| ones(j, w.truth[j] & self.atoms[j]))
                     .collect();
                 atoms.shrink_to_fit();
                 atoms
@@ -1541,8 +1537,7 @@ impl<'a> Search<'a> {
             if pieces[i].graft.is_some() {
                 continue;
             }
-            let own = (0..self.words)
-                .any(|j| w.truth[j] & self.boxes[j] != 0 || w.falsity[j] & self.diamonds[j] != 0);
+            let own = self.has_own_modal(w);
             let dead = self.serial && w.sees.is_empty();
             if waits[i] || (dead && own) {
                 let Blocked::By(v) = w.blocked else {
@@ -1764,16 +1759,7 @@ impl<'a> Search<'a> {
             self.owed = self.owed.saturating_add(self.words as u64);
             atoms.push(
                 (0..self.words)
-                    .flat_map(|j| {
-                        let mut bits = w.truth[j] & self.atoms[j];
-                        std::iter::from_fn(move || {
-                            (bits != 0).then(|| {
-                                let b = bits.trailing_zeros();
-                                bits &= bits - 1;
-                                (j * 64) as u32 + b
-                            })
-                        })
-                    })
+                    .flat_map(|j| ones(j, w.truth[j] & self.atoms[j]))
                     .collect(),
             );
         }
