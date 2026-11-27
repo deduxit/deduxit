@@ -1099,8 +1099,12 @@ for NanoYalla. What the code relies on:
   subformulas doubles the text per level; `falsified_bytes` estimates it
   the same way, bottom up and saturating, and the countermodel's
   certificate is refused past `limits.derivation_bytes` before anything
-  is written (`a_classical_countermodel_keeps_to_the_bound`: forty
-  levels; unbounded, the test is killed at its memory cap).
+  is written, and under any limit past `isize::MAX`, which no text holds
+  (a doubling of sixty levels is estimated just past it; with
+  `derivation_bytes` `None` nothing is bounded, the caller's choice)
+  (`a_classical_countermodel_keeps_to_the_bound`: sixty levels, under
+  1 MiB and under `u64::MAX`; unbounded, a test of forty levels was
+  killed at its memory cap).
   `write_not_valid` takes no limits and holds to the default
   `derivation_bytes` (a printer without limits keeps to the defaults,
   core.md's decisions); the command's `--derivation-limit` does not reach
