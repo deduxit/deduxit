@@ -571,14 +571,22 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
   `prove --work-limit 20 'a = b, p(a) |- p(c)'` said "not valid" with an
   unchecked structure). The axioms give the connection prover slots, so
   it never refutes, and the embedding is unknown at first order.
-- **No Kripke countermodel with `=`**: the model search tries no Kripke
-  model for a sequent with `=` (`least` above every level), since a
-  world reads `=` as an atom, and `within` drops `outcome.kripke` with
-  any other "not valid" it turns unknown. A Kripke model whose worlds
-  read `=` as identity (or a congruence growing along the order, the
-  usual semantics of intuitionistic equality) is a follow-up; with
-  identity alone `a = b ∨ ¬a = b` holds in every model, so identity
-  worlds would refute less than the axioms leave open.
+- **A Kripke model reads `=` as identity at every world**
+  (`KripkeStructure::refutes`, `Forcing::atom`), as `Structure` does,
+  and refuses a world that lists `=`. Sound: an element is the same at
+  every world that has it and terms keep their values along the order,
+  so identity grows as a predicate must and forces every equality
+  axiom. Before fixup-31 the check read `=` as a predicate and accepted
+  one world with no facts as a refutation of `⊢ a = a`
+  (`equality_is_identity_at_every_world`, the protocol's and the
+  command's tests of that document). The model search still tries no
+  Kripke model for a sequent with `=` (`least` above every level): its
+  encoding reads `=` as a predicate, and `within` drops
+  `outcome.kripke` with any other "not valid" it turns unknown. A search
+  whose worlds read `=` as identity, or a congruence growing along the
+  order (the usual semantics of intuitionistic equality), is a
+  follow-up; with identity alone `a = b ∨ ¬a = b` holds in every model,
+  so identity worlds refute less than the axioms leave open.
 - **The linear reader takes `=` too** (`serialize/sequents.rs`,
   `FirstOrder::check`, shared): the embedding's image carries the
   ordinary tables verbatim, `=` among them, and the ordinary outcome
@@ -592,8 +600,6 @@ Equality as axioms (`plan/notes/equality-resolution-design.md`, part A).
 - **`Formulas::of_tables` interns `=` as a predicate** even where no
   atom uses it: interned as a function (every unused symbol is), the
   axioms' atoms were refused as a symbol in two roles.
-  A Kripke model with domains (step 76) must read `=` as identity at
-  each world, or be refused beside `=`.
 - **`axiom_count(formulas, left)`** finds the axioms in a copy of the
   arena (never builds into the caller's) and counts the trailing
   hypotheses that are axioms: the command's verdict line ("its last N

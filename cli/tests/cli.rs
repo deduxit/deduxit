@@ -488,6 +488,21 @@ fn derivation_limit_and_tree_switch() {
     );
 }
 
+/// `check` refuses a Kripke model that reads `=` as a predicate: one
+/// world with no facts does not refute `⊢ a = a`, which every world
+/// forces, since every world reads `=` as identity.
+#[test]
+fn a_kripke_model_does_not_refute_reflexivity() {
+    let forged = r#"{"version":27,"deduxit":"0.8.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"models","statistics":{}},"kripke_structure":{"sequent":{"formulas":[{"V":0}],"atoms":[{"P":[1,[0,0]]}],"symbols":[["a",0],["=",2]],"fo":[{"F":[0,[]]}],"left":[],"right":[0]},"model":{"worlds":[{"size":1}],"constants":[["a",0]],"world":0}}}"#;
+    let (status, out, err) = deduxit(&["check"], forged);
+    assert_eq!(status, 1, "{out}{err}");
+    assert!(
+        out.starts_with("invalid refutation of ⊢ a = a")
+            && out.contains("forces the formula right of ⊢ a = a"),
+        "{out}"
+    );
+}
+
 /// A drawing past a bound is left out with a line that names the flag,
 /// and no file is made: a PNG or PDF render the memory bound refuses
 /// before it starts, and a proof net's drawing past `--derivation-limit`;

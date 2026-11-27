@@ -1056,7 +1056,8 @@ exit 1
 ```
 
 A structure reads `=` as identity, the same element on both sides, and
-lists no tuples for it. A sequent is called not valid only with such a
+lists no tuples for it; so does every world of a Kripke model, and
+`check` refuses a model that lists them. A sequent is called not valid only with such a
 structure, checked; every other search that ends without a proof leaves
 it unknown. `interact --logic` starts with the axioms among the
 hypotheses too, so that a proof by hand can use them, and `grade`

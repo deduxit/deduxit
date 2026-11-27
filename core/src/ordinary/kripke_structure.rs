@@ -11,7 +11,8 @@
 //! above it that forces `A` forces `B`, `∀x. A` where every world above it
 //! forces `A` of every element of its domain, `∃x. A` where `A` holds of
 //! some element of its own domain; `∧` and `∨` are as classically, and an
-//! atom as the world's predicates say. `⊥` is forced nowhere, but in
+//! atom as the world's predicates say, `s = t` where `s` and `t` denote
+//! one element (equality is identity). `⊥` is forced nowhere, but in
 //! minimal logic where the world's `falsity` says so. Every world forces
 //! what a world below it forces, since the domains, the predicates and
 //! `falsity` grow; the check tests that growth and does not rely on it.
@@ -83,7 +84,8 @@ pub struct KripkeWorld {
     )]
     pub functions: Vec<(String, Vec<u32>)>,
     /// Each predicate, by name, with the tuples it holds of here; a world
-    /// above holds them too.
+    /// above holds them too. Equality is not listed: every world reads it
+    /// as identity.
     #[cfg_attr(
         feature = "serialize",
         serde(default, skip_serializing_if = "Vec::is_empty")
@@ -167,7 +169,8 @@ impl KripkeStructure {
     /// [`Error::Structure`] for a model that is no Kripke model (no world,
     /// an arrow out of range or in a cycle, a domain that shrinks, a
     /// predicate or `falsity` that does not grow, a table that does not
-    /// agree with the world below, `falsity` outside minimal logic) or that
+    /// agree with the world below, `falsity` outside minimal logic, a
+    /// world that lists equality, which every world reads as identity) or that
     /// cannot interpret the sequent (as [`Structure::refutes`] says);
     /// [`Refusal::Memory`] past `limits.memory_bytes`; [`Refusal::Work`]
     /// past `limits.work` evaluations ([`Structure::WORK`] where it sets
@@ -328,6 +331,11 @@ impl KripkeStructure {
             }
             let mut sets: HashMap<&str, HashSet<&[u32]>> = HashMap::default();
             for (name, tuples) in &world.predicates {
+                if name == crate::first_order::EQUALS {
+                    return Err(wrong(format!(
+                        "lists equality at world {w}, which every world reads as identity"
+                    )));
+                }
                 let set = sets.entry(name.as_str()).or_default();
                 for tuple in tuples {
                     if tuple.iter().any(|&e| e >= world.size) {
@@ -916,6 +924,15 @@ impl Forcing<'_, '_> {
         for &t in args {
             tuple.push(self.term(t, w, env)?);
         }
+        // Equality is identity at every world. An element is the same at
+        // every world that has it, and terms keep their values along the
+        // order, so identity grows as a predicate must, and it satisfies
+        // every equality axiom.
+        if let [left, right] = tuple[..]
+            && name == crate::first_order::EQUALS
+        {
+            return Ok(left == right);
+        }
         Ok(self.holds[w as usize]
             .get(name)
             .is_some_and(|set| set.contains(tuple.as_slice())))
@@ -1222,6 +1239,58 @@ mod tests {
                 })
                 .is_ok()
         );
+    }
+
+    /// Every world reads `=` as identity: a model with no facts does not
+    /// refute `⊢ a = a` (it read `=` as a predicate and did), a world that
+    /// lists `=` is refused, and a model whose domain grows refutes what
+    /// identity leaves false.
+    #[test]
+    fn equality_is_identity_at_every_world() {
+        let check = |text: &str, model: &KripkeStructure| {
+            let sequent: Sequent = text.parse().unwrap();
+            KripkeCountermodel::new(sequent, model.clone()).check(
+                Logic::Intuitionistic,
+                &Limits::default(),
+                |_| false,
+            )
+        };
+        let one = KripkeStructure::new(
+            vec![KripkeWorld::new(
+                1,
+                Vec::new(),
+                Vec::new(),
+                false,
+                Vec::new(),
+            )],
+            vec![("a".to_owned(), 0)],
+            0,
+        );
+        let error = check("|- a = a", &one).unwrap_err();
+        assert!(
+            matches!(&error, Error::Structure { reason } if reason.contains("forces the formula right of ⊢ a = a")),
+            "{error}"
+        );
+        let mut listed = one.clone();
+        listed.worlds[0].predicates = vec![("=".to_owned(), vec![vec![0, 0]])];
+        let error = check("|- a = a", &listed).unwrap_err();
+        assert!(
+            matches!(&error, Error::Structure { reason } if reason.contains("lists equality at world 0")),
+            "{error}"
+        );
+        // At the root only `a` is there; the world above adds an element.
+        let growing = KripkeStructure::new(
+            vec![
+                world(1, &[], Vec::new(), vec![1]),
+                world(2, &[], Vec::new(), Vec::new()),
+            ],
+            vec![("a".to_owned(), 0)],
+            0,
+        );
+        check("|- exists x. ~x = a", &growing).unwrap();
+        check("|- forall x. x = a", &growing).unwrap();
+        assert!(check("|- forall x. x = x", &growing).is_err());
+        assert!(check("|- exists x. x = a", &growing).is_err());
     }
 
     #[test]

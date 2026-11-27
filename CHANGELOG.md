@@ -119,6 +119,18 @@ second number (0.1.x to 0.2.0), anything else the third.
   lambda-terms and calculi given as rule files. The crate `deduxit`
   has the keyword `logic` in place of `proof-nets`.
 
+### Fixed
+
+- **A Kripke model's refutation of a sequent with `=` was not
+  checked.** In 0.8.0 `ordinary::KripkeCountermodel::check` read `=` as
+  any predicate, so it accepted a model that lists no equal pairs as a
+  refutation of `⊢ a = a`, which is valid; `deduxit check`, the
+  protocol's check and the Rocq certificate's check went through it.
+  deduxit's own search never made such a model. Every world now reads
+  `=` as identity, and a model that lists `=` at a world is refused. A
+  refutation of a sequent with `=` by a Kripke model that 0.8.0 accepted
+  should be checked again.
+
 ## [0.8.0] - 2026-11-23
 
 First-order ordinary logic. deduxit reads first-order sequents of

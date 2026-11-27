@@ -208,9 +208,9 @@ fn run(
     };
     // Minimal logic's `⊥` makes a model of one world more than a finite
     // structure, which forces it nowhere.
-    // With `=` no Kripke model is tried: a model's worlds read `=` as an
-    // atom, and "not valid" with `=` stands only on a structure that
-    // reads it as identity.
+    // With `=` no Kripke model is tried: the Kripke encoding reads `=` as
+    // a predicate, and the check reads it as identity at every world and
+    // refuses a world that lists it.
     let least = if sequent.formulas().has_equality() {
         u32::MAX
     } else {
