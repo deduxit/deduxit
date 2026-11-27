@@ -487,9 +487,7 @@ pub fn eliminate(
             return Ok(ended(current, steps, refusal));
         }
         if stop(Progress::new(Phase::Eliminate, 1, steps.len() as u64)) {
-            let refusal = Refusal::Stopped {
-                phase: Phase::Eliminate,
-            };
+            let refusal = Refusal::stopped(Phase::Eliminate);
             return Ok(ended(current, steps, refusal));
         }
         match reduce(&current, &record, mode, cut, options, limits, &mut stop) {
@@ -1332,9 +1330,7 @@ impl Rewrite<'_> {
             if popped.is_multiple_of(POLL)
                 && stop(Progress::new(Phase::Eliminate, POLL as u64, popped as u64))
             {
-                return Err(Refusal::Stopped {
-                    phase: Phase::Eliminate,
-                });
+                return Err(Refusal::stopped(Phase::Eliminate));
             }
             let id = pairs[k].id;
             if id == cut {

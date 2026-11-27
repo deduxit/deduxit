@@ -1290,9 +1290,7 @@ fn stopped(done: u64, limits: &crate::Limits) -> crate::Error {
     use crate::limits::{Phase, Refusal};
     crate::Error::Refused(match limits.work {
         Some(limit) if done > limit => Refusal::Work { limit },
-        _ => Refusal::Stopped {
-            phase: Phase::Check,
-        },
+        _ => Refusal::stopped(Phase::Check),
     })
 }
 

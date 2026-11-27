@@ -210,7 +210,7 @@ impl Interactive {
         while let Some(goal) = todo.pop() {
             if stop(Progress::new(Phase::View, 1, steps as u64 + 1)) {
                 let phase = Phase::View;
-                return ended(steps, open, goal, todo, Refusal::Stopped { phase });
+                return ended(steps, open, goal, todo, Refusal::stopped(phase));
             }
             let Some((position, rule, premises)) = self.invertible_step(goal) else {
                 open.push(goal);

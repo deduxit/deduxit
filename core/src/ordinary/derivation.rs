@@ -774,9 +774,7 @@ impl Derivation {
         }
         for (n, inference) in self.inferences.iter().enumerate() {
             if stop(Progress::new(Phase::Check, 1, n as u64 + 1)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
             if inference.premises.iter().any(|p| p.index() >= n) {
                 return Err(fail(n, "a premise does not precede it".to_owned()));
@@ -1245,9 +1243,7 @@ pub(super) fn ask_read_back<S: FnMut(Progress) -> bool + ?Sized>(
     n: u64,
 ) -> Result<(), Error> {
     if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
-        return Err(Error::Refused(Refusal::Stopped {
-            phase: Phase::ReadBack,
-        }));
+        return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
     }
     Ok(())
 }
@@ -1647,9 +1643,7 @@ impl Image {
         let mut mapped: Vec<InfId> = Vec::with_capacity(linear.inferences().len());
         for (i, inference) in linear.inferences().iter().enumerate() {
             if stop(Progress::new(Phase::ReadBack, 1, i as u64 + 1)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::ReadBack,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
             }
             // The linear derivation is held beside the one read back.
             out.held = out.held.saturating_add(
@@ -2020,9 +2014,7 @@ impl Out {
                 1,
                 self.inferences.len() as u64,
             )) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::ReadBack,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
             }
             members[at] = (node, side);
             let rule = match side {
@@ -2793,17 +2785,13 @@ mod tests {
         assert_eq!(derivation.check(&enough, |_| false), Ok(()));
         assert_eq!(
             derivation.check(&unbounded, |_| true),
-            Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Check
-            }))
+            Err(Error::Refused(Refusal::stopped(Phase::Check)))
         );
         assert_eq!(
             image
                 .read_back(proof, &unbounded, |p| p.phase == Phase::ReadBack)
                 .unwrap_err(),
-            Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack
-            })
+            Error::Refused(Refusal::stopped(Phase::ReadBack))
         );
     }
 

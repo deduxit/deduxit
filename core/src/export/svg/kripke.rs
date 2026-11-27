@@ -166,10 +166,7 @@ pub(super) fn draw(
     })?;
     let halt = |stop: &mut dyn FnMut() -> bool| -> Result<(), Error> {
         if stop() {
-            Err(Refusal::Stopped {
-                phase: Phase::Write,
-            }
-            .into())
+            Err(Refusal::stopped(Phase::Write).into())
         } else {
             Ok(())
         }

@@ -513,7 +513,7 @@ fn derivation(
             put = put.saturating_add(step.premises[top.next].len() as u64 + 1);
             if put - asked >= POLL {
                 if stop(Progress::new(Phase::View, put - asked, put)) {
-                    return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+                    return Err(Error::Refused(Refusal::stopped(Phase::View)));
                 }
                 asked = put;
             }

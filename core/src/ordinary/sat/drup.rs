@@ -380,9 +380,7 @@ impl Checker<'_> {
         if self.ticks >= POLL {
             let ticks = std::mem::take(&mut self.ticks);
             if stop(Progress::new(Phase::Check, ticks, self.steps)) {
-                return Err(Rejection::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Rejection::Refused(Refusal::stopped(Phase::Check)));
             }
         }
         Ok(())
@@ -678,9 +676,9 @@ mod tests {
         );
         assert_eq!(
             result,
-            Err(Rejection::Refused(Refusal::Stopped {
-                phase: crate::limits::Phase::Check
-            }))
+            Err(Rejection::Refused(Refusal::stopped(
+                crate::limits::Phase::Check
+            )))
         );
         assert_eq!(run(n as u32, &chain, &[add(&[])]), Ok(()));
         // Many unit clauses, `x₁` last: each check assigns them all before

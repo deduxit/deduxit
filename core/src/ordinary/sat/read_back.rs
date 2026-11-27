@@ -496,9 +496,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
                 return Err(Error::Refused(Refusal::Work { limit: self.work }));
             }
             if self.done % POLL == 1 && self.lj.stopped(self.done) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::ReadBack,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
             }
             if x == goal {
                 return Ok(Some(Close::Axiom));

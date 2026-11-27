@@ -1222,9 +1222,7 @@ impl<'a> Walk<'a> {
         let mut ends = vec![0usize; count];
         for (index, branch) in tableau.branches.iter().enumerate() {
             if stop(Progress::new(Phase::Check, 1, index as u64)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
             let from = branch.parent.map_or(0, |parent| ends[parent as usize]);
             self.truncate(from);

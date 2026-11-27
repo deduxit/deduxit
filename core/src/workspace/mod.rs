@@ -1018,11 +1018,7 @@ impl Workspace {
             }
             now
         };
-        let halted = || {
-            Error::Refused(Refusal::Stopped {
-                phase: crate::Phase::Search,
-            })
-        };
+        let halted = || Error::Refused(Refusal::stopped(crate::Phase::Search));
         let found = self.node(node).ok_or_else(|| no_node(node))?;
         let Body::Derived { recipe, record } = &found.body else {
             return Err(Error::NotApplicable {

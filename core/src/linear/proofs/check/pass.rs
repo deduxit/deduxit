@@ -228,7 +228,7 @@ fn examine_with<O: Observer, I: Instancing>(
         // memory that was refused.
         Halt::Memory { limit } => return Err(memory_refused(node, limit, phase)),
         Halt::Work { limit } => return Err(refused(node, Refusal::Work { limit })),
-        Halt::Stopped => return Err(refused(node, Refusal::Stopped { phase })),
+        Halt::Stopped => return Err(refused(node, Refusal::stopped(phase))),
     };
     // The premises' sequents are gone: they moved into the node that
     // failed. So the pass runs once more, up to that node, where they are

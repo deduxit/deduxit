@@ -156,9 +156,7 @@ pub(super) fn draw(
 
 /// The refusal of a drawing its stop ended.
 fn stopped() -> Error {
-    Error::Refused(crate::limits::Refusal::Stopped {
-        phase: crate::limits::Phase::Write,
-    })
+    Error::Refused(crate::limits::Refusal::stopped(crate::limits::Phase::Write))
 }
 
 /// Writes what a screen reader reads of a Fitch proof: a sentence per

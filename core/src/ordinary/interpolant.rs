@@ -819,10 +819,7 @@ fn maehara(
     // conclusion's halves are known before its premises'.
     for i in (0..n).rev() {
         if stop(Progress::new(Phase::ReadBack, 1, (n - i) as u64)) {
-            return Err(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }
-            .into());
+            return Err(Refusal::stopped(Phase::ReadBack).into());
         }
         let inference = &inferences[i];
         let conclusion = parts[i]

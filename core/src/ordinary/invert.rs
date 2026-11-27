@@ -169,7 +169,7 @@ impl Interactive {
                 return Inverted {
                     steps,
                     open,
-                    finished: Err(Refusal::Stopped { phase: Phase::View }),
+                    finished: Err(Refusal::stopped(Phase::View)),
                 };
             }
             let Some(step) = self.invertible_step(goal) else {

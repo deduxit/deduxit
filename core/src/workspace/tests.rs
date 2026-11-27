@@ -915,9 +915,7 @@ fn every_bound_keeps_its_setting() {
         | Refusal::Form { .. } => (),
     };
     let mut refusals = vec![
-        Refusal::Stopped {
-            phase: Phase::Search,
-        },
+        Refusal::stopped(Phase::Search),
         Refusal::Memory {
             phase: Phase::Search,
             limit_bytes: 1,

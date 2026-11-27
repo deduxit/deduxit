@@ -469,9 +469,7 @@ impl Evaluator<'_, '_> {
         if self.work / 4_096 != before / 4_096
             && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
         {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Check,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
         }
         Ok(())
     }

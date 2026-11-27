@@ -442,9 +442,7 @@ impl Universe {
 /// refuses when it fires.
 fn asked(stop: &mut dyn FnMut(Progress) -> bool, count: u64) -> Result<(), Error> {
     if count.is_multiple_of(1024) && stop(Progress::new(Phase::Search, 1024, count)) {
-        return Err(Error::Refused(Refusal::Stopped {
-            phase: Phase::Search,
-        }));
+        return Err(Error::Refused(Refusal::stopped(Phase::Search)));
     }
     Ok(())
 }
@@ -1197,9 +1195,7 @@ impl Build<'_> {
         // the bound of work are asked at each step taken.
         self.expanded = self.expanded.saturating_add(1);
         if stop(Progress::new(Phase::ReadBack, 1, self.expanded)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
         }
         if let Some(limit) = self.limits.work
             && self.expanded > limit

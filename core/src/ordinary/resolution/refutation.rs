@@ -231,9 +231,7 @@ impl Refutation {
                 }));
             }
             if stop(Progress::new(Phase::Check, 1, k as u64)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
             let here = given + k;
             if r.first >= here || r.second >= here {

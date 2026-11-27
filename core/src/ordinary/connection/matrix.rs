@@ -58,9 +58,7 @@ impl Budget<'_> {
     pub(super) fn poll(&mut self, work: u64, bytes: usize) -> Result<(), Error> {
         self.done = self.done.saturating_add(work);
         if (self.stop)(Progress::new(Phase::Search, work, self.done)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Search,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Search)));
         }
         match self.limit {
             Some(limit) if bytes as u64 > limit => Err(Error::Refused(Refusal::Memory {

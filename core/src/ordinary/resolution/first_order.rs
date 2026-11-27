@@ -1252,9 +1252,7 @@ impl Refutation {
         let mut work = 0u64;
         for (n, inference) in self.inferences.iter().enumerate() {
             if stop(Progress::new(Phase::Check, 1, n as u64 + 1)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
             let made = again
                 .made(inference.step)
@@ -2071,9 +2069,7 @@ fn read_back(
     let mut poll = |steps: &mut u64| {
         *steps += 1;
         if stop(Progress::new(Phase::ReadBack, 1, *steps)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
         }
         Ok(())
     };

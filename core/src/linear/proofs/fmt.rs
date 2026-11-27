@@ -355,9 +355,9 @@ pub(crate) fn write_text<T: Drawn>(
     let (mut row, mut column) = (0, 0);
     for piece in pieces {
         if stop() {
-            return Err(Error::Refused(crate::limits::Refusal::Stopped {
-                phase: crate::limits::Phase::Write,
-            }));
+            return Err(Error::Refused(crate::limits::Refusal::stopped(
+                crate::limits::Phase::Write,
+            )));
         }
         while row < piece.row {
             out.write_char('\n')?;
@@ -397,9 +397,9 @@ pub(crate) fn write_steps<T: Drawn, W: Write>(
 ) -> Result<(), Error> {
     for i in 0..tree.len() {
         if stop() {
-            return Err(Error::Refused(crate::limits::Refusal::Stopped {
-                phase: crate::limits::Phase::Write,
-            }));
+            return Err(Error::Refused(crate::limits::Refusal::stopped(
+                crate::limits::Phase::Write,
+            )));
         }
         if i > 0 {
             out.write_char('\n')?;

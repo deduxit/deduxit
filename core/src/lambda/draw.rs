@@ -437,9 +437,9 @@ impl Drawing {
             match visit {
                 Visit::Enter(node, context) => {
                     if stop() {
-                        return Err(Error::Refused(crate::limits::Refusal::Stopped {
-                            phase: crate::limits::Phase::View,
-                        }));
+                        return Err(Error::Refused(crate::limits::Refusal::stopped(
+                            crate::limits::Phase::View,
+                        )));
                     }
                     let gamma: Vec<VarId> = waiting[context.clone()].to_vec();
                     let text = gamma

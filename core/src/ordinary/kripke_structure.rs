@@ -302,9 +302,7 @@ impl KripkeStructure {
                     if steps.is_multiple_of(4_096)
                         && stop(Progress::new(Phase::Check, 4_096, steps))
                     {
-                        return Err(Error::Refused(Refusal::Stopped {
-                            phase: Phase::Check,
-                        }));
+                        return Err(Error::Refused(Refusal::stopped(Phase::Check)));
                     }
                     if steps > most_work {
                         return Err(Error::Refused(Refusal::Work { limit: most_work }));
@@ -368,9 +366,7 @@ impl KripkeStructure {
                         if steps.is_multiple_of(4_096)
                             && stop(Progress::new(Phase::Check, 4_096, steps))
                         {
-                            return Err(Error::Refused(Refusal::Stopped {
-                                phase: Phase::Check,
-                            }));
+                            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
                         }
                         if steps > most_work {
                             return Err(Error::Refused(Refusal::Work { limit: most_work }));
@@ -503,9 +499,7 @@ impl KripkeStructure {
                         if steps / 4_096 != before / 4_096
                             && stop(Progress::new(Phase::Check, 4_096, steps))
                         {
-                            return Err(Error::Refused(Refusal::Stopped {
-                                phase: Phase::Check,
-                            }));
+                            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
                         }
                         if steps > most_work {
                             return Err(Error::Refused(Refusal::Work { limit: most_work }));
@@ -574,9 +568,7 @@ impl KripkeStructure {
 /// Asks the stop once every 4 096 steps of a pass over the worlds.
 fn poll(stop: &mut dyn FnMut(Progress) -> bool, step: usize) -> Result<(), Error> {
     if step % 4_096 == 4_095 && stop(Progress::new(Phase::Check, 4_096, step as u64)) {
-        return Err(Error::Refused(Refusal::Stopped {
-            phase: Phase::Check,
-        }));
+        return Err(Error::Refused(Refusal::stopped(Phase::Check)));
     }
     Ok(())
 }
@@ -904,9 +896,7 @@ impl Forcing<'_, '_> {
         if self.work / 4_096 != before / 4_096
             && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
         {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Check,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
         }
         Ok(())
     }

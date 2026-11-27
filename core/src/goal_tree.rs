@@ -81,7 +81,7 @@ pub(crate) fn may_build(
         }));
     }
     if stop(Progress::new(Phase::View, 0, 0)) {
-        return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+        return Err(Error::Refused(Refusal::stopped(Phase::View)));
     }
     Ok(())
 }

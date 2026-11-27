@@ -1097,9 +1097,7 @@ impl NormalForm {
                     continue;
                 }
                 if stop(Progress::new(Phase::Check, 1, k as u64)) {
-                    return Err(Error::Refused(Refusal::Stopped {
-                        phase: Phase::Check,
-                    }));
+                    return Err(Error::Refused(Refusal::stopped(Phase::Check)));
                 }
                 let limits = &left_over(limits, held);
                 let sequent = law_claim(&self.result, step)?;
@@ -2263,9 +2261,7 @@ impl Budget<'_> {
             return Err(Error::Refused(Refusal::Work { limit }));
         }
         if (self.stop)(Progress::new(Phase::Rewrite, reached, steps as u64)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Rewrite,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Rewrite)));
         }
         Ok(())
     }

@@ -314,7 +314,7 @@ impl Tableau {
             loop {
                 visited += 1;
                 if stop(Progress::new(Phase::View, 1, visited)) {
-                    return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+                    return Err(Error::Refused(Refusal::stopped(Phase::View)));
                 }
                 let inference = &inferences[at];
                 match inference.rule() {
@@ -809,9 +809,7 @@ fn expand(
     while let Some(goal) = goals.pop() {
         steps += 1;
         if stop(Progress::new(Phase::Search, 1, steps)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Search,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Search)));
         }
         if let Some(limit) = limits.work
             && steps > limit
@@ -877,9 +875,7 @@ pub(super) fn decide(
     // (4.4 million inferences at 2 s).
     for (goal, step) in closing {
         if stop(Progress::new(Phase::Search, 1, steps)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Search,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Search)));
         }
         state.apply(goal, &step)?;
     }

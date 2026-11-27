@@ -712,7 +712,7 @@ fn misplaced(vertex: VertexId, fault: Placement) -> Error {
 
 /// The refusal of a call that `stop` ended.
 const STOPPED: NetError = NetError::Refused {
-    refusal: Refusal::Stopped { phase: Phase::Net },
+    refusal: Refusal::stopped(Phase::Net),
 };
 
 /// A proof structure of unit-free MLL: the formula trees of a sequent
@@ -2173,7 +2173,7 @@ mod tests {
                 ..
             }
         ));
-        let stopped = Refusal::Stopped { phase: Phase::Net };
+        let stopped = Refusal::stopped(Phase::Net);
         let error = ProofStructure::from_proof(proof, Criterion::MLL, &Limits::default(), |_| true);
         assert_eq!(refused(error.unwrap_err()), stopped);
         let mut held = Vec::new();

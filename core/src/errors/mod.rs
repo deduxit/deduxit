@@ -1325,9 +1325,7 @@ mod tests {
         use crate::linear::occurrences::{Member, OccId};
         use crate::linear::proofs::{Fault, Invalid, Node, NodeId, Refused};
         let refusals = [
-            Refusal::Stopped {
-                phase: Phase::Search,
-            },
+            Refusal::stopped(Phase::Search),
             Refusal::Memory {
                 phase: Phase::Search,
                 limit_bytes: 1,

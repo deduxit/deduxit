@@ -286,9 +286,7 @@ impl Model {
         let mut poll = |stop: &mut dyn FnMut(Progress) -> bool| {
             polls += 1;
             if stop(Progress::new(Phase::Check, 1, polls)) {
-                Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }))
+                Err(Error::Refused(Refusal::stopped(Phase::Check)))
             } else {
                 Ok(())
             }
@@ -568,9 +566,7 @@ mod tests {
         let limits = Limits::default();
         assert_eq!(
             model.forcing(&sequent, logic, &limits, |_| true).err(),
-            Some(Error::Refused(Refusal::Stopped {
-                phase: crate::Phase::Check
-            }))
+            Some(Error::Refused(Refusal::stopped(crate::Phase::Check)))
         );
         let forcing = model.forcing(&sequent, logic, &limits, |_| false).unwrap();
         assert_eq!(forcing.failing_anywhere(), Some(0));

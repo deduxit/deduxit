@@ -60,9 +60,7 @@ impl Meter<'_> {
         let progress = Progress::new(Phase::Check, self.since, self.done);
         self.since = 0;
         if (self.stop)(progress) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Check,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
         }
         Ok(())
     }

@@ -279,9 +279,7 @@ impl ReadBack<'_, '_> {
         let mut seen: HashSet<(u32, u32)> = HashSet::default();
         for (n, &(lit, copy)) in used.iter().enumerate() {
             if n % 1024 == 1023 && stop(Progress::new(Phase::ReadBack, 1024, n as u64)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::ReadBack,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
             }
             if !seen.insert((lit, copy)) {
                 continue;
@@ -524,9 +522,7 @@ impl ReadBack<'_, '_> {
     fn account(&mut self, stop: &mut dyn FnMut(Progress) -> bool) -> Result<(), Error> {
         let n = self.inferences.len() as u64;
         if stop(Progress::new(Phase::ReadBack, 1, n + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
         }
         // The derivation is bounded by the memory it holds;
         // `limits.derivation_bytes` bounds what is drawn.

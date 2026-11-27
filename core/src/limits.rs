@@ -706,6 +706,12 @@ pub enum Refusal {
 }
 
 impl Refusal {
+    /// Returns the refusal of a call that the caller's stop ended while
+    /// it was in `phase`.
+    pub(crate) const fn stopped(phase: Phase) -> Self {
+        Self::Stopped { phase }
+    }
+
     /// Returns the stable name of the refusal that a program branches on.
     pub const fn code(&self) -> &'static str {
         match self {

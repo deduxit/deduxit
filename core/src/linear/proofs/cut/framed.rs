@@ -487,9 +487,7 @@ impl Rewrite<'_> {
             };
             rounds += 1;
             if stop(Progress::new(Phase::Eliminate, 1, rounds)) {
-                return Err(Refusal::Stopped {
-                    phase: Phase::Eliminate,
-                });
+                return Err(Refusal::stopped(Phase::Eliminate));
             }
             let Node::Forall(_, _, premise) = self.nodes[later.index()] else {
                 unreachable!("a twin is a `∀` step")

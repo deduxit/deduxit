@@ -407,9 +407,7 @@ impl Meter {
             let since = self.done - self.asked;
             self.asked = self.done.max(1);
             if stop(Progress::new(Phase::Check, since, self.done)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
         }
         Ok(())

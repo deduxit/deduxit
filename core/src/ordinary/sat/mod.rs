@@ -524,9 +524,9 @@ fn by_ljt(
         Verdict::Valid(Evidence::Table) => Err(Error::NoDerivation {
             evidence: "its truth table",
         }),
-        Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
-            phase: crate::limits::Phase::Search,
-        })),
+        Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::stopped(
+            crate::limits::Phase::Search,
+        ))),
         Verdict::Unknown(_) => Err(Error::Refused(refusal)),
         Verdict::NotValid => Err(Error::ReadBack {
             calculus: logic.calculus(),

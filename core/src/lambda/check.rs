@@ -785,9 +785,7 @@ impl Meter<'_> {
         if self.work >= self.next {
             self.next = self.work.saturating_add(POLL);
             if (self.stop)() {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Check,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Check)));
             }
         }
         Ok(())

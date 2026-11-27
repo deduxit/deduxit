@@ -1409,7 +1409,5 @@ fn renumber(node: &mut Node, f: impl Fn(TermId) -> TermId) {
 
 /// Returns the refusal of a read-back that `stop` ended.
 const fn stopped() -> crate::Error {
-    crate::Error::Refused(Refusal::Stopped {
-        phase: crate::limits::Phase::ReadBack,
-    })
+    crate::Error::Refused(Refusal::stopped(crate::limits::Phase::ReadBack))
 }

@@ -784,9 +784,7 @@ impl<'a> Search<'a> {
         if self.work >= self.next {
             self.next = self.work.saturating_add(POLL);
             if (self.stop)(Progress::new(Phase::Search, POLL, self.work)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Search,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Search)));
             }
         }
         Ok(())
@@ -813,9 +811,7 @@ impl<'a> Search<'a> {
             Verdict::Valid(_) => Decided::Inhabited,
             Verdict::NotValid => Decided::Empty,
             Verdict::Unknown(Reason::Stopped) => {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::Search,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::Search)));
             }
             Verdict::Unknown(_) => Decided::Unknown,
         };

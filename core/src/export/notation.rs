@@ -62,9 +62,9 @@ pub(crate) fn flush(
     out.write_str(buffer)?;
     buffer.clear();
     if stop() {
-        Err(Error::Refused(crate::limits::Refusal::Stopped {
-            phase: crate::limits::Phase::Write,
-        }))
+        Err(Error::Refused(crate::limits::Refusal::stopped(
+            crate::limits::Phase::Write,
+        )))
     } else {
         Ok(())
     }

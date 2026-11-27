@@ -242,9 +242,7 @@ impl<'a> Translator<'a> {
         if self.visited % POLL == 1
             && (self.stop)(Progress::new(Phase::ReadBack, POLL, self.visited))
         {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::ReadBack,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
         }
         Ok(())
     }

@@ -672,10 +672,7 @@ pub(super) fn poll_by(
     let before = *steps / POLL;
     *steps = steps.saturating_add((weight as u64).max(1));
     if *steps / POLL != before && stop(Progress::new(Phase::Search, POLL, *steps)) {
-        return Err(Refusal::Stopped {
-            phase: Phase::Search,
-        }
-        .into());
+        return Err(Refusal::stopped(Phase::Search).into());
     }
     Ok(())
 }

@@ -214,10 +214,7 @@ fn laid(
     for world in &model.worlds {
         polls += 1;
         if stop(Progress::new(Phase::Write, 1, polls)) {
-            return Err(Refusal::Stopped {
-                phase: Phase::Write,
-            }
-            .into());
+            return Err(Refusal::stopped(Phase::Write).into());
         }
         charge(PER_WORLD / PER_BYTE + 12 * world.arrows.len() as u64)?;
         let mut arrows = world.arrows.clone();

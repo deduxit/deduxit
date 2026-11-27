@@ -519,9 +519,9 @@ impl Proof {
         /// The index of a node the root does not reach.
         const UNREACHED: u32 = u32::MAX;
         let stop = || {
-            Error::Refused(crate::limits::Refusal::Stopped {
-                phase: crate::limits::Phase::Search,
-            })
+            Error::Refused(crate::limits::Refusal::stopped(
+                crate::limits::Phase::Search,
+            ))
         };
         if root.index() >= nodes.len() {
             return Err(Error::IndexOutOfBounds {

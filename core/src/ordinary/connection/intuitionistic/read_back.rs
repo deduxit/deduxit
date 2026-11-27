@@ -685,9 +685,7 @@ impl Search<'_, '_> {
         if self.since >= POLL {
             let since = std::mem::take(&mut self.since);
             if (self.stop)(Progress::new(Phase::ReadBack, since, self.tried)) {
-                return Err(Error::Refused(Refusal::Stopped {
-                    phase: Phase::ReadBack,
-                }));
+                return Err(Error::Refused(Refusal::stopped(Phase::ReadBack)));
             }
         }
         Ok(())

@@ -320,9 +320,7 @@ impl Budget<'_> {
         if self.work >= self.next {
             self.next = self.work.saturating_add(POLL);
             if (self.stop)(Progress::new(Phase::Reduce, 1, done)) {
-                return Err(Refusal::Stopped {
-                    phase: Phase::Reduce,
-                });
+                return Err(Refusal::stopped(Phase::Reduce));
             }
         }
         Ok(())

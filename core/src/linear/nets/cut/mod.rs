@@ -308,9 +308,7 @@ pub fn eliminate<N: Net>(
             return Ok(ended(current, steps, refusal));
         }
         if stop(Progress::new(Phase::Eliminate, 1, steps.len() as u64)) {
-            let refusal = Refusal::Stopped {
-                phase: Phase::Eliminate,
-            };
+            let refusal = Refusal::stopped(Phase::Eliminate);
             return Ok(ended(current, steps, refusal));
         }
         match current.reduce(cut, options, limits) {

@@ -1123,9 +1123,7 @@ impl<'t> Printer<'t> {
                         mark = None;
                     }
                     if stop() {
-                        return Err(Error::Refused(Refusal::Stopped {
-                            phase: Phase::Write,
-                        }));
+                        return Err(Error::Refused(Refusal::stopped(Phase::Write)));
                     }
                     let node = &term.nodes[t.index()];
                     let bracket = bracketed(node, place);

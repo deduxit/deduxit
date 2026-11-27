@@ -251,9 +251,7 @@ pub fn truth_table(
     let mut values = vec![false; width];
     for row in 0..rows {
         if stop(Progress::new(Phase::Search, 1, row + 1)) {
-            return Err(Error::Refused(Refusal::Stopped {
-                phase: Phase::Search,
-            }));
+            return Err(Error::Refused(Refusal::stopped(Phase::Search)));
         }
         // Every operand stands before its formula in the arena.
         for id in 0..width {

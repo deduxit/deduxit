@@ -795,9 +795,7 @@ impl Interactive {
                     count: u64::from(u32::MAX) + 1,
                     most: u64::from(u32::MAX),
                 },
-                search::Reason::Stopped => Refusal::Stopped {
-                    phase: Phase::Search,
-                },
+                search::Reason::Stopped => Refusal::stopped(Phase::Search),
                 other => unreachable!("the counts' pass ended at {other:?}"),
             })),
         }

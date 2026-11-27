@@ -441,7 +441,7 @@ impl<'a, I: Instancing> Build<'a, I> {
                     // A node unfolds into an inference or a few.
                     let done = self.inferences.len() as u64;
                     if (self.stop)(Progress::new(Phase::View, 1, done)) {
-                        return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+                        return Err(Error::Refused(Refusal::stopped(Phase::View)));
                     }
                     self.unfold(id, actual);
                 }

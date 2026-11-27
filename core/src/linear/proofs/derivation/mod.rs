@@ -543,7 +543,7 @@ mod tests {
                     bytes: 0,
                     budget: Budget {
                         most: None,
-                        error: Error::Refused(Refusal::Stopped { phase: Phase::View }),
+                        error: Error::Refused(Refusal::stopped(Phase::View)),
                     },
                 };
                 let bytes = compact

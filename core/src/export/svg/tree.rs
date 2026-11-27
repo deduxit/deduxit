@@ -103,9 +103,9 @@ pub(super) fn draw<T: Drawn>(
             return Ok::<_, Error>(());
         };
         if stop() {
-            return Err(Error::Refused(crate::limits::Refusal::Stopped {
-                phase: crate::limits::Phase::Write,
-            }));
+            return Err(Error::Refused(crate::limits::Refusal::stopped(
+                crate::limits::Phase::Write,
+            )));
         }
         let width = conclusion(&mut sequent, id).width;
         let baseline = -(depth as i64) * line_height;

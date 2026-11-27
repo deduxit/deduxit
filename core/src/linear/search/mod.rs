@@ -4251,9 +4251,7 @@ mod tests {
     #[test]
     fn a_refused_check_is_unknown() {
         let refusals = [
-            Refusal::Stopped {
-                phase: Phase::Check,
-            },
+            Refusal::stopped(Phase::Check),
             Refusal::Memory {
                 phase: Phase::Check,
                 limit_bytes: 48,

@@ -234,10 +234,7 @@ pub(crate) fn string(name: &str) -> String {
 
 /// Returns the stop's refusal while a certificate is written.
 pub(crate) fn stopped() -> Error {
-    Refusal::Stopped {
-        phase: Phase::Write,
-    }
-    .into()
+    Refusal::stopped(Phase::Write).into()
 }
 
 /// Text that refuses to grow past `limits.derivation_bytes`, so that a
