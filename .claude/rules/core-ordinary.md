@@ -1569,7 +1569,10 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
 "not valid".
 
 - **The encoder** (`encode`) is Tseitin's with polarities
-  (Plaisted–Greenbaum): every formula the sequent holds is a variable, a
+  (Plaisted–Greenbaum; `ordinary::polarity::polarities`, which the
+  normal form of that name shares, so the classical SAT method's check of
+  that form's promise rests on the same function, a fault in it showing
+  in neither): every formula the sequent holds is a variable, a
   formula that must be true where the sequent fails (`TRUE`: hypotheses,
   the parts that make a true formula true) gets "formula → definition",
   one that must be false (`FALSE`) "definition → formula", an
@@ -2452,7 +2455,8 @@ decided not valid is `Error::ClaimFails` (kind defect).
   Skolem's and the clausal form share). A subformula
   whose current form is a literal (`¬t` after its operand was named) is
   not named. Plaisted–Greenbaum's polarity is computed on the input's
-  nodes (`polarities`, the classical encoder's rule: flipped under `¬`
+  nodes (`polarity::polarities`, the classical encoder's function, the
+  left side true: flipped under `¬`
   and left of `→`, both under `↔`); full Tseitin takes both directions.
   A clause with `⊤` (or `¬⊥`) is dropped, `⊥` (or `¬⊤`) removed, an
   empty clause is `⊥`; the input's formulas, literals at the end, are

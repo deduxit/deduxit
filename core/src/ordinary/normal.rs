@@ -63,6 +63,7 @@
 //! ```
 
 use super::derivation::ArenaSize;
+use super::polarity::{FALSE, TRUE, polarities};
 use super::{Formulas, Logic, Node, NodeId, Outcome, Sequent, Verdict, decide_within};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
@@ -2649,11 +2650,6 @@ fn skolemized(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<
     Ok((formulas, left, right, steps))
 }
 
-/// The polarity of a formula that must be true where the sequent fails.
-const TRUE: u8 = 1;
-/// The polarity of a formula that must be false where the sequent fails.
-const FALSE: u8 = 2;
-
 /// Returns whether `id` is a literal of a clause: an atom, a constant or
 /// the negation of one.
 fn is_literal(formulas: &Formulas, id: NodeId) -> bool {
@@ -2718,7 +2714,8 @@ fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Mad
     let size = passes.reach(&formulas, &left);
     budget.pass(passes.order.len(), size, steps.len())?;
     let order = passes.order.clone();
-    let polarity = polarities(&formulas, &order, &left);
+    // The classical encoder's rule: the left side true.
+    let polarity = polarities(&formulas, &left, &[]);
     // A propositional arena has no symbols, so only the atoms are
     // avoided.
     let prefix = fresh_prefix(&formulas, "t");
@@ -2751,7 +2748,7 @@ fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Mad
         }
         count += 1;
         let t = formulas.atom(&format!("{prefix}{count}"))?;
-        let p = polarity.get(&x).copied().unwrap_or(0);
+        let p = polarity[x.index()];
         let (forward, backward) = match form {
             Form::PlaistedGreenbaum => (p & TRUE != 0, p & FALSE != 0),
             Form::Nnf
@@ -2836,41 +2833,6 @@ fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Mad
     }
     left.extend_from_slice(&clauses);
     Ok((formulas, left, Vec::new(), steps))
-}
-
-/// Returns the polarity of every node of `order` (the nodes `roots`
-/// reach, in the arena's order) where the roots are true: `TRUE` where it
-/// must be true, `FALSE` where false, both under an equivalence.
-fn polarities(formulas: &Formulas, order: &[NodeId], roots: &[NodeId]) -> HashMap<NodeId, u8> {
-    let mut polarity: HashMap<NodeId, u8> = HashMap::with_capacity(order.len());
-    for &r in roots {
-        polarity.insert(r, TRUE);
-    }
-    // Every node comes after its operands, so the reverse order meets
-    // each before its operands.
-    for &id in order.iter().rev() {
-        let p = polarity.get(&id).copied().unwrap_or(0);
-        let flipped = ((p & TRUE) << 1) | ((p & FALSE) >> 1);
-        let mut give = |k: NodeId, q: u8| *polarity.entry(k).or_insert(0) |= q;
-        match formulas.node(id) {
-            Node::Atom(_) | Node::True | Node::False => {}
-            Node::Not(a) => give(a, flipped),
-            Node::And(a, b) | Node::Or(a, b) => {
-                give(a, p);
-                give(b, p);
-            }
-            Node::Implies(a, b) => {
-                give(a, flipped);
-                give(b, p);
-            }
-            Node::Iff(a, b) => {
-                give(a, TRUE | FALSE);
-                give(b, TRUE | FALSE);
-            }
-            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
-        }
-    }
-    polarity
 }
 
 /// Returns the clauses that tie the new atom `t` to `before`, a compound

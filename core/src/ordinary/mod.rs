@@ -101,6 +101,8 @@ pub mod negative;
 pub mod normal;
 #[cfg(feature = "parse")]
 mod parse;
+/// Every subformula's polarity where a sequent fails.
+mod polarity;
 pub mod resolution;
 /// The certificates over `Prop`.
 #[cfg(feature = "rocq")]
