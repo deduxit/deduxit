@@ -1,9 +1,15 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The ratchet: every journey's instruction count under callgrind against
-//! its committed ceiling in `bench/ceilings.csv`. A journey is a small,
-//! deterministic run of a hot path (`journeys.rs`).
+//! The ratchet: every journey's instruction count under callgrind, and the
+//! heap blocks its measured part allocates, against their committed
+//! ceilings in `bench/ceilings.csv`. A journey is a small, deterministic
+//! run of a hot path (`journeys.rs`).
+//!
+//! The blocks are callgrind's count of the calls to the allocator's entry
+//! points ([`ALLOCATORS`]) inside the measured part, so a journey's input,
+//! made before it, stays out of them, which a DHAT profile of the whole
+//! process does not leave out.
 //!
 //! A count above its ceiling by more than [`TOLERANCE`] fails the check.
 //! `--lower` writes the counts that went down as the new ceilings, and
@@ -63,15 +69,38 @@ const CACHES: [&str; 3] = [
     "--LL=18874368,18,64",
 ];
 
+/// The C library's functions that hand out a heap block, which Rust's
+/// system allocator calls: a call is a block, as DHAT counts blocks
+/// (`realloc` included).
+const ALLOCATORS: [&str; 6] = [
+    "malloc",
+    "calloc",
+    "realloc",
+    "posix_memalign",
+    "aligned_alloc",
+    "memalign",
+];
+
 /// What callgrind counts of one journey.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Counts {
     /// The instructions executed.
     instructions: u64,
+    /// The heap blocks allocated: calls to [`ALLOCATORS`].
+    blocks: u64,
     /// The misses of the first level's caches, instructions and data.
     l1_misses: u64,
     /// The misses of the last level's cache, instructions and data.
     ll_misses: u64,
+}
+
+/// A journey's ceilings, each absent where none is recorded.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct Ceiling {
+    /// The instructions' ceiling.
+    instructions: Option<u64>,
+    /// The heap blocks' ceiling.
+    blocks: Option<u64>,
 }
 
 /// What the ratchet does with the counts.
@@ -125,21 +154,27 @@ pub fn ratchet(
     let mut failed = Vec::new();
     let mut moved = Vec::new();
     println!(
-        "| journey | instructions | ceiling | change | L1 misses | change | LL misses | change |\n\
-         |---|--:|--:|--:|--:|--:|--:|--:|"
+        "| journey | instructions | ceiling | change | blocks | ceiling | change \
+         | L1 misses | change | LL misses | change |\n\
+         |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|"
     );
     for name in &names {
         let Counts {
-            instructions: count,
+            instructions,
+            blocks,
             l1_misses,
             ll_misses,
         } = counts[name];
-        let ceiling = table.get(*name).copied();
-        let shown = ceiling.map_or_else(|| "–".to_owned(), |c| c.to_string());
+        let ceiling = table.get(*name).copied().unwrap_or_default();
+        let shown = |c: Option<u64>| c.map_or_else(|| "–".to_owned(), |c| c.to_string());
         let record = recorded.get(*name).copied();
         println!(
-            "| {name} | {count} | {shown} | {} | {l1_misses} | {} | {ll_misses} | {} |",
-            change(count, ceiling),
+            "| {name} | {instructions} | {} | {} | {blocks} | {} | {} \
+             | {l1_misses} | {} | {ll_misses} | {} |",
+            shown(ceiling.instructions),
+            change(instructions, ceiling.instructions),
+            shown(ceiling.blocks),
+            change(blocks, ceiling.blocks),
             change(l1_misses, record.map(|r| r.0)),
             change(ll_misses, record.map(|r| r.1)),
         );
@@ -149,12 +184,25 @@ pub fn ratchet(
         if record_misses {
             recorded.insert((*name).to_owned(), (l1_misses, ll_misses));
         }
-        if fails(count, ceiling, action) {
+        if fails(instructions, ceiling.instructions, action)
+            || fails(blocks, ceiling.blocks, action)
+        {
             failed.push(*name);
         }
-        if lowers(count, ceiling, action) {
-            table.insert((*name).to_owned(), count);
-        }
+        let lowered = |count: u64, c: Option<u64>| {
+            if lowers(count, c, action) {
+                Some(count)
+            } else {
+                c
+            }
+        };
+        table.insert(
+            (*name).to_owned(),
+            Ceiling {
+                instructions: lowered(instructions, ceiling.instructions),
+                blocks: lowered(blocks, ceiling.blocks),
+            },
+        );
     }
     if !moved.is_empty() {
         println!(
@@ -248,9 +296,10 @@ fn count(exe: &Path, name: &str, out: &Path) -> Result<Counts> {
 }
 
 /// Reads the totals off a callgrind file, from the line naming its events
-/// and the line of their sums. The instructions are `Ir`, the first
-/// level's misses `I1mr`, `D1mr` and `D1mw`, and the last level's `ILmr`,
-/// `DLmr` and `DLmw`. An event named without a sum counts zero.
+/// and the line of their sums, and the blocks from its calls. The
+/// instructions are `Ir`, the first level's misses `I1mr`, `D1mr` and
+/// `D1mw`, and the last level's `ILmr`, `DLmr` and `DLmw`. An event named
+/// without a sum counts zero.
 fn totals(text: &str) -> Option<Counts> {
     let events: Vec<&str> = text
         .lines()
@@ -279,9 +328,46 @@ fn totals(text: &str) -> Option<Counts> {
     };
     Some(Counts {
         instructions: sum(&["Ir"])?,
+        blocks: blocks(text),
         l1_misses: sum(&["I1mr", "D1mr", "D1mw"])?,
         ll_misses: sum(&["ILmr", "DLmr", "DLmw"])?,
     })
+}
+
+/// Counts the calls to [`ALLOCATORS`] in a callgrind file. A call is a
+/// `calls=` line after a `cfn=` line naming its callee; names are given
+/// once, `(id) name`, and then by `(id)` alone, in one table for `fn=` and
+/// `cfn=` lines.
+fn blocks(text: &str) -> u64 {
+    let mut names: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut allocator = false;
+    let mut blocks = 0;
+    for line in text.lines() {
+        let (callee, rest) = if let Some(rest) = line.strip_prefix("cfn=") {
+            (true, rest)
+        } else if let Some(rest) = line.strip_prefix("fn=") {
+            (false, rest)
+        } else {
+            if allocator && let Some(calls) = line.strip_prefix("calls=") {
+                blocks += calls
+                    .split_whitespace()
+                    .next()
+                    .and_then(|n| n.parse::<u64>().ok())
+                    .unwrap_or(0);
+            }
+            continue;
+        };
+        let name = match rest.split_once(' ') {
+            Some((id, name)) if id.starts_with('(') => {
+                names.insert(id, name.trim());
+                Some(name.trim())
+            }
+            _ if rest.starts_with('(') => names.get(rest.trim()).copied(),
+            _ => Some(rest.trim()),
+        };
+        allocator = callee && name.is_some_and(|name| ALLOCATORS.contains(&name));
+    }
+    blocks
 }
 
 /// Returns a value's change from a reference in percent, or `new` without
@@ -315,9 +401,10 @@ fn lowers(count: u64, ceiling: Option<u64>, action: Action) -> bool {
     action == Action::Lower && ceiling.is_none_or(|c| count < c)
 }
 
-/// Reads the ceilings: a header, then `journey,instructions` per line; none
-/// when the file is absent.
-fn read(path: &Path) -> Result<BTreeMap<String, u64>> {
+/// Reads the ceilings: a header, then `journey,instructions,blocks` per
+/// line, a field empty where none is recorded; none when the file is
+/// absent.
+fn read(path: &Path) -> Result<BTreeMap<String, Ceiling>> {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
@@ -327,10 +414,24 @@ fn read(path: &Path) -> Result<BTreeMap<String, u64>> {
         .skip(1)
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let (name, count) = line.split_once(',').with_context(|| format!("{line:?}"))?;
+            let mut fields = line.split(',');
+            let (Some(name), Some(instructions), Some(blocks), None) =
+                (fields.next(), fields.next(), fields.next(), fields.next())
+            else {
+                bail!("{line:?} is not journey,instructions,blocks");
+            };
+            let field = |field: &str| -> Result<Option<u64>> {
+                if field.is_empty() {
+                    return Ok(None);
+                }
+                Ok(Some(field.parse().with_context(|| format!("{line:?}"))?))
+            };
             Ok((
                 name.to_owned(),
-                count.parse().with_context(|| format!("{line:?}"))?,
+                Ceiling {
+                    instructions: field(instructions)?,
+                    blocks: field(blocks)?,
+                },
             ))
         })
         .collect()
@@ -377,11 +478,17 @@ fn write_misses(path: &Path, table: &BTreeMap<String, (u64, u64)>) -> Result<()>
 }
 
 /// Writes the ceilings in the journeys' order.
-fn write(path: &Path, table: &BTreeMap<String, u64>) -> Result<()> {
-    let mut text = String::from("journey,instructions\n");
+fn write(path: &Path, table: &BTreeMap<String, Ceiling>) -> Result<()> {
+    let shown = |c: Option<u64>| c.map_or_else(String::new, |c| c.to_string());
+    let mut text = String::from("journey,instructions,blocks\n");
     for journey in JOURNEYS {
-        if let Some(count) = table.get(journey.name) {
-            text.push_str(&format!("{},{count}\n", journey.name));
+        if let Some(c) = table.get(journey.name) {
+            text.push_str(&format!(
+                "{},{},{}\n",
+                journey.name,
+                shown(c.instructions),
+                shown(c.blocks)
+            ));
         }
     }
     std::fs::write(path, text).context(path.display().to_string())
@@ -415,6 +522,7 @@ mod tests {
                     summary: 100 7 8 1 2 3 4 5 6\n";
         let expected = Counts {
             instructions: 100,
+            blocks: 0,
             l1_misses: 6,
             ll_misses: 15,
         };
@@ -425,6 +533,7 @@ mod tests {
         let trailing = "events: Ir I1mr D1mr D1mw ILmr DLmr DLmw\nsummary: 100 1 2 3 4\n";
         let short = Counts {
             instructions: 100,
+            blocks: 0,
             l1_misses: 6,
             ll_misses: 4,
         };
@@ -436,5 +545,18 @@ mod tests {
         assert!(!moves(43_599, 39_841));
         assert!(!moves(20_000, 10_001));
         assert!(moves(20_002, 10_001));
+    }
+
+    /// The blocks are the calls to the allocator's entry points, named
+    /// once and then by id, from any caller; calls to other functions,
+    /// and the allocator's own calls, are not counted.
+    #[test]
+    fn the_blocks_are_the_allocator_s_calls() {
+        let text = "events: Ir I1mr D1mr D1mw ILmr DLmr DLmw\nfn=(1) main\ncfn=(2) malloc\ncalls=3 10\n5 7\n\
+                    cfn=(3) helper\ncalls=2 11\n6 9\nfn=(3)\ncfn=(2)\ncalls=4 12\n7 1\n\
+                    cfn=(4) realloc\ncalls=1 13\n8 1\nfn=(2)\ncfn=(5) _int_malloc\n\
+                    calls=7 1\n9 1\nsummary: 100\n";
+        assert_eq!(blocks(text), 8);
+        assert_eq!(totals(text).map(|c| c.blocks), Some(8));
     }
 }

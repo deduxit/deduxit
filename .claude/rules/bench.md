@@ -827,13 +827,24 @@ serde_json, which the CLI and the core's tests already have.
   generated or in the tree (the LLTP library stays out: it is GPL and
   1.1 GB).
 - **`src/ratchet.rs`** counts each journey under callgrind (`valgrind`
-  on the path or `VALGRIND`) and compares it with `bench/ceilings.csv`.
-  `ratchet --check` fails above a ceiling by more than `TOLERANCE` (2 %)
-  or on a journey without one; `ratchet --lower` writes every count that
-  went down and never raises one: a raise is an edit of the file in a
-  commit that says why. `--keep DIR` keeps callgrind's files for
-  `callgrind_annotate`. The devshell's `ratchet` runs it on four
-  journeys at a time; the flake's `ratchet` check runs `--check`.
+  on the path or `VALGRIND`) and compares it with `bench/ceilings.csv`
+  (`journey,instructions,blocks`).
+  `ratchet --check` fails where either count is above its ceiling by
+  more than `TOLERANCE` (2 %) or has none; `ratchet --lower` writes
+  every count that went down and never raises one: a raise is an edit of
+  the file in a commit that says why. `--keep DIR` keeps callgrind's
+  files for `callgrind_annotate`. The devshell's `ratchet` runs it on
+  four journeys at a time; the flake's `ratchet` check runs `--check`.
+- **The blocks are callgrind's calls to the allocator** (`ALLOCATORS`:
+  `malloc`, `calloc`, `realloc` and the aligned ones, summed over the
+  `calls=` lines under a `cfn=` naming one) inside the measured part:
+  the blocks DHAT counts, of the measured part alone. DHAT's profile
+  (`plan/audit/stage0.sh dhat`) is of the whole process, so a journey's
+  input weighed in its table (51 % of `search-additive-14`'s blocks, the
+  family's generator; F-2c-12), never in a ceiling. A global allocator
+  that counts was the first way tried: the workspace forbids `unsafe`,
+  and it would have added its own instructions to every count. Blocks
+  are a function of the code, not of the build's layout.
 - **Beside each count, the misses of a fixed cache model**
   (`--cache-sim=yes` with `CACHES`, a performance core of the author's
   machine: L1 instructions 64 KiB, L1 data 48 KiB, the last level 18 MiB
