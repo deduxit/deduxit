@@ -147,4 +147,4 @@ fixup-29	small	opus-5-5	high	reviewer (fable)	local_c4869735	2026-11-26 08:40	20
 81	library	opus-5-5	high	reviewer (fable)	local_9dfa5c8f	2026-11-26 08:40	2026-11-26 11:45	every candidate rule with its reason in every suite, a step's term written out; the page takes both
 82	library	opus-5-5	high	reviewer (fable)	local_444bd43f	2026-11-27 00:23		a first-order goal closed by proof search or refuted, in the goal state; the page proves first-order goals
 84	library	opus-5-5	high	reviewer (fable)	local_f82f76ce	2026-11-27 00:23		untyped lambda calculi, a β stepper, principal types; the page's Untyped toggle (client part after 83's)
-fixup-30	text	opus-5-5	high	reviewer (fable)	local_323b92cf	2026-11-27 00:23		the front texts name no suite as the main one
+fixup-30	text	opus-5-5	high	reviewer (fable)	local_323b92cf	2026-11-27 00:23	2026-11-27 01:00	the front texts name no suite as the main one

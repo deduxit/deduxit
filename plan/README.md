@@ -8591,3 +8591,15 @@ move (D26).
   verifiers on the other model, inventories on Sonnet; findings and one API proposal for the
   author's sign-off), phase C (the refactor as steps 87a…), phase D (the steps), then 0.9.0 (88).
   Led by the author's Fable 5.2 session "Rust and Rocq library audit"; table rows 86 to 88 added.
+- 2026-11-27, about 01:00: **fixup-30 reviewed.** (Opus, high; the reviewer on Fable.) README, the
+  manual's introduction (its tour now one suite at a time, ordinary logic first), the guide (its
+  description and summary even, ordinary logic first-order, within its budget), the crate docs'
+  front page (the `ordinary` module's docs no longer say first-order is not decided), the crates'
+  descriptions, `CITATION.cff`, `deduxit --help`'s summary and CLAUDE.md's opening name the suites in
+  the page's order; one changelog entry; the lock's help line reblessed in its own commit. The
+  reviewer's finding (the guide said a SAT solver decides ordinary logic) fixed. **For the author:**
+  `prove` without `--logic` or `--system` still reads linear logic; the session recommends keeping
+  that default (scripts and the page rely on it), with a required logic flag as the alternative.
+  **Left for step 86's text dimension:** the guide's reference sections 2 to 12, the manual's how-to
+  order and `syntax.md` still give linear logic the most room, a restructuring rather than wording.
+  Rebased onto `main` without a conflict; its head through `push-ci` (no full check ran in the session).
