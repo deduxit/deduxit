@@ -280,7 +280,9 @@ design, with the reasons and the alternatives weighed, is
   the stack holds at most about 2·arity items per character written.
   A connective without `fixity` is prefix at arity 1, infix at 2, a
   function otherwise; precedence defaults to 0 for infix and the
-  highest for the rest; an operand is bracketed by precedence and
+  highest for the rest (`Fixity::fitting`, `Fixity::default_precedence`,
+  which the reader of `text.rs` calls too, so that what `show` writes
+  reads back); an operand is bracketed by precedence and
   associativity (`Shown::bracketed`). An error writes the failing
   node's sequent within 200 characters (`check::SHOWN`).
 - **The text syntax** (`text.rs`, `Calculus::parse_term`,

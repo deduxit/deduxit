@@ -352,7 +352,10 @@ Every operator has ASCII and Unicode spellings: `* ⊗`, `| par ⅋`, `&`,
 every top-level document starts with `"version": n`, the lowest level
 that holds it: 1 for everything 0.1.0 wrote, 2 for a disproof or an
 unprovable outcome with the classical refutation (`wire::level_of`;
-`wire::BASE` is 1, `wire::LEVEL`, the highest read, 2; the command's own
+`wire::BASE` is 1, `wire::LEVEL` the highest read: every level the code
+writes is a named constant of `wire.rs` in their order (10, a clausal
+proof, has none: nothing writes it), `LEVEL` the last of them,
+so a new level goes at the end and `LEVEL` with it; the command's own
 records write their body's level, `check`'s JSON level 1), nested
 values carry none; a reader refuses a higher one by name
 (`Error::Version`, code `unsupported_version`) through `wire::version`,

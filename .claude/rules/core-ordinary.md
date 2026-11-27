@@ -2125,7 +2125,12 @@ factored out of the two until the kernel crate is.
   be sound as a constant, as the linear session does). `∀L` keeps its
   principal (G3), `∃R` only in LK. `Interactive::witness(goal, text)`
   reads a term of the sequent's function symbols and the scope's
-  eigenvariables by their printed names. `∀R` and `∃L` are invertible,
+  eigenvariables by their printed names, through the reader both
+  sessions share (`crate::witness`, core.md), which resolves a name
+  applied to arguments only at its closing bracket here, at the name in
+  the linear session, and calls a `(` after a whole term a missing comma
+  here, a stray bracket there (`BRACKET_AFTER_TERM`;
+  `a_witness_text_is_refused_for_its_first_fault` in both). `∀R` and `∃L` are invertible,
   `∀L` and `∃R` not (a choice); the invertible run recomputes its
   widths when a step grew the arena. A quantifier step runs `Extra::add`
   after `instantiate`: an instance may hold an equivalence the arena

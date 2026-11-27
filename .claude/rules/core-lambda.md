@@ -120,8 +120,10 @@ design, with its sources and the alternatives weighed, is
 - **Names are fixed after the copy** (`rename`): a binder whose body
   has a free variable of its name, which a substitution can make
   (`(λx. λy. x) y`), is renamed to its letters with the least index the
-  term does not use (`y₁`), so `check`'s capture condition holds and the
-  text reads back. Only names that two variables share are scanned.
+  term does not use (`y₁`, `print::fresh`, the printer's own), so
+  `check`'s capture condition holds and the text reads back. A new
+  variable of a read-back or a search is named by `letter_name`, its
+  class by `letter_class`, so both name alike. Only names that two variables share are scanned.
 - **Every reduct is checked** (`Term::check` before the next step): a
   typed term keeps its type, an untyped linear or affine one its uses;
   a fault is `Error::ClaimFails` (a defect), a refusal ends the

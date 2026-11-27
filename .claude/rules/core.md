@@ -47,7 +47,11 @@ any store of terms, `unify::Terms`), the walks over a proof in progress
 `goal_tree` (crate-private, behind `interactive`: `subtree`,
 `postorder`, the history walk `added` and the graft's `grafted`, over
 each inference's premises, which the linear and ordinary goal states
-share), and the suites beside each
+share, and the two sessions' `derivation_within`'s bound and stop
+`may_build` and renumbering `places`), the reader of a witness typed as
+text `witness` (crate-private, behind `interactive`: the tokens, the
+stack of open applications and the refusals, each session resolving
+names through `witness::Witnesses`), and the suites beside each
 other: `linear` (`core/src/linear/`), `ordinary`, `modal` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
 to no suite, `protocol` (behind its feature), what each suite offers
