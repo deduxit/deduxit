@@ -126,6 +126,21 @@ which a refactor of this size needs.
   are internal; a refactor keeps the interface or moves deduxit's
   exporter with it in the same pair of changes.
 
+## Decided by the author already
+
+- **No default logic** (2026-11-27, on fixup-30's question). Today
+  `prove` without `--logic` or `--system` reads linear logic. In 0.9.0
+  every command that reads a sequent (`prove` and its batch, `check`,
+  `interact`, `seq …`, and any other) requires the logic to be named, so
+  that no suite is the default.
+  - The audit's API proposal designs the flags in the most idiomatic
+    current form: one selector for the suite, or a required group of the
+    present flags, with clap's error naming the choices.
+  - The refactor's CLI session implements it, with every console block
+    of README, the manual and the guide, the behaviour lock and the
+    batch's format.
+  - The web bindings are untouched: each call already names its suite.
+
 ## How the step runs
 
 The session that leads the audit runs on Fable 5.2 at `high`; the

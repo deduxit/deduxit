@@ -8603,3 +8603,7 @@ move (D26).
   **Left for step 86's text dimension:** the guide's reference sections 2 to 12, the manual's how-to
   order and `syntax.md` still give linear logic the most room, a restructuring rather than wording.
   Rebased onto `main` without a conflict; its head through `push-ci` (no full check ran in the session).
+- 2026-11-27, about 01:02: **No default logic in 0.9.0** (the author, on fixup-30's question:
+  "Require a logic flag"). Every command that reads a sequent will require the logic to be named;
+  recorded in `plan/86-audit-refactor.md` as decided, designed in the audit's API proposal and built
+  by the refactor's CLI session (after steps 82 to 85, whose texts touch the same pages).
