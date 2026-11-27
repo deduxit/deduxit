@@ -334,7 +334,7 @@ impl Formulas {
 /// once. The bindings hold no cycle: a binding never holds the open
 /// witness it binds, nor one bound to a term that holds it.
 #[cfg(feature = "interactive")]
-pub(crate) struct Resolution(Substitution);
+pub(crate) struct Resolution(Substitution<'static>);
 
 #[cfg(feature = "interactive")]
 impl Resolution {
@@ -351,16 +351,13 @@ impl Resolution {
     ///
     /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
     pub(crate) fn node(&mut self, formulas: &mut Formulas, node: NodeId) -> Result<NodeId, Error> {
-        let made = self.0.run(&mut Build(formulas), node)?;
-        Ok(made.expect("an arena that adds what it lacks finds every node"))
+        self.0.build(formulas, node)
     }
 
     /// Returns the term `t` of `formulas` with its open witnesses replaced,
     /// built in the arena where new.
     pub(crate) fn term(&mut self, formulas: &mut Formulas, t: FoTermId) -> FoTermId {
-        self.0
-            .substitute(&mut Build(formulas), t, 0)
-            .expect("an arena that adds what it lacks finds every term")
+        self.0.build_term(formulas, t, 0)
     }
 }
 
@@ -455,8 +452,11 @@ enum Task<T> {
     Make(T, u32),
 }
 
-/// What a substitution replaces.
-enum Replace {
+/// What a substitution replaces. The first two are the closed instances
+/// the checker finds without building, the others what the
+/// transformations that move or remove a binder do to the variables free
+/// in a formula (their "outside" indices, `bruijn.rs`), which always build.
+pub(super) enum Replace<'m> {
     /// The variables of the binders removed, by these closed terms, the
     /// innermost binder's first.
     Variables(Box<[FoTermId]>),
@@ -468,21 +468,71 @@ enum Replace {
         expect(dead_code, reason = "only the goal state has open witnesses")
     )]
     Metas(Vec<Option<FoTermId>>),
+    /// Each free variable's outside index moves `by`: out past more
+    /// binders where positive, in where negative. The walks that lower a
+    /// formula check first that no index would fall below zero.
+    Shift(i64),
+    /// The free variable of outside index 0 (the binder removed) is the
+    /// term, an open term whose variables are read outside that binder;
+    /// every other moves one binder in.
+    Open(FoTermId),
+    /// Each closed term the table holds is its image there; variables
+    /// stay.
+    #[cfg(feature = "sat")]
+    Table(&'m HashMap<FoTermId, FoTermId>),
+    /// Each term the set holds, read outside the formula, is the variable
+    /// of a new binder around it; every other free variable moves out past
+    /// it.
+    Abstract(&'m [FoTermId]),
 }
 
 /// The replacement of the variable of one binder by a closed term, at
-/// every depth it is met, or of open witnesses by their bindings, each
-/// node and term made once per depth.
-struct Substitution {
+/// every depth it is met, of open witnesses by their bindings, or of the
+/// variables free in a formula as [`Replace`] says, each node and term
+/// made once per depth.
+pub(super) struct Substitution<'m> {
     /// What is replaced.
-    replace: Replace,
+    replace: Replace<'m>,
     /// Every node's instance under so many binders below the removed one.
-    nodes: HashMap<(NodeId, u32), NodeId>,
+    pub(super) nodes: HashMap<(NodeId, u32), NodeId>,
     /// Every term's instance under so many binders below the removed one.
-    terms: HashMap<(FoTermId, u32), FoTermId>,
+    pub(super) terms: HashMap<(FoTermId, u32), FoTermId>,
 }
 
-impl Substitution {
+impl<'m> Substitution<'m> {
+    /// Returns the substitution `replace`, nothing made yet.
+    pub(super) fn of(replace: Replace<'m>) -> Self {
+        Self {
+            replace,
+            nodes: HashMap::default(),
+            terms: HashMap::default(),
+        }
+    }
+
+    /// Returns the instance of the formula `root` of `formulas`, built in
+    /// the arena where new.
+    ///
+    /// # Errors
+    ///
+    /// [`Refusal::Index`](crate::Refusal::Index) when the arena is full.
+    pub(super) fn build(&mut self, formulas: &mut Formulas, root: NodeId) -> Result<NodeId, Error> {
+        let made = self.run(&mut Build(formulas), root)?;
+        Ok(made.expect("an arena that adds what it lacks finds every node"))
+    }
+
+    /// Returns the instance of the term `t` of `formulas` under `depth`
+    /// binders, built in the arena where new.
+    #[cfg(any(feature = "sat", feature = "interactive"))]
+    pub(super) fn build_term(
+        &mut self,
+        formulas: &mut Formulas,
+        t: FoTermId,
+        depth: u32,
+    ) -> FoTermId {
+        self.substitute(&mut Build(formulas), t, depth)
+            .expect("an arena that adds what it lacks finds every term")
+    }
+
     /// Returns the substitution of `term` for the removed binder's
     /// variable.
     fn new(term: FoTermId) -> Self {
@@ -516,16 +566,24 @@ impl Substitution {
     /// which are closed terms.
     const fn inner(&self, depth: u32) -> u32 {
         match self.replace {
-            Replace::Variables(_) => depth + 1,
             Replace::Metas(_) => depth,
+            Replace::Variables(_) | Replace::Shift(_) | Replace::Open(_) | Replace::Abstract(_) => {
+                depth + 1
+            }
+            #[cfg(feature = "sat")]
+            Replace::Table(_) => depth + 1,
         }
     }
 
     /// Returns the binding of the open witness `k`, if it has one.
     fn binding(&self, k: u32) -> Option<FoTermId> {
         match &self.replace {
-            Replace::Variables(_) => None,
             Replace::Metas(bindings) => bindings.get(k as usize).copied().flatten(),
+            Replace::Variables(_) | Replace::Shift(_) | Replace::Open(_) | Replace::Abstract(_) => {
+                None
+            }
+            #[cfg(feature = "sat")]
+            Replace::Table(_) => None,
         }
     }
 
@@ -640,18 +698,61 @@ impl Substitution {
                     if self.terms.contains_key(&(u, d)) {
                         continue;
                     }
+                    // A term the table or the set names is replaced
+                    // whole, its subterms having been visited already.
+                    match &self.replace {
+                        #[cfg(feature = "sat")]
+                        Replace::Table(image) => {
+                            if let Some(&to) = image.get(&u) {
+                                self.terms.insert((u, d), to);
+                                continue;
+                            }
+                        }
+                        Replace::Abstract(set) => {
+                            let mut named = false;
+                            for &t in *set {
+                                if lifted(maker, t, d)? == u {
+                                    named = true;
+                                    break;
+                                }
+                            }
+                            if named {
+                                let variable = maker.term(FoTerm::Bound(d))?;
+                                self.terms.insert((u, d), variable);
+                                continue;
+                            }
+                        }
+                        Replace::Variables(_)
+                        | Replace::Metas(_)
+                        | Replace::Shift(_)
+                        | Replace::Open(_) => {}
+                    }
                     let made = match maker.formulas().tables().terms[u.index()] {
                         // A variable of a removed binder is its term; one
                         // of a binder further out moves in past them.
-                        FoTerm::Bound(i) => match &self.replace {
-                            Replace::Variables(terms) if i >= d => {
-                                match terms.get((i - d) as usize) {
-                                    Some(&term) => term,
-                                    None => maker.term(FoTerm::Bound(i - terms.len() as u32))?,
-                                }
+                        FoTerm::Bound(i) if i >= d => match &self.replace {
+                            Replace::Variables(terms) => match terms.get((i - d) as usize) {
+                                Some(&term) => term,
+                                None => maker.term(FoTerm::Bound(i - terms.len() as u32))?,
+                            },
+                            Replace::Shift(by) => {
+                                let moved =
+                                    u32::try_from(i64::from(i - d) + by).unwrap_or_else(|_| {
+                                        unreachable!("a lowered formula is checked")
+                                    });
+                                maker.term(FoTerm::Bound(moved + d))?
                             }
-                            Replace::Variables(_) | Replace::Metas(_) => u,
+                            // The term's variables are read outside the
+                            // removed binder: under `d` binders they move
+                            // out past them.
+                            Replace::Open(term) if i == d => lifted(maker, *term, d)?,
+                            Replace::Open(_) => maker.term(FoTerm::Bound(i - 1))?,
+                            Replace::Abstract(_) => maker.term(FoTerm::Bound(i + 1))?,
+                            Replace::Metas(_) => u,
+                            #[cfg(feature = "sat")]
+                            Replace::Table(_) => u,
                         },
+                        FoTerm::Bound(_) => u,
                         FoTerm::Meta(k) => match self.binding(k) {
                             Some(b) => self.terms[&(b, d)],
                             None => u,
@@ -675,6 +776,15 @@ impl Substitution {
         }
         self.terms.get(&(t, depth)).copied()
     }
+}
+
+/// Returns the term `t` with each of its variables moved out past `by`
+/// binders, or `None` where `maker` misses a term on the way.
+fn lifted(maker: &mut impl Maker, t: FoTermId, by: u32) -> Option<FoTermId> {
+    if by == 0 {
+        return Some(t);
+    }
+    Substitution::of(Replace::Shift(i64::from(by))).substitute(maker, t, 0)
 }
 
 /// Returns the names of the first `count` eigenvariables over the symbols

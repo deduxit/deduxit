@@ -389,6 +389,17 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     find-only form for the checker, which builds nothing (the interner's
     `find_term`, `find_list`); `instantiate`'s callers are the goal state
     and the read-backs of the embedding and the connection prover.
+    **The one de Bruijn walk**: `instance.rs`'s `Substitution` over a
+    `Maker` (`Build` or `Find`) carries every map (`Replace`): the closed
+    instances (`Variables`, a frame; `Metas`, open witnesses' bindings)
+    and `bruijn.rs`'s shifts, open substitution, table and abstraction
+    (`Shift`, `Open`, `Table`, `Abstract`), which build and read
+    variables free in the formula by their outside index. The checker
+    reaches it only through `instance` with `Variables`, closed terms that
+    need no shift; the four bruijn arms are never on its path. Its visiting
+    order (operands pushed last first, a replaced term's subterms visited
+    before the table or set is read) is the two walks' it replaced, so
+    every node and term is made in the order it was.
   - **The checker's quantifier rules** (G3c, G3i, G3m of Troelstra and
     Schwichtenberg, §3.1; `Rule::{ForallLeft, ForallRight, ExistsLeft,
     ExistsRight}`, last in `Rule::ALL` after `Cut` and `Open`, so `NAMES`
@@ -2506,8 +2517,9 @@ decided not valid is `Error::ClaimFails` (kind defect).
     variables, so `substitute` replaces it everywhere (rebuilding a
     binder by `add_like`, which keeps its name).
   - **A quantifier law moves a binder and shifts indices** (`bruijn.rs`:
-    `lifted`, `lowered`, `substituted`, `free_variables`, iterative and
-    memoised per node and depth): out of a junction the other operand is
+    `lifted`, `lowered`, `substituted`, `free_variables`, through the one
+    substitution walk of `instance.rs`, iterative and memoised per node
+    and depth): out of a junction the other operand is
     lifted by one; in, the operand that does not mention the binder
     (`mentions_binder`, no outside index 0) is lowered by one, which is
     the textbook side condition "`x` not free in `B`".
