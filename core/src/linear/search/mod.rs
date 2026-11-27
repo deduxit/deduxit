@@ -732,8 +732,8 @@ impl Answered<'_> {
                 fragment,
                 mode,
                 roots: goal.conclusion,
+                members: goal.members,
             },
-            goal.members,
             options,
             limits,
             account,
@@ -992,6 +992,8 @@ struct Concluding<'a> {
     mode: Mode,
     /// Whether the goal is the sequent's roots.
     roots: bool,
+    /// The goal's members.
+    members: &'a [Member],
 }
 
 /// Returns the verdict of an engine's answer. This is the one place a
@@ -1020,21 +1022,16 @@ struct Concluding<'a> {
 /// [`Error::Rejected`] for a proof the checker rejects, and
 /// [`Error::Refutation`] for a saturated set or a basis its check
 /// refuses: defects.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the answer, the goal, and the settings of the search it came from"
-)]
 fn conclude(
     result: Result<Option<Proof>, Reason>,
     refutation: Option<Refutation>,
     goal: Concluding<'_>,
-    members: &[Member],
     options: &Options,
     limits: &Limits,
     account: &memory::Account,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Verdict, Error> {
-    let (forest, mode) = (goal.forest, goal.mode);
+    let (forest, mode, members) = (goal.forest, goal.mode, goal.members);
     let verdict = match result {
         Ok(Some(proof)) if goal.roots => Verdict::Proved(Box::new(proof.with_mode(mode))),
         Ok(Some(proof)) => {
@@ -4218,12 +4215,12 @@ mod tests {
             fragment: s.fragment(),
             mode: Mode::CLASSICAL,
             roots: true,
+            members: &[],
         };
         let verdict = conclude(
             Ok(Some(proof)),
             None,
             goal,
-            &[],
             &Options::default(),
             &Limits::default(),
             &memory::Account::new(None),
