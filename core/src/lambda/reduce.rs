@@ -698,7 +698,7 @@ fn rename_types(term: &mut Term, budget: &mut Budget<'_>) -> Result<(), Refusal>
             let name = &term.type_variables[variable.index()];
             let captures = own.iter().any(|v| term.type_variables[v.index()] == *name);
             if atoms.contains(name) || captures {
-                let fresh = fresh_name(name, &taken);
+                let fresh = super::print::fresh(name, |c| taken.contains(c));
                 taken.insert(fresh.clone());
                 term.type_variables[variable.index()] = fresh;
             }
@@ -750,7 +750,7 @@ fn rename(term: &mut Term, budget: &mut Budget<'_>) -> Result<(), Refusal> {
             if names.get(name).copied().unwrap_or(0) > 1 {
                 budget.tick(set.len() as u64, i as u64)?;
                 if set.iter().any(|&w| term.variables[w.index()].name == *name) {
-                    let fresh = fresh_name(name, &taken);
+                    let fresh = super::print::fresh(name, |c| taken.contains(c));
                     taken.insert(fresh.clone());
                     term.variables[v.index()].name = fresh;
                 }
@@ -759,17 +759,6 @@ fn rename(term: &mut Term, budget: &mut Budget<'_>) -> Result<(), Refusal> {
         free.push(Some(set));
     }
     Ok(())
-}
-
-/// Returns a name that `taken` does not hold: `name`'s letters with the
-/// least index that is free.
-fn fresh_name(name: &str, taken: &HashSet<Box<str>>) -> Box<str> {
-    let stem = name.trim_end_matches(|c: char| c.is_ascii_digit());
-    let stem = if stem.is_empty() { name } else { stem };
-    (1u64..)
-        .map(|index| format!("{stem}{index}").into_boxed_str())
-        .find(|candidate| !taken.contains(candidate))
-        .expect("a name with some index is free")
 }
 
 impl Term {

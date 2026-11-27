@@ -713,15 +713,9 @@ impl<'a> Search<'a> {
     /// returns it and the context made.
     fn extend(&mut self, ctx: Option<u32>, ty: TypeId) -> (u32, u32) {
         let named = ctx.map_or([0; 2], |c| self.ctxs[c as usize].named);
-        let class = usize::from(!matches!(self.base.types.get(ty), Type::Lollipop { .. }));
-        let letters = super::LETTERS[class];
+        let class = super::letter_class(self.base.types.get(ty));
         let n = named[class];
-        let letters_len = letters.len() as u32;
-        let letter = letters[(n % letters_len) as usize];
-        let name = match n / letters_len {
-            0 => letter.to_string(),
-            index => format!("{letter}{index}"),
-        };
+        let name = super::letter_name(class, n);
         let mut named = named;
         named[class] = n.saturating_add(1);
         // The variables are fewer than the work units the search counts,

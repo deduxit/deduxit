@@ -1177,6 +1177,24 @@ struct Builder {
 /// The letters of a function's variables and of others', taken in turn.
 const LETTERS: [&[char]; 2] = [&['f', 'g', 'h'], &['x', 'y', 'z', 'u', 'v', 'w']];
 
+/// Returns the class of `LETTERS` a new variable of type `ty` is named
+/// from: 0 for a function, 1 for any other type.
+fn letter_class(ty: Type) -> usize {
+    usize::from(!matches!(ty, Type::Lollipop { .. }))
+}
+
+/// Returns the name of the variable named `n`th from the letters of
+/// `class`: its letter, with an index from the second round on.
+fn letter_name(class: usize, n: u32) -> String {
+    let letters = LETTERS[class];
+    let letters_len = letters.len() as u32;
+    let letter = letters[(n % letters_len) as usize];
+    match n / letters_len {
+        0 => letter.to_string(),
+        index => format!("{letter}{index}"),
+    }
+}
+
 impl Builder {
     /// Returns an empty builder.
     fn new() -> Self {
@@ -1221,17 +1239,10 @@ impl Builder {
     /// Returns a new variable of type `ty` and the node that uses it,
     /// named by the next letter for a function or for any other type.
     fn variable(&mut self, ty: TypeId) -> (VarId, TermId) {
-        let class = usize::from(!matches!(self.types.get(ty), Type::Lollipop { .. }));
-        let letters = LETTERS[class];
+        let class = letter_class(self.types.get(ty));
         let n = self.named[class];
         self.named[class] = n.saturating_add(1);
-        let letters_len = letters.len() as u32;
-        let letter = letters[(n % letters_len) as usize];
-        let name = match n / letters_len {
-            0 => letter.to_string(),
-            index => format!("{letter}{index}"),
-        };
-        self.named_variable(Some(ty), &name)
+        self.named_variable(Some(ty), &letter_name(class, n))
     }
 
     /// Returns a new variable of type `ty` (`None` in an untyped term)

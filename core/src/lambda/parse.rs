@@ -327,15 +327,25 @@ impl<'a> Parser<'a> {
         }
         self.at += word.len();
         let mut name = name::normalized(word).into_owned();
-        let rest = &self.input[self.at..];
-        for c in rest.chars() {
+        self.subscripts(&mut name);
+        Ok(name.into())
+    }
+
+    /// Reads the subscript digits that follow, if any, and adds them to
+    /// `name` as digits: `x₁` is `x1`.
+    fn subscripts(&mut self, name: &mut String) {
+        for c in self.input[self.at..].chars() {
             let Some(digit) = (c as u32).checked_sub(0x2080).filter(|&d| d < 10) else {
                 break;
             };
             name.push(char::from_digit(digit, 10).unwrap_or('0'));
             self.at += c.len_utf8();
         }
-        Ok(name.into())
+    }
+
+    /// Returns whether the text declares a context: it holds `⊢`.
+    fn declares(&self) -> bool {
+        TURNSTILE.iter().any(|token| self.input.contains(token))
     }
 
     /// Makes a variable of a type and a name, with the node that uses it.
@@ -1034,13 +1044,7 @@ impl<'a> Parser<'a> {
             }
             // A type variable renamed is printed with an index.
             let mut written = word.to_owned();
-            for c in self.input[self.at..].chars() {
-                let Some(digit) = (c as u32).checked_sub(0x2080).filter(|&d| d < 10) else {
-                    break;
-                };
-                written.push(char::from_digit(digit, 10).unwrap_or('0'));
-                self.at += c.len_utf8();
-            }
+            self.subscripts(&mut written);
             return self.constant_or_atom(&written, at);
         }
         let constant = if self.eat("⊤") {
@@ -1231,7 +1235,7 @@ impl<'a> Parser<'a> {
     /// returns the term.
     fn judgement(mut self) -> Result<Term, Error> {
         let mut context = Vec::new();
-        if TURNSTILE.iter().any(|token| self.input.contains(token)) && !self.eat_any(TURNSTILE) {
+        if self.declares() && !self.eat_any(TURNSTILE) {
             loop {
                 let name = self.name()?;
                 self.expect(&[":"], &["`:`"])?;
@@ -1328,7 +1332,7 @@ impl Parser<'_> {
     fn untyped(mut self) -> Result<Term, Error> {
         let mut context = Vec::new();
         let mut free: HashMap<Box<str>, TermId> = HashMap::default();
-        let declared = TURNSTILE.iter().any(|token| self.input.contains(token));
+        let declared = self.declares();
         if declared && !self.eat_any(TURNSTILE) {
             loop {
                 let name = self.name()?;
