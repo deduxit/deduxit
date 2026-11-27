@@ -8607,3 +8607,8 @@ move (D26).
   "Require a logic flag"). Every command that reads a sequent will require the logic to be named;
   recorded in `plan/86-audit-refactor.md` as decided, designed in the audit's API proposal and built
   by the refactor's CLI session (after steps 82 to 85, whose texts touch the same pages).
+- 2026-11-27, about 01:06: **Unattended** (the author: "Consider yourself unattended from now";
+  decide by best judgement, research when in doubt, report afterwards; no permission prompts). The
+  keys were unlocked afresh at 01:04 (good to about 01:00 on 2026-11-28) and the loop restarted;
+  wake-ups at 04:07 and 04:41 resume the sessions after the usage limit's reset at 04:00. Decisions
+  taken while unattended are logged here with "(decided unattended)".
