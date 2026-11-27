@@ -882,7 +882,9 @@ serde_json, which the CLI and the core's tests already have.
   family's generator; F-2c-12), never in a ceiling. A global allocator
   that counts was the first way tried: the workspace forbids `unsafe`,
   and it would have added its own instructions to every count. Blocks
-  are a function of the code, not of the build's layout.
+  move a little with the build, as instructions do: `read-json` counts
+  8 295 in the shell's build and 8 313 in the sandbox's, so a blocks
+  ceiling too is the larger of the two builds' counts.
 - **Beside each count, the misses of a fixed cache model**
   (`--cache-sim=yes` with `CACHES`, a performance core of the author's
   machine: L1 instructions 64 KiB, L1 data 48 KiB, the last level 18 MiB
