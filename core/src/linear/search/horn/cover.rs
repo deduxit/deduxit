@@ -26,8 +26,7 @@
 //! long the search takes; the memory bound and the caller's stop do.
 
 use super::equation::Equation;
-use super::reach::room;
-use super::{Parents, Program};
+use super::{Parents, Program, heap_room, room};
 use crate::hash::HashMap;
 use crate::linear::search::{Reason, Statistics};
 use crate::memory::{Account, Charged};
@@ -501,21 +500,8 @@ impl<'a> Cover<'a> {
     /// Makes room in the queue for one more element, doubling it, and
     /// charges what it grew by. Returns false when the bound has no room.
     fn room_in_queue(&mut self) -> bool {
-        let size = size_of::<Reverse<(u64, u32)>>();
-        if self.queue.len() < self.queue.capacity() {
-            return true;
-        }
         let more = self.queue.capacity().max(16);
-        let fits = more
-            .checked_mul(size)
-            .is_some_and(|bytes| self.charged.account().fits(bytes));
-        if !fits {
-            return false;
-        }
-        let before = self.queue.capacity() * size;
-        self.queue.reserve_exact(more);
-        self.charged.resize(before, self.queue.capacity() * size);
-        true
+        heap_room(&mut self.queue, 1, more, &mut self.charged)
     }
 
     /// Returns the transitions fired from a marking at least element `e`

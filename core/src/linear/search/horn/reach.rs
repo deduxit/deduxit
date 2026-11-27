@@ -25,7 +25,7 @@
 //! backward.
 
 use super::equation::Equation;
-use super::{Parents, Program};
+use super::{Parents, Program, heap_room, room};
 use crate::linear::search::{Reason, Statistics};
 use crate::memory::{Account, Charged, bytes_of};
 use std::cell::OnceCell;
@@ -476,21 +476,17 @@ impl<'a> Reach<'a> {
         }
         self.work += examined;
         self.marked = marked;
-        let before = self.frontier.capacity() * size_of::<Successor>();
-        if self.frontier.capacity() - self.frontier.len() < successors.len() {
-            let more = successors.len().max(self.frontier.capacity());
-            let fits = more
-                .checked_mul(size_of::<Successor>())
-                .is_some_and(|bytes| self.charged.account().fits(bytes));
-            if !fits {
-                return Err(Reason::MemoryLimit {
-                    limit_bytes: self.charged.account().limit(),
-                });
-            }
-            self.frontier.reserve_exact(more);
+        let more = successors.len().max(self.frontier.capacity());
+        if !heap_room(
+            &mut self.frontier,
+            successors.len(),
+            more,
+            &mut self.charged,
+        ) {
+            return Err(Reason::MemoryLimit {
+                limit_bytes: self.charged.account().limit(),
+            });
         }
-        self.charged
-            .resize(before, self.frontier.capacity() * size_of::<Successor>());
         self.frontier.extend(successors);
         Ok(None)
     }
@@ -734,29 +730,4 @@ fn get(bytes: &[u8], at: &mut usize) -> u32 {
         }
         shift += 7;
     }
-}
-
-/// Makes room in a buffer for `more` elements, doubling it, and charges
-/// what it grew by. Returns false when the bound has no room.
-pub(super) fn room<T>(buffer: &mut Vec<T>, more: usize, charged: &mut Charged<'_>) -> bool {
-    if buffer.capacity() - buffer.len() >= more {
-        return true;
-    }
-    let before = bytes_of(buffer);
-    // On a 32-bit target these could pass `usize::MAX`. Such a buffer
-    // cannot fit the bound either.
-    let capacity = buffer
-        .len()
-        .checked_add(more)
-        .zip(buffer.capacity().checked_mul(2))
-        .map(|(needed, doubled)| needed.max(doubled).max(16));
-    let fits = capacity
-        .and_then(|capacity| capacity.checked_mul(size_of::<T>()))
-        .is_some_and(|bytes| charged.account().fits(bytes.saturating_sub(before)));
-    let (true, Some(capacity)) = (fits, capacity) else {
-        return false;
-    };
-    buffer.reserve_exact(capacity - buffer.len());
-    charged.resize(before, bytes_of(buffer));
-    true
 }

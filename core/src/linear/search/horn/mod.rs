@@ -27,6 +27,57 @@ mod equation;
 mod proof;
 /// The search over markings.
 mod reach;
+
+/// Makes room in a buffer for `more` elements, doubling it, and charges
+/// what it grew by. Returns false when the bound has no room.
+fn room<T>(buffer: &mut Vec<T>, more: usize, charged: &mut Charged<'_>) -> bool {
+    if buffer.capacity() - buffer.len() >= more {
+        return true;
+    }
+    let before = bytes_of(buffer);
+    // On a 32-bit target these could pass `usize::MAX`. Such a buffer
+    // cannot fit the bound either.
+    let capacity = buffer
+        .len()
+        .checked_add(more)
+        .zip(buffer.capacity().checked_mul(2))
+        .map(|(needed, doubled)| needed.max(doubled).max(16));
+    let fits = capacity
+        .and_then(|capacity| capacity.checked_mul(size_of::<T>()))
+        .is_some_and(|bytes| charged.account().fits(bytes.saturating_sub(before)));
+    let (true, Some(capacity)) = (fits, capacity) else {
+        return false;
+    };
+    buffer.reserve_exact(capacity - buffer.len());
+    charged.resize(before, bytes_of(buffer));
+    true
+}
+
+/// Makes room in a heap for `wanted` more elements, growing it by `more`
+/// when it has less, and charges what it grew by. Returns false when the
+/// bound has no room for `more`.
+fn heap_room<T: Ord>(
+    heap: &mut BinaryHeap<T>,
+    wanted: usize,
+    more: usize,
+    charged: &mut Charged<'_>,
+) -> bool {
+    if heap.capacity() - heap.len() >= wanted {
+        return true;
+    }
+    let size = size_of::<T>();
+    if !more
+        .checked_mul(size)
+        .is_some_and(|bytes| charged.account().fits(bytes))
+    {
+        return false;
+    }
+    let before = heap.capacity() * size;
+    heap.reserve_exact(more);
+    charged.resize(before, heap.capacity() * size);
+    true
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -40,8 +91,9 @@ use crate::limits::Limits;
 use crate::linear::fragment::Fragment;
 use crate::linear::occurrences::{Forest, OccId, Side, Sign};
 use crate::linear::sequents::{Atom, Kind};
-use crate::memory::{Account, Charged};
+use crate::memory::{Account, Charged, bytes_of};
 use equation::Equation;
+use std::collections::BinaryHeap;
 
 /// The engine, as [`Engine::Horn`] names it.
 pub(crate) struct Horn;
@@ -357,7 +409,7 @@ impl Parents {
     /// Makes room for one more entry and charges what the list grew by.
     /// Returns false when the bound has no room.
     fn room(&mut self, charged: &mut Charged<'_>) -> bool {
-        reach::room(&mut self.0, 1, charged)
+        room(&mut self.0, 1, charged)
     }
 
     /// Records the next entry's parent and the transition from it.
