@@ -3873,6 +3873,31 @@ fn workspace_check_answers_for_the_checks() {
     assert_eq!(status, 3, "{out}{err}");
 }
 
+/// A workspace node exits as its kind's command does: resolution that
+/// finds the clauses satisfiable and an interpolation of a sequent that
+/// is not valid exit 1, as `resolve` and `interpolate` do.
+#[test]
+fn a_workspace_node_exits_as_its_command() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-workspace-status");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("w.json");
+    let _ = std::fs::remove_file(&file);
+    let file = file.to_str().unwrap();
+    let run = |args: &[&str]| deduxit(args, "");
+    let (status, _, err) = run(&["workspace", "new", file, "a |- b", "--logic", "classical"]);
+    assert_eq!(status, 0, "{err}");
+    for operation in ["ordinary.resolve", "ordinary.interpolate"] {
+        let (status, out, err) = run(&["workspace", "apply", file, "0", operation]);
+        assert_eq!(status, 1, "{operation}: {out}{err}");
+    }
+    let (status, _, err) = run(&["workspace", "add", file, "a |- a", "--logic", "classical"]);
+    assert_eq!(status, 0, "{err}");
+    for operation in ["ordinary.resolve", "ordinary.interpolate"] {
+        let (status, out, err) = run(&["workspace", "apply", file, "3", operation]);
+        assert_eq!(status, 0, "{operation}: {out}{err}");
+    }
+}
+
 /// A first-order intuitionistic sequent that is not valid gets the model
 /// search's refutation on one thread too, in a batch's entry as in `prove
 /// --jobs 1`: the model search goes first within its grace, where the

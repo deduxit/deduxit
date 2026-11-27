@@ -52,7 +52,9 @@ with the parameters each takes.
 of date, and keeps its last value until `workspace run` makes it again.
 `--checks` makes each node's check too. The exit status is the worst
 verdict run: 0 valid, 1 not valid, 3 not decided, 2 an error or a check
-that failed.
+that failed. Each node's verdict is the one its command gives: a
+resolution that finds the clauses satisfiable is 1, as `resolve` is,
+and so is an interpolation of a sequent that is not valid.
 
 ```console
 $ deduxit workspace new lem.json '|- a \/ ~a' --logic classical

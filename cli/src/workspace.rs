@@ -420,15 +420,18 @@ fn running(
     for ran in ran {
         let view = workspace.nodes().find(|view| view.id == ran.node);
         if let Some(view) = view {
-            status = status.worse(verdict_status(view.value, view.end, view.check));
+            status = status.worse(verdict_status(view.kind, view.value, view.end, view.check));
         }
     }
     Ok(status)
 }
 
-/// Returns the exit status of a node's run: its verdict where it is an
-/// outcome, an error where it was refused or its check failed.
+/// Returns the exit status of a node's run: an error where it was
+/// refused or its check failed, else the status the command of its kind
+/// gives (`prove`, `resolve`, `interpolate`, `herbrand`, `term inhabit`,
+/// `term enumerate`), and 0 for a kind with no verdict.
 fn verdict_status(
+    kind: &str,
     value: Option<&str>,
     end: Option<&deduxit::workspace::End>,
     check: Option<&protocol::Check>,
@@ -438,13 +441,53 @@ fn verdict_status(
     {
         return Status::Error;
     }
-    let verdict = value
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
-        .and_then(|value| value["verdict"].as_str().map(str::to_owned));
-    match verdict.as_deref() {
-        Some("not_valid" | "unprovable") => Status::No,
-        Some("unknown") => Status::Unknown,
-        _ => Status::Yes,
+    let Some(value) = value.and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+    else {
+        return Status::Yes;
+    };
+    let word = |value: &serde_json::Value| value["verdict"].as_str().map(str::to_owned);
+    match kind {
+        "ordinary.resolution" => match word(&value).as_deref() {
+            Some("unsatisfiable") => Status::Yes,
+            Some("satisfiable") => Status::No,
+            _ => Status::Unknown,
+        },
+        // An interpolant counts once the node's check has decided both
+        // halves valid, as `interpolate` asks of its own.
+        "ordinary.interpolant" => {
+            let held = check.is_some_and(|check| check.status == protocol::Status::Held);
+            if !value["interpolant"].is_null() && held {
+                Status::Yes
+            } else if word(&value["outcome"]).as_deref() == Some("not_valid") {
+                Status::No
+            } else {
+                Status::Unknown
+            }
+        }
+        // A Herbrand search refutes nothing: it finds instances or ends.
+        "ordinary.instances" => match word(&value).as_deref() {
+            Some("valid") => Status::Yes,
+            _ => Status::Unknown,
+        },
+        "lambda.inhabitation" => match word(&value).as_deref() {
+            Some("inhabited") => Status::Yes,
+            Some("empty") => Status::No,
+            _ => Status::Unknown,
+        },
+        "lambda.inhabitants" => {
+            let count = &value["count"];
+            match (count["kind"].as_str(), count["count"].as_u64()) {
+                (Some("exactly"), Some(0)) => Status::No,
+                (Some("exactly" | "infinite"), _) => Status::Yes,
+                (Some("at_least"), Some(n)) if n > 0 => Status::Yes,
+                _ => Status::Unknown,
+            }
+        }
+        _ => match word(&value).as_deref() {
+            Some("not_valid" | "unprovable") => Status::No,
+            Some("unknown") => Status::Unknown,
+            _ => Status::Yes,
+        },
     }
 }
 
