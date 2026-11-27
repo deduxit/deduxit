@@ -8724,3 +8724,17 @@ move (D26).
   with the Rocq side checked; beside it F-4c-01 (resolution's read-back unbounded: 22 s under a 1 s
   limit). The fix ships with 0.9.0; whether 0.8.0 users need a 0.8.1 is the author's call. Stage 5
   (six units) runs; the audit's stage 4 notes pushed (`supnspsz`).
+- 2026-11-27, about 10:16: **Step 86 complete: the audit; step 87's part 1 started.** The audit read the
+  whole of both libraries in 22 units (five stages, 10 to 12 agents each, every finding verified by
+  another model): 379 findings, 371 standing, 8 rejected, in 45 themes (`plan/notes/audit/
+  findings.md`); the 0.9.0 surface as one proposal in 25 parts for the author's sign-off
+  (`api-proposal.md`, reviewed by a fresh Opus reader, 23 corrections), four of them real choices
+  (P1 the command's suite selector, P5 settings keys per suite, P18 completions and a man page, P24
+  the features); the refactor planned as step 87 in 49 steps (`plan/87-refactor.md`): part 1 (28
+  steps) keeps the API, part 2 (21 steps) changes it and waits for the sign-off. Tokens of the run:
+  Opus 8.6 M written, 355 M cache read, 1.2 M output; Fable 3.4 M, 89 M, 0.6 M (about a third with the
+  leader); weekly use 18 % (Fable 21 %) at 08:55. The audit's documents pushed (`wpztpqyo`).
+  (decided unattended) Part 1 starts now; the proposal is **not** signed for the author, since part 1
+  runs for hours first. 87r1 to 87r4 (the Rocq library) in step 85's worker, cores 10-12; 87a
+  (journeys and pins) in step 84's worker once fixup-31 is on `main`, cores 4-9. The table's row 87
+  ("after 86 and the author's sign-off") holds for part 2 only.
