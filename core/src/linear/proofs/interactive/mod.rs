@@ -62,7 +62,7 @@ pub use invert::{Inverted, Options};
 #[cfg(feature = "serialize")]
 pub(crate) use quantified::{PartTerm, Parts};
 
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Progress, Refusal};
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{ClassicalSequent, Forest, Member, OccId, Reading, Side, Written};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
@@ -1030,24 +1030,9 @@ impl Interactive {
             sum.saturating_add(Size::BYTES_PER_INFERENCE)
                 .saturating_add(characters.saturating_mul(Size::BYTES_PER_CHARACTER))
         });
-        if let Some(limit) = limits.derivation_bytes
-            && estimate > limit
-        {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: estimate,
-                limit_bytes: limit,
-                least_bytes: None,
-            }));
-        }
-        if stop(Progress::new(Phase::View, 0, 0)) {
-            return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
-        }
+        crate::goal_tree::may_build(estimate, limits, &mut stop)?;
         let order = self.postorder();
-        let mut new_id = vec![InfId::new(u32::MAX); self.inferences.len()];
-        for (i, id) in order.iter().enumerate() {
-            new_id[id.index()] = InfId::new(i as u32);
-        }
+        let new_id = crate::goal_tree::places(&order, self.inferences.len());
         let inferences = order
             .iter()
             .map(|&id| {

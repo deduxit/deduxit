@@ -41,6 +41,51 @@ pub(crate) fn postorder<'a>(len: usize, premises: impl Fn(InfId) -> &'a [InfId])
     order
 }
 
+/// Returns, for every inference by its id, its place in `order`; `len`
+/// is the number of inferences, and one `order` leaves out has none
+/// (`u32::MAX`).
+pub(crate) fn places(order: &[InfId], len: usize) -> Vec<InfId> {
+    let mut place = vec![InfId::new(u32::MAX); len];
+    for (i, id) in order.iter().enumerate() {
+        // As many as the state's inferences, which a `u32` counts.
+        place[id.index()] = InfId::new(i as u32);
+    }
+    place
+}
+
+/// Fails before a proof's derivation is built where its size, estimated
+/// at `estimate` bytes, passes `limits.derivation_bytes`, or where `stop`
+/// asks to stop.
+///
+/// # Errors
+///
+/// [`Refusal::Output`] past the bound, [`Refusal::Stopped`] when `stop`
+/// asks.
+///
+/// [`Refusal::Output`]: crate::Refusal::Output
+/// [`Refusal::Stopped`]: crate::Refusal::Stopped
+pub(crate) fn may_build(
+    estimate: u64,
+    limits: &crate::Limits,
+    stop: &mut impl FnMut(crate::Progress) -> bool,
+) -> Result<(), crate::Error> {
+    use crate::{Error, Phase, Progress, Refusal};
+    if let Some(limit) = limits.derivation_bytes
+        && estimate > limit
+    {
+        return Err(Error::Refused(Refusal::Output {
+            what: "derivation",
+            estimate_bytes: estimate,
+            limit_bytes: limit,
+            least_bytes: None,
+        }));
+    }
+    if stop(Progress::new(Phase::View, 0, 0)) {
+        return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+    }
+    Ok(())
+}
+
 /// What is wrong with a history of steps, as [`added`] finds it.
 #[cfg(feature = "serialize")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

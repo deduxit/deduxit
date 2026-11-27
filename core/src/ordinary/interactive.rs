@@ -24,7 +24,7 @@ use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule,
 use super::{Evidence, Translation, Verdict, bound, decide_within};
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::hash::HashMap;
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
 use crate::unify::{Clash, Unifier};
@@ -1291,13 +1291,7 @@ impl Interactive {
             if let Ok(shape) = self.shape(rule, side, position, x) {
                 rules.push(Applicable {
                     rule,
-                    needs: match shape {
-                        Shape::Binary(_) => Needs::Context,
-                        Shape::Instance if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) => {
-                            Needs::Witness
-                        }
-                        Shape::Leaf | Shape::Unary(..) | Shape::Instance => Needs::Nothing,
-                    },
+                    needs: needs_of(rule, &shape),
                 });
             }
         }
@@ -1333,14 +1327,7 @@ impl Interactive {
         let mut rules = vec![(Rule::Axiom, Needs::Nothing)];
         for rule in Rule::ALL {
             if let Ok(shape) = self.shape(rule, side, position, x) {
-                let needs = match shape {
-                    Shape::Binary(_) => Needs::Context,
-                    Shape::Instance if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) => {
-                        Needs::Witness
-                    }
-                    Shape::Leaf | Shape::Unary(..) | Shape::Instance => Needs::Nothing,
-                };
-                rules.push((rule, needs));
+                rules.push((rule, needs_of(rule, &shape)));
             }
         }
         // A step that builds instances or binds witnesses changes the
@@ -1964,23 +1951,27 @@ impl Interactive {
         Ok((self.formulas.interner().term(FoTerm::Meta(k)), level))
     }
 
-    /// Returns the term of an eigenvariable that no inference of the
-    /// proof holds: one numbered past every eigenvariable its inferences'
-    /// formulas and terms hold, so that taking back a step and taking it
-    /// again names the same one.
-    fn fresh_eigenvariable(&mut self) -> Result<FoTermId, StepError> {
+    /// Returns the number past every eigenvariable the proof's inferences'
+    /// formulas and terms hold, `None` past `u32::MAX`.
+    fn next_eigenvariable(&self) -> Option<u32> {
         let roots = self
             .inferences
             .iter()
             .flat_map(|i| i.left.iter().chain(&i.right));
         let terms = self.inferences.iter().filter_map(|i| i.term);
-        let next = self
-            .formulas
+        self.formulas
             .largest_eigenvariable(roots.copied(), terms)
             .map_or(Some(0), |k| k.checked_add(1))
-            .ok_or(StepError::Witness {
-                fault: Box::new(WitnessFault::Eigenvariables),
-            })?;
+    }
+
+    /// Returns the term of an eigenvariable that no inference of the
+    /// proof holds: one numbered past every eigenvariable its inferences'
+    /// formulas and terms hold, so that taking back a step and taking it
+    /// again names the same one.
+    fn fresh_eigenvariable(&mut self) -> Result<FoTermId, StepError> {
+        let next = self.next_eigenvariable().ok_or(StepError::Witness {
+            fault: Box::new(WitnessFault::Eigenvariables),
+        })?;
         Ok(self
             .formulas
             .interner()
@@ -2721,17 +2712,7 @@ impl Interactive {
         let mut top = grafted.pop().expect("a derivation has a root");
         // The goal keeps the order of its sides; the root's principal is
         // found there by its formula, the sides being the same multisets.
-        let goal_inference = &self.inferences[at.index()];
-        if !same(&top.left, &goal_inference.left) || !same(&top.right, &goal_inference.right) {
-            return Err(Error::GoalMismatch);
-        }
-        top.principal = top.principal.map(|(side, position)| {
-            let id = top.side(side)[position];
-            let list = goal_inference.side(side);
-            (side, list.iter().position(|&y| y == id).unwrap_or(position))
-        });
-        top.left.clone_from(&goal_inference.left);
-        top.right.clone_from(&goal_inference.right);
+        fit_root(&mut top, &self.inferences[at.index()])?;
         self.inferences[at.index()] = top;
         self.inferences.extend(grafted.into_iter().rev());
         self.history.push(at);
@@ -2786,18 +2767,7 @@ impl Interactive {
                 premises: inference.premises.iter().map(|&p| local(p)).collect(),
             })
             .collect();
-        let goal_inference = &self.inferences[goal.index()];
-        let top = &mut made[0];
-        if !same(&top.left, &goal_inference.left) || !same(&top.right, &goal_inference.right) {
-            return Err(Error::GoalMismatch);
-        }
-        top.principal = top.principal.map(|(side, position)| {
-            let id = top.side(side)[position];
-            let list = goal_inference.side(side);
-            (side, list.iter().position(|&y| y == id).unwrap_or(position))
-        });
-        top.left.clone_from(&goal_inference.left);
-        top.right.clone_from(&goal_inference.right);
+        fit_root(&mut made[0], &self.inferences[goal.index()])?;
         for inference in &made {
             let premises: Vec<&Inference> = inference
                 .premises
@@ -2827,20 +2797,7 @@ impl Interactive {
         found: &Derivation,
         constants: &Carry,
     ) -> Result<transfer::Copied, Error> {
-        let roots = self
-            .inferences
-            .iter()
-            .flat_map(|i| i.left.iter().chain(&i.right));
-        let terms = self.inferences.iter().filter_map(|i| i.term);
-        let offset = self
-            .formulas
-            .largest_eigenvariable(roots.copied(), terms)
-            .map_or(Some(0), |k| k.checked_add(1))
-            .ok_or(Error::Refused(Refusal::Index {
-                what: crate::limits::Space::Term,
-                count: u64::from(u32::MAX) + 1,
-                most: u64::from(u32::MAX),
-            }))?;
+        let offset = self.next_eigenvariable().ok_or_else(terms_full)?;
         let before = formulas.len();
         let copied = transfer::copy(
             formulas,
@@ -3019,25 +2976,9 @@ impl Interactive {
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Derivation, Error> {
         let estimate = estimate(&self.formulas, &self.inferences);
-        if let Some(limit) = limits.derivation_bytes
-            && estimate > limit
-        {
-            return Err(Error::Refused(Refusal::Output {
-                what: "derivation",
-                estimate_bytes: estimate,
-                limit_bytes: limit,
-                least_bytes: None,
-            }));
-        }
-        if stop(Progress::new(Phase::View, 0, 0)) {
-            return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
-        }
+        crate::goal_tree::may_build(estimate, limits, &mut stop)?;
         let order = self.postorder();
-        let mut new_id = vec![InfId::new(u32::MAX); self.inferences.len()];
-        for (i, id) in order.iter().enumerate() {
-            // As many as the state's inferences, which a `u32` counts.
-            new_id[id.index()] = InfId::new(i as u32);
-        }
+        let new_id = crate::goal_tree::places(&order, self.inferences.len());
         let inferences = order
             .iter()
             .map(|id| {
@@ -3083,13 +3024,6 @@ impl Interactive {
         if !self.is_complete() || !terms.iter().any(|t| matches!(t, FoTerm::Meta(_))) {
             return Ok((formulas, inferences));
         }
-        let full = || {
-            Error::Refused(Refusal::Index {
-                what: crate::limits::Space::Term,
-                count: u64::from(u32::MAX) + 1,
-                most: u64::from(u32::MAX),
-            })
-        };
         let base = terms
             .iter()
             .filter_map(|t| match *t {
@@ -3098,12 +3032,12 @@ impl Interactive {
             })
             .max()
             .map_or(Some(0), |e| e.checked_add(1))
-            .ok_or_else(full)?;
+            .ok_or_else(terms_full)?;
         // A fresh eigenvariable is no term of the arena, so no two terms
         // become equal.
         for term in &mut formulas.interner().tables.terms {
             if let FoTerm::Meta(k) = *term {
-                let number = base.checked_add(k).ok_or_else(full)?;
+                let number = base.checked_add(k).ok_or_else(terms_full)?;
                 *term = FoTerm::Eigen(Eigen::new(number));
             }
         }
@@ -3125,10 +3059,7 @@ impl Interactive {
             Structural::Admissible => {
                 // The shape alone decides what is shown: the derivation's
                 // inferences without their sequents.
-                let mut new_id = vec![InfId::new(0); self.inferences.len()];
-                for (i, id) in order.iter().enumerate() {
-                    new_id[id.index()] = InfId::new(i as u32);
-                }
+                let new_id = crate::goal_tree::places(&order, self.inferences.len());
                 // At first order the formulas decide too: a weakening that
                 // brings an eigenvariable into its rule's conclusion stays.
                 let first_order = self.formulas.is_first_order();
@@ -4002,6 +3933,46 @@ impl Tree {
                 .any(|&b| self.enter[b] < self.enter[g] && self.exit[g] < self.exit[b])
         })
     }
+}
+
+/// Returns what a step by `rule` of `shape` needs given: a split of the
+/// context for a rule of two premises, a witness for `∀L` and `∃R`.
+fn needs_of(rule: Rule, shape: &Shape) -> Needs {
+    match shape {
+        Shape::Binary(_) => Needs::Context,
+        Shape::Instance if matches!(rule, Rule::ForallLeft | Rule::ExistsRight) => Needs::Witness,
+        Shape::Leaf | Shape::Unary(..) | Shape::Instance => Needs::Nothing,
+    }
+}
+
+/// Fits the root `top` of a derivation grafted onto the goal `goal`: the
+/// goal keeps the order of its sides, and the root's principal is found
+/// there by its formula, the sides being the same multisets.
+///
+/// # Errors
+///
+/// [`Error::GoalMismatch`] where the sides are other multisets.
+fn fit_root(top: &mut Inference, goal: &Inference) -> Result<(), Error> {
+    if !same(&top.left, &goal.left) || !same(&top.right, &goal.right) {
+        return Err(Error::GoalMismatch);
+    }
+    top.principal = top.principal.map(|(side, position)| {
+        let id = top.side(side)[position];
+        let list = goal.side(side);
+        (side, list.iter().position(|&y| y == id).unwrap_or(position))
+    });
+    top.left.clone_from(&goal.left);
+    top.right.clone_from(&goal.right);
+    Ok(())
+}
+
+/// Returns the refusal of an arena whose terms would pass `u32::MAX`.
+fn terms_full() -> Error {
+    Error::Refused(Refusal::Index {
+        what: crate::limits::Space::Term,
+        count: u64::from(u32::MAX) + 1,
+        most: u64::from(u32::MAX),
+    })
 }
 
 #[cfg(all(test, feature = "parse"))]
