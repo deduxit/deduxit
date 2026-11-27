@@ -264,6 +264,26 @@ impl Drop for Charged<'_> {
     }
 }
 
+/// Returns the bytes of a hash table's buckets where it holds `capacity`
+/// entries of `entry` bytes each; none for an empty table. The buckets are
+/// a power of two in number: four for up to three entries, eight for up to
+/// seven, else eight for every seven, which are the capacities the
+/// standard library's tables report. Each bucket has a slot and a control
+/// byte, and a group of control bytes follows them.
+pub(crate) const fn table_bytes(capacity: usize, entry: usize) -> usize {
+    /// The control bytes a table has after its buckets: SSE2's group. That
+    /// is eight more than wasm32's and aarch64's, where the count is that
+    /// much above what the table takes.
+    const GROUP: usize = 16;
+    let buckets = match capacity {
+        0 => return 0,
+        1..4 => 4,
+        4..8 => 8,
+        _ => (capacity * 8 / 7).next_power_of_two(),
+    };
+    buckets * (entry + 1) + GROUP
+}
+
 /// Returns the bytes a vector's allocation takes.
 pub(crate) fn bytes_of<T>(vector: &Vec<T>) -> usize {
     vector.capacity() * size_of::<T>()

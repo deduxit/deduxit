@@ -231,22 +231,9 @@ impl Interner {
     }
 
     /// Returns the bytes of the table's buckets where it holds `capacity`
-    /// zones; none for an empty table. The buckets are a power of two in
-    /// number: four for up to three zones, eight for up to seven, else eight
-    /// for every seven. Each has a slot and a control byte, and a group of
-    /// control bytes follows them.
+    /// zones.
     fn buckets(capacity: usize) -> usize {
-        /// The control bytes a table has after its buckets: SSE2's group. That is
-        /// eight more than wasm32's and aarch64's, where the count is that much
-        /// above what the table takes.
-        const GROUP: usize = 16;
-        let buckets = match capacity {
-            0 => return 0,
-            1..4 => 4,
-            4..8 => 8,
-            _ => (capacity * 8 / 7).next_power_of_two(),
-        };
-        buckets * (size_of::<(OccSet, u64)>() + 1) + GROUP
+        crate::memory::table_bytes(capacity, size_of::<(OccSet, u64)>())
     }
 
     /// Empties the table and gives its memory back. The ids given stay

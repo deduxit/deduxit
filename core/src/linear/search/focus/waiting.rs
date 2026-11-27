@@ -299,22 +299,13 @@ impl Waiting {
     ///
     /// The lists are the entries, those a close keeps, the index's
     /// buckets and the places of the spare keys. The keys' buffers the
-    /// caller charges itself. The index has a power of two of buckets,
-    /// eight for every seven entries it can hold, each a slot and a
-    /// control byte, and a group of control bytes after them.
+    /// caller charges itself.
     ///
     /// The vectors' capacities only grow until [`Waiting::release`]. The
     /// index's can shrink by a removal, so what was handed out is the most
     /// it ever counted.
     pub(super) fn grown(&mut self) -> usize {
-        /// The control bytes a table has after its buckets.
-        const GROUP: usize = 16;
-        let index = match self.index.capacity() {
-            0 => 0,
-            held => {
-                (held * 8).div_ceil(7).next_power_of_two() * (size_of::<(u64, u32)>() + 1) + GROUP
-            }
-        };
+        let index = crate::memory::table_bytes(self.index.capacity(), size_of::<(u64, u32)>());
         let bytes = (self.entries.capacity() + self.held.capacity()) * size_of::<Waited>()
             + self.spare.capacity() * size_of::<Key>()
             + index;
