@@ -451,9 +451,12 @@ pub(crate) fn check_disproof(
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
     let mode = disproof.mode();
-    // A saturated set's check has no stop of its own.
-    let checked = disproof.clone();
-    let result = deadline.within(move || checked.check())?;
+    // `None` where the time limit ended the check.
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let result = match disproof.check_within(&show.limits, |_| over()) {
+        Err(Error::Refused(deduxit::limits::Refusal::Stopped { .. })) if deadline.passed() => None,
+        result => Some(result),
+    };
     let status = match &result {
         Some(Ok(())) => Status::Yes,
         Some(Err(error)) if error.kind() == ErrorKind::Invalid => Status::No,

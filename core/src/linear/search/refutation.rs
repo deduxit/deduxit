@@ -1128,11 +1128,11 @@ impl Disproof {
     /// times the clauses, over the markings' places.
     /// The set's check applies every rule to every choice of its sequents.
     /// For a set a search gave, that takes at most as long as the search
-    /// that saturated. The check has no stop, though. For a set read from
-    /// elsewhere it can take time exponential in the `&` under `⅋` of the
-    /// goal, and polynomial in the set's size, of the degree of a rule's
-    /// holes (a set that repeats one sequent). So a caller checks such a
-    /// set within a time limit of its own.
+    /// that saturated. For a set read from elsewhere it can take time
+    /// exponential in the `&` under `⅋` of the goal, and polynomial in the
+    /// set's size, of the degree of a rule's holes (a set that repeats one
+    /// sequent). This call has no stop and no bound on its work: check
+    /// such a set with [`check_within`](Self::check_within).
     ///
     /// # Errors
     ///
@@ -1171,8 +1171,51 @@ impl Disproof {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn check(&self) -> Result<(), crate::Error> {
+        // The default limits bound no work, so this is the check without
+        // a stop that it always was.
+        self.check_dyn(&crate::Limits::default(), &mut |_| false)
+    }
+
+    /// Checks the refutation as [`check`](Self::check) does, within
+    /// `limits` and until `stop` fires: the forest is built within
+    /// `limits.occurrences`, and the checks of a saturated set and of a
+    /// basis, the two whose time is not linear, ask `stop` as they go
+    /// ([`Phase::Check`](crate::Phase::Check)) and do `limits.work` units
+    /// at most, a unit being a step of their own count. The other kinds
+    /// are linear in the goal and ask nothing.
+    ///
+    /// # Errors
+    ///
+    /// Those of [`check`](Self::check), the forest's within `limits`,
+    /// and [`Error::Refused`](crate::Error::Refused) with
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` ended
+    /// the check, or [`Refusal::Work`](crate::Refusal::Work) past
+    /// `limits.work`: no verdict on the refutation.
+    pub fn check_within(
+        &self,
+        limits: &crate::Limits,
+        mut stop: impl FnMut(crate::Progress) -> bool,
+    ) -> Result<(), crate::Error> {
+        self.check_dyn(limits, &mut stop)
+    }
+
+    /// The body of [`check_within`](Self::check_within).
+    fn check_dyn(
+        &self,
+        limits: &crate::Limits,
+        stop: &mut dyn FnMut(crate::Progress) -> bool,
+    ) -> Result<(), crate::Error> {
+        use crate::limits::{Phase, Progress};
         let fault = |fault| crate::Error::Refutation(fault);
-        let forest = crate::linear::occurrences::Forest::new(&self.sequent)?;
+        let forest = crate::linear::occurrences::Forest::within(&self.sequent, limits)?;
+        // The work done, against `limits.work`, and whether it or the
+        // stop ended the check.
+        let mut done = 0u64;
+        let mut polled = |units: u64| {
+            done = done.saturating_add(units);
+            stop(Progress::new(Phase::Check, units, done))
+                || limits.work.is_some_and(|limit| done > limit)
+        };
         // The counts carry over to quantifiers, since a quantifier's rule
         // changes none of them. An assignment and a saturated set are
         // propositional.
@@ -1207,12 +1250,11 @@ impl Disproof {
             }
             Refutation::Equation(equation) => check_equation(&forest, &goal, self.mode, equation),
             Refutation::Saturated(saturated) => {
-                match super::saturated::check(&forest, &goal, self.mode, saturated, &mut |_| false)
-                {
+                match super::saturated::check(&forest, &goal, self.mode, saturated, &mut polled) {
                     Ok(()) => Ok(()),
                     Err(super::saturated::Failed::Fault(fault)) => Err(fault),
                     Err(super::saturated::Failed::Stopped) => {
-                        unreachable!("a check without a stop runs to its end")
+                        return Err(stopped(done, limits));
                     }
                 }
             }
@@ -1225,21 +1267,29 @@ impl Disproof {
             Refutation::StateEquation(equation) => {
                 super::weighted::state_equation(&forest, &goal, self.mode, equation).map(|_| ())
             }
-            Refutation::Basis(basis) => {
-                match super::basis::check(&forest, &goal, basis, &mut |_| false) {
-                    Ok(()) => Ok(()),
-                    Err(super::basis::Failed::Fault(fault)) => Err(fault),
-                    Err(super::basis::Failed::Stopped) => {
-                        unreachable!("a check without a stop runs to its end")
-                    }
-                }
-            }
+            Refutation::Basis(basis) => match super::basis::check(&forest, &goal, basis, &mut polled) {
+                Ok(()) => Ok(()),
+                Err(super::basis::Failed::Fault(fault)) => Err(fault),
+                Err(super::basis::Failed::Stopped) => return Err(stopped(done, limits)),
+            },
             refutation @ Refutation::Exhausted => Err(RefutationFault::Uncertified {
                 kind: refutation.name(),
             }),
         }
         .map_err(fault)
     }
+}
+
+/// Returns the refusal of a check that its poll ended after `done` units:
+/// the work bound where they passed it, else the stop.
+fn stopped(done: u64, limits: &crate::Limits) -> crate::Error {
+    use crate::limits::{Phase, Refusal};
+    crate::Error::Refused(match limits.work {
+        Some(limit) if done > limit => Refusal::Work { limit },
+        _ => Refusal::Stopped {
+            phase: Phase::Check,
+        },
+    })
 }
 
 /// Checks that `classical` falsifies the classical reading of the goal.
@@ -2068,5 +2118,51 @@ mod tests {
                 "{input}"
             );
         }
+    }
+
+    /// The check of a saturated set asks the stop and holds to the work
+    /// bound, refusing with no verdict, and builds the forest within the
+    /// caller's bound; within the defaults it passes, as `check` does.
+    #[test]
+    fn the_check_within_asks_the_stop_and_the_bounds() {
+        use crate::limits::{Phase, Refusal};
+        use crate::linear::search::Engine;
+        use crate::{Error, Limits};
+        let problem = crate::linear::families::find("contraction")
+            .unwrap()
+            .instance(8, 1)
+            .unwrap();
+        let options = Options::default()
+            .with_copies(problem.copies)
+            .with_engine(Some(Engine::Inverse));
+        let Verdict::Unprovable(disproof) = prove(&problem.sequent, problem.mode, &options)
+            .unwrap()
+            .verdict
+        else {
+            panic!("contraction/8#1 is unprovable");
+        };
+        assert!(matches!(disproof.refutation(), Refutation::Saturated(_)));
+        disproof.check().unwrap();
+        disproof.check_within(&Limits::default(), |_| false).unwrap();
+        let refused = |limits: &Limits, stop: bool| {
+            match disproof.check_within(limits, |_| stop) {
+                Err(Error::Refused(refusal)) => refusal,
+                other => panic!("{other:?}"),
+            }
+        };
+        assert!(matches!(
+            refused(&Limits::default(), true),
+            Refusal::Stopped {
+                phase: Phase::Check
+            }
+        ));
+        assert!(matches!(
+            refused(&Limits::default().with_work(Some(1)), false),
+            Refusal::Work { limit: 1 }
+        ));
+        assert!(matches!(
+            refused(&Limits::default().with_occurrences(Some(2)), false),
+            Refusal::Occurrences { .. }
+        ));
     }
 }

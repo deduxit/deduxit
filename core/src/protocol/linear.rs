@@ -713,10 +713,12 @@ impl Suite for Linear {
                             .map_err(Error::Check);
                         checked("proof", checked_proof)?.status
                     }
-                    Found::Unprovable(disproof) => match disproof.check() {
-                        Err(error) if error.code() == "uncertified" => Status::Recorded,
-                        result => checked("refutation", result)?.status,
-                    },
+                    Found::Unprovable(disproof) => {
+                        match disproof.check_within(limits, &mut *stop) {
+                            Err(error) if error.code() == "uncertified" => Status::Recorded,
+                            result => checked("refutation", result)?.status,
+                        }
+                    }
                     Found::Unknown(_) => Status::None,
                 };
                 Ok(Check::whole(promise, status))

@@ -658,12 +658,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   statistics); `check.rs` is `check` (`read_proof`, `check_into`, and
   for a disproof `read_document`, `check_disproof`: a file that is no
   proof but has a `refutation` key is read as a disproof, an unprovable
-  outcome included, and checked by `Disproof::check` in the mode the
-  file states (with no mode flag; a mode flag that names another mode is
-  an error naming both, `ModeArgs::given`), as a proof is (`proof_mode`,
-  which `eliminate` shares: a proof file without `mode` takes the
-  flags'), on a thread within the time
-  limit since a saturated set's check has no stop; exit 0 valid, 1
+  outcome included, and checked by `Disproof::check_within` in the mode
+  the file states (with no mode flag; a mode flag that names another mode
+  is an error naming both, `ModeArgs::given`), as a proof is
+  (`proof_mode`, which `eliminate` shares: a proof file without `mode`
+  takes the flags'), under the time limit, Ctrl-C and the settings'
+  limits (`--occurrence-limit`, `--work-limit`); exit 0 valid, 1
   invalid (kind invalid), 3 for an exhausted search (`uncertified`), a
   limit or the time limit; `--format rocq` writes the certificate of a
   refutation that holds, the other drawn formats the verdict alone;

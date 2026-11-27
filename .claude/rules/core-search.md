@@ -279,13 +279,19 @@ copies they had are gone (F103, F104).
   rules re-read and applied to every choice of the set's sequents
   (`core-inverse.md`, faults `Unshaped`, `NotClosed`, `Filled`, and
   `NotApplicable` and `Mismatch` as for the others), which takes as long
-  as the saturation did at most for a set a search gave; `Disproof::check`
-  has no stop, and a set read from elsewhere can make it exponential in
-  the goal's `&` under `⅋` (the phase's holes) or of the degree of a
-  rule's holes in the set (a sequent repeated; the reader does not refuse
-  repeats), which the integers review found (2 491 bytes past 100 s). The
+  as the saturation did at most for a set a search gave; a set read from
+  elsewhere can make it exponential in the goal's `&` under `⅋` (the
+  phase's holes) or of the degree of a rule's holes in the set (a sequent
+  repeated; the reader does not refuse repeats), which the integers
+  review found (2 491 bytes past 100 s). So `Disproof::check_within(&limits,
+  stop)` builds the forest within the limits and runs the set's and the
+  basis's checks under the stop (`Phase::Check`) and within
+  `Limits::work` (their own units), a refusal `Refusal::Stopped` or
+  `Refusal::Work` and no verdict; `check()` is it within the default
+  limits, which bound no work, so it stays the check without a stop it
+  was. The protocol and the command's `check` call `check_within`; the
   search's own check of a set runs under its stop and within
-  `Limits::work` (its units counted apart, as a proof's check's are).
+  `Limits::work` as well, by the same polls.
   `Basis` is checked by `search/basis.rs`, which shares no code with
   the Horn engine: it reads the goal as a net again under the stated
   bodies' sign (a member under `?` a clause with a head, any other a
@@ -309,8 +315,8 @@ copies they had are gone (F103, F104).
   test. Counts are `u64` (a marking's below
   2³² plus a clause's weight below 2³²), sums saturate (a filter only),
   the places `atoms + classes` checked against `usize`. Quadratic in the
-  basis times the clauses; the same stop and work bound as the set's
-  inside the search, none in `Disproof::check`.
+  basis times the clauses; the same stop and work bound as the set's,
+  inside the search and in `Disproof::check_within`.
   `OneSided` and `OneSidedSymbol` (`check_copies`) are recomputed as
   `Unbalanced` is, outside the goal's exponentials (a `!` or `?` counts
   `(0, 0)` unless a `⊤` lies below it), with the signs of the counted
