@@ -170,6 +170,17 @@ second number (0.1.x to 0.2.0), anything else the third.
   `search.model_worlds`) lost the setting that lifts it, in the record
   and in `workspace show`; the workspace now knows every key a reason or
   a refusal names.
+- **A first-order refutation is checked within the caller's bounds.**
+  `ordinary::resolution::first_order::Refutation::check_within(limits,
+  stop)` holds the check to `limits.work`, `limits.memory_bytes` (the
+  copy of the clauses' arena it makes the steps in) and `limits.terms`,
+  as the propositional refutation's check does; `check(stop)` is the
+  same with no bound on work or memory, as before. The search checks its
+  refutation within its own limits now, and an atom past the bound on
+  terms is that refusal, where it was a failed check.
+- **The protocol's check of a first-order resolution asks the stop** at
+  each step it makes again, and a stop leaves the refutation `open`; it
+  ran to the end, and in a workspace no clock ends a call.
 
 ## [0.8.0] - 2026-11-23
 

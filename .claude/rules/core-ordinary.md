@@ -2715,6 +2715,13 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
     text and the level-29 document wrote every binding whole. The
     protocol's check takes a document's whole binding for its cut text
     (`same_bindings`), so a document of 0.8.0 still checks.
+  - **The refutation's check** (`Refutation::check_within(limits,
+    stop)`, `check(stop)` the same with the clauses' own bound on terms
+    and no bound on work or memory): a unit of `limits.work` per step and
+    per literal it makes, the copy of the arena (`ArenaSize`) and its
+    growth against `limits.memory_bytes`, `limits.terms` on every atom
+    made again (a refusal, not a failed step), the stop per step. The
+    search checks its refutation under its own limits (F-4c-10).
   - **A given `□`** is a refutation of no step: the checker accepts it
     where a given clause is empty, and the read-back starts there.
   - **The door**: a sequent whose formulas hold an open witness (`Meta`)
