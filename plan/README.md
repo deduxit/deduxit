@@ -8800,3 +8800,11 @@ move (D26).
   classical, K) is the recommendation, requiring the logic the alternative: the author's sign-off of
   the proposal settles it. The audit session rewrites P1 and the steps 87i1 and 87i2; the rest of the
   proposal still waits for the author's sign-off.
+- 2026-11-27, about 16:11: **The API proposal signed** (the author: "The rest looks good to me,
+  please implement"). Every part as recommended, P1 as the suite under the verb with a default inside
+  each suite (classical, classical, K), and three additions: P10's "write your own engine" also in
+  the guide for AI models; P13 and the whole release may rename anything that makes the library
+  clearer (the declined `Term` to `Node` rename open again); P18 completions for as many shells and
+  engines as possible, carapace and Nushell among them, with the man pages. Recorded at the head of
+  `plan/notes/audit/api-proposal.md` and in `plan/87-refactor.md` ("The author's answer"). Part 2 may
+  run once part 1 is done.

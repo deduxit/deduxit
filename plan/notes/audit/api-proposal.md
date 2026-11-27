@@ -12,6 +12,23 @@ else of this kind.
 Otherwise name the parts to change by their number (P1 to P25). The
 four parts where I most expect another view are marked **(choice)**.
 
+**The author's answer (2026-11-27): signed.** "The rest looks good to
+me, please implement", with these additions:
+- **P1**: the suite as a subcommand under the verb (rewritten above); the
+  default inside a suite as recommended (classical, classical, K).
+- **P10**: the guide for AI models (`skills/deduxit/`) gets the same
+  "write your own engine" material as the manual, within its budget in
+  `SKILL.md` and in full in `reference.md`.
+- **P13, and as a rule for the whole release**: rename anything where a
+  new name makes the library or its API clearer to a user; 0.9.0 breaks
+  anyway. The renames this proposal declined for their size alone are
+  open again (section 13); every rename goes into the changelog's
+  migration table.
+- **P18**: completions for as many shells and completion engines as can
+  be supported, carapace among them (the author uses it), with the man
+  pages as recommended.
+- **P5, P24 and every other part**: as recommended.
+
 **Decided already** (`criteria.md`, D1 to D4): no logic is the default
 in 0.9.0; the API may break where users gain; the exit statuses 0, 1, 2,
 3 and 130 stay; no suite is the main one, and where an order is needed

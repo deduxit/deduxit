@@ -16,6 +16,29 @@ read each finding's `findings.md` entry **and its verdict** in
 `verdicts.md` before acting on it, since a verdict often corrects the
 place, the cost or the change.
 
+## The author's answer to the proposal (2026-11-27)
+
+Signed, as recorded at the head of `plan/notes/audit/api-proposal.md`:
+every part as recommended, P1 as the suite under the verb, and:
+- **87h3 (P10)** also writes the "write your own engine" material into
+  the guide for AI models (`skills/deduxit/SKILL.md` within its budget,
+  `reference.md` in full), checked by the readme test as the manual's
+  page is.
+- **87h5 (P13)** may rename anything that makes the library clearer to
+  a user, including what section 13 declined for its size (the linear
+  suite's `Term` and `TermId` to `Node` and `NodeId`), each rename in the
+  changelog's migration table. Every other step of part 2 follows the
+  same rule for the names it touches.
+- **87i2 (P18)** supports as many shells and completion engines as it
+  can: at least bash, zsh, fish, elvish and PowerShell
+  (`clap_complete`), Nushell (`clap_complete_nushell`), and carapace
+  (a carapace spec generated from the clap command, through a
+  maintained crate if one exists, else written by the generator here),
+  each tested by generating it, and the man pages (`clap_mangen`). Each
+  new dependency through the `new-tool` skill and `cargo deny`;
+  `Cargo.lock`'s package ceiling raised in a commit of its own if
+  needed.
+
 ## What holds for every step
 
 - **The proposal is the author's to sign.** Steps marked with a part
