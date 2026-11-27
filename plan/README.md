@@ -8654,3 +8654,14 @@ move (D26).
   `zlsovzxz`. **Left open:** a derivation's own symbols may clash with another branch's (given to 83
   as its first commit); an open witness inside a quantifier's term is not filled by search; the goal
   state does not race its methods as the command does. Step 83 in the same worker, cores 4-6.
+- 2026-11-27, about 05:54: **Step 84's deduxit part pushed; step 85 started.** 84 (`puwpslqt` to
+  `qqpmrwwk`): untyped calculi (unrestricted, linear, affine), `Term::reduce` (a β stepper, normal
+  order by default, each redex named, ending at the normal form or not finished at a bound) and
+  `Term::principal_type` (by unification, checked), the commands `term reduce` and `term infer`, the
+  protocol's `lambda.reduce` and `lambda.infer` (wire level 30), the bindings; the module's ceiling
+  raised to 2 950 000 bytes in a commit of its own. Rebased onto step 82 here (the changelog's
+  conflict, both kept); its first CI run failed in `conventions` alone, the manual's `--steps 1`
+  matching the plan-step pattern (written `--steps=1`); the rerun passed and `main` is `qqpmrwwk`.
+  Its page part waits for 83's. (decided unattended) Step 85 starts now on 84's library part rather
+  than after 84's page part, in fixup-30's worker (the app starts no new session from an automated
+  turn), cores 10-12; its page part after 83's and 84's.
