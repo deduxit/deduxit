@@ -109,8 +109,10 @@ threads share in `work`, the focused engine in `focus/` with
 name, the additive path in `additive`, the test-only `generate` with its
 classical and intuitionistic proof generators and the test-only
 `reference` prover), `nets` (structures and
-the criterion's front door in `mod.rs`, the graph and the Yeo test in
-`graph`, the union-find in `skeleton`, `sequentialize`), `export` (the
+the criterion's front door in `mod.rs`, the graph in `graph`, the
+searches and the Yeo test both structures run in `kernel`, the union-find
+in `skeleton`, `sequentialize` with the proof assembly both structures
+share in `assemble`), `export` (the
 walk over a derivation in `notation`, and `latex`, `typst`, `svg` with
 `font`, `tree` and `net`, `png`, `pdf` and `rocq` behind the features
 of those names),

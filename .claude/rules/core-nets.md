@@ -60,6 +60,24 @@ code relies on:
   million against 274.2). A closure asked once a round costs nothing
   measurable as a `dyn`; keep functions on the hot path of the exact
   test non-generic.
+- **One graph kernel and one proof assembly for both structures**
+  (`nets/kernel.rs`, `nets/assemble.rs`). The kernel holds the CSR
+  search with its bridges, Yeo's rounds, the cycle's isolation and the one
+  `Scratch` (bitsets), generic over `Csr` and `Rounds` (which slots
+  decide a vertex's deletion: MLL's view `Switched` reads the forest's
+  `⅋`s, MELL's graph its `switched` flags). MLL calls it through
+  non-generic `Graph::acyclic`/`cycle`, so the rounds are made in
+  `graph.rs`'s codegen unit as before. Two shapes keep the net engine's
+  instructions: the rounds call an out-of-line `search_every` (inlined
+  into them, `search-wide-m2-256` counted 1 % more), and `discover`
+  takes the graph, not its `start` slice (a second register per call
+  over millions of calls); and MLL's `stage` is `#[inline(always)]`
+  into the shared loop (made apart, its searches counted 0.7 % more).
+  With the three, the journey counts 0.75 % below the copies'.
+  `assemble.rs` holds the steps (`Rule`, `Open`), the loop
+  (`Assemble::run`, each structure giving its `stage`) and the Mix
+  partition (`Parts`, the parts in the order of their first conclusion),
+  so the node order of every sequentialized proof is as it was.
 - **`is_correct(stop)` takes no limits**: its memory is linear in the
   structure (the scratch), and `stop` is asked per round of the deletion
   procedure, which a cycle's witness runs once per edge. `sequentialize`
@@ -153,8 +171,9 @@ code relies on:
   go left. Handled conclusions are deleted in the scratch, so a sub-net is
   what its conclusions reach. O(n²) in the net's size. It does not
   recurse: a stage leaves what proves its sub-net as steps on a stack of
-  the sequentialization's own (`Step`: a sub-net to prove, a Mix, a `⊗`,
-  the `⅋` rules of the stage), taken in the order a recursion would make
+  the sequentialization's own (`assemble::Assembly`: a sub-net to prove,
+  or a `Rule` to apply, a Mix, a `⊗`, a cut or the `⅋` rules the stage
+  opened), taken in the order a recursion would make
   its calls, so the nodes come in that order too and a derivation of any
   height costs the caller's stack nothing
   (`a_high_derivation_needs_no_stack`). The proof is checked in a
@@ -218,8 +237,8 @@ code relies on:
   deletable in the first round, and the connectedness count uses
   `Graph::vertices`, the live count); a cut link sits in slot 0 of both
   ends, the parent edge's place. So a `⅋`'s parent edge is "its first
-  slot when it has three" (two premises, no axiom slot), which
-  `deletable` reads instead of `forest.parent`: that is the one change
+  slot when it has three" (two premises, no axiom slot), which the view
+  `Switched::deciding` reads instead of `forest.parent`: that is the one change
   on the net engine's hot path. The graph holds one edge between two
   vertices, and the one parallel pair a cut can make, a cut between two
   literals linked to each other, is a cycle `is_correct` and
