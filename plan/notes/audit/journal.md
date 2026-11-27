@@ -17,10 +17,13 @@ planning session pushes):
 - phase C: `plan/87-refactor.md` (49 steps: 28 that keep the API, then
   21 that change it) and the report `plan/reports/86-audit.md`.
 
-**Waiting for**: the answer to `api-proposal.md` (the planning session
-signs it on its recommendations while the author is away; the author
-may revise it on return) and the planning session's "go" for phase D.
-Part 1 of the refactor needs no sign-off.
+**Since 10:20** (the planning session's message): phases B and C are
+reviewed and pushed (main@origin `wpztpqyo`). Part 1 of the refactor,
+which needs no sign-off, has started under the planning session: 87r1
+to 87r4 first, and 87a once fixup-31 is on main. `api-proposal.md`
+waits for the author's own sign-off before part 2; the planning session
+does not sign it for them. Nothing is asked of the leader until the
+author wants the proposal walked through, here.
 
 **Nothing of the audit is running.** The target directories under
 `target/` of the workspace (`audit`, `timing`, `wasm-audit`, `dhat`,
