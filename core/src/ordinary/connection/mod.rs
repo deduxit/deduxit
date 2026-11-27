@@ -173,9 +173,17 @@ fn run(
         restricted: options.restricted_backtracking,
     };
     let mut counts = prove::Counts::default();
-    let end = prove::search(&matrix, config, limits, stop, &mut counts);
+    // The classical calculus answers no error of its own.
+    let end = prove::search(
+        &matrix,
+        &mut prove::Classical,
+        config,
+        limits,
+        stop,
+        &mut counts,
+    )?;
     let verdict = match end {
-        prove::End::Proved { used, terms } => {
+        prove::End::Proved { used, terms, .. } => {
             let checked = match read_back::read_back(sequent, &matrix, &used, &terms, limits, stop)
             {
                 Ok(derivation) => derivation

@@ -947,8 +947,32 @@ nanoCoP-i's prefixed non-clausal connection calculus (Otten, TABLEAUX
 here; minimal logic is `Error::Logic` until it has its differential
 test). Written from the papers, never from nanoCoP-i's or ileanCoP's
 code (GPL); the research notes are in the step's report. `prefix.rs`
-the characters and T-string unification, `prove.rs` the search (a copy
-of the classical one, changed), `read_back.rs` the derivation of LJ.
+the characters and T-string unification, `prove.rs` the prefixes as a
+`connection::prove::Calculus`, `read_back.rs` the derivation of LJ.
+
+- **One search for both provers** (`connection::prove::search`, generic
+  over `Calculus`, instantiated for `Classical` and `Prefixed`, so no
+  dynamic call enters the loop; 87c2). Its hooks are where the copy of
+  the search had its changes, each called in the same order, so that the
+  steps, the work and the polls stay as they were: the work a tick adds
+  (`work`, the prefix characters read over `PREFIX_CHARS`), the
+  equations' marks, longest table and bytes, a literal's `key` beside its
+  terms (the prefix, for regularity and lemmata, computed once before the
+  comparisons and per other literal after its terms compare equal), the
+  `connect` test after unification, `renames` (a copy that renames a
+  character counts as freeing, and is fresh for the path bound),
+  `proved` (the prefixes' unification and the caller's read-back, `None`
+  to go on), and `CLASSICAL`: the ground shortcuts of a matrix without
+  slots, the "settled" cut of a literal solved without binding an older
+  variable, and `End::Exhausted` are the classical calculus's alone.
+  The calculus's mark is a type of its own (`Calculus::Mark`, `()` for
+  classical logic): it is stored in every choice point, which the memory
+  poll counts by capacity, so a `u32` there moved the classical
+  search's memory refusal (the panel's witness: pigeonhole 4 into 4
+  refused at 16 464 bytes, where it was decided). The
+  pin is `bench/connection-targets.sh` against `connection-87a.csv`: a
+  change of either search must keep every decided row's `nodes` and
+  `work`.
 
 - **The matrix is the classical prover's**, its terms and copies too
   (`connection::matrix`, `connection::terms`, read only from here).
