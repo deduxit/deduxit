@@ -113,9 +113,19 @@ for NanoYalla. What the code relies on:
   Into<Drawable>` and matches the enum into the generic function, since a
   public function cannot name a crate-private bound (a sealed public
   trait, as `Owner` is, would do as well; the enum needs no
-  `#[expect(unnameable_types)]`). A new kind of
+  `#[expect(unnameable_types)]`). The match is written once,
+  `export::write_drawable`, for the three targets of the crate-private
+  trait `export::Target` (`latex::Latex`, `typst::Typst`, `svg::Svg`:
+  the options, the lambda-term's spelling, the tree emitter and the
+  Fitch writer); the text targets add `export::Text` (the notation,
+  `formed`, the model's table), over which `text_sequent`,
+  `text_structure`, `text_kripke_structure` and `PER_OCCURRENCE` are
+  written once. The tree emitters stay per format: ebproof's postfix
+  order, curryst's nesting and Typst's own layout differ. `svg::write`
+  still shims its stop into `&mut dyn` before the dispatch, so each
+  layout is compiled once per output type. A new kind of
   derivation implements `Drawn` and adds a variant of `Drawable` with its
-  `From`, and an arm in each `write`; the per-rule label tables (the text
+  `From`, and an arm in `write_drawable`; the per-rule label tables (the text
   tree's `bars`, the SVG's laid-out labels) are indexed by `rule`, plus
   `rules()` for a run. The rule count, the open rule and the labels are
   methods of the value, not constants of the type, because a calculus
@@ -777,6 +787,13 @@ for NanoYalla. What the code relies on:
   four-times bound of the textbook look, whose default estimate is
   already 3.75 times its drawing (`essential_nets`, five snapshots
   `essential-boxes*`).
+- **The two net drawings share their document** (`svg::net_document`
+  over `NetGroups`, the lines, the reading's input and dominator edges,
+  the dashed premises, the links, the highlight and the texts, in that
+  order; `svg::cut_bar` a cut link's bar): the MLL drawing passes
+  `dashed` when it has no reading and the look dashes premises, as the
+  MELL drawing does; the room for cut bars and the description stay
+  each drawing's.
 - **A net's drawing has a size bound like a derivation's**: `svg::net`
   estimates its bytes from the structure (`net::estimate`: every written
   formula's text, counted bottom-up from its subformulas' with a
@@ -871,6 +888,26 @@ for NanoYalla. What the code relies on:
   the library's statements or terms is made and pushed in its repository
   first; then `nix flake update rocq-deduxit` moves the pin here, with the
   exporter's change in the same commit.
+- **The names of deduxit's Rocq library are in one table**
+  (`export/rocq/library.rs`, crate-private, feature `rocq`): per module
+  of the library, the formulas' constructors of linear logic (one- and
+  two-sided, `formula`, `iformula`), its terms (`BOUND`, `EIGEN`,
+  `TAPP`), its proof terms (`proof`, `iproof`, `QUEST`, `LEFT`, `RIGHT`),
+  ordinary logic's formulas (`ordinary`, `top`, `neg` and `equiv` being
+  the library's definitions) and modal logic's (`modal_node` over the
+  arena, `modal` over a rule file's connectives, `modal_proof`). Every
+  certificate writer (`deduxit.rs`, `ordinary/rocq.rs`,
+  `ordinary/rocq_models.rs`, `modal/rocq.rs`) takes its constructors
+  from there, and no other place of the crate names one; rocq-deduxit's
+  `tests/Interface/` pins the same names at the types a certificate
+  needs, so a rename is made in both repositories together. The
+  theorems' names, the records' fields and the preludes stay where they
+  are written. The table's names carry no space: a writer adds the space
+  before an argument (none after `one`, `top`, `ione`, …). The module
+  also holds what the writers share: `string` (a name as a Rocq string,
+  `"` doubled), `stopped` (the stop's refusal at `Phase::Write`) and
+  `Bounded` (a text refused past `limits.derivation_bytes`, which the
+  model writer wraps to count its numbers).
 - **Certificates of non-derivability** (`rocq::write_disproof`,
   `deduxit::disproof`): for deduxit's library whatever the mode
   (`Unsupported::Disproof` where the options name NanoYalla), the lemma
@@ -914,8 +951,9 @@ for NanoYalla. What the code relies on:
   and the Rust check accept the same refutations under the same
   conditions (the weighted arms run the library's own test), and a
   certificate is written exactly when it compiles. The formula printers
-  (`atom`, `formula`, `iformula`) are free functions over the forest
-  that the proof writer calls too. The goal of a disproof off the roots
+  (`atom`, and `formula`, one walk one-sided or under a reading, which
+  asserts that no binder reaches it: a sequent with a binder is `Fo`'s)
+  are free functions over the forest that the proof writer calls too. The goal of a disproof off the roots
   is its members. The command writes one for `--format rocq` on an
   unprovable verdict and on `check` of a refutation that holds
   (`disproof_into` in `cli/src/show.rs`), and a line `no certificate:
@@ -1058,8 +1096,9 @@ for NanoYalla. What the code relies on:
   of arrow lists. Snapshots `deduxit/countermodel_fo_*.v` and
   `deduxit/structure_*.v`; the `rocq-deduxit` check compiles three the
   command writes and refuses a model whose facts shrink.
-- **First-order countermodels' drawings** (`export/models.rs`, `Laid`):
-  one layout for every target, checked first, each world with its
+- **First-order countermodels' drawings** (`export/models.rs`, `Laid`;
+  its `last` sentence and `sequent_bytes` estimate serve the
+  propositional `svg::countermodel` too): one layout for every target, checked first, each world with its
   domain, values (constants, then each function's table read back to
   tuples by the sequent's arities) and facts, at most `models::SHOWN`
   (16) of each and the rest counted, refused past
