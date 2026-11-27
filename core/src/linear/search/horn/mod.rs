@@ -78,6 +78,57 @@ fn heap_room<T: Ord>(
     true
 }
 
+/// Returns the places a transition's inputs and outputs name, each sorted
+/// by place, merged: each place once, with the tokens the transition
+/// takes there and gives.
+fn effects<'t>(inputs: &'t [(u32, u32)], outputs: &'t [(u32, u32)]) -> Effects<'t> {
+    Effects {
+        inputs,
+        outputs,
+        i: 0,
+        o: 0,
+    }
+}
+
+/// The merge [`effects`] returns.
+struct Effects<'t> {
+    /// The inputs, each a place and a weight, by place.
+    inputs: &'t [(u32, u32)],
+    /// The outputs, likewise.
+    outputs: &'t [(u32, u32)],
+    /// The next input.
+    i: usize,
+    /// The next output.
+    o: usize,
+}
+
+impl Iterator for Effects<'_> {
+    type Item = (u32, u32, u32);
+
+    #[inline]
+    fn next(&mut self) -> Option<(u32, u32, u32)> {
+        match (self.inputs.get(self.i), self.outputs.get(self.o)) {
+            (Some(&(a, w)), Some(&(b, v))) if a == b => {
+                (self.i, self.o) = (self.i + 1, self.o + 1);
+                Some((a, w, v))
+            }
+            (Some(&(a, w)), Some(&(b, _))) if a < b => {
+                self.i += 1;
+                Some((a, w, 0))
+            }
+            (Some(&(a, w)), None) => {
+                self.i += 1;
+                Some((a, w, 0))
+            }
+            (_, Some(&(b, v))) => {
+                self.o += 1;
+                Some((b, 0, v))
+            }
+            (None, None) => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -293,12 +344,8 @@ impl Program {
     fn caps(&self) -> Vec<u32> {
         let mut raised = vec![false; self.places];
         for t in &self.transitions {
-            // The inputs and the outputs are each sorted by place.
-            let mut inputs = self.inputs(t).iter().peekable();
-            for &(p, w) in self.outputs(t) {
-                while inputs.next_if(|&&(q, _)| q < p).is_some() {}
-                let taken = inputs.next_if(|&&(q, _)| q == p).map_or(0, |&(_, v)| v);
-                if w > taken {
+            for (p, taken, given) in effects(self.inputs(t), self.outputs(t)) {
+                if given > taken {
                     raised[p as usize] = true;
                 }
             }

@@ -25,7 +25,7 @@
 //! backward.
 
 use super::equation::Equation;
-use super::{Parents, Program, heap_room, room};
+use super::{Parents, Program, effects, heap_room, room};
 use crate::linear::search::{Reason, Statistics};
 use crate::memory::{Account, Charged, bytes_of};
 use std::cell::OnceCell;
@@ -677,28 +677,8 @@ fn moved(
     counts: &[u32],
     target: &[u32],
 ) -> u64 {
-    let (mut i, mut o) = (0, 0);
     let mut distance = distance;
-    while i < inputs.len() || o < outputs.len() {
-        let (p, taken, given) = match (inputs.get(i), outputs.get(o)) {
-            (Some(&(a, w)), Some(&(b, v))) if a == b => {
-                (i, o) = (i + 1, o + 1);
-                (a, w, v)
-            }
-            (Some(&(a, w)), Some(&(b, _))) if a < b => {
-                i += 1;
-                (a, w, 0)
-            }
-            (Some(&(a, w)), None) => {
-                i += 1;
-                (a, w, 0)
-            }
-            (_, Some(&(b, v))) => {
-                o += 1;
-                (b, 0, v)
-            }
-            (None, None) => unreachable!("the loop's condition"),
-        };
+    for (p, taken, given) in effects(inputs, outputs) {
         let (count, goal) = (u64::from(counts[p as usize]), u64::from(target[p as usize]));
         // In u64 a count past u32::MAX is still exact. The successor
         // refuses it when it is written out.

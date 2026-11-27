@@ -300,27 +300,8 @@ impl Tableau {
             let inputs = program.inputs(transition);
             let outputs = program.outputs(transition);
             let mut effect: Vec<(u32, i64)> = Vec::with_capacity(inputs.len() + outputs.len());
-            let (mut i, mut o) = (0, 0);
-            while i < inputs.len() || o < outputs.len() {
-                let (p, e) = match (inputs.get(i), outputs.get(o)) {
-                    (Some(&(a, w)), Some(&(b, v))) if a == b => {
-                        (i, o) = (i + 1, o + 1);
-                        (a, i64::from(v) - i64::from(w))
-                    }
-                    (Some(&(a, w)), Some(&(b, _))) if a < b => {
-                        i += 1;
-                        (a, -i64::from(w))
-                    }
-                    (Some(&(a, w)), None) => {
-                        i += 1;
-                        (a, -i64::from(w))
-                    }
-                    (_, Some(&(b, v))) => {
-                        o += 1;
-                        (b, i64::from(v))
-                    }
-                    (None, None) => unreachable!("the loop's condition"),
-                };
+            for (p, taken, given) in super::effects(inputs, outputs) {
+                let e = i64::from(given) - i64::from(taken);
                 if e != 0 {
                     effect.push((p, e));
                 }
