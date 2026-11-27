@@ -33,40 +33,12 @@ use super::{MellStructure, SCRATCH_BYTES, VERTEX_BYTES};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::fragment::Mode;
+use crate::linear::nets::assemble::{Assemble, Assembly, Open, Parts, Rule};
 use crate::linear::nets::kernel::Scratch;
 use crate::linear::nets::{NONE, STOPPED, VertexId, afford};
-use crate::linear::occurrences::{Member, OccId};
-use crate::linear::proofs::{Node, NodeId, Proof};
+use crate::linear::occurrences::Member;
+use crate::linear::proofs::{Node, Proof};
 use crate::linear::sequents::Kind;
-
-/// A rule a stage applies below what proves the rest, on an occurrence.
-#[derive(Clone, Copy, Debug)]
-enum Open {
-    /// A `⅋` rule.
-    Par(OccId),
-    /// A `?` rule.
-    Quest(OccId),
-    /// A copy.
-    Copy(OccId),
-}
-
-/// A step of a sequentialization.
-enum Step {
-    /// Prove the sub-net with these conclusions, graph vertices of one
-    /// depth.
-    Prove(Vec<u32>),
-    /// Join the last two sub-nets proved with Mix.
-    Mix,
-    /// Apply this `⊗` to the last two sub-nets proved.
-    Tensor(OccId),
-    /// Cut on this occurrence of a cut formula's tree the last two
-    /// sub-nets proved, which hold it and its dual.
-    Cut(OccId),
-    /// Apply this promotion to the last sub-net proved.
-    Bang(OccId),
-    /// Apply these rules to the last sub-net proved, the last first.
-    Opened(Vec<Open>),
-}
 
 impl MellStructure {
     /// Turns a proof net with boxes into a proof term of its sequent.
@@ -112,9 +84,7 @@ impl MellStructure {
         let mut run = Sequentialization {
             net: self,
             scratch: Scratch::of(&self.graph),
-            nodes: Vec::with_capacity(self.len()),
-            steps: Vec::new(),
-            proved: Vec::new(),
+            proof: Assembly::with_capacity(self.len()),
         };
         let mut stages = 0;
         let mut stop = |stage: u64| {
@@ -126,7 +96,7 @@ impl MellStructure {
         };
         let mut roots: Vec<u32> = (0..self.forest.roots().len() as u32).collect();
         roots.extend(self.graph.cuts_in(NONE));
-        let Some(root) = run.sequentialize(roots, &mut stop) else {
+        let Some(root) = run.run(roots, &mut stop) else {
             return Err(STOPPED.into());
         };
         let mode = if self.criterion.mix {
@@ -134,7 +104,7 @@ impl MellStructure {
         } else {
             Mode::CLASSICAL
         };
-        let proof = Proof::new(self.forest.clone(), run.nodes, root)
+        let proof = Proof::new(self.forest.clone(), run.proof.nodes, root)
             .expect("premises precede conclusions and every occurrence is the forest's")
             .with_mode(mode);
         debug_assert_eq!(proof.check(mode), Ok(()));
@@ -154,85 +124,15 @@ struct Sequentialization<'a> {
     /// Working memory for the searches. The conclusions handled are
     /// deleted in it, so a sub-net is what its conclusions reach.
     scratch: Scratch,
-    /// The proof's arena so far.
-    nodes: Vec<Node>,
-    /// What is yet to do, the next step last.
-    steps: Vec<Step>,
-    /// The nodes concluding the sub-nets proved and not yet used.
-    proved: Vec<NodeId>,
+    /// The proof so far: a sub-net to prove is named by its conclusions,
+    /// graph vertices of one depth.
+    proof: Assembly<Vec<u32>>,
 }
 
 impl Sequentialization<'_> {
-    /// Adds a node and returns its id.
-    fn push(&mut self, node: Node) -> NodeId {
-        self.nodes.push(node);
-        NodeId::new(self.nodes.len() as u32 - 1)
-    }
-
-    /// Takes the node concluding the last sub-net proved.
-    fn premise(&mut self) -> NodeId {
-        self.proved
-            .pop()
-            .expect("a sub-net proved for every premise")
-    }
-
     /// Returns the occurrence of a structure vertex as a member.
     fn member(&self, v: u32) -> Member {
         Member::from(self.net.occurrence[v as usize])
-    }
-
-    /// Proves the sub-net with the given conclusions and returns the node
-    /// concluding it, asking `stop` before each stage. `None` when `stop`
-    /// fired.
-    fn sequentialize(
-        &mut self,
-        gamma: Vec<u32>,
-        stop: &mut dyn FnMut(u64) -> bool,
-    ) -> Option<NodeId> {
-        self.steps.push(Step::Prove(gamma));
-        while let Some(step) = self.steps.pop() {
-            let node = match step {
-                Step::Prove(gamma) => {
-                    if stop(1) {
-                        return None;
-                    }
-                    self.stage(gamma);
-                    continue;
-                }
-                Step::Mix => {
-                    let other = self.premise();
-                    let node = self.premise();
-                    self.push(Node::Mix(node, other))
-                }
-                Step::Tensor(t) => {
-                    let right = self.premise();
-                    let left = self.premise();
-                    self.push(Node::Tensor(Member::from(t), left, right))
-                }
-                Step::Cut(a) => {
-                    let right = self.premise();
-                    let left = self.premise();
-                    self.push(Node::Cut(Member::from(a), left, right))
-                }
-                Step::Bang(b) => {
-                    let premise = self.premise();
-                    self.push(Node::Bang(Member::from(b), premise))
-                }
-                Step::Opened(rules) => {
-                    let mut node = self.premise();
-                    for &rule in rules.iter().rev() {
-                        node = self.push(match rule {
-                            Open::Par(o) => Node::Par(Member::from(o), node),
-                            Open::Quest(o) => Node::Quest(Member::from(o), node),
-                            Open::Copy(o) => Node::Copy(Member::from(o), node),
-                        });
-                    }
-                    node
-                }
-            };
-            self.proved.push(node);
-        }
-        Some(self.premise())
     }
 
     /// Opens the copies of a `?` vertex or door at its depth: each becomes
@@ -246,6 +146,14 @@ impl Sequentialization<'_> {
             }
         }
     }
+}
+
+impl Assemble for Sequentialization<'_> {
+    type Goal = Vec<u32>;
+
+    fn assembly(&mut self) -> &mut Assembly<Self::Goal> {
+        &mut self.proof
+    }
 
     /// Runs one stage on the sub-net with the given conclusions. It opens
     /// the `⅋` and `?` conclusions and the doors. Then it proves the
@@ -253,7 +161,7 @@ impl Sequentialization<'_> {
     /// with a Mix after each but the first; the contents of its box and the
     /// promotion; or the two sides of its splitting `⊗` or cut link, and
     /// the rule after them.
-    fn stage(&mut self, mut gamma: Vec<u32>) {
+    fn stage(&mut self, mut gamma: Self::Goal) {
         let net = self.net;
         let graph = &net.graph;
         let n = graph.vertex_offset();
@@ -308,36 +216,19 @@ impl Sequentialization<'_> {
         }
         gamma.retain(|&c| c != NONE);
         if !rules.is_empty() {
-            self.steps.push(Step::Opened(rules));
+            self.proof.apply(Rule::Opened(rules));
         }
 
         let parts = graph.search(&mut self.scratch, gamma.iter().copied());
         if parts > 1 {
             debug_assert!(net.criterion.mix, "a proof net without Mix is connected");
-            // The parts in the order of their first conclusion. Sorting the
-            // labels keeps a stage of many parts near linear.
-            let mut first: Vec<(u32, usize)> = gamma
-                .iter()
-                .enumerate()
-                .map(|(i, &c)| (self.scratch.component(c), i))
-                .collect();
-            first.sort_unstable();
-            first.dedup_by_key(|&mut (label, _)| label);
-            let labels: Vec<u32> = first.iter().map(|&(label, _)| label).collect();
-            first.sort_unstable_by_key(|&(_, i)| i);
-            let mut parts: Vec<Vec<u32>> = vec![Vec::new(); labels.len()];
+            // The parts in the order of their first conclusion.
+            let parts = Parts::of(gamma.iter().map(|&c| self.scratch.component(c)));
+            let mut goals: Vec<Vec<u32>> = vec![Vec::new(); parts.len()];
             for &c in &gamma {
-                let label = self.scratch.component(c);
-                let j = labels.binary_search(&label).expect("every label is listed");
-                parts[j].push(c);
+                goals[parts.index(self.scratch.component(c))].push(c);
             }
-            for (i, &(label, _)) in first.iter().enumerate().rev() {
-                if i > 0 {
-                    self.steps.push(Step::Mix);
-                }
-                let j = labels.binary_search(&label).expect("every label is listed");
-                self.steps.push(Step::Prove(std::mem::take(&mut parts[j])));
-            }
+            parts.leave(&mut self.proof, goals);
         } else if gamma
             .iter()
             .all(|&c| c < n && net.forest.is_literal(net.occurrence[c as usize]))
@@ -347,8 +238,7 @@ impl Sequentialization<'_> {
                 "a connected sub-net of literals is one link"
             );
             let (x, y) = (self.member(gamma[0]), self.member(gamma[1]));
-            let axiom = self.push(Node::Ax(x.min(y), x.max(y)));
-            self.proved.push(axiom);
+            self.proof.proved_by(Node::Ax(x.min(y), x.max(y)));
         } else if let [bang] = gamma[..]
             && bang < n
             && net.kind(bang) == Kind::Bang
@@ -358,8 +248,8 @@ impl Sequentialization<'_> {
             let mut contents = vec![premise];
             contents.extend(graph.doors_in(bang));
             contents.extend(graph.cuts_in(bang));
-            self.steps.push(Step::Bang(net.occurrence[bang as usize]));
-            self.steps.push(Step::Prove(contents));
+            self.proof.apply(Rule::Bang(net.occurrence[bang as usize]));
+            self.proof.prove(contents);
         } else {
             // The splitting ⊗ conclusion with the smallest id: one whose
             // premise edge is a bridge. Else the splitting cut vertex with
@@ -414,13 +304,13 @@ impl Sequentialization<'_> {
                 }
             }
             let occurrence = net.occurrence[l as usize];
-            self.steps.push(if split < n {
-                Step::Tensor(net.occurrence[split as usize])
+            self.proof.apply(if split < n {
+                Rule::Tensor(net.occurrence[split as usize])
             } else {
-                Step::Cut(occurrence)
+                Rule::Cut(occurrence)
             });
-            self.steps.push(Step::Prove(right));
-            self.steps.push(Step::Prove(left));
+            self.proof.prove(right);
+            self.proof.prove(left);
         }
     }
 }

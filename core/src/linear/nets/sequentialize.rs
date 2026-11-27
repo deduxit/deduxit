@@ -20,11 +20,12 @@
 //! at once, so the whole sequentialization costs at most the square of
 //! the net's size.
 
+use super::assemble::{Assemble, Assembly, Open, Parts, Rule};
 use super::{ProofStructure, SEQUENTIALIZE_BYTES, STOPPED, Scratch, VertexId, afford};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress};
-use crate::linear::occurrences::{Member, OccId};
-use crate::linear::proofs::{Node, NodeId, Proof};
+use crate::linear::occurrences::OccId;
+use crate::linear::proofs::{Node, Proof};
 use crate::linear::sequents::Kind;
 
 impl ProofStructure {
@@ -96,9 +97,7 @@ impl ProofStructure {
         let mut run = Sequentialization {
             net: self,
             scratch: self.scratch(),
-            nodes: Vec::with_capacity(self.forest.len()),
-            steps: Vec::new(),
-            proved: Vec::new(),
+            proof: Assembly::with_capacity(self.forest.len()),
         };
         let mut stages = 0;
         let mut stop = |stage: u64| {
@@ -109,12 +108,12 @@ impl ProofStructure {
             })
         };
         let cuts = self.cuts.iter().map(|&(x, _)| x.occ()).collect();
-        let root = run.sequentialize(self.forest.roots().to_vec(), cuts, &mut stop);
+        let root = run.run((self.forest.roots().to_vec(), cuts), &mut stop);
         let Some(root) = root else {
             return Err(STOPPED.into());
         };
         let mode = self.criterion.mode();
-        let proof = Proof::new(self.forest.clone(), run.nodes, root)
+        let proof = Proof::new(self.forest.clone(), run.proof.nodes, root)
             .expect("premises precede conclusions and every occurrence is the forest's")
             .with_mode(mode);
         debug_assert_eq!(proof.check(mode), Ok(()));
@@ -129,93 +128,16 @@ struct Sequentialization<'a> {
     /// Working memory for the searches; conclusions already handled are
     /// deleted in it, so a sub-net is exactly what its conclusions reach.
     scratch: Scratch,
-    /// The proof's arena so far.
-    nodes: Vec<Node>,
-    /// What is yet to do, the next step last. A derivation is as high as
-    /// its net is large, so the steps are kept here and not on the
-    /// caller's stack.
-    steps: Vec<Step>,
-    /// The nodes concluding the sub-nets proved and not yet used as a
-    /// premise, the last proved last.
-    proved: Vec<NodeId>,
+    /// The proof so far: a sub-net to prove is named by its conclusions
+    /// and the cut links at their ends in a cut formula's tree.
+    proof: Assembly<(Vec<OccId>, Vec<OccId>)>,
 }
 
-/// A step of a sequentialization.
-enum Step {
-    /// Prove the sub-net with these conclusions and the cut links at
-    /// these ends in a cut formula's tree.
-    Prove(Vec<OccId>, Vec<OccId>),
-    /// Join the last two sub-nets proved with Mix.
-    Mix,
-    /// Apply this `⊗` to the last two sub-nets proved, which hold its left
-    /// and its right premise.
-    Tensor(OccId),
-    /// Cut on this occurrence of a cut formula's tree the last two
-    /// sub-nets proved, which hold it and its dual.
-    Cut(OccId),
-    /// Apply these `⅋` to the last sub-net proved, the last of them first.
-    Pars(Vec<OccId>),
-}
+impl Assemble for Sequentialization<'_> {
+    type Goal = (Vec<OccId>, Vec<OccId>);
 
-impl Sequentialization<'_> {
-    /// Adds a node and returns its id.
-    fn push(&mut self, node: Node) -> NodeId {
-        self.nodes.push(node);
-        NodeId::new(self.nodes.len() as u32 - 1)
-    }
-
-    /// Takes the node concluding the last sub-net proved.
-    fn premise(&mut self) -> NodeId {
-        self.proved
-            .pop()
-            .expect("a sub-net proved for every premise")
-    }
-
-    /// Proves the sub-net with the given conclusions and cut links and
-    /// returns the node concluding it, asking `stop` before each stage;
-    /// `None` when it fired.
-    fn sequentialize(
-        &mut self,
-        gamma: Vec<OccId>,
-        cuts: Vec<OccId>,
-        stop: &mut dyn FnMut(u64) -> bool,
-    ) -> Option<NodeId> {
-        self.steps.push(Step::Prove(gamma, cuts));
-        while let Some(step) = self.steps.pop() {
-            let node = match step {
-                Step::Prove(gamma, cuts) => {
-                    if stop(1) {
-                        return None;
-                    }
-                    self.stage(gamma, cuts);
-                    continue;
-                }
-                Step::Mix => {
-                    let other = self.premise();
-                    let node = self.premise();
-                    self.push(Node::Mix(node, other))
-                }
-                Step::Tensor(t) => {
-                    let right = self.premise();
-                    let left = self.premise();
-                    self.push(Node::Tensor(Member::from(t), left, right))
-                }
-                Step::Cut(a) => {
-                    let right = self.premise();
-                    let left = self.premise();
-                    self.push(Node::Cut(Member::from(a), left, right))
-                }
-                Step::Pars(pars) => {
-                    let mut node = self.premise();
-                    for &p in pars.iter().rev() {
-                        node = self.push(Node::Par(Member::from(p), node));
-                    }
-                    node
-                }
-            };
-            self.proved.push(node);
-        }
-        Some(self.premise())
+    fn assembly(&mut self) -> &mut Assembly<Self::Goal> {
+        &mut self.proof
     }
 
     /// Runs one stage on the sub-net with the given conclusions and cut
@@ -226,7 +148,11 @@ impl Sequentialization<'_> {
     /// or the two sides of its splitting `⊗` or cut link with the `⊗` or
     /// cut after them. The rules of the `⅋` conclusions it opened come
     /// after either.
-    fn stage(&mut self, mut gamma: Vec<OccId>, cuts: Vec<OccId>) {
+    // Inlined into the shared loop: made apart, its searches count 0.7 %
+    // more on the net engine's journey (`search-wide-m2-256`), which ends
+    // by sequentializing the net found.
+    #[inline(always)]
+    fn stage(&mut self, (mut gamma, cuts): Self::Goal) {
         let f = self.net.forest();
         let graph = &self.net.graph;
         let child = |o: OccId, left: bool| if left { f.left(o) } else { f.right(o) }.unwrap();
@@ -242,13 +168,13 @@ impl Sequentialization<'_> {
                 gamma[i] = child(c, true);
                 gamma.push(child(c, false));
                 self.scratch.delete(c.get());
-                pars.push(c);
+                pars.push(Open::Par(c));
             } else {
                 i += 1;
             }
         }
         if !pars.is_empty() {
-            self.steps.push(Step::Pars(pars));
+            self.proof.apply(Rule::Opened(pars));
         }
 
         let roots = gamma.iter().chain(&cuts).map(|o| o.get());
@@ -259,45 +185,29 @@ impl Sequentialization<'_> {
                 "a proof net without Mix is connected"
             );
             // The parts in the order of their first conclusion, of `gamma`
-            // then of `cuts`. Sorting the labels keeps a stage of many
-            // parts near linear, where a search of the labels per
-            // conclusion and a filter per part were quadratic.
-            let mut first: Vec<(u32, usize)> = gamma
-                .iter()
-                .chain(&cuts)
-                .enumerate()
-                .map(|(i, &c)| (self.scratch.component(c.get()), i))
-                .collect();
-            first.sort_unstable();
-            first.dedup_by_key(|&mut (label, _)| label);
-            let labels: Vec<u32> = first.iter().map(|&(label, _)| label).collect();
-            first.sort_unstable_by_key(|&(_, i)| i);
-            let mut parts: Vec<(Vec<OccId>, Vec<OccId>)> =
-                vec![(Vec::new(), Vec::new()); labels.len()];
-            let part_of = |label: u32| labels.binary_search(&label).expect("every label is listed");
+            // then of `cuts`.
+            let labels = gamma.iter().chain(&cuts);
+            let parts = Parts::of(labels.map(|&c| self.scratch.component(c.get())));
+            let mut goals: Vec<(Vec<OccId>, Vec<OccId>)> =
+                vec![(Vec::new(), Vec::new()); parts.len()];
             for &c in &gamma {
-                parts[part_of(self.scratch.component(c.get()))].0.push(c);
+                goals[parts.index(self.scratch.component(c.get()))]
+                    .0
+                    .push(c);
             }
             for &c in &cuts {
-                parts[part_of(self.scratch.component(c.get()))].1.push(c);
+                goals[parts.index(self.scratch.component(c.get()))]
+                    .1
+                    .push(c);
             }
-            // The steps are taken from the last: the first part, then
-            // every other one and the Mix that joins it to those before.
-            for (i, &(label, _)) in first.iter().enumerate().rev() {
-                if i > 0 {
-                    self.steps.push(Step::Mix);
-                }
-                let (g, k) = std::mem::take(&mut parts[part_of(label)]);
-                self.steps.push(Step::Prove(g, k));
-            }
+            parts.leave(&mut self.proof, goals);
         } else if cuts.is_empty() && gamma.iter().all(|&c| f.is_literal(c)) {
             debug_assert!(
                 gamma.len() == 2
                     && self.net.partner(VertexId::of(gamma[0])) == Some(VertexId::of(gamma[1]))
             );
             let (x, y) = (gamma[0].min(gamma[1]), gamma[0].max(gamma[1]));
-            let axiom = self.push(Node::Ax(x.into(), y.into()));
-            self.proved.push(axiom);
+            self.proof.proved_by(Node::Ax(x.into(), y.into()));
         } else {
             // The splitting ⊗ conclusion with the smallest id, one whose
             // premise edge is a bridge, or else the splitting cut link
@@ -317,7 +227,7 @@ impl Sequentialization<'_> {
             let (split, left_end, right_end) = match tensor {
                 Some(t) => {
                     self.scratch.delete(t.get());
-                    (Step::Tensor(t), child(t, true), child(t, false))
+                    (Rule::Tensor(t), child(t, true), child(t, false))
                 }
                 None => {
                     let a = cut().expect(
@@ -325,14 +235,14 @@ impl Sequentialization<'_> {
                          splitting ⊗ or cut link",
                     );
                     graph.remove_cut(&mut self.scratch, a.get());
-                    (Step::Cut(a), a, across(a))
+                    (Rule::Cut(a), a, across(a))
                 }
             };
             graph.search(&mut self.scratch, [left_end.get()]);
             let (mut left, mut right) = (vec![left_end], vec![right_end]);
             let (mut left_cuts, mut right_cuts) = (Vec::new(), Vec::new());
             for &c in &gamma {
-                if matches!(split, Step::Tensor(t) if t == c) {
+                if matches!(split, Rule::Tensor(t) if t == c) {
                     continue;
                 }
                 if self.scratch.reached(c.get()) {
@@ -342,7 +252,7 @@ impl Sequentialization<'_> {
                 }
             }
             for &a in &cuts {
-                if matches!(split, Step::Cut(b) if b == a) {
+                if matches!(split, Rule::Cut(b) if b == a) {
                     continue;
                 }
                 if self.scratch.reached(a.get()) {
@@ -351,9 +261,9 @@ impl Sequentialization<'_> {
                     right_cuts.push(a);
                 }
             }
-            self.steps.push(split);
-            self.steps.push(Step::Prove(right, right_cuts));
-            self.steps.push(Step::Prove(left, left_cuts));
+            self.proof.apply(split);
+            self.proof.prove((right, right_cuts));
+            self.proof.prove((left, left_cuts));
         }
     }
 }

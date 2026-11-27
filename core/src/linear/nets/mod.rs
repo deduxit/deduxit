@@ -50,6 +50,8 @@
 // never fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+/// How both sequentializations put the proof together.
+mod assemble;
 pub mod cut;
 /// Essential nets: the directed criterion of intuitionistic structures.
 pub(crate) mod essential;
