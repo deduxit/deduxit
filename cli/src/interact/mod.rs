@@ -17,8 +17,8 @@ use deduxit::linear::search::{Goal, Options, Outcome, Verdict};
 use deduxit::{
     Error, Limits, Refusal,
     linear::{
-        CutFormula, GoalId, InputOptions, Interactive, Mode, Named, Reading, Rule, Side,
-        Step, StepError, ViewOptions,
+        CutFormula, GoalId, InputOptions, Interactive, Mode, Named, Reading, Rule, Side, Step,
+        StepError, ViewOptions,
     },
 };
 use std::fmt::Write as _;
@@ -828,7 +828,9 @@ impl Session {
     fn invert_all(&mut self) -> Option<String> {
         self.invertible = true;
         let before = self.state.steps();
-        let inverted = self.state.invert_all(&self.limits);
+        let inverted = self
+            .state
+            .invert_all_within(&self.limits, |_| interrupted());
         if inverted.steps > 0 {
             self.groups.push((before, self.state.steps()));
         }
@@ -857,7 +859,9 @@ impl Session {
         }
         let (mut steps, mut open, mut refused) = (0, Vec::new(), None);
         for goal in opened {
-            let inverted = self.state.invert(goal, &self.limits)?;
+            let inverted = self
+                .state
+                .invert_within(goal, &self.limits, |_| interrupted())?;
             steps += inverted.steps;
             open.extend(inverted.open);
             refused = refused.or(inverted.finished.err());
@@ -1174,9 +1178,9 @@ fn format_of(proof: bool, word: &str) -> Result<Format> {
     })
 }
 
-/// Says how many invertible steps were taken (`3 invertible steps`), and why they stopped short
-/// if the memory bound stopped them; `None` for none taken and none
-/// refused.
+/// Says how many invertible steps were taken (`3 invertible steps`), and
+/// why they stopped short if a bound or an interrupt stopped them; `None`
+/// for none taken and none refused.
 pub(super) fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<String> {
     let taken = match steps {
         1 => "1 invertible step".to_owned(),
@@ -1186,6 +1190,9 @@ pub(super) fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<S
         Some(Refusal::Memory { limit_bytes, .. }) => Some(format!(
             "{taken}, stopped by the memory limit of {} (--memory-limit raises it)",
             bytes_text(*limit_bytes)
+        )),
+        Some(Refusal::Terms { limit, .. }) => Some(format!(
+            "{taken}, stopped by the term limit of {limit} (--term-limit raises it)"
         )),
         Some(Refusal::Stopped { .. }) => Some(format!("{taken}, then interrupted")),
         Some(refusal) => Some(format!("{taken}, stopped: {refusal}")),

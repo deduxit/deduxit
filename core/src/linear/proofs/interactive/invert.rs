@@ -10,7 +10,8 @@
 
 use super::expand::formula_at;
 use super::{GoalId, Interactive, Step, StepError, Witness};
-use crate::limits::{Limits, Phase, Refusal};
+use crate::WitnessFault;
+use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::occurrences::{Member, OccId};
 use crate::linear::proofs::derivation::Inference;
 use crate::linear::proofs::multiset::Multiset;
@@ -77,8 +78,11 @@ pub struct Inverted {
     /// step on.
     pub open: Vec<GoalId>,
     /// `Ok` when no invertible rule applies to any goal of
-    /// [`open`](Self::open). Otherwise the memory bound stopped it, and the
-    /// steps it took stand.
+    /// [`open`](Self::open). Otherwise the memory bound, the session's
+    /// bound on terms (a `∀` step whose instance would pass it,
+    /// [`Refusal::Terms`]), the eigenvariables a `u32` numbers
+    /// ([`Refusal::Index`]) or the caller's stop ended it, and the steps
+    /// it took stand.
     pub finished: Result<(), Refusal>,
 }
 
@@ -93,21 +97,51 @@ impl Interactive {
     /// every premise of these rules has fewer connectives, units and
     /// literals than its conclusion. The bytes of the inferences it adds
     /// are bounded by `limits.memory_bytes`: at the bound it stops, and
-    /// the steps it took stand ([`Inverted::finished`]).
+    /// the steps it took stand ([`Inverted::finished`]). It has no stop:
+    /// [`invert_within`](Self::invert_within) asks one.
     ///
     /// # Errors
     ///
     /// [`StepError::NoGoal`] for a goal that is not open.
     pub fn invert(&mut self, goal: GoalId, limits: &Limits) -> Result<Inverted, StepError> {
+        self.invert_within(goal, limits, |_| false)
+    }
+
+    /// Applies the invertible rules to an open goal as
+    /// [`invert`](Self::invert) does, asking `stop` once per step
+    /// ([`Phase::View`]): where it fires the run ends with
+    /// [`Refusal::Stopped`] in [`Inverted::finished`], the steps taken
+    /// standing.
+    ///
+    /// # Errors
+    ///
+    /// [`StepError::NoGoal`] for a goal that is not open.
+    pub fn invert_within(
+        &mut self,
+        goal: GoalId,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Inverted, StepError> {
         self.goal(goal)?;
-        Ok(self.invert_goals(vec![goal], limits))
+        Ok(self.invert_goals(vec![goal], limits, &mut stop))
     }
 
     /// Applies the invertible rules to every open goal in turn, as
     /// [`invert`](Self::invert) does to one, all within one memory bound.
     pub fn invert_all(&mut self, limits: &Limits) -> Inverted {
+        self.invert_all_within(limits, |_| false)
+    }
+
+    /// Applies the invertible rules to every open goal in turn, as
+    /// [`invert_within`](Self::invert_within) does to one, all within one
+    /// memory bound and asking one stop.
+    pub fn invert_all_within(
+        &mut self,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Inverted {
         let goals = self.goals().collect();
-        self.invert_goals(goals, limits)
+        self.invert_goals(goals, limits, &mut stop)
     }
 
     /// Returns whether a step on a sequent of this session's forest (an
@@ -146,15 +180,38 @@ impl Interactive {
     }
 
     /// Applies the invertible rules to the goals, depth first, within the
-    /// memory bound.
-    fn invert_goals(&mut self, goals: Vec<GoalId>, limits: &Limits) -> Inverted {
+    /// memory bound and until `stop` fires.
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the witness faults that are no bound leave the goal open"
+    )]
+    fn invert_goals(
+        &mut self,
+        goals: Vec<GoalId>,
+        limits: &Limits,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Inverted {
         let mut todo: Vec<GoalId> = goals.into_iter().rev().collect();
         let (mut steps, mut open) = (0, Vec::new());
         // The bytes of the inferences added: per premise, an inference
         // and its sequent's members. The sum saturates, but the bound
         // stops the run long before that.
         let mut held = 0u64;
+        // Ends the run at `goal`, the goals not yet taken up left open.
+        let ended = |steps: usize, mut open: Vec<GoalId>, goal, todo: Vec<GoalId>, refusal| {
+            open.push(goal);
+            open.extend(todo.into_iter().rev());
+            Inverted {
+                steps,
+                open,
+                finished: Err(refusal),
+            }
+        };
         while let Some(goal) = todo.pop() {
+            if stop(Progress::new(Phase::View, 1, steps as u64 + 1)) {
+                let phase = Phase::View;
+                return ended(steps, open, goal, todo, Refusal::Stopped { phase });
+            }
             let Some((position, rule, premises)) = self.invertible_step(goal) else {
                 open.push(goal);
                 continue;
@@ -166,24 +223,39 @@ impl Interactive {
             if let Some(limit) = limits.memory_bytes
                 && held.saturating_add(needed) > limit
             {
-                open.push(goal);
-                open.extend(todo.into_iter().rev());
-                return Inverted {
-                    steps,
-                    open,
-                    finished: Err(Refusal::Memory {
-                        phase: Phase::View,
-                        limit_bytes: limit,
-                        needed_bytes: Some(held.saturating_add(needed)),
-                    }),
+                let refusal = Refusal::Memory {
+                    phase: Phase::View,
+                    limit_bytes: limit,
+                    needed_bytes: Some(held.saturating_add(needed)),
                 };
+                return ended(steps, open, goal, todo, refusal);
             }
-            held = held.saturating_add(needed);
             let premises = if self.fo.is_some() {
                 match self.framed_premises(goal, position, rule.rule, &[], &Witness::Open) {
                     Ok(premises) => premises,
-                    // Past the eigenvariables a `u32` numbers, or past
-                    // the session's bound on terms: the goal stays open.
+                    // A bound the step meets ends the run, as the memory
+                    // bound does: past the session's bound on terms, or
+                    // past the eigenvariables a `u32` numbers. Any other
+                    // refusal leaves the goal open, the run going on.
+                    Err(StepError::Witness { fault }) => match *fault {
+                        WitnessFault::Table { limit } => {
+                            let terms = limit.saturating_add(1);
+                            let refusal = Refusal::Terms { terms, limit };
+                            return ended(steps, open, goal, todo, refusal);
+                        }
+                        WitnessFault::Eigenvariables | WitnessFault::Witnesses => {
+                            let refusal = Refusal::Index {
+                                what: Space::Term,
+                                count: u64::from(u32::MAX) + 1,
+                                most: u64::from(u32::MAX),
+                            };
+                            return ended(steps, open, goal, todo, refusal);
+                        }
+                        _ => {
+                            open.push(goal);
+                            continue;
+                        }
+                    },
                     Err(_) => {
                         open.push(goal);
                         continue;
@@ -192,6 +264,8 @@ impl Interactive {
             } else {
                 premises.into_iter().map(Multiset::into_members).collect()
             };
+            // Counted for a step taken alone.
+            held = held.saturating_add(needed);
             let opened = self.record(goal, position, rule, premises);
             steps += 1;
             todo.extend(opened.into_iter().rev());
@@ -554,5 +628,45 @@ mod tests {
         while state.undo().is_some() {}
         let inverted = state.invert_all(&Limits::default().with_memory_bytes(None));
         assert_eq!((inverted.steps, inverted.open.len()), (63, 64));
+    }
+
+    /// The run asks the stop once per step, and where it fires it ends
+    /// with the steps taken standing.
+    #[test]
+    fn inverting_asks_the_stop() {
+        let input = "|- a & a, a & a, a & a, a & a, a & a, a & a";
+        let mut state = start(input, Mode::CLASSICAL);
+        let inverted = state.invert_all_within(&Limits::default(), |progress| progress.done > 3);
+        assert!(
+            matches!(inverted.finished, Err(Refusal::Stopped { .. })),
+            "{inverted:?}"
+        );
+        assert_eq!(inverted.steps, 3);
+        let mut open = inverted.open.clone();
+        open.sort_unstable();
+        assert_eq!(open, state.goals().collect::<Vec<_>>());
+    }
+
+    /// A `∀` step past the session's bound on terms ends the run with
+    /// that refusal, never as a run that found nothing more to do.
+    #[test]
+    fn inverting_stops_at_the_bound_on_terms() {
+        let sequent: Sequent = "|- forall x. forall y. p(x, y), ~p(a, a)".parse().unwrap();
+        let found = (1..64).any(|limit| {
+            let limits = Limits::default().with_terms(Some(limit));
+            let Ok(mut state) = Interactive::within(&sequent, Mode::CLASSICAL, &limits) else {
+                return false;
+            };
+            let inverted = state.invert_all(&limits);
+            match inverted.finished {
+                Ok(()) => false,
+                Err(Refusal::Terms { limit: l, .. }) => {
+                    assert_eq!(l, limit);
+                    true
+                }
+                Err(other) => panic!("{other:?}"),
+            }
+        });
+        assert!(found, "no bound on terms ended the run");
     }
 }

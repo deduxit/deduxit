@@ -843,7 +843,14 @@ step. What the code relies on:
   `Refusal::Memory { phase: View, … }` in `Inverted::finished`, the steps
   taken standing (`inverting_stops_at_the_memory_bound`). The web
   bindings bound a run by the smaller of the memory and the derivation
-  bounds.
+  bounds. `invert_within` and `invert_all_within` ask a stop once per
+  step (`Refusal::Stopped`, `inverting_asks_the_stop`; the command's
+  session passes Ctrl-C), and a `∀` step past the session's bound on
+  terms or past the eigenvariables a `u32` numbers ends the run with
+  `Refusal::Terms` or `Refusal::Index` (`inverting_stops_at_the_bound_on_terms`):
+  until 0.9.0 the goal was left open and the run answered `Ok`, which
+  says no invertible rule applies. A step's bytes count once it is
+  taken.
 - **Order**: a rule that closes the goal (`⊤`, the axiom, `1`) before
   the others, then the first position's; depth first, so `Inverted::open`
   is the goals left open from left to right (not the arena's order).
