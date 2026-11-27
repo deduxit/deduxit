@@ -8814,3 +8814,12 @@ move (D26).
   nobody is using the library yet"), never against soundness; the feature with the data model and
   the checkers without the engines is added now (87j1); a crate per suite, a generic goal state, one
   verdict type, a trait over the checkers, the nets merged and a public `Drawn` are not implemented.
+- 2026-11-27, about 16:16: **Implementation at full width; unattended again** (the author: "Start with
+  the implementations now", then "consider yourself unattended again until further notice"). Three
+  steps of wave C start beside 87b1 on files it does not touch: 87c1 (one arena for ordinary and
+  modal logic; a new session, cores 7-9), 87c2 (one connection search and one LK builder, with 87a's
+  pin and the panel; 87b2's worker, cores 10-12), 87c3 (the exports and the Rocq writers' tables, the
+  panel; 87r's worker, cores 13-15). (decided unattended) Wave C starts before wave B ends (87b3
+  waits for 87b1) where the files differ; the plan's "waves in order" holds per file. Part 2 (the
+  signed API) follows part 1's duplication and structure steps, whose moves it would otherwise
+  conflict with.
