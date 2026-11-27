@@ -2618,22 +2618,7 @@ fn skolemized(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<
     let mut steps = Vec::new();
     let refutation = form != Form::Herbrand;
     if refutation {
-        for (k, &d) in sequent.right().iter().enumerate() {
-            let nodes = formulas.len();
-            let after = formulas.add(Node::Not(d))?;
-            left.push(after);
-            let step = Step {
-                rule: Rule::Negate,
-                before: d,
-                after,
-                left: left.clone(),
-                right: sequent.right()[k + 1..].to_vec(),
-                added: Vec::new(),
-                term: None,
-            };
-            budget.hold(&step, formulas.len() - nodes)?;
-            steps.push(step);
-        }
+        left = negated_right(sequent, &mut formulas, &mut steps, budget)?;
         right.clear();
     }
     let split = left.len();
@@ -2701,30 +2686,16 @@ fn negated(formulas: &mut Formulas, id: NodeId) -> Result<NodeId, Error> {
     }
 }
 
-/// Returns the prefix of the new atoms' names: `t`, or `t` with as many
-/// `_` after it as make no name of the input the prefix and digits.
-fn prefix(formulas: &Formulas) -> String {
-    let mut prefix = String::from("t");
-    let taken = |prefix: &str| {
-        formulas.atom_names().iter().any(|name| {
-            name.strip_prefix(prefix)
-                .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|c| c.is_ascii_digit()))
-        })
-    };
-    while taken(&prefix) {
-        prefix.push('_');
-    }
-    prefix
-}
-
-/// Encodes the sequent's negation as clauses: the formulas right of `⊢`
-/// moved left negated, then every compound subformula named by a new atom,
-/// the innermost first, with the clauses of its definition.
-fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Made, Error> {
-    let mut formulas = sequent.formulas().clone();
+/// Moves the formulas right of `sequent`'s `⊢` left, each negated in
+/// `formulas` by a `Negate` step of its own in `steps`, and returns the left
+/// side with them.
+fn negated_right(
+    sequent: &Sequent,
+    formulas: &mut Formulas,
+    steps: &mut Vec<Step>,
+    budget: &mut Budget<'_>,
+) -> Result<Vec<NodeId>, Error> {
     let mut left = sequent.left().to_vec();
-    let mut steps = Vec::new();
-    let mut passes = Passes::default();
     for (k, &d) in sequent.right().iter().enumerate() {
         let nodes = formulas.len();
         let after = formulas.add(Node::Not(d))?;
@@ -2741,11 +2712,24 @@ fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Mad
         budget.hold(&step, formulas.len() - nodes)?;
         steps.push(step);
     }
+    Ok(left)
+}
+
+/// Encodes the sequent's negation as clauses: the formulas right of `⊢`
+/// moved left negated, then every compound subformula named by a new atom,
+/// the innermost first, with the clauses of its definition.
+fn encoded(sequent: &Sequent, form: Form, budget: &mut Budget<'_>) -> Result<Made, Error> {
+    let mut formulas = sequent.formulas().clone();
+    let mut steps = Vec::new();
+    let mut passes = Passes::default();
+    let mut left = negated_right(sequent, &mut formulas, &mut steps, budget)?;
     let size = passes.reach(&formulas, &left);
     budget.pass(passes.order.len(), size, steps.len())?;
     let order = passes.order.clone();
     let polarity = polarities(&formulas, &order, &left);
-    let prefix = prefix(&formulas);
+    // A propositional arena has no symbols, so only the atoms are
+    // avoided.
+    let prefix = fresh_prefix(&formulas, "t");
     // The clauses so far, and their occurrences.
     let mut clauses: Vec<NodeId> = Vec::new();
     let mut clauses_size = 0u64;

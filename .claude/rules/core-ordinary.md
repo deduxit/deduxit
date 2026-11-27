@@ -2446,8 +2446,10 @@ decided not valid is `Error::ClaimFails` (kind defect).
   clauses of 17 literals in a debug build.
 - **The encodings** move each formula right of `⊢` left negated (a
   `Negate` step), then name every compound subformula the negation
-  reaches, innermost first (`order` ascending), by `t1`, `t2`, … (`prefix`
-  adds `_` until no input atom is the prefix and digits). A subformula
+  reaches, innermost first (`order` ascending), by `t1`, `t2`, …
+  (`fresh_prefix(…, "t")`, Skolem's symbols' rule, adds `_` until no input
+  atom is the prefix and digits; `negated_right` is the `Negate` loop
+  Skolem's and the clausal form share). A subformula
   whose current form is a literal (`¬t` after its operand was named) is
   not named. Plaisted–Greenbaum's polarity is computed on the input's
   nodes (`polarities`, the classical encoder's rule: flipped under `¬`
