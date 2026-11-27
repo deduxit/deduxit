@@ -8842,3 +8842,13 @@ move (D26).
   sets equal. Its full check passed before the rebase onto 87c1; the combined head in CI before
   `main`. 87b3 (`cli/`, `web/`) in its worker, 87c8 (the library's session code, lambda-terms, rule
   files, the workspace, the wire forms; the exports' tree layout left to after 87c3) in 87c1's.
+- 2026-11-27, about 19:37: **87c3 reviewed; 87d4 started.** 87c3 (Opus, high; the panel, the reviewer
+  on Fable): LaTeX and Typst written once over two tables of spellings, every format's dispatch once,
+  the net drawings' emitters once, the Rocq writers' helpers shared and the library's constructors
+  named from one table (matched to 87r1's `tests/Interface/`); every snapshot byte for byte. The
+  panel's two findings fixed (a size refusal up to 5 bytes short, Rocq names outside the table);
+  render-typst +1.16 % after the escape was inlined again (it was +6.4 %). (departs from the plan)
+  F-6b-04's layout and size estimate move with 87e6's `Layout`. Found, not fixed: the classical
+  countermodel's writer ignores `derivation_bytes` (to 87d4). Rebased onto 87b1 with no conflict; in CI
+  before `main`. 87d4 (the certificates' `let`s, 3.8 times faster to compile at `!A ⊢ A^256`, and that
+  writer bounded; the panel) in its worker on 87c3's head, cores 13-15.
