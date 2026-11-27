@@ -405,3 +405,40 @@ fn a_tableau_past_the_memory_bound_is_refused() {
         "{refused:?}"
     );
 }
+
+/// The review takes the tableau's own rule file and no other: another
+/// calculus, or the tableau's with one rule made laxer under the same
+/// names, is refused before anything is reviewed.
+#[test]
+fn another_calculus_is_refused() {
+    let tableau = WrittenTableau::parse_within("1 T p\n2 F p\n×", &Limits::default()).unwrap();
+    let read = |text: &str| {
+        let mut json = serde_json::Deserializer::from_str(text);
+        crate::wire::upgrade::<Calculus, _>(&mut json, &Limits::default()).unwrap()
+    };
+    let refused = |calculus: &Calculus| {
+        matches!(
+            tableau.review(calculus, None, &Limits::default(), |_| false),
+            Err(Error::NotApplicable { .. })
+        )
+    };
+    assert!(refused(&read(crate::rules::LK)));
+    // `×` closing a branch on any true formula.
+    let mut lax: serde_json::Value = serde_json::from_str(TABLEAU).unwrap();
+    for rule in lax["rules"].as_array_mut().unwrap() {
+        if rule["name"] == "×" {
+            rule["conclusion"]["branch"] = serde_json::json!(["S", ["T", "A"]]);
+        }
+    }
+    // Without serde_json the review compares names alone, which this file
+    // keeps.
+    #[cfg(feature = "protocol")]
+    assert!(refused(&read(&lax.to_string())));
+    assert_eq!(
+        tableau
+            .review(&calculus(), None, &Limits::default(), |_| false)
+            .unwrap()
+            .standing,
+        Standing::Closed
+    );
+}

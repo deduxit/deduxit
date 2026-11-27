@@ -1806,6 +1806,14 @@ passes (core has `serde_json` only under `protocol`).
 - **The first lines that cite no line are the sequent's** (`root_lines`),
   hypotheses `T`, conclusions `F`; a later line without a citation is a
   fault of the review, not of the reader.
+- **The calculus must be `TABLEAU`** (`is_tableau`, first in
+  `review_dyn`): with `protocol` the calculus written back by serde_json
+  must equal `TABLEAU`'s JSON value (a rule file writes back as the value
+  it was read from, `the_rule_files_read_and_write_back`), else its name
+  and rule names (`TABLEAU_RULES`) are compared; another is
+  `Error::NotApplicable` (`another_calculus_is_refused`, with `×` made
+  laxer under the same names). The caller still passes it, since serde_json
+  is under `protocol` only; taking none is the API's part 2.
 - **The review's own matcher gives the words; the rule file gives the
   verdict.** `Walk` goes through the branches in text order (which is
   preorder: branches are made as the text reads), keeping the current

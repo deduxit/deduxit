@@ -602,6 +602,9 @@ impl WrittenTableau {
     /// Reviews the tableau rule by rule against `calculus`, which is the
     /// rule file [`TABLEAU`](crate::rules::TABLEAU) read, and, where
     /// `expected` is given, checks that it starts from that sequent.
+    /// Another calculus is refused: with the feature `protocol` it must be
+    /// that file exactly, written back as the same JSON value; without it,
+    /// a calculus of its name and rule names.
     ///
     /// The review walks the lines in the order written. Each line that
     /// names a line must be one result of expanding it, the lines that
@@ -627,6 +630,7 @@ impl WrittenTableau {
     ///
     /// # Errors
     ///
+    /// [`Error::NotApplicable`] for a calculus that is not the tableau's;
     /// [`Refusal::Memory`] where the derivation would hold more than
     /// `limits.memory_bytes`, the checker's refusals, and
     /// [`Refusal::Stopped`] when the stop fired; none is a verdict.
@@ -648,6 +652,7 @@ impl WrittenTableau {
         limits: &Limits,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<TableauReview, Error> {
+        is_tableau(calculus)?;
         self.formulas.propositional("the review of a tableau")?;
         if let Some(expected) = expected {
             expected
@@ -905,6 +910,45 @@ impl Shape {
         self.partial = true;
         self
     }
+}
+
+/// The rule names of [`TABLEAU`](crate::rules::TABLEAU), in its order.
+const TABLEAU_RULES: [&str; 25] = [
+    "T∧", "T∧₁", "T∧₂", "F∧", "T∨", "F∨", "F∨₁", "F∨₂", "T→", "F→", "F→₁", "F→₂", "T¬", "F¬", "T↔",
+    "T↔₁", "T↔₂", "F↔", "T↔′", "F↔′", "T⊤", "F⊥", "×", "T⊥", "F⊤",
+];
+
+/// Refuses a calculus that is not the rule file
+/// [`TABLEAU`](crate::rules::TABLEAU): a review's `Closed` rests on the
+/// calculus's checker, and a file of the same rule names with laxer rules
+/// would pass a tableau that is wrong. With serde_json (the feature
+/// `protocol`) the calculus must write back as that file's JSON value,
+/// which a rule file read writes; without it, its name and rule names are
+/// compared.
+fn is_tableau(calculus: &Calculus) -> Result<(), Error> {
+    let refused = |what: &str| Error::NotApplicable {
+        operation: "the review of a tableau".into(),
+        reason: format!("{what}; it takes the built-in rule file `tableau` (`rules::TABLEAU`)"),
+    };
+    if calculus.name() != "tableau" || !calculus.rules().eq(TABLEAU_RULES) {
+        return Err(refused(&format!(
+            "the calculus given is {}, not the tableau's",
+            calculus.name()
+        )));
+    }
+    #[cfg(feature = "protocol")]
+    {
+        static TABLEAU_VALUE: std::sync::OnceLock<Option<serde_json::Value>> =
+            std::sync::OnceLock::new();
+        let file = TABLEAU_VALUE.get_or_init(|| serde_json::from_str(crate::rules::TABLEAU).ok());
+        let given = serde_json::to_value(calculus).ok();
+        if given.is_none() || given.as_ref() != file.as_ref() {
+            return Err(refused(
+                "the calculus given has the tableau's name and rules but other patterns",
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Returns every rule of the tableau that expands `signed`, the textbook

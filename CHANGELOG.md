@@ -189,6 +189,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   stop. In LK a shared `∧R` doubles the goals at each step, so a run was
   long before the memory bound ended it. Ctrl-C ends one in `interact
   --logic`.
+- **A tableau written by hand is reviewed against the tableau's rule
+  file alone.** `ordinary::WrittenTableau::review` refuses another
+  calculus with `Error::NotApplicable`: its docs said it must be
+  `rules::TABLEAU`, but nothing checked it, and a file of the same rule
+  names with laxer rules would have been the review's checker.
 
 ## [0.8.0] - 2026-11-23
 
