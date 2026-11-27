@@ -12,7 +12,8 @@ The design, with its reasons, alternatives and sources, is
 `plan/notes/modal-design.md`; this file holds what the code relies on.
 
 - **Layout.** `mod.rs`: the hash-consed arena `Formulas` (`Node`,
-  `NodeId`; equal formulas are one id), `Sequent` (two-sided, its syntax
+  `NodeId`; equal formulas are one id), a `crate::arena::Arena` over its
+  own nodes (core.md), `Sequent` (two-sided, its syntax
   and JSON documented on it) and the printer; `system.rs`: `Condition`
   and `System`; `parse.rs` (behind `parse`): the precedence parser;
   `model.rs`: the check of a Kripke model (`Model::frame_fault`,
@@ -70,7 +71,10 @@ The design, with its reasons, alternatives and sources, is
   the two sides reach: the form writes every node, and a reader of
   level 8 refuses the tag `□`.
   The reader maps the document's indices to the arena it builds, so a
-  formula written twice is one node.
+  formula written twice is one node. The formula form is ordinary
+  logic's (`serialize::ordinary::FormulaForm`, its reader `read_forms`)
+  with the tags `□` and `◇`; each suite refuses the other's tags as
+  `Error::Json` (`each_suite_refuses_the_other_s_tags`).
 - **A modal model's arrows are the relation itself** (`model.rs`):
   nothing is closed when a model is read or checked, so a model of S4
   lists its loops, and `frame_fault` names the first condition the
@@ -260,10 +264,13 @@ The design, with its reasons, alternatives and sources, is
   DerivationForm`, crate-visible for it), the model `ModelForm`. It
   reads back unchecked; a verdict without its evidence, or with
   another's, is `Error::Json`.
-- **What it copied** (for the kernel crate): from `ordinary`, the arena
-  (`Formulas`, `Node`, `NodeId`, `add`, `atom`, `holds`, `occurrences`,
-  `bound`), `Sequent`, the parser but for its TPTP dialect, and the
-  sequent's serde form and reader, the model check's shape and bounds
+- **What it shares with `ordinary`**: the arena (`crate::arena::Arena`:
+  the nodes, the names, `add`, `atom`, `holds`, the occurrence bound),
+  the parser's text reader, its end of a formula and its sides of a
+  sequent (`crate::arena::parse`), and the formula form and its reader
+  (`serialize/ordinary.rs`). **What it copied** (for the kernel crate):
+  `Sequent`, the rest of the parser but for its TPTP dialect, the
+  sequent's serde form, the model check's shape and bounds
   from `ordinary/model.rs` (the cell and byte estimates, its errors),
   `found` from `ordinary::Countermodel`, and the poll cadence and
   memory account of LJT (`linear::search::memory::Account` as it is,

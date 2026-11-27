@@ -34,11 +34,14 @@ impl<'a> Deserialize<'a> for Rule {
     }
 }
 
-/// The serialized form of an ordinary formula: its connective, with its
-/// operands as indices of formulas before it. Its tags are part of the
-/// interchange format.
+/// The serialized form of a formula of ordinary or of modal logic: its
+/// connective, with its operands as indices of formulas before it, or, as
+/// a reader reads it, as the ids of the formulas they were read as. Its
+/// tags are part of the interchange format. Each suite refuses the tags of
+/// the other: `∀` and `∃` are ordinary logic's alone, `□` and `◇` modal
+/// logic's.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-enum FormulaForm {
+pub(super) enum FormulaForm<I = u32> {
     /// An atom, by its index among the names.
     #[serde(rename = "V")]
     Atom(u32),
@@ -50,25 +53,97 @@ enum FormulaForm {
     False,
     /// `¬A`
     #[serde(rename = "¬")]
-    Not(u32),
+    Not(I),
     /// `A ∧ B`
     #[serde(rename = "∧")]
-    And(u32, u32),
+    And(I, I),
     /// `A ∨ B`
     #[serde(rename = "∨")]
-    Or(u32, u32),
+    Or(I, I),
     /// `A → B`
     #[serde(rename = "→")]
-    Implies(u32, u32),
+    Implies(I, I),
     /// `A ↔ B`
     #[serde(rename = "↔")]
-    Iff(u32, u32),
+    Iff(I, I),
     /// `∀x. A`
     #[serde(rename = "∀")]
-    Forall(u32),
+    Forall(I),
     /// `∃x. A`
     #[serde(rename = "∃")]
-    Exists(u32),
+    Exists(I),
+    /// `□A`
+    #[serde(rename = "□")]
+    Box(I),
+    /// `◇A`
+    #[serde(rename = "◇")]
+    Diamond(I),
+}
+
+impl FormulaForm {
+    /// Returns the form with each operand `k` read as `at(k)`.
+    fn map<I>(self, at: impl Fn(u32) -> Result<I, Error>) -> Result<FormulaForm<I>, Error> {
+        Ok(match self {
+            Self::Atom(a) => FormulaForm::Atom(a),
+            Self::True => FormulaForm::True,
+            Self::False => FormulaForm::False,
+            Self::Not(a) => FormulaForm::Not(at(a)?),
+            Self::And(a, b) => FormulaForm::And(at(a)?, at(b)?),
+            Self::Or(a, b) => FormulaForm::Or(at(a)?, at(b)?),
+            Self::Implies(a, b) => FormulaForm::Implies(at(a)?, at(b)?),
+            Self::Iff(a, b) => FormulaForm::Iff(at(a)?, at(b)?),
+            Self::Forall(a) => FormulaForm::Forall(at(a)?),
+            Self::Exists(a) => FormulaForm::Exists(at(a)?),
+            Self::Box(a) => FormulaForm::Box(at(a)?),
+            Self::Diamond(a) => FormulaForm::Diamond(at(a)?),
+        })
+    }
+}
+
+/// Fails where a document holds more formulas than `limits.occurrences`,
+/// before any is read.
+pub(super) fn forms_within(forms: &[FormulaForm], limits: &Limits) -> Result<(), Error> {
+    match limits.occurrences {
+        Some(limit) if forms.len() as u64 > limit => Err(Error::Refused(Refusal::Occurrences {
+            occurrences: forms.len() as u64,
+            limit,
+        })),
+        _ => Ok(()),
+    }
+}
+
+/// Returns the id of each of `forms`, made by `make` from the form with
+/// its operands' ids; an operand must be the index of a form before it.
+pub(super) fn read_forms<I: Copy>(
+    forms: &[FormulaForm],
+    mut make: impl FnMut(FormulaForm<I>) -> Result<I, Error>,
+) -> Result<Vec<I>, Error> {
+    let mut ids: Vec<I> = Vec::with_capacity(forms.len());
+    for (n, form) in forms.iter().enumerate() {
+        let form = form.map(|k| {
+            ids.get(k as usize).copied().ok_or(Error::IndexOutOfBounds {
+                space: Space::Formula,
+                index: k as usize,
+                len: n,
+            })
+        })?;
+        ids.push(make(form)?);
+    }
+    Ok(ids)
+}
+
+/// Returns the ids of the indices given, each of a form of `ids`.
+pub(super) fn ids_at<I: Copy>(ids: &[I], indices: &[u32]) -> Result<Vec<I>, Error> {
+    indices
+        .iter()
+        .map(|&k| {
+            ids.get(k as usize).copied().ok_or(Error::IndexOutOfBounds {
+                space: Space::Formula,
+                index: k as usize,
+                len: ids.len(),
+            })
+        })
+        .collect()
 }
 
 impl From<Node> for FormulaForm {
@@ -159,14 +234,7 @@ impl SequentForm {
         limits: &Limits,
         extension: Extension,
     ) -> Result<(Read, Vec<NodeId>, Vec<NodeId>), Error> {
-        if let Some(limit) = limits.occurrences
-            && self.formulas.len() as u64 > limit
-        {
-            return Err(Error::Refused(Refusal::Occurrences {
-                occurrences: self.formulas.len() as u64,
-                limit,
-            }));
-        }
+        forms_within(&self.formulas, limits)?;
         let first_order = !self.symbols.is_empty()
             || !self.fo.is_empty()
             || matches!(self.atoms, Atoms::Mixed(_));
@@ -188,16 +256,8 @@ impl SequentForm {
             (Formulas::default(), None, names)
         };
         let mut binders = self.binders.iter().map(String::as_str);
-        let mut ids: Vec<NodeId> = Vec::with_capacity(self.formulas.len());
-        for (n, form) in self.formulas.iter().enumerate() {
-            let at = |k: u32| {
-                ids.get(k as usize).copied().ok_or(Error::IndexOutOfBounds {
-                    space: Space::Formula,
-                    index: k as usize,
-                    len: n,
-                })
-            };
-            let id = match *form {
+        let ids = read_forms(&self.formulas, |form| {
+            let node = match form {
                 FormulaForm::Atom(a) => {
                     let len = indices.as_ref().map_or(names.len(), |(i, _)| i.len());
                     let outside = Error::IndexOutOfBounds {
@@ -205,32 +265,38 @@ impl SequentForm {
                         index: a as usize,
                         len,
                     };
-                    match &indices {
+                    return match &indices {
                         Some((indices, _)) => {
                             let index = indices.get(a as usize).ok_or(outside)?;
-                            formulas.add(Node::Atom(*index))?
+                            formulas.add(Node::Atom(*index))
                         }
-                        None => formulas.atom(names.get(a as usize).ok_or(outside)?)?,
-                    }
+                        None => formulas.atom(names.get(a as usize).ok_or(outside)?),
+                    };
                 }
-                FormulaForm::True => formulas.add(Node::True)?,
-                FormulaForm::False => formulas.add(Node::False)?,
-                FormulaForm::Not(a) => formulas.add(Node::Not(at(a)?))?,
-                FormulaForm::And(a, b) => formulas.add(Node::And(at(a)?, at(b)?))?,
-                FormulaForm::Or(a, b) => formulas.add(Node::Or(at(a)?, at(b)?))?,
-                FormulaForm::Implies(a, b) => formulas.add(Node::Implies(at(a)?, at(b)?))?,
-                FormulaForm::Iff(a, b) => formulas.add(Node::Iff(at(a)?, at(b)?))?,
-                FormulaForm::Forall(a) => {
-                    let body = at(a)?;
-                    formulas.binder(true, body, binders.next().unwrap_or("x"))?
+                FormulaForm::Forall(body) => {
+                    return formulas.binder(true, body, binders.next().unwrap_or("x"));
                 }
-                FormulaForm::Exists(a) => {
-                    let body = at(a)?;
-                    formulas.binder(false, body, binders.next().unwrap_or("x"))?
+                FormulaForm::Exists(body) => {
+                    return formulas.binder(false, body, binders.next().unwrap_or("x"));
+                }
+                FormulaForm::True => Node::True,
+                FormulaForm::False => Node::False,
+                FormulaForm::Not(a) => Node::Not(a),
+                FormulaForm::And(a, b) => Node::And(a, b),
+                FormulaForm::Or(a, b) => Node::Or(a, b),
+                FormulaForm::Implies(a, b) => Node::Implies(a, b),
+                FormulaForm::Iff(a, b) => Node::Iff(a, b),
+                FormulaForm::Box(_) | FormulaForm::Diamond(_) => {
+                    return Err(Error::Json {
+                        form: "ordinary sequent",
+                        message: "`□` and `◇` are modal logic's, which an ordinary sequent \
+                                  does not hold"
+                            .to_owned(),
+                    });
                 }
             };
-            ids.push(id);
-        }
+            formulas.add(node)
+        })?;
         let terms = indices.map(|(_, terms)| terms).unwrap_or_default();
         let read = Read {
             formulas,
@@ -269,19 +335,7 @@ impl Read {
 
     /// Returns the ids of the indices given.
     fn ids(&self, indices: &[u32]) -> Result<Vec<NodeId>, Error> {
-        indices
-            .iter()
-            .map(|&k| {
-                self.ids
-                    .get(k as usize)
-                    .copied()
-                    .ok_or(Error::IndexOutOfBounds {
-                        space: Space::Formula,
-                        index: k as usize,
-                        len: self.ids.len(),
-                    })
-            })
-            .collect()
+        ids_at(&self.ids, indices)
     }
 }
 
@@ -831,10 +885,10 @@ fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
     }
 }
 
-/// The verdict of an ordinary outcome read, by its word.
-#[derive(Deserialize)]
+/// The verdict of an outcome of ordinary or modal logic, by its word.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum VerdictWord {
+pub(super) enum VerdictWord {
     /// `valid`.
     Valid,
     /// `not_valid`.

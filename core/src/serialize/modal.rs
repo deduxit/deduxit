@@ -2,10 +2,11 @@
 // Licensed under the EUPL
 
 use super::kripke::ModelForm;
+use super::ordinary::{FormulaForm, VerdictWord, forms_within, ids_at, read_forms};
 use super::rules::DerivationForm;
 use super::search::Why;
 use crate::Error;
-use crate::limits::{Limits, Refusal, Space};
+use crate::limits::{Limits, Space};
 use crate::modal::{
     Countermodel, Evidence, Formulas, Node, NodeId, Outcome, Sequent, Statistics, System, Verdict,
     bound,
@@ -28,43 +29,6 @@ impl<'a> Deserialize<'a> for System {
             .parse()
             .map_err(wire::fail)
     }
-}
-
-/// The serialized form of a modal formula: its connective, with its
-/// operands as indices of formulas before it. Its tags are part of the
-/// interchange format, and those of an ordinary formula are among them.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-enum FormulaForm {
-    /// An atom, by its index among the names.
-    #[serde(rename = "V")]
-    Atom(u32),
-    /// `⊤`
-    #[serde(rename = "⊤")]
-    True,
-    /// `⊥`
-    #[serde(rename = "⊥")]
-    False,
-    /// `¬A`
-    #[serde(rename = "¬")]
-    Not(u32),
-    /// `A ∧ B`
-    #[serde(rename = "∧")]
-    And(u32, u32),
-    /// `A ∨ B`
-    #[serde(rename = "∨")]
-    Or(u32, u32),
-    /// `A → B`
-    #[serde(rename = "→")]
-    Implies(u32, u32),
-    /// `A ↔ B`
-    #[serde(rename = "↔")]
-    Iff(u32, u32),
-    /// `□A`
-    #[serde(rename = "□")]
-    Box(u32),
-    /// `◇A`
-    #[serde(rename = "◇")]
-    Diamond(u32),
 }
 
 impl From<Node> for FormulaForm {
@@ -128,59 +92,40 @@ impl SequentForm {
     /// Returns the sequent the form holds. Both the form's formulas and
     /// the sequent's unfolding must be within `limits.occurrences`.
     fn within(self, limits: &Limits) -> Result<Sequent, Error> {
-        if let Some(limit) = limits.occurrences
-            && self.formulas.len() as u64 > limit
-        {
-            return Err(Error::Refused(Refusal::Occurrences {
-                occurrences: self.formulas.len() as u64,
-                limit,
-            }));
-        }
+        forms_within(&self.formulas, limits)?;
         let mut formulas = Formulas::default();
         // The id of each index of the form: equal formulas are one id.
-        let mut ids: Vec<NodeId> = Vec::with_capacity(self.formulas.len());
-        for (n, form) in self.formulas.iter().enumerate() {
-            let at = |k: u32| {
-                ids.get(k as usize).copied().ok_or(Error::IndexOutOfBounds {
-                    space: Space::Formula,
-                    index: k as usize,
-                    len: n,
-                })
-            };
-            let id = match *form {
+        let ids = read_forms(&self.formulas, |form| {
+            let node = match form {
                 FormulaForm::Atom(a) => {
                     let name = self.atoms.get(a as usize).ok_or(Error::IndexOutOfBounds {
                         space: Space::Atom,
                         index: a as usize,
                         len: self.atoms.len(),
                     })?;
-                    formulas.atom(name)?
+                    return formulas.atom(name);
                 }
-                FormulaForm::True => formulas.add(Node::True)?,
-                FormulaForm::False => formulas.add(Node::False)?,
-                FormulaForm::Not(a) => formulas.add(Node::Not(at(a)?))?,
-                FormulaForm::And(a, b) => formulas.add(Node::And(at(a)?, at(b)?))?,
-                FormulaForm::Or(a, b) => formulas.add(Node::Or(at(a)?, at(b)?))?,
-                FormulaForm::Implies(a, b) => formulas.add(Node::Implies(at(a)?, at(b)?))?,
-                FormulaForm::Iff(a, b) => formulas.add(Node::Iff(at(a)?, at(b)?))?,
-                FormulaForm::Box(a) => formulas.add(Node::Box(at(a)?))?,
-                FormulaForm::Diamond(a) => formulas.add(Node::Diamond(at(a)?))?,
+                FormulaForm::True => Node::True,
+                FormulaForm::False => Node::False,
+                FormulaForm::Not(a) => Node::Not(a),
+                FormulaForm::And(a, b) => Node::And(a, b),
+                FormulaForm::Or(a, b) => Node::Or(a, b),
+                FormulaForm::Implies(a, b) => Node::Implies(a, b),
+                FormulaForm::Iff(a, b) => Node::Iff(a, b),
+                FormulaForm::Box(a) => Node::Box(a),
+                FormulaForm::Diamond(a) => Node::Diamond(a),
+                FormulaForm::Forall(_) | FormulaForm::Exists(_) => {
+                    return Err(Error::Json {
+                        form: "modal sequent",
+                        message: "`∀` and `∃` are first-order logic's, which a modal sequent \
+                                  does not hold"
+                            .to_owned(),
+                    });
+                }
             };
-            ids.push(id);
-        }
-        let side = |indices: &[u32]| -> Result<Vec<NodeId>, Error> {
-            indices
-                .iter()
-                .map(|&k| {
-                    ids.get(k as usize).copied().ok_or(Error::IndexOutOfBounds {
-                        space: Space::Formula,
-                        index: k as usize,
-                        len: ids.len(),
-                    })
-                })
-                .collect()
-        };
-        let (left, right) = (side(&self.left)?, side(&self.right)?);
+            formulas.add(node)
+        })?;
+        let (left, right) = (ids_at(&ids, &self.left)?, ids_at(&ids, &self.right)?);
         bound(&formulas, &left, &right, limits)?;
         Sequent::new(formulas, left, right)
     }
@@ -233,18 +178,6 @@ impl Readable for Sequent {
             .within(limits)
             .map_err(wire::fail)
     }
-}
-
-/// The verdict of a modal outcome, as written.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum VerdictWord {
-    /// `valid`.
-    Valid,
-    /// `not_valid`.
-    NotValid,
-    /// `unknown`.
-    Unknown,
 }
 
 /// A countermodel as an outcome holds it: the model alone, since the
@@ -385,6 +318,7 @@ fn outcome(form: OutcomeForm, limits: &Limits) -> Result<Outcome, Error> {
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
+    use crate::limits::Refusal;
 
     /// Reads a modal sequent document within `limits`.
     fn read(json: &str, limits: &Limits) -> Result<Sequent, Error> {
@@ -450,6 +384,31 @@ mod tests {
         assert!(matches!(
             read(&json, &bound(5)),
             Err(Error::Refused(Refusal::Occurrences { .. }))
+        ));
+    }
+
+    /// The two suites share one formula form, and each refuses the tags
+    /// that only the other reads.
+    #[test]
+    fn each_suite_refuses_the_other_s_tags() {
+        let limits = Limits::default();
+        let binder = r#"{"formulas":[{"V":0},{"∀":0}],"atoms":["p"],"left":[],"right":[1]}"#;
+        assert!(matches!(
+            read(binder, &limits),
+            Err(Error::Json {
+                form: "modal sequent",
+                ..
+            })
+        ));
+        let boxed = r#"{"formulas":[{"V":0},{"□":0}],"atoms":["p"],"left":[],"right":[1]}"#;
+        let ordinary: Result<crate::ordinary::Sequent, _> =
+            wire::upgrade(&mut serde_json::Deserializer::from_str(boxed), &limits);
+        assert!(matches!(
+            ordinary,
+            Err(Error::Json {
+                form: "ordinary sequent",
+                ..
+            })
         ));
     }
 

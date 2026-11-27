@@ -132,6 +132,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   the suites evenly: ordinary logic, linear logic, modal logic,
   lambda-terms and calculi given as rule files. The crate `deduxit`
   has the keyword `logic` in place of `proof-nets`.
+- A JSON sequent of ordinary logic that holds `□` or `◇`, and one of
+  modal logic that holds `∀` or `∃`, is refused with a message that says
+  the formula belongs to the other suite. It was serde's "unknown
+  variant". The error's code stays `json`.
 
 ### Deprecated
 
