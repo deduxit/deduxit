@@ -464,9 +464,9 @@ impl Proof {
     ///
     /// Those of [`new`](Self::new), where a member is in range when the
     /// table numbers it, and a witness when it is a term of the sequent or
-    /// of the table. [`Error::Json`] (form `instance table`) for a table
-    /// made for another sequent or not well formed, or for a witness with
-    /// a loose bound variable.
+    /// of the table. [`Error::InstanceTable`] for a table made for another
+    /// sequent or not well formed, or for a witness with a loose bound
+    /// variable.
     pub fn with_instances(
         forest: Forest,
         instances: Instances,

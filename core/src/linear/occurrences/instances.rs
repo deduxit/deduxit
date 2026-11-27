@@ -511,10 +511,7 @@ pub(crate) fn binders(forest: &Forest) -> Vec<u32> {
 
 /// Returns the error of a malformed instance table.
 fn malformed(message: String) -> Error {
-    Error::Json {
-        form: "instance table",
-        message,
-    }
+    Error::InstanceTable { message }
 }
 
 /// Checks `table` against `forest` and the proof's `nodes`, whose
@@ -533,7 +530,7 @@ fn malformed(message: String) -> Error {
 ///
 /// # Errors
 ///
-/// [`Error::Json`] (form `instance table`) for:
+/// [`Error::InstanceTable`] for:
 ///
 /// - a table made for another forest;
 /// - an index out of range, or an entry that refers to a later one;

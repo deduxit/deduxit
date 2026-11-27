@@ -182,6 +182,7 @@ impl Serialize for Details<'_> {
                 entries!(s; "step" => step; "reason" => reason)
             }
             ClauseFile { at, reason } => entries!(s; "at" => at; "reason" => reason),
+            InstanceTable { message } => entries!(s; "message" => message),
             StepNeeds { needs } => entries!(s; "needs" => needs),
             #[cfg(feature = "interactive")]
             ForeignProof | GoalMismatch => entries!(s),

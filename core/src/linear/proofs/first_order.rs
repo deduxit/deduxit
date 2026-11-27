@@ -589,6 +589,33 @@ mod tests {
     use crate::linear::proofs::oracle;
     use crate::linear::proofs::{Sides, ViewOptions};
 
+    /// A table built in Rust for another sequent is refused as an
+    /// instance table, not as a document of the wire form.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn a_table_for_another_sequent_is_an_instance_table_error() {
+        use crate::linear::occurrences::{Forest, Instances};
+        use crate::linear::proofs::{Node, NodeId, Proof};
+        let forest = |text: &str| Forest::new(&text.parse().unwrap()).unwrap();
+        let other = Instances::new(&forest("|- forall x. p(x), exists x. ~p(x), q"));
+        let nodes = vec![Node::Ax(Member::new(2), Member::new(3))];
+        let error = Proof::with_instances(
+            forest("|- forall x. p(x) -o p(x)"),
+            other,
+            nodes,
+            NodeId::new(0),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error, crate::Error::InstanceTable { .. }),
+            "{error:?}"
+        );
+        assert_eq!(
+            (error.code(), error.kind()),
+            ("instance_table", crate::ErrorKind::Malformed)
+        );
+    }
+
     /// Returns the kind of a fault as the JSON form writes it.
     fn kind(fault: &Fault) -> &'static str {
         match fault {

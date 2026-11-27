@@ -315,7 +315,17 @@ impl Proof {
         let proof = match (self.goal, self.instances) {
             (None, Some(instances)) => {
                 let table = instances.within(&forest, limits)?;
-                Prf::with_instances(forest, table, nodes, root)?
+                // A table read from the document is the document's fault.
+                Prf::with_instances(forest, table, nodes, root).map_err(|error| {
+                    if let crate::Error::InstanceTable { message } = error {
+                        crate::Error::Json {
+                            form: "instance table",
+                            message,
+                        }
+                    } else {
+                        error
+                    }
+                })?
             }
             (Some(_), Some(_)) => {
                 return Err(crate::Error::Json {

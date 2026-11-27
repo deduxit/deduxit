@@ -744,6 +744,16 @@ pub enum Error {
         /// What is wrong.
         reason: String,
     },
+    /// An instance table given to a proof
+    /// ([`Proof::with_instances`](crate::linear::Proof::with_instances))
+    /// is not well formed, or was made for another sequent. A table read
+    /// from a proof's JSON is that document's error ([`Error::Json`]).
+    #[error("not an instance table of the proof's sequent: {message}")]
+    #[non_exhaustive]
+    InstanceTable {
+        /// What is wrong.
+        message: String,
+    },
     /// A step of a proof in progress in a calculus given as data needs
     /// values the goal leaves open: the variables and contexts named.
     #[error("the step needs {} given: what the goal leaves open", .needs.join(", "))]
@@ -929,6 +939,7 @@ impl Error {
         "step_refused",
         "invalid_clause_refutation",
         "clause_file",
+        "instance_table",
         "step_needs",
         "not_fitch",
         "no_term",
@@ -986,7 +997,7 @@ impl Error {
             | Self::InvalidDerivation { .. } => Invalid,
             Self::InvalidCalculus { .. } | Self::Zones { .. } | Self::StepNeeds { .. } => Malformed,
             Self::StepRefused { .. } | Self::InvalidRefutation { .. } => Invalid,
-            Self::ClauseFile { .. } => Malformed,
+            Self::ClauseFile { .. } | Self::InstanceTable { .. } => Malformed,
             Self::NotFitch { .. } => Unsupported,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
@@ -1121,6 +1132,7 @@ impl Error {
             Self::StepRefused { .. } => "step_refused",
             Self::InvalidRefutation { .. } => "invalid_clause_refutation",
             Self::ClauseFile { .. } => "clause_file",
+            Self::InstanceTable { .. } => "instance_table",
             Self::StepNeeds { .. } => "step_needs",
             Self::NotFitch { .. } => "not_fitch",
             Self::NoCut { .. } => "no_cut",
@@ -1511,6 +1523,7 @@ mod tests {
                 at: 1,
                 reason: message(),
             },
+            Error::InstanceTable { message: message() },
             Error::StepNeeds {
                 needs: vec!["C".to_owned()],
             },
@@ -1730,6 +1743,7 @@ mod tests {
             | Error::StepRefused { .. }
             | Error::InvalidRefutation { .. }
             | Error::ClauseFile { .. }
+            | Error::InstanceTable { .. }
             | Error::StepNeeds { .. }
             | Error::NotFitch { .. }
             | Error::NoCut { .. }
