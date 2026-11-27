@@ -8621,3 +8621,13 @@ move (D26).
   (2026-11-02), not the third. `nix-optimise` at 03:56 (root) is not stopped and will show in its
   header. The libraries were fetched again (`bench/lltp`, `bench/iltp`). While it runs, the default
   checkout stays untouched; plan commits go in the new workspace `../deduxit-wt-planner`.
+- 2026-11-27, about 04:08: **The fifth baseline taken; the sessions resumed after the weekly limit.**
+  The limit stopped steps 82 and 84 and the audit session at about 01:15; the baseline started at
+  01:19 on a nearly idle machine (load 1.00) and finished at 03:42 (its last part 2 h 23 min, no
+  scheduled job ran, 144 rows waited for a CPU over 1 %). Every verdict agrees ("Verdicts that
+  disagree: none"); the ILTP tables' only errors are the embedding's known refusal of SYN007+1.014
+  at its size bound (as in `bench/defaults/`). Committed as "Benchmark baseline of 2026-11-27"
+  (`yulvtvpk`) with `bench/RESULTS.md`; it is the audit's pre-refactor timing reference. At 04:07
+  the limit had reset: steps 82 and 84 and the audit session were told to carry on. fixup-30's CI
+  passed and it is on `main` (`oomwolur`). The audit session runs in a mode that asks before acting,
+  so it may wait on the author's approvals while unattended.
