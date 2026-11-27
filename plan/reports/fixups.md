@@ -2719,3 +2719,139 @@ code, the budget.
   `docs/src/syntax.md` is linear logic's syntax with ordinary logic's in
   its own chapter. Evening those out is a restructuring of its own, not
   a wording fix. `docs/src/status.md` keeps its order, as the brief says.
+
+## Session fixup-31: the Kripke check and equality, resolution's read-back bounded
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-82-141614` on `main@origin`
+(`supnspsz`), cores 4 to 6 (the panel's on 7 to 9), in the conversation
+of steps 82 and 83. Paused 09:18 to 09:40 for the author (the planning
+session's "Pause" and "Resume"); the panel's first run was cut there and
+run again whole. Nothing pushed; rocq-deduxit unchanged.
+
+### What landed
+
+- `prxrsxml` (F-4d-01, soundness): `KripkeStructure::refutes` reads `=`
+  as identity at every world (`Forcing::atom`) and refuses a world that
+  lists `=`, as `Structure` does, so a correct model with `=` is still
+  accepted (`|- exists x. ~x = a` on a growing domain). The audit's
+  witness (one world, no facts, `⊢ a = a`) is refused at the library's
+  `check` (`equality_is_identity_at_every_world`), at `deduxit check`
+  (`a_kripke_model_does_not_refute_reflexivity`, exit 1, "invalid
+  refutation") and at the protocol's re-check
+  (`a_forged_kripke_model_with_equality_fails`); all three fail with
+  the identity reading switched off. Changelog ("Fixed"), the manual's
+  `ordinary-logic.md`, `core-ordinary.md`.
+- `vqozxsnq` (the Rocq side): rocq-deduxit's first-order Kripke
+  semantics (`FirstOrderKripke`, `FirstOrderCheck`) reads `=` as a plain
+  predicate, and the exporter listed no `=` facts, so **every
+  certificate of a countermodel of a sequent with `=` true anywhere did
+  not compile**, the equality axioms of `prove --format rocq` included
+  (`prove --logic classical --format rocq '|- a = b'`: "Unable to unify
+  true with false" through `nix run .#check-certificate`). `facts` now
+  writes `("=", [e; e])` per element of each world where the sequent
+  has `=`. The command's two certificates and two new snapshots
+  (`deduxit/structure_equality.v`, `deduxit/countermodel_fo_equality.v`)
+  compile, "proved, with no axiom". The audit's forged model would have
+  had a certificate that compiles and is true (without the axioms LJ
+  does not derive `⊢ a = a`), so nothing false was certified, and the
+  library needs no change.
+- `xuupvryk` (F-4c-01): the read-back's `mapped_atom` is held to
+  `limits.terms` before the key is written (`within_terms`, shared with
+  `applied_atom`), each key's memory is charged before it is written
+  (`mapped_atom_charged`) and the arena it grew after, the stop is asked
+  per instance and per root copied, and `bindings_text` cuts a binding
+  at 4 096 bytes with `…` (`Capped`). The protocol's check takes a
+  document's whole binding for the cut text (`same_bindings`), so a
+  document of 0.8.0 still checks; the manual (`resolution.md`), the
+  schema's `unifier` and the guide say the cut. The audit's family under
+  `resolve --timeout 1s`, release: n = 20 to 23 end at 1.07 to 1.18 s
+  (the read-back stopped), n = 24 and 26 at 0.04 s (the terms bound);
+  debug n = 23 at 2.3 s; before, debug n = 22 took 4.6 s and n = 24
+  22 s. n = 23 under `--memory-limit 1MiB` is refused in 20 ms and fits a
+  20 MB scope. Test `the_read_back_keeps_to_the_bounds_on_shared_terms`:
+  its terms half fails with the terms check removed, its memory half with
+  the charge removed (it then gets Herbrand's own refusal).
+- `kmxoxyxv` (the argument member's older finding): the model search
+  on a sequent with `=` in intuitionistic or minimal logic, with
+  `--model-size` given and no `--model-worlds`, ran its loop to
+  `u32::MAX` levels without asking the stop and then overflowed asking
+  for a Kripke model of that many worlds (`prove --logic intuitionistic
+  --method models --model-size 2 --timeout 2s '|- a = b \/ ~a = b'`:
+  26 s, then a panic). With `=` the levels are the structures' sizes
+  alone and the end is `ModelSize` (`equality_ends_at_the_size_bound`);
+  the witness now answers unknown in under a millisecond.
+
+### The panel (on `prxrsxml` and `vqozxsnq`)
+
+- `panel-argument` (Fable 5.2, high): the argument holds for both. The
+  invariant stated from the code (an accepted model is a Kripke model of
+  the equality axioms: shared elements, global constants, tables
+  agreeing along the order, so identity is persistent and forces every
+  axiom), checked at every site (the evaluator, the up-front passes, the
+  callers, `From<Structure>`, minimal logic); the diagonal facts satisfy
+  the library's growth check and its reading agrees with the Rust one.
+  One older finding, the model search's loop, fixed in `kmxoxyxv`. A
+  note: a certificate states the sequent as the countermodel holds it,
+  so for a sequent without the axioms Rocq proves the weaker statement
+  (`=` uninterpreted); nothing false.
+- `panel-counterexamples` (Opus 5.5, high): no counterexample. Its own
+  forcing evaluator (recursive, every refusal re-implemented) agreed with
+  `refutes` on 3.5 million random models of random sequents with `=`
+  (1 to 4 worlds, mutations), and with the protocol on 452 760 forged
+  documents; `ordinary::decide` never called a refuted sequent valid
+  (13 601 cases); 23 valid sequents with `=` refuted by no model;
+  15 forged documents through `deduxit check` answered right. One older
+  finding, below.
+- `panel-integers` (Sonnet 5.5, high): no refutation. `=` of another
+  arity or role is refused by the readers, so the identity arm always
+  matches; work and stop counted; the memory charge before any build;
+  the exporter's bounds: with `=` a domain of 1 023 elements or more is
+  `LargeModel` (the diagonal weighs n(n + 1) against `MOST_WEIGHT`),
+  4 096 without, a refusal and never a wrong certificate. Noted:
+  `has_equality` is true where the symbol `=` is declared though no atom
+  uses it, which can only refuse a certificate earlier.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium), on all five commits: the soundness
+fix, the Rocq facts and the model search hold. Four findings on the
+read-back, all answered in `xuupvryk`:
+- the memory charge came after the key was written (100 to 150 MB
+  resident under `--memory-limit 1MiB` at n = 23): now charged before;
+- the time limit passed between polls (debug n = 23, 3.5 s at 1 s): a
+  poll per root copied added; one key of up to `limits.terms` symbols is
+  still written between two polls, 0.18 s past the limit in release,
+  1.3 s in debug, as the connection prover's read-back writes one
+  instance unpolled (`core-ordinary.md`);
+- the test's memory half could pass on Herbrand's refusal: it now asks
+  for the read-back's own words and fails without the charge;
+- a 0.8.0 document with a long binding failed the protocol's check:
+  `same_bindings`, and the manual, schema and guide say the cut.
+
+### Checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean.
+- `cargo test --workspace` (before `kmxoxyxv` and the review's fixes):
+  every binary passed; after them the gate's run.
+- The gate at the head (capped, cores 4-6): passed, the tests among it;
+  the ratchet's misses moved on `search-chain-128` and `check-qbf-20-2`,
+  a note and never a failure, on no search change.
+- The Rocq certificates with `=`: four compiled with `nix run
+  .#check-certificate` (two the command writes, the two snapshots).
+- `nix flake check` at `kmxoxyxv` under the machine lock (cores 4-6):
+  all checks passed (`rocq-deduxit` compiling the two new snapshots,
+  `wire-schema`, `web-core-wasm32` among them).
+
+### Follow-ups (for the planning session)
+
+- **The protocol's check of `decides` ignores the call's input**
+  (the counterexamples member, older than this session): `decides` reads
+  the output alone, so a valid derivation or a countermodel of another
+  sequent is `Held` (input `|- a = a`, output a structure refuting `|- a
+  = b`: `Held`). It needs the input's sequent compared with the
+  evidence's (formulas' texts as multisets, as `ordinary.instances`'
+  check does), for every kind of evidence. Its own fixup.
+- `Error::Structure` says "the finite structure is wrong" for a Kripke
+  model too (`deduxit check` of the audit's document).
+- The Kripke model search tries no model for a sequent with `=`; with
+  the check reading identity it could, at least for identity worlds.
