@@ -8612,3 +8612,12 @@ move (D26).
   keys were unlocked afresh at 01:04 (good to about 01:00 on 2026-11-28) and the loop restarted;
   wake-ups at 04:07 and 04:41 resume the sessions after the usage limit's reset at 04:00. Decisions
   taken while unattended are logged here with "(decided unattended)".
+- 2026-11-27, about 01:09: **The fifth baseline armed** (the author: benchmarks allowed until further
+  notice, interruptible and resumable at best). (decided unattended) `bench/baseline.sh --arm --fresh`
+  into `bench/results/2026-11-27/`: it starts once the machine is idle (the usage limit will stop the
+  sessions), at 03:00 whatever the load, about four hours, stopped at 07:00 and resumable the next
+  night. The sessions are not paused for it: if they still work at 03:00, its four streams run on
+  cores 0-3 and everything else on 4-15, so its times compare with the fourth baseline
+  (2026-11-02), not the third. `nix-optimise` at 03:56 (root) is not stopped and will show in its
+  header. The libraries were fetched again (`bench/lltp`, `bench/iltp`). While it runs, the default
+  checkout stays untouched; plan commits go in the new workspace `../deduxit-wt-planner`.
