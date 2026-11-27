@@ -136,11 +136,21 @@ as findings of its own, naming the finding it follows.
   `ordinary_candidates`, `rules_candidates`) and described in a second
   protocol there (`web/src/protocol.rs:151`); the linear suite's calls
   carry no prefix and the others' do.
-- F-arch-18: the module's size. `plan/later.md` ("The web module's size
-  after the workspace") holds an attribution of the module's bytes by
-  twiggy from an earlier step, and `web.md` the budget's history; say
-  what a registry built from the page's list of suites would need of
-  the bindings.
+- F-arch-18: the module's size. `target/audit/wasm.md` attributes the
+  module's raw bytes at this commit (twiggy on the module as cargo
+  builds it, 11.2 MB with 1.4 MB of names): the linear suite 19.5 %,
+  ordinary logic 14.8 %, `serialize` 11.1 %, the exports 7.0 %,
+  lambda-terms 6.0 %, the bindings 4.7 %, the protocol 4.5 %; and 2.9 MB
+  (25.9 %) are second and later instantiations of one generic function
+  (`serialize_field` 200 times, the sorts 66 times, `drop_glue` 621
+  times, `ContentDeserializer::deserialize_any` 40 times,
+  `check::pass::examine_with` 7 times, `protocol::document` 13 times).
+  `plan/later.md` ("The web module's size after the workspace") holds
+  the earlier attribution and what it left open, and `web.md` the
+  budget's history. Say what the bindings' own calls contribute to the
+  repeated instantiations (which types they serialize and through which
+  generic helpers), and what a registry built from the page's list of
+  suites would need of the bindings.
 
 ## Units 6b, 5a, 5b (the exports, lambda-terms, calculi given as data)
 

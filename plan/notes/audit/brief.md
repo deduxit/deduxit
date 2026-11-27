@@ -57,6 +57,8 @@ In the first tree (`A` below stands for it):
   - `ratchet.out`: each journey's instructions under callgrind against
     its ceiling;
   - `timings.md`: compile and test times;
+  - `wasm.md`: the web module's raw bytes by the library's modules, and
+    the generic functions compiled more than once;
   - `rocq.md`: the Rocq library's build, warnings and assumptions.
   An inventory is a pointer, not a finding: open the place it names
   before you rely on it.

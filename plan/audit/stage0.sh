@@ -9,8 +9,9 @@
 #   plan/audit/stage0.sh lines text     # the parts named
 #
 # Parts: lines, api, clippy, duplicates, text, help, sizes, llvm, dhat,
-# rocq (the Rocq library's inventory), and `timings' (compile and test
-# times), which `all' leaves out.
+# rocq (the Rocq library's inventory), wasm (the web module's bytes by
+# the library's modules), and `timings' (compile and test times), which
+# `all' leaves out.
 # `lines', `text' and `help' (once the command is built) take seconds; the
 # others build: every build and run is in a scope of its own, capped at
 # 8 GiB without swap, on the cores of `cores', with three jobs, and the
@@ -144,6 +145,17 @@ rocq_library() {
     python3 "$tools/rocq.py" "$rocq" "$root" "$out/rocq" >"$out/rocq.md"
 }
 
+# The web module's bytes by the library's modules: the bindings as cargo
+# builds them for wasm32, names kept, listed by twiggy.
+wasm() {
+  tool twiggy
+  capped "CARGO_TARGET_DIR=$root/target/wasm-audit" -- \
+    cargo build --quiet --locked --release --target wasm32-unknown-unknown --package deduxit-web
+  capped -- target/twiggy/bin/twiggy top -n 1000000 --format json \
+    target/wasm-audit/wasm32-unknown-unknown/release/deduxit_web.wasm >"$out/twiggy-top.json"
+  python3 "$tools/wasm.py" "$out/twiggy-top.json" >"$out/wasm.md"
+}
+
 # Compile and test times from an empty target directory. A timed run: not
 # a part of `all', and only with the cores to itself.
 timings() {
@@ -153,6 +165,7 @@ timings() {
 for part in "$@"; do
   case $part in
   timings) timings ;;
+  wasm) wasm ;;
   rocq) rocq_library ;;
   all)
     lines
@@ -165,6 +178,7 @@ for part in "$@"; do
     llvm
     dhat
     rocq_library
+    wasm
     ;;
   lines | api | clippy | duplicates | text | help | sizes | llvm | dhat) "$part" ;;
   *)
