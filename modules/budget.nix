@@ -20,7 +20,10 @@
 
       # The modules the web page loads, in bytes at `gzip -9', what a
       # browser downloads. The bindings' module, which every visitor's
-      # worker loads: 2 954 598 on 2026-11-27 with natural deduction's
+      # worker loads: 2 987 284 on 2026-11-27 with System F (its types,
+      # type abstraction and application in the reader, the checker's
+      # rules and scope, the printer's renaming of a `∀`, type β in the
+      # stepper); 2 954 598 that day with natural deduction's
       # search (the translation of sequent proofs into normal natural
       # deduction proofs and the rules session's close and hint, the
       # bindings' two calls), 2 925 319 before it with the ordinary session's
