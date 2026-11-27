@@ -351,7 +351,18 @@ impl<'a> Calculus<'a> {
     /// holes and its slots. `sides` gives the side taken at each `⊕`, as
     /// the `⊕` and its operand. The steps are found root first, the right
     /// operand before the left, which reversed is postorder.
-    fn write(&self, start: Start<'_>, sides: &[(OccId, OccId)]) -> Rule {
+    ///
+    /// A unit of `work` is a step found, and each `&` copies its phase,
+    /// whose members count too: an `&` under each `⅋` of a phase doubles
+    /// its holes, so the goal's phase of `n` such pairs has `2ⁿ`, written
+    /// before any other poll (23 pairs once ran 19 s and 2 GB past a time
+    /// limit of 1 s).
+    fn write(
+        &self,
+        start: Start<'_>,
+        sides: &[(OccId, OccId)],
+        work: &mut Work<'_>,
+    ) -> Result<Rule, Failed> {
         let forest = self.forest;
         let mut rule = Rule::default();
         let mut found: Vec<Step> = Vec::new();
@@ -387,6 +398,7 @@ impl<'a> Calculus<'a> {
         };
         let mut stack = vec![root];
         while let Some(pending) = stack.pop() {
+            work.add(1)?;
             match pending {
                 Pending::Focus(o) => match forest.kind(o) {
                     Kind::Tensor => {
@@ -429,6 +441,7 @@ impl<'a> Calculus<'a> {
                     }
                 },
                 Pending::Phase(mut phase) => loop {
+                    work.add(1)?;
                     if let Some(t) = phase.top {
                         found.push(Step::Top(t));
                         break;
@@ -452,6 +465,11 @@ impl<'a> Calculus<'a> {
                     }
                     if let Some(o) = phase.withs.pop() {
                         found.push(Step::With(o));
+                        let copied = phase.unary.len()
+                            + phase.withs.len()
+                            + phase.leaves.len()
+                            + phase.met.len();
+                        work.add(copied as u64)?;
                         let mut left = phase.clone();
                         left.place_child(self, forest.left(o));
                         phase.place_child(self, forest.right(o));
@@ -472,7 +490,7 @@ impl<'a> Calculus<'a> {
         }
         found.reverse();
         rule.steps = found;
-        rule
+        Ok(rule)
     }
 }
 
@@ -775,7 +793,7 @@ impl Calculus<'_> {
                                 _ => {}
                             }
                         }
-                        let rule = self.write(start, &sides);
+                        let rule = self.write(start, &sides, work)?;
                         work.add(rule.steps.len() as u64)?;
                         each(&rule, work)?;
                     }
@@ -1158,7 +1176,7 @@ pub(crate) fn check(
     }
     // The goal's phase: a proof would need each of its stable sequents,
     // and some is one that no sequent of the set stands for.
-    let phase = calculus.write(Start::Goal(&calculus.goal), &[]);
+    let phase = calculus.write(Start::Goal(&calculus.goal), &[], &mut work)?;
     let fills = |s: &Zone, hole: &Hole| {
         within(&s.unrestricted, &hole.met)
             && within(&s.linear, &hole.leaves)

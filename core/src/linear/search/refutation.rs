@@ -1180,9 +1180,11 @@ impl Disproof {
     /// `limits` and until `stop` fires: the forest is built within
     /// `limits.occurrences`, and the checks of a saturated set and of a
     /// basis, the two whose time is not linear, ask `stop` as they go
-    /// ([`Phase::Check`](crate::Phase::Check)) and do `limits.work` units
-    /// at most, a unit being a step of their own count. The other kinds
-    /// are linear in the goal and ask nothing.
+    /// ([`Phase::Check`](crate::Phase::Check)) and end at the first poll
+    /// past `limits.work`, a unit being a step of their own count (the
+    /// set's check polls every 2¹⁶ units, the basis's per clause, so a set
+    /// checked in fewer units than a poll's is never refused). The other
+    /// kinds are linear in the goal and ask nothing.
     ///
     /// # Errors
     ///
@@ -2164,5 +2166,24 @@ mod tests {
             refused(&Limits::default().with_occurrences(Some(2)), false),
             Refusal::Occurrences { .. }
         ));
+    }
+
+    /// The goal's phase of a saturated set is written under the stop: an
+    /// `&` under each `⅋` doubles its holes, `2ⁿ` for `n` pairs, before
+    /// any sequent of the set is read (a set with none, as a document may
+    /// give, wrote 2²³ holes past a time limit of 1 s).
+    #[test]
+    fn a_saturated_set_s_goal_phase_asks_the_stop() {
+        use crate::limits::Refusal;
+        use crate::{Error, Limits};
+        let pairs = ["(a & a)"; 18].join(" | ");
+        let sequent: Sequent = format!("|- {pairs}").parse().unwrap();
+        let set = Saturated::new(vec![Sign::Dual], vec![]);
+        let disproof = Disproof::new(sequent, Mode::CLASSICAL, Refutation::Saturated(set));
+        let result = disproof.check_within(&Limits::default(), |_| true);
+        assert!(
+            matches!(result, Err(Error::Refused(Refusal::Stopped { .. }))),
+            "{result:?}"
+        );
     }
 }
