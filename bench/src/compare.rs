@@ -14,6 +14,28 @@
 //! and is kept apart.
 
 use crate::summary::{COUNTERS, Ending, Row, Runs, base, configuration, read};
+
+/// Counters compared only where both rows have a value: files from before
+/// them have the field empty, which would read as a difference on every
+/// row. `work` is the engine's units (the connection provers' steps, whose
+/// `nodes` are their extensions alone), `unifications` and `bindings` the
+/// first-order search's.
+const WHERE_BOTH: [&str; 3] = ["work", "unifications", "bindings"];
+
+/// The counters of two runs that differ: every one of [`COUNTERS`], and
+/// those of [`WHERE_BOTH`] that both rows have.
+fn counters_differing<'a>(a: &'a Row, b: &'a Row) -> impl Iterator<Item = &'static str> + 'a {
+    COUNTERS
+        .iter()
+        .copied()
+        .filter(|c| a.get(c) != b.get(c))
+        .chain(
+            WHERE_BOTH
+                .iter()
+                .copied()
+                .filter(|c| !a.get(c).is_empty() && !b.get(c).is_empty() && a.get(c) != b.get(c)),
+        )
+}
 use anyhow::{Result, bail};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -370,7 +392,7 @@ fn compare(
         .collect();
     let differ: Vec<_> = counted
         .iter()
-        .filter(|(_, a, b)| COUNTERS.iter().any(|c| a.first.get(c) != b.first.get(c)))
+        .filter(|(_, a, b)| counters_differing(a.first, b.first).next().is_some())
         .collect();
     let problems = if counted.len() == 1 {
         "problem"
@@ -383,17 +405,19 @@ fn compare(
         "differ"
     };
     println!(
-        "Of the {} {problems} both decide alike on one thread, {} {verb} in {}.\n",
+        "Of the {} {problems} both decide alike on one thread, {} {verb} in {}, or in {} where \
+         both have them.\n",
         counted.len(),
         differ.len(),
-        COUNTERS.join(", ")
+        COUNTERS.join(", "),
+        WHERE_BOTH.join(", ")
     );
     if counters && !differ.is_empty() {
         println!(
             "| file | family | configuration | problem | counter | {one} | {two} |\n|---|---|---|---|---|--:|--:|"
         );
         for ((group, problem), a, b) in differ {
-            for c in COUNTERS.iter().filter(|c| a.first.get(c) != b.first.get(c)) {
+            for c in counters_differing(a.first, b.first) {
                 println!(
                     "| {group} | {problem} | {c} | {} | {} |",
                     a.first.get(c),
@@ -545,4 +569,26 @@ fn compare(
         );
     }
     println!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::summary::tests::row;
+
+    /// The engines' counters differ wherever their values do; `work` and
+    /// the first-order counters only where both rows have one.
+    #[test]
+    fn counters_compare_where_both_rows_have_them() {
+        let a = row(&[("nodes", "7"), ("work", "30"), ("unifications", "")]);
+        let same = row(&[("nodes", "7"), ("work", "30"), ("unifications", "4")]);
+        assert_eq!(counters_differing(&a, &same).count(), 0);
+        let other = row(&[("nodes", "8"), ("work", "31")]);
+        assert_eq!(
+            counters_differing(&a, &other).collect::<Vec<_>>(),
+            ["nodes", "work"]
+        );
+        let older = row(&[("nodes", "7")]);
+        assert_eq!(counters_differing(&a, &older).count(), 0);
+    }
 }

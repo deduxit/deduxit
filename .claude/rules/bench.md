@@ -557,6 +557,21 @@ serde_json, which the CLI and the core's tests already have.
   encodings of the problem file are copied out by exact name, since
   `--only` matches substrings and `1-1` is part of `1-1-1-1-1-7`, which
   the net engine does not decide.
+- **`bench/connection-targets.sh LABEL`** pins ordinary logic's two
+  connection provers (`bench/TARGETS.md`, "The connection provers'
+  pin"): the 1 312 ILTP problems of `bench/problems/connection.txt`
+  (`LOGIC PATH`, each decided within a second at a limit of five), one
+  stream per core of `CORES` (by default 2 and 3), into
+  `bench/targets/connection-LABEL.csv`. The oracle is
+  `connection-87a.csv`; `summary --against … --counters` compares
+  `nodes` and `work`. A propositional problem of `bench/iltp` that
+  `bench/iltp-first-order` also holds is listed once: a file given by
+  path has no family, so two of one name would be one key.
+- **`--counters` compares `work`, `unifications` and `bindings` only
+  where both rows have them** (`compare::WHERE_BOTH`): files from before
+  those columns have them empty. On every decided row of `86.csv`,
+  `87a-base.csv` and `net-*` they agree, so the target sets lose
+  nothing.
 
 ## The comparison of tools
 

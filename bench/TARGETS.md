@@ -358,3 +358,32 @@ changes listed above, and `net-after-prunes.csv`, equal in verdict,
 `net-after-retype.csv`. The other files of the directory are
 intermediate labels of those steps and the pool's measurements.
 
+
+## The connection provers' pin
+
+`bench/connection-targets.sh LABEL` runs ordinary logic's two connection
+provers on one thread over the 1 312 ILTP problems of
+`bench/problems/connection.txt`, each with `--engines connection` in its
+logic at 5 s, into `bench/targets/connection-LABEL.csv`:
+
+| logic | first-order problems | propositional problems |
+|---|--:|--:|
+| classical | 910 | 144 |
+| intuitionistic | 248 | 10 |
+
+The first-order problems are those each prover decided within a second
+at 2 s in `bench/defaults/connection-setup-iltp-*-after.csv`, the
+propositional ones those of `bench/iltp` alone that it decides within a
+second at 5 s; a propositional problem the first-order library also
+holds is listed once, from that library, since the two files are the
+same and the comparison keys rows by name. Every row is decided far
+inside its limit, so it runs on any cores (`CORES`, by default the
+target sets' 2 and 3), six streams in about a minute.
+
+What compares: the verdicts, then `nodes` (the extension steps) and
+`work` (every step: a goal taken up, a way tried, a start clause), by
+`deduxit-bench summary --against bench/targets/connection-87a.csv
+bench/targets/connection-LABEL.csv --counters`, which compares `work`
+where both files have it. Two runs at the refactor's base decided every
+row alike with no counter apart. **The oracle is `connection-87a.csv`**:
+a change of the provers that must not change their search keeps it.

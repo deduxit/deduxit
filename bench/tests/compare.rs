@@ -86,7 +86,7 @@ const AGAINST: &str = r#"## after against before
 
 ### Counters that differ
 
-Of the 1 problem both decide alike on one thread, 1 differs in nodes, splits, memo_hits, memo_entries, links, tests.
+Of the 1 problem both decide alike on one thread, 1 differs in nodes, splits, memo_hits, memo_entries, links, tests, or in work, unifications, bindings where both have them.
 
 | file | family | configuration | problem | counter | after | before |
 |---|---|---|---|---|--:|--:|
@@ -129,7 +129,7 @@ const SINCE: &str = r#"### Verdicts that differ
 
 ### Counters that differ
 
-Of the 1 problem both decide alike on one thread, 1 differs in nodes, splits, memo_hits, memo_entries, links, tests.
+Of the 1 problem both decide alike on one thread, 1 differs in nodes, splits, memo_hits, memo_entries, links, tests, or in work, unifications, bindings where both have them.
 
 ### Decided by before, not by after
 
