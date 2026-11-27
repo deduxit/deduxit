@@ -104,7 +104,20 @@ pub(crate) fn kripke(
     let model = &countermodel.model;
     let worlds = laid(sequent, model, limits, stop)?;
     let w = model.world;
-    let last = match (logic, sequent.right().is_empty()) {
+    let last = last(sequent, logic, w);
+    Ok(Laid {
+        title: format!("A countermodel of {sequent}"),
+        last,
+        worlds,
+        world: w,
+        kripke: true,
+    })
+}
+
+/// Returns the sentence that ends a countermodel's description: why
+/// `sequent` fails at the model's world `w` in `logic`.
+pub(crate) fn last(sequent: &Sequent, logic: Logic, w: u32) -> String {
+    match (logic, sequent.right().is_empty()) {
         (Logic::Classical, _) => format!(
             "World {w} makes every formula left of ⊢ true and every formula right of it \
              false, so {sequent} is not valid in classical logic."
@@ -117,19 +130,12 @@ pub(crate) fn kripke(
             "World {w} forces each formula left of ⊢ and not the one right of it, so \
              {sequent} is not valid in {logic} logic."
         ),
-    };
-    Ok(Laid {
-        title: format!("A countermodel of {sequent}"),
-        last,
-        worlds,
-        world: w,
-        kripke: true,
-    })
+    }
 }
 
 /// Returns the bytes of a sequent's text, bottom up over its arena,
 /// saturating: a shared formula is written each time it occurs.
-fn sequent_bytes(sequent: &Sequent) -> u64 {
+pub(crate) fn sequent_bytes(sequent: &Sequent) -> u64 {
     let formulas = sequent.formulas();
     let binder = formulas
         .first_order()

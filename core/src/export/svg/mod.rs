@@ -1814,52 +1814,14 @@ pub fn countermodel(
     limits: &crate::Limits,
     mut stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<String, Error> {
-    use crate::ordinary::{Logic, Node, NodeId};
     countermodel.check(logic, limits, &mut stop)?;
     let sequent = &countermodel.sequent;
-    // The sequent's text, bottom up over its arena, before it is written:
-    // a shared formula is written each time it occurs.
-    within(limits, || {
-        let formulas = sequent.formulas();
-        let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
-        for &node in formulas.nodes() {
-            let of = |k: NodeId| bytes[k.index()];
-            let b = match node {
-                Node::Atom(a) => (formulas.atom_names()[a as usize].len() as u64).saturating_add(2),
-                Node::True | Node::False => 3,
-                Node::Not(a) => of(a).saturating_add(4),
-                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                    of(a).saturating_add(of(b)).saturating_add(9)
-                }
-                // The model's check refuses a first-order sequent first.
-                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
-            };
-            bytes.push(b);
-        }
-        // Written twice, in the title and the description, and escaped.
-        sequent
-            .left()
-            .iter()
-            .chain(sequent.right())
-            .fold(0u64, |sum, id| sum.saturating_add(bytes[id.index()]))
-            .saturating_mul(12)
-    })?;
+    // The sequent's text before it is written, twice (the title and the
+    // description) and escaped; the model's check refuses a first-order
+    // sequent first, so no binder is counted.
+    within(limits, || super::models::sequent_bytes(sequent).saturating_mul(12))?;
     let title = format!("A countermodel of {sequent}");
-    let w = countermodel.model.world;
-    let last = match (logic, sequent.right().is_empty()) {
-        (Logic::Classical, _) => format!(
-            "World {w} makes every formula left of ⊢ true and every formula right of it \
-             false, so {sequent} is not valid in classical logic."
-        ),
-        (Logic::Intuitionistic | Logic::Minimal, true) => format!(
-            "World {w} forces each formula left of ⊢ and not ⊥, so {sequent} is not valid in \
-             {logic} logic."
-        ),
-        (Logic::Intuitionistic | Logic::Minimal, false) => format!(
-            "World {w} forces each formula left of ⊢ and not the one right of it, so \
-             {sequent} is not valid in {logic} logic."
-        ),
-    };
+    let last = super::models::last(sequent, logic, countermodel.model.world);
     let mut polls = 0u64;
     kripke::draw(
         &countermodel.model,
