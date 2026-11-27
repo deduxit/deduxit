@@ -1595,6 +1595,54 @@ impl Display for In<'_, ProofStructure> {
     }
 }
 
+/// A proof's net: a structure without boxes, or one with boxes.
+#[cfg(feature = "protocol")]
+pub(crate) enum Net {
+    /// Without boxes.
+    Plain(ProofStructure),
+    /// With boxes.
+    Boxes(MellStructure),
+}
+
+/// Returns the net of a proof in `mode`, within `limits` and until `stop`
+/// fires: with boxes where its sequent has exponentials, else without,
+/// falling back to boxes where the structure without them refuses the
+/// proof's cuts ([`Placement::Cut`]): a proof that cuts one occurrence
+/// twice, or an occurrence and one of its subformulas, needs two vertices
+/// of one occurrence, which only a structure with boxes has. The one place
+/// this choice is made, which the protocol calls.
+///
+/// # Errors
+///
+/// [`Criterion::of`]'s for a mode no criterion reads, and those of the two
+/// structures' `from_proof`.
+#[cfg(feature = "protocol")]
+pub(crate) fn net_of_proof(
+    proof: &Proof,
+    mode: Mode,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Net, Error> {
+    let criterion = Criterion::of(mode)?;
+    if proof.sequent().fragment().has_exponentials() {
+        return MellStructure::from_proof(proof, criterion, limits, &mut *stop).map(Net::Boxes);
+    }
+    match ProofStructure::from_proof(proof, criterion, limits, &mut *stop) {
+        Err(Error::Net(error))
+            if matches!(
+                *error,
+                NetError::Placement {
+                    fault: Placement::Cut,
+                    ..
+                }
+            ) =>
+        {
+            MellStructure::from_proof(proof, criterion, limits, &mut *stop).map(Net::Boxes)
+        }
+        made => made.map(Net::Plain),
+    }
+}
+
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;

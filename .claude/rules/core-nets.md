@@ -204,9 +204,14 @@ code relies on:
   `MellStructure` has; so would one that cuts the same occurrence in two
   branches, which the checker accepts too (the counterexample panel's
   witness, `a_cut_occurrence_twice_needs_a_structure_with_boxes`). The
-  command's `net_of` takes `MellStructure::from_proof` for an MLL proof
-  that `ProofStructure::from_proof` refuses with `Placement::Cut`; a
-  front end that draws an MLL proof's net does the same. A forest without cut formulas has `live: None`,
+  crate-private `nets::net_of_proof` (feature `protocol`) is the choice:
+  `MellStructure` for exponentials, else `ProofStructure`, falling back
+  to `MellStructure` where it refuses with `Placement::Cut`; the
+  protocol's `linear.net` calls it (it lacked the fallback until 0.9.0,
+  answering `invalid_net` for a proof the checker accepts,
+  `a_proof_that_cuts_an_occurrence_twice_has_a_net_with_boxes`). The
+  command's `net_of` and the bindings' `Net::of` make the same choice by
+  hand until the function is public. A forest without cut formulas has `live: None`,
   and the net engine's structures are always of such a forest (the
   search re-roots a cut forest's goal), so the engine never sees one.
 - **The MLL graph**: a dead occurrence has no slot at all (it is

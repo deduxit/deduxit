@@ -12,7 +12,7 @@ use super::{
     Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Produced, Role, Status, Suite,
     Verdict, document, kinds, object, parameters, verdict_of, written,
 };
-use crate::linear::nets::{Criterion, MellStructure, ProofStructure};
+use crate::linear::nets::{Net, net_of_proof};
 use crate::linear::occurrences::reading::Side;
 use crate::linear::search::{Outcome, Verdict as Found};
 use crate::linear::{GoalId, IllSequent, Interactive, Mode, Proof, Sequent};
@@ -358,14 +358,6 @@ enum Input {
     Outcome(Box<Outcome>),
 }
 
-/// A proof net.
-enum Net {
-    /// Without boxes.
-    Plain(ProofStructure),
-    /// With boxes.
-    Boxes(MellStructure),
-}
-
 /// The key of a structure with boxes.
 #[derive(Deserialize)]
 struct Boxes {
@@ -552,14 +544,9 @@ impl Suite for Linear {
             }
             "linear.net" => {
                 let proof = proof_of(call.input(0), limits)?;
-                let mode = mode_of(&proof);
-                let criterion = Criterion::of(mode)?;
-                if proof.sequent().fragment().has_exponentials() {
-                    written(&MellStructure::from_proof(&proof, criterion, limits, stop)?)?
-                } else {
-                    written(&ProofStructure::from_proof(
-                        &proof, criterion, limits, stop,
-                    )?)?
+                match net_of_proof(&proof, mode_of(&proof), limits, &mut *stop)? {
+                    Net::Plain(net) => written(&net)?,
+                    Net::Boxes(net) => written(&net)?,
                 }
             }
             "linear.eliminate" => {

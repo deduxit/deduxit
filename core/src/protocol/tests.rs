@@ -695,6 +695,42 @@ fn a_value_of_another_kind_is_refused() {
     assert!(read("linear.proof", &outcome, &limits).is_err());
 }
 
+/// The net of a proof that cuts one occurrence twice, which the checker
+/// accepts, is the structure with boxes, and its check holds: a structure
+/// without boxes has one vertex per occurrence and refuses the proof's
+/// cuts. Until 0.9.0 `linear.net` answered `invalid_net` there.
+#[cfg(feature = "parse")]
+#[test]
+fn a_proof_that_cuts_an_occurrence_twice_has_a_net_with_boxes() {
+    use crate::linear::occurrences::{Member, OccId};
+    use crate::linear::proofs::{Node, NodeId};
+    use crate::linear::{Forest, Mode, Proof, Sequent};
+    let m = |o: u32| Member::from(OccId::new(o));
+    let n = NodeId::new;
+    // ⊢ a ⊗ a, ~a, ~a: 0 ⊗, 1 a, 2 a, 3 ~a, 4 ~a; the cut formula a, 5,
+    // and its dual, 6, cut under each premise of the ⊗.
+    let mut sequent: Sequent = "|- a * a, ~a, ~a".parse().unwrap();
+    sequent.add_cut("|- a".parse().unwrap()).unwrap();
+    let nodes = vec![
+        Node::Ax(m(5), m(3)),
+        Node::Ax(m(1), m(6)),
+        Node::Cut(m(5), n(0), n(1)),
+        Node::Ax(m(5), m(4)),
+        Node::Ax(m(2), m(6)),
+        Node::Cut(m(5), n(3), n(4)),
+        Node::Tensor(m(0), n(2), n(5)),
+    ];
+    let proof = Proof::new(Forest::new(&sequent).unwrap(), nodes, n(6)).unwrap();
+    proof.check(Mode::CLASSICAL).unwrap();
+    let proof = super::written(&proof).unwrap();
+    let net = ran("linear.net", &[&proof], "");
+    assert!(net.contains("\"vertices\""), "{net}");
+    assert_eq!(
+        checked("linear.net", &[&proof], "", &net).status,
+        Status::Held
+    );
+}
+
 #[test]
 fn a_modal_sequent_is_decided_and_its_evidence_checked() {
     let limits = settings().limits;
