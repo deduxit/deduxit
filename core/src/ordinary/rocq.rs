@@ -616,9 +616,9 @@ fn falsified(
     }
     if let Some(limit) = limit {
         let estimate = falsified_bytes(sequent, &atoms, options);
-        // A saturated estimate is past any text a machine holds, even
-        // under a limit of `u64::MAX`.
-        if estimate > limit || estimate == u64::MAX {
+        // No text holds more than `isize::MAX` bytes, so an estimate past
+        // it is refused under any limit, `u64::MAX` included.
+        if estimate > limit || estimate > isize::MAX as u64 {
             return Err(Refusal::Output {
                 what: "certificate",
                 estimate_bytes: estimate,
@@ -1033,14 +1033,14 @@ mod tests {
 
     /// A classical countermodel's certificate writes its formulas out, and
     /// a formula that shares its subformulas doubles its text with each
-    /// level: sixty-four levels would be a text of exabytes, which the
-    /// bound refuses before anything is written, even the largest bound,
-    /// which the saturated estimate equals.
+    /// level: sixty levels would be a text of exabytes, estimated just
+    /// past `isize::MAX` and below `u64::MAX`, which the bound refuses
+    /// before anything is written, even the largest bound.
     #[test]
     fn a_classical_countermodel_keeps_to_the_bound() {
         let mut formulas = Formulas::default();
         let mut formula = formulas.atom("p").expect("an atom");
-        for _ in 0..64 {
+        for _ in 0..60 {
             formula = formulas
                 .add(Node::And(formula, formula))
                 .expect("a conjunction");
