@@ -315,13 +315,17 @@ impl<'a> Calculus<'a> {
     /// One that is not, or that the goal holds, comes from the linear
     /// zone. A literal outside the goal's subtrees stands in no sequent of
     /// a proof of the goal.
-    fn partners(&self, p: OccId) -> Vec<Partner> {
+    ///
+    /// A unit of `work` is a literal looked at: a focus on `n` literals
+    /// beside `n` duals has `n²` partners.
+    fn partners(&self, p: OccId, work: &mut Work<'_>) -> Result<Vec<Partner>, Failed> {
         let forest = self.forest;
         let (Some(atom), Some(sign)) = (forest.atom(p), forest.sign(p)) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
         let mut found = Vec::new();
         for &x in forest.literals(atom, !sign) {
+            work.add(1)?;
             if !self.inside[x.index()] {
                 continue;
             }
@@ -344,7 +348,7 @@ impl<'a> Calculus<'a> {
                 });
             }
         }
-        found
+        Ok(found)
     }
 
     /// Writes the term of a rule from `start`: its steps in postorder, its
@@ -352,8 +356,9 @@ impl<'a> Calculus<'a> {
     /// the `⊕` and its operand. The steps are found root first, the right
     /// operand before the left, which reversed is postorder.
     ///
-    /// A unit of `work` is a step found, and each `&` copies its phase,
-    /// whose members count too: an `&` under each `⅋` of a phase doubles
+    /// A unit of `work` is a step found or a literal an axiom looks at
+    /// for partners, and each `&` copies its phase, whose members count
+    /// too: an `&` under each `⅋` of a phase doubles
     /// its holes, so the goal's phase of `n` such pairs has `2ⁿ`, written
     /// before any other poll (23 pairs once ran 19 s and 2 GB past a time
     /// limit of 1 s).
@@ -427,7 +432,7 @@ impl<'a> Calculus<'a> {
                     }
                     Kind::Atom | Kind::DualAtom => {
                         found.push(Step::Axiom(o, rule.slots.len()));
-                        rule.slots.push(self.partners(o));
+                        rule.slots.push(self.partners(o, work)?);
                     }
                     Kind::Zero
                     | Kind::Par

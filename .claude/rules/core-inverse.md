@@ -221,7 +221,9 @@ a scratch copy; the report lists them).
   `D1` foci, `D2` copies but negative literals, every `⊕` choice not
   ending in a `0`), writes each as postorder steps (`write`, no
   recursion over the formula: forests can be deep; `write` counts a unit
-  per step and the members of each `&` it copies, and polls, since an
+  per step, per literal an axiom looks at for partners (a focus on `n`
+  literals beside `n` duals has `n²`) and per member of each `&` it
+  copies, and polls, since an
   `&` under each `⅋` doubles the holes and a read set's goal phase alone
   once ran 19 s past `check --timeout 1s`), evaluates them with
   its own `take`, `join` and shape test (`derive`), and applies every

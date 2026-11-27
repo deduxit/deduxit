@@ -1269,11 +1269,13 @@ impl Disproof {
             Refutation::StateEquation(equation) => {
                 super::weighted::state_equation(&forest, &goal, self.mode, equation).map(|_| ())
             }
-            Refutation::Basis(basis) => match super::basis::check(&forest, &goal, basis, &mut polled) {
-                Ok(()) => Ok(()),
-                Err(super::basis::Failed::Fault(fault)) => Err(fault),
-                Err(super::basis::Failed::Stopped) => return Err(stopped(done, limits)),
-            },
+            Refutation::Basis(basis) => {
+                match super::basis::check(&forest, &goal, basis, &mut polled) {
+                    Ok(()) => Ok(()),
+                    Err(super::basis::Failed::Fault(fault)) => Err(fault),
+                    Err(super::basis::Failed::Stopped) => return Err(stopped(done, limits)),
+                }
+            }
             refutation @ Refutation::Exhausted => Err(RefutationFault::Uncertified {
                 kind: refutation.name(),
             }),
@@ -2145,12 +2147,12 @@ mod tests {
         };
         assert!(matches!(disproof.refutation(), Refutation::Saturated(_)));
         disproof.check().unwrap();
-        disproof.check_within(&Limits::default(), |_| false).unwrap();
-        let refused = |limits: &Limits, stop: bool| {
-            match disproof.check_within(limits, |_| stop) {
-                Err(Error::Refused(refusal)) => refusal,
-                other => panic!("{other:?}"),
-            }
+        disproof
+            .check_within(&Limits::default(), |_| false)
+            .unwrap();
+        let refused = |limits: &Limits, stop: bool| match disproof.check_within(limits, |_| stop) {
+            Err(Error::Refused(refusal)) => refusal,
+            other => panic!("{other:?}"),
         };
         assert!(matches!(
             refused(&Limits::default(), true),
@@ -2185,5 +2187,25 @@ mod tests {
             matches!(result, Err(Error::Refused(Refusal::Stopped { .. }))),
             "{result:?}"
         );
+    }
+
+    /// The partners of a focus's axioms are counted work: a tensor of `n`
+    /// literals beside `n` duals has `n²` of them, which the check asks its
+    /// stop over. With a `b` that has no partner the focus closes nothing,
+    /// so nothing after the writing polls.
+    #[test]
+    fn a_focus_s_partners_are_counted_work() {
+        let n = 300;
+        let tensor = vec!["a"; n].join(" * ");
+        let duals = vec!["~a"; n].join(", ");
+        let sequent: Sequent = format!("|- b * {tensor}, {duals}").parse().unwrap();
+        let set = Saturated::new(vec![Sign::Atom, Sign::Atom], vec![]);
+        let disproof = Disproof::new(sequent, Mode::CLASSICAL, Refutation::Saturated(set));
+        let mut polls = 0;
+        let result = disproof.check_within(&crate::Limits::default(), |_| {
+            polls += 1;
+            false
+        });
+        assert!(polls >= 1, "{polls} polls over 90 000 partners: {result:?}");
     }
 }
