@@ -8643,3 +8643,14 @@ move (D26).
   about 8 to 10 M tokens on Opus and 2 to 3 M on Fable). (decided unattended) The full grid, as the
   author asked for the entire libraries, gated after stage 2 by its measured use against the weekly
   limit; phase B after step 85.
+- 2026-11-27, about 04:59: **Step 82 reviewed and pushed; step 83 started.** 82 (Opus, high; the
+  reviewer on Fable): the ordinary goal state closes a first-order goal by proof search, each
+  inference checked as it enters (`transfer`), else refutes it by a checked finite countermodel, else
+  unknown; a goal with an open witness is never refuted; a graft is held to the session's bound on
+  terms (the reviewer's finding, `omvzqutm`); the bindings and the page take it (a hint says its
+  witness). Measured on the client's first-order problems read as ordinary ones: median 0.06 ms,
+  slowest 1.5 s (intuitionistic `∀x∃y r ⊢ ∃y∀x r`: the embedding to its copy bound before the model
+  search). Client full check passed (Vitest 737, Playwright 366). Pushed: deduxit `xlnuroym`, client
+  `zlsovzxz`. **Left open:** a derivation's own symbols may clash with another branch's (given to 83
+  as its first commit); an open witness inside a quantifier's term is not filled by search; the goal
+  state does not race its methods as the command does. Step 83 in the same worker, cores 4-6.
