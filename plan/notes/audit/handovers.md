@@ -36,6 +36,30 @@ as findings of its own, naming the finding it follows.
   remarks: you read all of the code, the architecture reader read its
   outlines.
 
+- No journey of the ratchet or of DHAT runs ordinary logic's own
+  engines (F-4b-03), a first-order search, modal logic, the model
+  searches, lambda-terms (F-5a-13) or a session: a performance claim
+  there is a candidate that names the journey it would need.
+- The crate's rule is that a long body takes its stop as `&mut dyn
+  FnMut(Progress) -> bool` behind a one-line generic shim (`core.md`);
+  units 3, 4b, 4d and 6b found bodies generic over the stop, each
+  compiled once per caller (F-3-10, F-4b-02, F-4d-04, F-6b-02,
+  F-6b-06). List your unit's.
+- The walk "every node and term a formula reaches, each once" is
+  written nine times in ordinary logic (F-4a-08, F-4d-07, F-4c-16), and
+  the copy of formulas from one arena into another three times beside
+  `ordinary::transfer::copy` (F-4b-07, F-4e-10).
+
+## Unit 1c (cut elimination, the checked refutations)
+
+- The consumer test's point 5: `Disproof::new(…, Refutation::Exhausted)`
+  compiles outside the crate, so a disproof can claim an exhaustive
+  search that never ran. F-2a-09: `Verdict` does not say what its
+  values promise, and an `Unprovable` refutation from the counts or the
+  classical refuter is computed, not searched. Say what each kind of
+  refutation of your unit promises, what its check establishes, and
+  what an outside engine may build.
+
 ## Unit 2a (the front door of the linear search)
 
 - F-arch-01 (`Reason` belongs at the root), F-arch-04 (the engine
@@ -135,6 +159,16 @@ as findings of its own, naming the finding it follows.
   session calls each of these, with its signature.
 - `Interactive::formula` (linear) is the third copy of one body, with
   `Proof::formula` and `Derivation::formula` (F-1b-07).
+- Unit 4f, from unit 4e, which read the other two sessions: F-4e-01
+  lists what the ordinary and the rule-file session call the operations
+  they share, with signatures; add the linear session's column. The
+  linear session has the same missing stop on `invert` and `invert_all`
+  (F-4e-07), the other half of the witness-term reader written twice
+  (F-4e-04, `ordinary/interactive.rs:2061`) and of `derivation_within`
+  (F-4e-11); it has no `hint` in the library; and its
+  `invertible_steps` is computed in `web/src/calls.rs:455`, where
+  ordinary logic's is a library method. F-4e-03: the ordinary session's
+  public signatures use the linear suite's `GoalId` and `Inverted`.
 - Unit 4f: F-2b-01, the public `Interactive::split_passes`, documented
   as a cheap test, builds the whole forest's count rows with no memory
   account and no stop on every call
@@ -157,6 +191,18 @@ as findings of its own, naming the finding it follows.
 - F-arch-16: the feature `serialize` also turns on `rules` and modal
   logic's decision procedure; `core-rules.md:33-37` records why the
   calculus stores its serde form.
+- `rules/search.rs` (a session's `close` and `hint`) is yours; unit 4e
+  read `rules/interactive.rs` and found that each choice
+  `candidates` tries clones the whole session and the calculus
+  (F-4e-09), that `goal`, `members`, `hypotheses` and `lines` panic on
+  an id that is not the session's (F-4e-02), and that a refused step is
+  a third error type with a code of its own (F-4e-06).
+- F-5a-14 and F-5a-09: a rule file's drawing implements `Drawn`'s tree
+  layout with the same code as the typing derivation
+  (`rules/draw.rs:298`, `lambda/draw.rs:619`), and neither takes a
+  user's labels.
+- F-4b-05: `WrittenTableau::review` takes any `rules::Calculus` and
+  says only in its docs that it must be the built-in `TABLEAU`.
 
 ## Unit 8 (the bindings and the protocol)
 
@@ -175,6 +221,18 @@ as findings of its own, naming the finding it follows.
   it.
 - F-2b-01: `web/src/calls.rs:815` calls `Interactive::split_passes` per
   candidate, which is not the cheap test its docs promise.
+- F-4c-01: first-order resolution writes a unifier's terms out in full
+  with no bound (`resolve --timeout 1s` runs 22 s on a family whose
+  unifier doubles a term per variable). Do the protocol and the
+  bindings print `bindings_text` unbounded too?
+- F-5a-07: `lambda::Node` and `lambda::Type` deserialize as internally
+  tagged enums, which serde buffers through `Content`; their two
+  functions are among the module's largest (`wasm.md`). Unit 5a's
+  remark: should `Error::IllTyped` show the kind of fault, which is
+  private today, for the page's hints?
+- Unit 4e's remark: the linear session's invertible steps are computed
+  in `web/src/calls.rs:455`, while ordinary logic's are a library
+  method.
 - F-arch-12 and F-arch-15, against the client's calls: every session
   call is written three times in the bindings (`candidates`,
   `ordinary_candidates`, `rules_candidates`) and described in a second
@@ -248,6 +306,14 @@ as findings of its own, naming the finding it follows.
 - F-3-01: the command chooses the net of a proof by hand
   (`ProofStructure`, falling back to `MellStructure`), as two other
   front ends do.
+- F-4c-01: does `cli/src/resolve.rs` print a first-order refutation's
+  `bindings_text` unbounded, so that `--timeout` does not hold?
+- F-4e-02: the rule-file session's `goal`, `members`, `hypotheses` and
+  `lines` panic on an id that is not the session's, so the command
+  checks every goal itself (`cli/src/interact/rules.rs`).
+- F-4e-08: a learner proving in minimal logic reads a refusal that
+  names LJ; which messages of the command's session name a calculus the
+  user did not choose?
 
 ## The leader (stage 6)
 
@@ -289,6 +355,31 @@ as findings of its own, naming the finding it follows.
   (F-2b-09) have no instrument yet: adding a journey serves P1.
 - `render-svg` stands 1.12 % over its ceiling, within the tolerance
   (unit 6b's remark).
+- **A soundness defect of a checker, F-4d-01**, reproduced by the
+  finder, the verifier and the leader: `KripkeCountermodel::check`
+  (`ordinary/kripke_structure.rs:908`) reads `=` as an ordinary
+  predicate, so `deduxit check` accepts a forged one-world model as a
+  checked refutation of `⊢ a = a`, which `prove` proves. The search
+  never builds such a model. A fix, not a refactor, and it touches a
+  checker (the panel).
+- F-4c-01 with unit 4c's verifier's note: first-order resolution's
+  read-back writes terms out in full with no bound, and Herbrand's
+  `skolem_terms` and `nesting` walk a term as a tree with no stop, so
+  the time limit does not hold on a family whose unifier doubles a
+  term per variable (S1). A fix.
+- D1 reaches modal logic too: `modal::Options::default()` is the system
+  K (unit 4d's remark).
+- Four functions of ordinary logic are named `*_default` for their
+  short form (`normal`, `negative`, `interpolant`, `herbrand`) against
+  `X`/`X_within` elsewhere (F-4a-13, F-4b-02, unit 4c's remark);
+  `resolution` and `resolution::first_order` reuse six type names with
+  other shapes (unit 4c's remark, with F-4c-10).
+- The linear items the other suites need of a shared module, as the
+  units list them: `InfId` (the index of every ordinary derivation),
+  `GoalId`, `Structural`, `ViewOptions`, `Labels`, `Drawn`,
+  `notation::Atoms`, `Reason`'s variants, and of the memory account
+  `holding`, `charge`, `resize`, `release`, `over`, `limit`, `used`,
+  `share`, `fork` (units 2b, 4b, 4c, 4d, 5a).
 - `Sequent::add` and `add_cut` offset indices with an unchecked `+`
   (`linear/sequents/mod.rs:851`, `:863`, `:869`, `:294`): out of reach
   in practice (an arena of 2^32 terms), but no rules file records the
