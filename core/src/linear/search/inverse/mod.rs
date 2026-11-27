@@ -89,13 +89,12 @@ impl Decide for Inverse {
         &self,
         task: &Task<'_>,
         options: &Options,
-        limits: &Limits,
+        _limits: &Limits,
         account: &Account,
         _work: &Work,
         stop: &mut dyn FnMut(u64) -> bool,
     ) -> Result<Answer, Error> {
-        let (mut found, refutation) = search(task, options, account, stop);
-        found.result = found.result.map_err(|r| r.as_set(options, limits));
+        let (found, refutation) = search(task, options, account, stop);
         let mut answer = Answer::of_arena(task.forest, found, stop);
         answer.refutation = refutation;
         Ok(answer)

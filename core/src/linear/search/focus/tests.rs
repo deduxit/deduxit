@@ -2066,14 +2066,10 @@ fn the_pair_answers_by_the_backward_search() {
         ),
     ];
     let reasons = undecided.map(|(forward, backward)| {
-        let pair = merged(
-            finished(Err(forward), 30),
-            finished(Err(backward), 2),
-            &options,
-            &limits,
-        );
+        let pair = merged(finished(Err(forward), 30), finished(Err(backward), 2));
         (
-            pair.result,
+            // The front door sets a reason to the options and limits.
+            pair.result.map_err(|r| r.as_set(&options, &limits)),
             pair.statistics.copies,
             pair.statistics.forward_copies,
         )
@@ -2096,29 +2092,14 @@ fn the_pair_answers_by_the_backward_search() {
         (Err(Reason::Stopped), Err(Reason::CopyBound { copies: 2 })),
         (Err(Reason::CopyBound { copies: 30 }), Err(Reason::Stopped)),
     ] {
-        let pair = merged(
-            finished(forward, 30),
-            finished(backward, 2),
-            &options,
-            &limits,
-        );
+        let pair = merged(finished(forward, 30), finished(backward, 2));
         assert_eq!(pair.result, Err(Reason::Stopped));
     }
-    let refuted = merged(
-        finished(Ok(None), 4),
-        finished(Err(Reason::Stopped), 2),
-        &options,
-        &limits,
-    );
+    let refuted = merged(finished(Ok(None), 4), finished(Err(Reason::Stopped), 2));
     assert_eq!((refuted.result, refuted.statistics.copies), (Ok(None), 4));
     let mut proved = finished(Ok(Some(NodeId::new(0))), 2);
     proved.nodes = vec![Node::One(Member::from(OccId::new(0)))];
-    let pair = merged(
-        finished(Err(Reason::CopyBound { copies: 30 }), 30),
-        proved,
-        &options,
-        &limits,
-    );
+    let pair = merged(finished(Err(Reason::CopyBound { copies: 30 }), 30), proved);
     assert_eq!(
         (pair.result, pair.nodes.len(), pair.statistics.copies),
         (Ok(Some(NodeId::new(0))), 1, 2)

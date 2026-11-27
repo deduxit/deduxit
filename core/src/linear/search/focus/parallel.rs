@@ -94,10 +94,7 @@ pub(super) fn search_goal<Z: Zone>(
     let Some(second) = second else {
         let runtime = Lent::take(options.pool.as_ref(), options.threads(), stack)?;
         let finished = runtime.drive(stop, work, |flags| search(first, &runtime, account, flags));
-        return Ok(Finished {
-            result: finished.result.map_err(|r| r.as_set(options, limits)),
-            ..finished
-        });
+        return Ok(finished);
     };
     // Two pools, so that no thread of one search is ever busy with a task
     // of the other when its own search has decided. (A pool thread that
@@ -119,7 +116,7 @@ pub(super) fn search_goal<Z: Zone>(
         ),
         |finished: &Finished| finished.result.is_ok(),
     );
-    Ok(merged(forward, backward, options, limits))
+    Ok(merged(forward, backward))
 }
 
 impl Plan {

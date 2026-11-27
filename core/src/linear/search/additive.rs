@@ -112,7 +112,7 @@ pub(crate) fn search_goal(
         charged: 0,
         stop,
     };
-    let result = engine.pair(*x, *y).map_err(|r| r.as_set(options, limits));
+    let result = engine.pair(*x, *y);
     // The pairs since the last poll are work too, so the stop is told
     // them. Its answer is ignored: the search has ended.
     let _ = (engine.stop)(engine.statistics.nodes % PAIRS_PER_POLL);

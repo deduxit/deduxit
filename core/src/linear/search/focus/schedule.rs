@@ -23,8 +23,6 @@ use super::counts::Counts;
 use super::memo::{Interner, Memo, Table};
 use super::zone::Zone;
 use super::{Problem, Run, SetUp};
-#[cfg(feature = "parallel")]
-use crate::limits::Limits;
 use crate::linear::Instances;
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId};
@@ -52,7 +50,6 @@ pub(super) fn turns<Z: Zone>(
     searches: [(Plan, &Counts, &Account); 2],
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Finished {
-    let (options, limits) = (set_up.options, set_up.limits);
     let mut ended: [Option<Reason>; 2] = [None, None];
     let mut statistics = Statistics::default();
     // The forward search's level and the backward one's, apart.
@@ -117,7 +114,7 @@ pub(super) fn turns<Z: Zone>(
         }
         if let [Some(_), Some(backward)] = ended {
             return Finished {
-                result: Err(backward.as_set(options, limits)),
+                result: Err(backward),
                 nodes: Vec::new(),
                 statistics: leveled(statistics, levels, 1),
                 instances: None,
@@ -518,7 +515,7 @@ pub(super) fn alternate<Z: Zone>(
     work: &crate::linear::search::Work,
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Option<Finished> {
-    let (options, limits) = (set_up.options, set_up.limits);
+    let limits = set_up.limits;
     let baton = Baton::default();
     let (forward, backward) = std::thread::scope(|scope| {
         let baton = &baton;
@@ -587,7 +584,7 @@ pub(super) fn alternate<Z: Zone>(
             .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
         Some((forward, backward))
     })?;
-    Some(merged(forward, backward, options, limits))
+    Some(merged(forward, backward))
 }
 
 #[cfg(feature = "parallel")]
@@ -597,12 +594,7 @@ pub(super) fn alternate<Z: Zone>(
 /// The answer is a verdict of either. Without one, it is the stop, which
 /// is then the caller's; else the second search's reason. The counters
 /// are both searches' together.
-pub(super) fn merged(
-    first: Finished,
-    second: Finished,
-    options: &Options,
-    limits: &Limits,
-) -> Finished {
+pub(super) fn merged(first: Finished, second: Finished) -> Finished {
     let mut statistics = first.statistics;
     // The two memos were held at once.
     statistics.add_run(&second.statistics);
@@ -627,7 +619,7 @@ pub(super) fn merged(
         (Err(Reason::Stopped), _) | (_, Err(Reason::Stopped)) => {
             (Err(Reason::Stopped), Vec::new(), None)
         }
-        (Err(_), Err(reason)) => (Err(reason.as_set(options, limits)), Vec::new(), None),
+        (Err(_), Err(reason)) => (Err(reason), Vec::new(), None),
     };
     Finished {
         result,

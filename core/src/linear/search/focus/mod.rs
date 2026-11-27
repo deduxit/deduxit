@@ -235,7 +235,7 @@ fn search_goal<Z: Zone>(
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Finished {
     let forest = task.forest;
-    let gave_up = |r: Reason| Finished::gave_up(r.as_set(options, limits));
+    let gave_up = Finished::gave_up;
     let Some((classes, first, second)) = prepare(task, options, stop) else {
         return gave_up(Reason::Stopped);
     };
@@ -252,10 +252,7 @@ fn search_goal<Z: Zone>(
             Err(reason) => return gave_up(reason),
         };
         let (finished, _) = first.search::<Z>(set_up, &counts, account, Stop::Closure(stop));
-        return Finished {
-            result: finished.result.map_err(|r| r.as_set(options, limits)),
-            ..finished
-        };
+        return finished;
     };
     // Each search is charged what it reads, the classes included.
     let accounts = [account.share(2), account.share(2)];
