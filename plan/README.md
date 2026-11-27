@@ -8887,3 +8887,9 @@ move (D26).
   reviewer's four findings fixed. The behaviour lock reblessed in a commit of its own. Rebased onto
   `main` with no conflict; in CI before `main`. 87c9 (the command; F-7b-05 measured on the ILTP
   first-order rows) in its worker on 87b3's head, cores 4-6.
+- 2026-11-27, about 23:15: **Fable's roles move to Opus.** The account's weekly use is 53 % (Fable
+  53 %), six days before the reset. The reviewer and the panel's argument run on Opus 5.5 at `high`
+  for every agent not yet started (decided unattended: the half of the limit kept for Fable is
+  passed at this pace well before the reset). 87c9 splits in two (decided unattended, at its
+  worker's proposal): 87c9 takes F-7b-21, F-7b-17, F-7b-16, F-7a-14 and F-7b-05's baseline;
+  87c9b, in the same worker after it lands, takes the rest.
