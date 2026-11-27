@@ -1186,13 +1186,12 @@ pub(super) fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<S
         n => format!("{n} invertible steps"),
     };
     match refused {
-        Some(refusal) => Some(format!(
+        Some(Refusal::Memory { limit_bytes, .. }) => Some(format!(
             "{taken}, stopped by the memory limit of {} (--memory-limit raises it)",
-            match refusal {
-                Refusal::Memory { limit_bytes, .. } => bytes_text(*limit_bytes),
-                _ => refusal.to_string(),
-            }
+            bytes_text(*limit_bytes)
         )),
+        Some(Refusal::Stopped { .. }) => Some(format!("{taken}, then interrupted")),
+        Some(refusal) => Some(format!("{taken}, stopped: {refusal}")),
         None if steps == 0 => None,
         None => Some(taken),
     }

@@ -11,7 +11,7 @@
 
 use super::interactive::{Context, Interactive, Step};
 use super::{Logic, Node, NodeId, Rule, Side};
-use crate::limits::{Limits, Phase, Refusal};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::GoalId;
 use crate::linear::proofs::interactive::Inverted;
 
@@ -107,20 +107,54 @@ impl Interactive {
     /// [`StepError::NoGoal`](super::StepError::NoGoal) for a goal that is
     /// not open.
     pub fn invert(&mut self, goal: GoalId, limits: &Limits) -> Result<Inverted, super::StepError> {
+        self.invert_within(goal, limits, |_| false)
+    }
+
+    /// [`invert`](Self::invert), asking `stop` before each step: where it
+    /// fires the run ends there, the steps it took standing, and
+    /// [`Inverted::finished`] is [`Refusal::Stopped`]. In LK a shared `∧R`
+    /// doubles the goals at each step, so a run can be long before the
+    /// memory bound ends it.
+    ///
+    /// # Errors
+    ///
+    /// [`StepError::NoGoal`](super::StepError::NoGoal) for a goal that is
+    /// not open.
+    pub fn invert_within(
+        &mut self,
+        goal: GoalId,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Inverted, super::StepError> {
         self.goal(goal)?;
-        Ok(self.invert_goals(vec![goal], limits))
+        Ok(self.invert_goals(vec![goal], limits, &mut stop))
     }
 
     /// Applies the invertible rules to every open goal in turn, as
     /// [`invert`](Self::invert) does to one, all within one memory bound.
     pub fn invert_all(&mut self, limits: &Limits) -> Inverted {
+        self.invert_all_within(limits, |_| false)
+    }
+
+    /// [`invert_all`](Self::invert_all), asking `stop` before each step
+    /// as [`invert_within`](Self::invert_within) does.
+    pub fn invert_all_within(
+        &mut self,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Inverted {
         let goals = self.goals().collect();
-        self.invert_goals(goals, limits)
+        self.invert_goals(goals, limits, &mut stop)
     }
 
     /// Applies the invertible rules to the goals, depth first, within the
-    /// memory bound.
-    fn invert_goals(&mut self, goals: Vec<GoalId>, limits: &Limits) -> Inverted {
+    /// memory bound, asking the stop before each step.
+    fn invert_goals(
+        &mut self,
+        goals: Vec<GoalId>,
+        limits: &Limits,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Inverted {
         let mut todo: Vec<GoalId> = goals.into_iter().rev().collect();
         let (mut steps, mut open) = (0, Vec::new());
         // The bytes of the inferences the steps add, by the derivation's
@@ -129,6 +163,15 @@ impl Interactive {
         let mut held = 0u64;
         let mut widths = self.widths();
         while let Some(goal) = todo.pop() {
+            if stop(Progress::new(Phase::View, 1, steps as u64 + 1)) {
+                open.push(goal);
+                open.extend(todo.into_iter().rev());
+                return Inverted {
+                    steps,
+                    open,
+                    finished: Err(Refusal::Stopped { phase: Phase::View }),
+                };
+            }
             let Some(step) = self.invertible_step(goal) else {
                 open.push(goal);
                 continue;
@@ -200,6 +243,7 @@ impl Interactive {
 mod tests {
     use super::super::{Interactive, Logic, Options, Rule, Sequent, Side, Step, Verdict, decide};
     use crate::Limits;
+    use crate::limits::{Phase, Refusal};
     use crate::linear::proofs::GoalId;
 
     /// Returns whether the open goals of a session are all valid in its
@@ -301,5 +345,32 @@ mod tests {
         let mut left = inverted.open.clone();
         left.sort_unstable();
         assert_eq!(left, state.goals().collect::<Vec<_>>());
+    }
+
+    /// The stop ends a run before the step it fires at: the steps taken
+    /// stand, and every goal left is listed open.
+    #[test]
+    fn inverting_asks_the_stop() {
+        let sequent: Sequent = "a /\\ b, c /\\ d |- (a \\/ b) /\\ (c \\/ d) /\\ (a \\/ d)"
+            .parse()
+            .unwrap();
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        let mut asked = 0;
+        let inverted = state.invert_all_within(&Limits::default(), |progress| {
+            asked += 1;
+            progress.done > 2
+        });
+        assert_eq!(asked, 3);
+        assert_eq!(inverted.steps, 2);
+        assert!(matches!(
+            inverted.finished,
+            Err(Refusal::Stopped { phase: Phase::View })
+        ));
+        let mut left = inverted.open.clone();
+        left.sort_unstable();
+        assert_eq!(left, state.goals().collect::<Vec<_>>());
+        // Without a stop the same run goes to its end.
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        assert!(state.invert_all(&Limits::default()).finished.is_ok());
     }
 }

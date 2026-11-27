@@ -181,6 +181,14 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **The protocol's check of a first-order resolution asks the stop** at
   each step it makes again, and a stop leaves the refutation `open`; it
   ran to the end, and in a workspace no clock ends a call.
+- **The invertible rules of a session of LK or LJ can be stopped.**
+  `ordinary::Interactive::invert_within(goal, limits, stop)` and
+  `invert_all_within(limits, stop)` ask the stop before each step and
+  end there, the steps taken standing (`Inverted::finished` is
+  `Refusal::Stopped`); `invert` and `invert_all` are the same without a
+  stop. In LK a shared `∧R` doubles the goals at each step, so a run was
+  long before the memory bound ended it. Ctrl-C ends one in `interact
+  --logic`.
 
 ## [0.8.0] - 2026-11-23
 

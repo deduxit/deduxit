@@ -1749,6 +1749,13 @@ classical logic only (`Error::Logic`, which names the method).
   (n inferences of up to n formulas) pass: 100 atoms made 2.2 MB under a
   bound of 256 KiB, and a page's session too large to draw (the review
   of 54x7).
+- **The stop** (`invert_within`, `invert_all_within`; `invert` and
+  `invert_all` pass none): asked before each step with `Phase::View`, the
+  phase of the memory bound's refusal, a stop ending the run there with
+  the steps taken standing and every goal left open listed
+  (`Refusal::Stopped`, `inverting_asks_the_stop`). The command passes
+  Ctrl-C (`interact --logic`); the bindings have no stop to pass (a tab
+  ends a call by stopping its worker) and keep the short forms.
 - **`invertible_steps`** lists the goals the history's steps closed by
   an invertible rule: an axiom step is its goal's chain of weakenings
   (premises no other step closed) ending in the axiom, whose goal holds

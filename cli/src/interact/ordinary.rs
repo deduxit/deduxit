@@ -417,7 +417,12 @@ impl Session {
     fn invert_all(&mut self) -> Option<String> {
         self.invertible = true;
         let before = self.state.steps();
-        let inverted = self.state.invert_all(&self.limits);
+        // Ctrl-C ends a long run, the steps taken standing; a stop that
+        // ended an earlier command must not end this one.
+        clear_interrupt();
+        let inverted = self
+            .state
+            .invert_all_within(&self.limits, |_| interrupted());
         if inverted.steps > 0 {
             self.groups.push((before, self.state.steps()));
         }
@@ -432,8 +437,11 @@ impl Session {
             return Ok(self.opened(&opened));
         }
         let (mut steps, mut open, mut refused) = (0, Vec::new(), None);
+        clear_interrupt();
         for goal in opened {
-            let inverted = self.state.invert(goal, &self.limits)?;
+            let inverted = self
+                .state
+                .invert_within(goal, &self.limits, |_| interrupted())?;
             steps += inverted.steps;
             open.extend(inverted.open);
             refused = refused.or(inverted.finished.err());
