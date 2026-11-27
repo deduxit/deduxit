@@ -140,7 +140,10 @@ workspace graph builds on it.
   (part `clauses`), replays each step by `Clauses::infer` comparing its
   clause's and unifier's texts (part `refutation`, ending at `□`), and
   holds a derivation to the input and checks it. A saturated output is
-  `Limit` `incomplete`.
+  `Limit` `incomplete`. The replay asks the stop at each step and a stop
+  leaves part `refutation` `Open`: a workspace's run has no clock
+  (F-8-12); a binding cut at 4 096 bytes matches the document's whole
+  one (`same_bindings`).
 - **`ordinary.instances`** (feature `sat`; a classical statement to
   `ordinary.instances`, the `herbrand --format json` document, form
   `herbrand`): parameter `depth` (`null` for none); its `Limit` is the

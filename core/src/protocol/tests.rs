@@ -206,6 +206,36 @@ fn a_first_order_normal_form_keeps_its_promise() {
     }
 }
 
+/// The check of a first-order refutation asks the stop at each step it
+/// makes again, and a stop leaves the refutation open: in a workspace no
+/// clock ends a call.
+#[cfg(feature = "sat")]
+#[test]
+fn a_first_order_refutation_s_check_asks_the_stop() {
+    let sequent = ordinary(
+        "forall x. (p(x) -> q(f(x))), p(a) |- exists y. q(y)",
+        crate::ordinary::Logic::Classical,
+    );
+    let output = ran("ordinary.resolve", &[&sequent], "");
+    let held = checked("ordinary.resolve", &[&sequent], "", &output);
+    assert_eq!(held.status, Status::Held);
+    let stopped = check(
+        "ordinary.resolve",
+        &[&sequent],
+        "",
+        &output,
+        &settings(),
+        |p| p.phase == crate::Phase::Check,
+    )
+    .unwrap();
+    let refutation = stopped
+        .parts
+        .iter()
+        .find(|part| part.name == "refutation")
+        .unwrap();
+    assert_eq!(refutation.status, Status::Open);
+}
+
 /// A resolution decides a sequent's clauses by either method; its check
 /// holds the clauses to the input's and the refutation or model to the
 /// clauses, and fails a refutation changed after it was made.

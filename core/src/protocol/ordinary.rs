@@ -1707,7 +1707,14 @@ fn first_order_checked(
     let mut held = true;
     let mut last_empty = keys.inferences.as_ref().is_none_or(Vec::is_empty)
         && clauses.clauses().iter().any(|c| c.is_empty());
-    for step in keys.inferences.unwrap_or_default() {
+    // The steps are made again one by one, the stop asked at each: the
+    // check runs in a workspace, where no clock ends a call.
+    let mut stopped = false;
+    for (n, step) in keys.inferences.unwrap_or_default().into_iter().enumerate() {
+        if stop(Progress::new(crate::Phase::Check, 1, n as u64 + 1)) {
+            stopped = true;
+            break;
+        }
         match clauses.infer(step.step) {
             Ok(inference) => {
                 let same = clauses.text(inference.clause) == step.clause
@@ -1724,9 +1731,16 @@ fn first_order_checked(
     }
     parts.push(Part {
         name: "refutation".to_owned(),
-        status: status(held && last_empty),
+        status: if stopped {
+            Status::Open
+        } else {
+            status(held && last_empty)
+        },
         verdict: None,
     });
+    if stopped {
+        return Ok(Check::of(promise, parts));
+    }
     if let Some(mut derivation) = keys.derivation {
         if let Some(fields) = derivation.as_object_mut() {
             fields.insert("version".to_owned(), crate::wire::LEVEL.into());
