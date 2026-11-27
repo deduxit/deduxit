@@ -1976,7 +1976,7 @@ pub(crate) enum TermCommand {
     ///
     /// Each step replaces a redex (λx. M) N by M with N in place of x,
     /// renaming a λ where it would take in a free variable of its name; in
-    /// System F, a redex (ΛX. M) [A] by M with the type A in place of X.
+    /// System F, a redex `(ΛX. M) [A]` by M with the type A in place of X.
     /// The command prints each term, the redex its step reduces after `β:`,
     /// and the term reached. An untyped term need not have a normal form,
     /// such as (λx. x x) (λx. x x): the reduction then ends at --steps,
