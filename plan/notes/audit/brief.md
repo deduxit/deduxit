@@ -28,8 +28,12 @@ In the first tree (`A` below stands for it):
   budget, the public API's size, Clippy's allowed lints, lines).
 - `A/plan/notes/audit/rejected.md`: findings a verifier refuted. Do not
   raise one again unless you bring a witness it lacked.
-- `A/plan/notes/audit/handovers.md`: what the finders of earlier units
-  ask of later ones, by unit: pointers to look at, not findings.
+- `A/plan/notes/audit/handovers.md`: what the architecture reader and
+  the finders of earlier units ask of later ones, by unit: pointers to
+  look at, not findings.
+- `A/target/audit/units/UNIT/`: each finished unit's `findings.md` and
+  `verdicts.md`; `arch` is the architecture reader's, with its map of
+  the crate, `architecture.md`.
 - `A/.claude/rules/*.md`: the rules files. They record choices made on
   purpose, with their reasons. A finding against a recorded choice must
   say why its reason no longer holds.
