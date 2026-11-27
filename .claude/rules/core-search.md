@@ -391,7 +391,12 @@ copies they had are gone (F103, F104).
   `Error::UnknownName` in `prepare`, before `implementation`, whose arm
   for it is unreachable; it is not in `ALL` or `NAMES`, lists no
   counters, and `Engine`'s own `Deserialize` (an options value) still
-  refuses an unknown name.
+  refuses an unknown name. The name read is kept on the outcome
+  (`Outcome::named`, crate-private) and written back, so a workspace or
+  a tool that reads and writes an outcome again keeps it
+  (`an_unknown_engine_s_name_is_kept`; before 0.9.0 it became
+  `unknown`). That `Options::engine` takes `Unknown` at all is the type's,
+  for the 0.9.0 API (P8).
 - **One interface every engine implements** (`Decide`, crate-private):
   `admits(&task)` refuses a goal with the error a forced engine answers,
   `Error::EngineRefused { engine, because: NotTaken }`, checking in this

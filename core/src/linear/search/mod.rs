@@ -749,6 +749,7 @@ impl Answered<'_> {
             statistics: answer.statistics,
             net: answer.net.map(Box::new),
             checked,
+            named: None,
         })
     }
 }
@@ -3427,6 +3428,13 @@ pub struct Outcome {
     /// every verdict but a proof. In an outcome read from a document it is
     /// what the document says: [`Proof::check`] checks the proof.
     pub checked: bool,
+    /// The name a document gave the engine where `engine` is
+    /// [`Engine::Unknown`], so that the outcome is written back with it.
+    #[cfg_attr(
+        not(feature = "serialize"),
+        expect(dead_code, reason = "only the JSON forms read and write it")
+    )]
+    pub(crate) named: Option<Box<str>>,
 }
 
 /// What a search found: a proof, that there is none, or that it could not

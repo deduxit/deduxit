@@ -1290,3 +1290,22 @@ fn readers_build_their_sequent_within_the_caller_s_terms() {
         refused(wire::upgrade::<Interactive, _>(&document, &low).map(drop));
     }
 }
+
+/// An outcome naming an engine this build does not know is read, its
+/// engine `Unknown`, and written back with the name it was read with.
+#[test]
+fn an_unknown_engine_s_name_is_kept() {
+    use deduxit::linear::Outcome;
+    let sequent: Sequent = "|- a, ~a".parse().unwrap();
+    let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
+    let written = serde_json::to_string(&outcome).unwrap();
+    let later = written.replace(r#""engine":"focus""#, r#""engine":"later""#);
+    assert_ne!(later, written);
+    let read: Outcome = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(&later),
+        &Limits::default(),
+    )
+    .unwrap();
+    assert_eq!(read.engine, Engine::Unknown);
+    assert_eq!(serde_json::to_string(&read).unwrap(), later);
+}

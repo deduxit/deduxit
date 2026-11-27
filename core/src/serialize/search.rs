@@ -749,8 +749,9 @@ struct Outcome<'a> {
     fragment: &'static str,
     /// The mode searched in.
     mode: Mode,
-    /// The engine that ran.
-    engine: Engine,
+    /// The engine that ran, by its name: an engine this build does not
+    /// know keeps the name it was read with.
+    engine: &'a str,
     /// What the search cost.
     statistics: Statistics,
     /// The proof, for `proved`.
@@ -820,7 +821,10 @@ fn form(outcome: &Out, top: bool) -> Outcome<'_> {
         refutation,
         fragment: outcome.fragment.name_in(outcome.mode),
         mode: outcome.mode,
-        engine: outcome.engine,
+        engine: match (&outcome.engine, &outcome.named) {
+            (Engine::Unknown, Some(name)) => name,
+            (engine, _) => engine.name(),
+        },
         statistics: outcome.statistics,
         proof,
         disproof,
@@ -841,14 +845,17 @@ enum VerdictWord {
 
 /// An engine's name in an outcome read: an engine of this build, or
 /// [`Engine::Unknown`] for a name this build does not know, such as one
-/// a later version wrote.
-struct EngineRead(Engine);
+/// a later version wrote, with that name.
+struct EngineRead(Engine, Option<Box<str>>);
 
 impl<'a> Deserialize<'a> for EngineRead {
     /// Reads a name, never refusing one this build does not know.
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         let name = <std::borrow::Cow<'a, str>>::deserialize(deserializer)?;
-        Ok(Self(name.parse().unwrap_or(Engine::Unknown)))
+        Ok(match name.parse() {
+            Ok(engine) => Self(engine, None),
+            Err(_) => Self(Engine::Unknown, Some(name.into())),
+        })
     }
 }
 
@@ -935,6 +942,7 @@ impl OutcomeForm {
             statistics: self.statistics,
             net: None,
             checked,
+            named: self.engine.1,
         })
     }
 }
