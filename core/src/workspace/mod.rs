@@ -1505,17 +1505,28 @@ impl Workspace {
                     .for_each(remap);
             }
         }
-        self.index.clear();
-        for (at, record) in self.records.iter_mut().enumerate() {
-            if let Some(record) = record {
-                record.key.inputs.iter_mut().for_each(map);
-                record.output.iter_mut().for_each(map);
-                self.index.insert(
-                    record.key.clone(),
-                    RecordId(u32::try_from(at).unwrap_or(u32::MAX)),
-                );
-            }
+        for record in self.records.iter_mut().flatten() {
+            record.key.inputs.iter_mut().for_each(map);
+            record.output.iter_mut().for_each(map);
         }
+        self.reindex();
+    }
+
+    /// Makes the index of the records again from the records kept.
+    fn reindex(&mut self) {
+        self.index = self
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(at, r)| {
+                r.as_ref().map(|r| {
+                    (
+                        r.key.clone(),
+                        RecordId(u32::try_from(at).unwrap_or(u32::MAX)),
+                    )
+                })
+            })
+            .collect();
     }
 }
 

@@ -584,19 +584,7 @@ fn built(form: Form, limits: &Limits, trust: Trust) -> Result<Workspace, Error> 
     }
     workspace.at = form.log.at;
     replayed(&mut workspace, limits)?;
-    workspace.index = workspace
-        .records
-        .iter()
-        .enumerate()
-        .filter_map(|(at, r)| {
-            r.as_ref().map(|r| {
-                (
-                    r.key.clone(),
-                    RecordId(u32::try_from(at).unwrap_or(u32::MAX)),
-                )
-            })
-        })
-        .collect();
+    workspace.reindex();
     if trust == Trust::Claim {
         verify(&mut workspace)?;
     }
@@ -776,18 +764,6 @@ fn verify(workspace: &mut Workspace) -> Result<(), Error> {
             }
         }
     }
-    workspace.index = workspace
-        .records
-        .iter()
-        .enumerate()
-        .filter_map(|(at, r)| {
-            r.as_ref().map(|r| {
-                (
-                    r.key.clone(),
-                    RecordId(u32::try_from(at).unwrap_or(u32::MAX)),
-                )
-            })
-        })
-        .collect();
+    workspace.reindex();
     Ok(())
 }
