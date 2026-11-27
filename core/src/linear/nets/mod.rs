@@ -53,8 +53,11 @@
 pub mod cut;
 /// Essential nets: the directed criterion of intuitionistic structures.
 pub(crate) mod essential;
-/// The coloured structure graph and the criterion's tests on it.
+/// The coloured structure graph of a structure without boxes.
 mod graph;
+/// The graph searches both criteria run: bridges, Yeo's deletion rounds,
+/// a switching cycle's isolation.
+mod kernel;
 /// Proof nets of unit-free MELL with `!`-boxes.
 mod mell;
 /// From a proof net to a proof term.
@@ -62,7 +65,7 @@ mod sequentialize;
 /// The `⅋`-free skeleton as a union-find with undo.
 mod skeleton;
 
-pub use graph::Scratch;
+pub use kernel::Scratch;
 pub use mell::{MellStructure, Parts, Placed, Placement};
 
 use crate::Error;

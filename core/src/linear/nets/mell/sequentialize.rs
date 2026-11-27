@@ -29,11 +29,11 @@
 //! formula and its wires, and a link with the weakenings that hang on it
 //! is an axiom with more conclusions.
 
-use super::graph::Scratch;
 use super::{MellStructure, SCRATCH_BYTES, VERTEX_BYTES};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::fragment::Mode;
+use crate::linear::nets::kernel::Scratch;
 use crate::linear::nets::{NONE, STOPPED, VertexId, afford};
 use crate::linear::occurrences::{Member, OccId};
 use crate::linear::proofs::{Node, NodeId, Proof};
@@ -111,7 +111,7 @@ impl MellStructure {
         })?;
         let mut run = Sequentialization {
             net: self,
-            scratch: Scratch::new(&self.graph),
+            scratch: Scratch::of(&self.graph),
             nodes: Vec::with_capacity(self.len()),
             steps: Vec::new(),
             proved: Vec::new(),

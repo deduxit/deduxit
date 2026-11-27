@@ -241,7 +241,7 @@ impl Sequentialization<'_> {
             if f.kind(c) == Kind::Par {
                 gamma[i] = child(c, true);
                 gamma.push(child(c, false));
-                self.scratch.delete(c);
+                self.scratch.delete(c.get());
                 pars.push(c);
             } else {
                 i += 1;
@@ -262,25 +262,24 @@ impl Sequentialization<'_> {
             // then of `cuts`. Sorting the labels keeps a stage of many
             // parts near linear, where a search of the labels per
             // conclusion and a filter per part were quadratic.
-            let mut first: Vec<(OccId, usize)> = gamma
+            let mut first: Vec<(u32, usize)> = gamma
                 .iter()
                 .chain(&cuts)
                 .enumerate()
-                .map(|(i, &c)| (self.scratch.component(c), i))
+                .map(|(i, &c)| (self.scratch.component(c.get()), i))
                 .collect();
             first.sort_unstable();
             first.dedup_by_key(|&mut (label, _)| label);
-            let labels: Vec<OccId> = first.iter().map(|&(label, _)| label).collect();
+            let labels: Vec<u32> = first.iter().map(|&(label, _)| label).collect();
             first.sort_unstable_by_key(|&(_, i)| i);
             let mut parts: Vec<(Vec<OccId>, Vec<OccId>)> =
                 vec![(Vec::new(), Vec::new()); labels.len()];
-            let part_of =
-                |label: OccId| labels.binary_search(&label).expect("every label is listed");
+            let part_of = |label: u32| labels.binary_search(&label).expect("every label is listed");
             for &c in &gamma {
-                parts[part_of(self.scratch.component(c))].0.push(c);
+                parts[part_of(self.scratch.component(c.get()))].0.push(c);
             }
             for &c in &cuts {
-                parts[part_of(self.scratch.component(c))].1.push(c);
+                parts[part_of(self.scratch.component(c.get()))].1.push(c);
             }
             // The steps are taken from the last: the first part, then
             // every other one and the Mix that joins it to those before.
@@ -317,7 +316,7 @@ impl Sequentialization<'_> {
             };
             let (split, left_end, right_end) = match tensor {
                 Some(t) => {
-                    self.scratch.delete(t);
+                    self.scratch.delete(t.get());
                     (Step::Tensor(t), child(t, true), child(t, false))
                 }
                 None => {
@@ -336,7 +335,7 @@ impl Sequentialization<'_> {
                 if matches!(split, Step::Tensor(t) if t == c) {
                     continue;
                 }
-                if self.scratch.reached(c) {
+                if self.scratch.reached(c.get()) {
                     left.push(c);
                 } else {
                     right.push(c);
@@ -346,7 +345,7 @@ impl Sequentialization<'_> {
                 if matches!(split, Step::Cut(b) if b == a) {
                     continue;
                 }
-                if self.scratch.reached(a) {
+                if self.scratch.reached(a.get()) {
                     left_cuts.push(a);
                 } else {
                     right_cuts.push(a);

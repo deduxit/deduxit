@@ -47,8 +47,10 @@
 use super::{DOOR_BYTES, MOST, MellStructure, Nesting};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
+use crate::linear::nets::kernel::{self, Csr, Rounds, Scratch};
 use crate::linear::nets::{NONE, NetError, STOPPED, VertexId, afford};
 use crate::linear::sequents::Kind;
+use std::ops::Range;
 
 /// The graph of every box depth.
 #[derive(Clone, Debug, Default)]
@@ -85,6 +87,27 @@ struct Depth {
     vertices: u64,
     /// The edges every switching keeps there.
     kept: u64,
+}
+
+impl Csr for Graph {
+    fn start(&self) -> &[u32] {
+        &self.start
+    }
+
+    fn to(&self) -> &[u32] {
+        &self.to
+    }
+}
+
+impl Rounds for Graph {
+    fn deciding(&self, v: u32) -> Range<usize> {
+        let slots = self.slots(v);
+        if self.switched[v as usize] {
+            slots.start..slots.start + 1
+        } else {
+            slots
+        }
+    }
 }
 
 /// What the construction gathers before it lays the slots out.
@@ -404,8 +427,8 @@ impl Graph {
     }
 
     /// Returns the slots of a vertex.
-    fn slots(&self, v: u32) -> std::ops::Range<usize> {
-        self.start[v as usize] as usize..self.start[v as usize + 1] as usize
+    fn slots(&self, v: u32) -> Range<usize> {
+        kernel::slots(self, v)
     }
 
     /// Returns the `?` vertices with a door in the box of `bang`, sorted.
@@ -453,7 +476,7 @@ impl Graph {
         mix: bool,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), NetError> {
-        let mut scratch = Scratch::new(self);
+        let mut scratch = Scratch::of(self);
         let held_bytes = self.len() as u64 * super::SCRATCH_BYTES;
         let mut rounds = 0;
         let mut stop = |round: u64| {
@@ -463,10 +486,10 @@ impl Graph {
                 ..Progress::new(Phase::Net, round, rounds)
             })
         };
-        match self.acyclic(&mut scratch, &mut stop) {
+        match kernel::acyclic(self, &mut scratch, &mut stop) {
             None => return Err(STOPPED),
             Some(false) => {
-                let Some(cycle) = self.cycle(&mut scratch, &mut stop) else {
+                let Some(cycle) = kernel::cycle(self, &mut scratch, &mut stop) else {
                     return Err(STOPPED);
                 };
                 let level = self.level[cycle[0] as usize];
@@ -494,171 +517,14 @@ impl Graph {
         Ok(())
     }
 
-    /// Searches depth-first, over the edges not removed, from each of
-    /// `roots` that is not deleted and not yet reached. Records for every
-    /// vertex reached its discovery time, its search-tree parent, the root
-    /// that reached it, and whether the edge to its search-tree parent is
-    /// a bridge. Returns the number of search trees.
+    /// Searches depth-first from each of `roots` in turn
+    /// ([`kernel::search`]) and returns the number of search trees.
     pub(super) fn search(
         &self,
         scratch: &mut Scratch,
         roots: impl IntoIterator<Item = u32>,
     ) -> u32 {
-        scratch.disc.fill(NONE);
-        let mut time = 0;
-        let mut trees = 0;
-        for r in roots {
-            if scratch.deleted[r as usize] || scratch.disc[r as usize] != NONE {
-                continue;
-            }
-            trees += 1;
-            self.discover(scratch, r, NONE, r, &mut time);
-            while let Some(&(v, next)) = scratch.stack.last() {
-                if next < self.start[v as usize + 1] {
-                    scratch.stack.last_mut().unwrap().1 = next + 1;
-                    let w = self.to[next as usize];
-                    if w == NONE
-                        || scratch.removed[next as usize]
-                        || scratch.deleted[w as usize]
-                        || w == scratch.dfs_parent[v as usize]
-                    {
-                        continue;
-                    }
-                    if scratch.disc[w as usize] == NONE {
-                        self.discover(scratch, w, v, r, &mut time);
-                    } else {
-                        let (lv, dw) = (scratch.low[v as usize], scratch.disc[w as usize]);
-                        scratch.low[v as usize] = lv.min(dw);
-                    }
-                } else {
-                    scratch.stack.pop();
-                    let p = scratch.dfs_parent[v as usize];
-                    if p != NONE {
-                        let (lp, lv) = (scratch.low[p as usize], scratch.low[v as usize]);
-                        scratch.low[p as usize] = lp.min(lv);
-                        scratch.bridge[v as usize] = lv > scratch.disc[p as usize];
-                    }
-                }
-            }
-        }
-        trees
-    }
-
-    /// Enters a vertex in the search: from `parent`, in the tree of `root`.
-    fn discover(&self, scratch: &mut Scratch, v: u32, parent: u32, root: u32, time: &mut u32) {
-        scratch.disc[v as usize] = *time;
-        scratch.low[v as usize] = *time;
-        *time += 1;
-        scratch.dfs_parent[v as usize] = parent;
-        scratch.component[v as usize] = root;
-        scratch.bridge[v as usize] = false;
-        scratch.stack.push((v, self.start[v as usize]));
-    }
-
-    /// Returns whether the slot's edge is there: its other end exists and
-    /// is not deleted, and the edge is not removed.
-    fn present(&self, scratch: &Scratch, slot: usize) -> bool {
-        let w = self.to[slot];
-        w != NONE && !scratch.removed[slot] && !scratch.deleted[w as usize]
-    }
-
-    /// Returns whether a vertex may be deleted according to the last
-    /// search: it is switched and its parent edge is absent or a bridge, or
-    /// it is not and all its edges are bridges.
-    fn deletable(&self, scratch: &Scratch, v: u32) -> bool {
-        let mut slots = self.slots(v);
-        if self.switched[v as usize] {
-            slots.end = slots.start + 1;
-        }
-        slots.all(|i| !self.present(scratch, i) || scratch.is_bridge(v, self.to[i]))
-    }
-
-    /// Runs the deletion procedure of Yeo's theorem on the vertices not
-    /// yet deleted: each round deletes every deletable vertex. Asks `stop`
-    /// before each round. Returns whether every vertex went; if not, a
-    /// switching cycle runs among those left. `None` when `stop` fired.
-    fn acyclic(&self, scratch: &mut Scratch, stop: &mut dyn FnMut(u64) -> bool) -> Option<bool> {
-        let n = self.len();
-        let mut remaining = scratch.deleted.iter().filter(|&&d| !d).count();
-        while remaining > 0 {
-            if stop(1) {
-                return None;
-            }
-            self.search(scratch, 0..n as u32);
-            let before = remaining;
-            for v in 0..n as u32 {
-                if !scratch.deleted[v as usize] && self.deletable(scratch, v) {
-                    scratch.deleted[v as usize] = true;
-                    remaining -= 1;
-                }
-            }
-            if remaining == before {
-                return Some(false);
-            }
-        }
-        Some(true)
-    }
-
-    /// Returns the slot at `w` of the edge to `v`.
-    fn twin(&self, v: u32, w: u32) -> usize {
-        self.slots(w)
-            .find(|&s| self.to[s] == v)
-            .expect("the edge exists at both ends")
-    }
-
-    /// Returns the vertices of one switching cycle, in order along it.
-    /// [`acyclic`](Self::acyclic) must just have got stuck, and the cycle
-    /// lies among the vertices it left. Each edge among them is taken out
-    /// in turn, and stays out when a cycle survives without it; that leaves
-    /// exactly one cycle. `None` when `stop` fired.
-    fn cycle(&self, scratch: &mut Scratch, stop: &mut dyn FnMut(u64) -> bool) -> Option<Vec<u32>> {
-        let n = self.len();
-        scratch.stuck.clone_from(&scratch.deleted);
-        for v in 0..n as u32 {
-            for s in self.slots(v) {
-                let w = self.to[s];
-                if w == NONE
-                    || w < v
-                    || scratch.removed[s]
-                    || scratch.stuck[v as usize]
-                    || scratch.stuck[w as usize]
-                {
-                    continue;
-                }
-                let t = self.twin(v, w);
-                scratch.removed[s] = true;
-                scratch.removed[t] = true;
-                scratch.deleted.clone_from(&scratch.stuck);
-                let acyclic = self.acyclic(scratch, stop)?;
-                if acyclic {
-                    scratch.removed[s] = false;
-                    scratch.removed[t] = false;
-                } else {
-                    scratch.stuck.clone_from(&scratch.deleted);
-                }
-            }
-        }
-        let first = (0..n as u32)
-            .find(|&v| !scratch.stuck[v as usize])
-            .expect("a switching cycle is left");
-        let mut cycle = Vec::new();
-        let (mut previous, mut current) = (NONE, first);
-        loop {
-            cycle.push(current);
-            let next = self
-                .slots(current)
-                .map(|s| (s, self.to[s]))
-                .find(|&(s, w)| {
-                    w != NONE && w != previous && !scratch.removed[s] && !scratch.stuck[w as usize]
-                })
-                .map(|(_, w)| w)
-                .expect("every vertex of the cycle has two edges on it");
-            if next == first {
-                break;
-            }
-            (previous, current) = (current, next);
-        }
-        Some(cycle)
+        kernel::search(self, scratch, roots)
     }
 
     /// Returns the connected components of one depth under the switching
@@ -669,14 +535,14 @@ impl Graph {
     /// The components come in the order of their smallest vertex.
     fn parts(&self, scratch: &mut Scratch, level: u32) -> Vec<Vec<VertexId>> {
         let n = self.len();
-        scratch.deleted.fill(false);
+        scratch.restore();
         scratch.removed.fill(false);
         for v in 0..n as u32 {
             if self.switched[v as usize] {
                 for s in self.slots(v).skip(2) {
                     let w = self.to[s];
                     scratch.removed[s] = true;
-                    scratch.removed[self.twin(v, w)] = true;
+                    scratch.removed[kernel::twin(self, v, w)] = true;
                 }
             }
         }
@@ -690,7 +556,7 @@ impl Graph {
             if self.to[first] != NONE && !scratch.removed[first] {
                 continue;
             }
-            let label = scratch.component[v as usize];
+            let label = scratch.component(v);
             if index[label as usize] == NONE {
                 index[label as usize] = parts.len() as u32;
                 parts.push((label, Vec::new()));
@@ -700,71 +566,5 @@ impl Graph {
         scratch.removed.fill(false);
         parts.sort_by_key(|(label, _)| *label);
         parts.into_iter().map(|(_, part)| part).collect()
-    }
-}
-
-/// Working memory for the criterion's tests and the sequentialization's
-/// searches on one graph.
-pub(super) struct Scratch {
-    /// The vertices the deletion procedure has removed.
-    deleted: Vec<bool>,
-    /// The vertices deleted when the procedure got stuck, kept while a
-    /// cycle is isolated among the others.
-    stuck: Vec<bool>,
-    /// Per slot, whether the edge is taken out of the graph.
-    removed: Vec<bool>,
-    /// Per vertex, its discovery time in the last search, or `NONE`.
-    disc: Vec<u32>,
-    /// Per vertex, the least discovery time it reaches through its
-    /// search-tree descendants and one back edge.
-    low: Vec<u32>,
-    /// Per vertex, its parent in the search tree, or `NONE`.
-    dfs_parent: Vec<u32>,
-    /// Per vertex, whether the edge to its search-tree parent is a bridge.
-    bridge: Vec<bool>,
-    /// Per vertex, the root of the search tree that reached it.
-    component: Vec<u32>,
-    /// The search stack: a vertex and its next slot.
-    stack: Vec<(u32, u32)>,
-}
-
-impl Scratch {
-    /// Returns working memory for a graph.
-    pub(super) fn new(graph: &Graph) -> Self {
-        let n = graph.len();
-        Self {
-            deleted: vec![false; n],
-            stuck: vec![false; n],
-            removed: vec![false; graph.to.len()],
-            disc: vec![NONE; n],
-            low: vec![NONE; n],
-            dfs_parent: vec![NONE; n],
-            bridge: vec![false; n],
-            component: vec![NONE; n],
-            stack: Vec::with_capacity(n),
-        }
-    }
-
-    /// Takes a vertex out of the graph.
-    pub(super) fn delete(&mut self, v: u32) {
-        self.deleted[v as usize] = true;
-    }
-
-    /// Returns whether the last search reached the vertex.
-    pub(super) fn reached(&self, v: u32) -> bool {
-        self.disc[v as usize] != NONE
-    }
-
-    /// Returns the root of the search tree that reached the vertex in the
-    /// last search.
-    pub(super) fn component(&self, v: u32) -> u32 {
-        self.component[v as usize]
-    }
-
-    /// Returns whether the edge between two adjacent vertices is a bridge
-    /// according to the last search, which reached both.
-    pub(super) fn is_bridge(&self, v: u32, w: u32) -> bool {
-        (self.dfs_parent[w as usize] == v && self.bridge[w as usize])
-            || (self.dfs_parent[v as usize] == w && self.bridge[v as usize])
     }
 }
