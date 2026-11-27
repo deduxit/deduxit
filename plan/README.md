@@ -8738,3 +8738,17 @@ move (D26).
   runs for hours first. 87r1 to 87r4 (the Rocq library) in step 85's worker, cores 10-12; 87a
   (journeys and pins) in step 84's worker once fixup-31 is on `main`, cores 4-9. The table's row 87
   ("after 86 and the author's sign-off") holds for part 2 only.
+- 2026-11-27, about 11:13: **fixup-31 reviewed and pushed; 87a started.** (Opus, high; the full panel,
+  the reviewer on Fable.) F-4d-01: the Kripke check reads `=` as identity at every world and refuses a
+  world that lists it, so the audit's forged refutation of `⊢ a = a` is refused at the library, the
+  command and the protocol, and a correct model with `=` is still accepted. The Rocq side: every
+  certificate of a countermodel of a sequent with `=` true somewhere did not compile in 0.8.0 (the
+  exporter listed no `=` facts); it now writes the diagonal, and four such certificates compile
+  "with no axiom"; nothing false was ever certified, and rocq-deduxit needs no change. F-4c-01:
+  resolution's read-back held to the terms bound, the memory bound (charged before it writes) and
+  the stop. The panel's older finding: the model search with `=` and a size bound looped to
+  `u32::MAX` levels and panicked; it now ends at the size bound. The panel: no counterexample in 3.5
+  million random models and 452 760 forged documents. Full check passed; pushed (`kmxoxyxv`, the
+  refactor's base). **For the author:** 0.8.0's Kripke check accepted such a forged document, and its
+  certificates with `=` did not compile; whether that warrants a 0.8.1 before 0.9.0 is theirs to
+  say. 87a has its go (cores 4-9).
