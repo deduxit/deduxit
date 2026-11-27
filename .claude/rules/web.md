@@ -80,6 +80,10 @@ for `THIRD-PARTY-NOTICES.txt`.
 - **An intuitionistic net is drawn essential** (`draw_net` sets
   `styles.svg.essential` in an intuitionistic mode): the plain drawing of
   the one-sided net writes classical formulas.
+- **`refutation_checked`** (`prove`, `close`) is `Disproof::check_within`
+  under the settings' limits: `true` or `false` for an unprovable
+  outcome, `null` for any other and where a bound ended the check, which
+  is no verdict on the refutation.
 - `web/tests/calls.rs`'s `no_intuitionistic_text_writes_a_classical_symbol`
   is the bindings' share of the property that no intuitionistic output
   has a classical symbol (the library's and the command's are their
@@ -173,7 +177,12 @@ for `THIRD-PARTY-NOTICES.txt`.
   `invertible` lists every closed inference whose rule is invertible on
   its conclusion, whoever took it (the session does not record who):
   the page's undo with the toggle on goes past them to the nearest step
-  that is not one. A replay must run with the setting off, or every
+  that is not one. It and `cuts` are read off one derivation per view
+  (`View::of` takes the settings), its size bounded by the tab's
+  `limits.memory_bytes` in place of `limits.derivation_bytes`, since the
+  page replays from them whether or not it can draw the tree; past that
+  bound both lists are empty. `derivation_within` charges no memory, so
+  the size is the only bound there is. A replay must run with the setting off, or every
   replayed step would apply the invertible rules again and the recorded
   ones would find their goals closed. A hint's `invertible` is the
   library's judgement of its last step, for the ladder's first rung.

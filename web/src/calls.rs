@@ -412,8 +412,21 @@ fn opened_with(state: &Interactive) -> Vec<OpenedWith> {
 }
 
 impl View {
-    /// Returns the view of a session.
-    fn of(state: &Interactive) -> Self {
+    /// Returns the view of a session. Its derivation is built once for
+    /// the replay lists, `invertible` and `cuts`, which the page needs
+    /// whether or not it can draw the tree: so its size is bounded by the
+    /// tab's memory, not by `limits.derivation_bytes`. Past it the two
+    /// lists are empty.
+    fn of(state: &Interactive, settings: &Settings) -> Self {
+        let derivation = state
+            .derivation_within(
+                &deduxit::linear::ViewOptions::default(),
+                &settings
+                    .limits
+                    .with_derivation_bytes(settings.limits.memory_bytes),
+                never,
+            )
+            .ok();
         let reading = state.reading();
         let fragment = state.sequent().fragment();
         let goals = state
@@ -452,8 +465,14 @@ impl View {
             steps: state.steps(),
             goals,
             inferences: state.derivation_ids(),
-            invertible: invertible_steps(state),
-            cuts: cuts_made(state),
+            invertible: derivation
+                .as_ref()
+                .map(|derivation| invertible_steps(state, derivation))
+                .unwrap_or_default(),
+            cuts: derivation
+                .as_ref()
+                .map(|derivation| cuts_made(state, derivation))
+                .unwrap_or_default(),
             net: nets_exist(fragment, state.mode())
                 .err()
                 .and_then(|refusal| serde_json::to_value(Error::from(refusal)).ok()),
@@ -474,15 +493,9 @@ struct CutMade {
     formula: String,
 }
 
-/// Returns a session's cuts with their formulas as typed.
-fn cuts_made(state: &Interactive) -> Vec<CutMade> {
-    let Ok(derivation) = state.derivation_within(
-        &deduxit::linear::ViewOptions::default(),
-        &deduxit::Limits::default().with_derivation_bytes(None),
-        never,
-    ) else {
-        return Vec::new();
-    };
+/// Returns a session's cuts with their formulas as typed, read off its
+/// derivation.
+fn cuts_made(state: &Interactive, derivation: &deduxit::linear::Derivation<'_>) -> Vec<CutMade> {
     (derivation.inferences().iter())
         .zip(state.derivation_ids())
         .filter_map(|(inference, goal)| {
@@ -500,15 +513,11 @@ fn cuts_made(state: &Interactive) -> Vec<CutMade> {
 }
 
 /// Returns the closed inferences of a session whose rule is invertible on
-/// their conclusion, in order.
-fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
-    let Ok(derivation) = state.derivation_within(
-        &deduxit::linear::ViewOptions::default(),
-        &deduxit::Limits::default().with_derivation_bytes(None),
-        never,
-    ) else {
-        return Vec::new();
-    };
+/// their conclusion, in order, read off its derivation.
+fn invertible_steps(
+    state: &Interactive,
+    derivation: &deduxit::linear::Derivation<'_>,
+) -> Vec<GoalId> {
     let mut found: Vec<GoalId> = (derivation.inferences().iter())
         .zip(state.derivation_ids())
         .filter(|(inference, _)| {
@@ -535,10 +544,14 @@ struct Changed<'a, T: Serialize> {
 }
 
 /// Returns a session's document with its view and what a call said.
-fn changed(state: &Interactive, said: impl Serialize) -> Result<String, Failure> {
+fn changed(
+    state: &Interactive,
+    settings: &Settings,
+    said: impl Serialize,
+) -> Result<String, Failure> {
     written(&Changed {
         session: state,
-        view: View::of(state),
+        view: View::of(state, settings),
         said,
     })
 }
@@ -581,7 +594,7 @@ pub fn start(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
     if settings.interactive.invertible {
         automatic.add(state.invert_all(&inverting(&settings)));
     }
-    changed(&state, automatic)
+    changed(&state, &settings, automatic)
 }
 
 /// Returns what the page shows of a session: the `view` that every call
@@ -593,7 +606,7 @@ pub fn start(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
 pub fn view(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    written(&View::of(&state))
+    written(&View::of(&state, &settings))
 }
 
 /// A rule a formula takes, as the page lists it.
@@ -898,7 +911,7 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
             opened.extend(automatic.add(inverted));
         }
     }
-    changed(&state, Opened { opened, automatic })
+    changed(&state, &settings, Opened { opened, automatic })
 }
 
 /// Cuts an open goal on a formula and returns the session with the two
@@ -947,7 +960,7 @@ pub fn cut(
             opened.extend(automatic.add(inverted));
         }
     }
-    changed(&state, Opened { opened, automatic })
+    changed(&state, &settings, Opened { opened, automatic })
 }
 
 /// Applies every invertible rule to every open goal
@@ -963,7 +976,7 @@ pub fn invert_all(session: &str, settings: &str) -> Result<String, Failure> {
     let mut state = session_of(session, &settings)?;
     let mut automatic = Automatic::default();
     automatic.add(state.invert_all(&inverting(&settings)));
-    changed(&state, automatic)
+    changed(&state, &settings, automatic)
 }
 
 /// Closes an open goal with the proof of another finished session, such
@@ -1004,6 +1017,7 @@ pub fn fill(session: &str, goal: u32, source: &str, settings: &str) -> Result<St
         .map_err(|e| Failure::described(&e, &state))?;
     changed(
         &state,
+        &settings,
         Filled {
             filled: GoalId::new(goal),
         },
@@ -1035,7 +1049,7 @@ pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     let reopened = state.undo();
-    changed(&state, Reopened { reopened })
+    changed(&state, &settings, Reopened { reopened })
 }
 
 /// What closing a goal did.
@@ -1048,7 +1062,8 @@ struct Closing {
     /// open.
     refused: Option<serde_json::Value>,
     /// For an unprovable goal, whether its refutation passed
-    /// `Disproof::check`. `null` otherwise.
+    /// `Disproof::check_within` under the settings' limits. `null`
+    /// otherwise, and where a bound ended the check.
     refutation_checked: Option<bool>,
 }
 
@@ -1074,8 +1089,9 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
     let refused = closed.grafted.err().map(refusal);
     changed(
         &state,
+        &settings,
         Closing {
-            refutation_checked: refutation_checked(&closed.outcome),
+            refutation_checked: refutation_checked(&closed.outcome, &settings.limits),
             outcome: closed.outcome,
             refused,
         },
@@ -1153,7 +1169,7 @@ pub fn close_all(session: &str, settings: &str) -> Result<String, Failure> {
             },
         });
     }
-    changed(&state, All { results })
+    changed(&state, &settings, All { results })
 }
 
 /// What a hint found.
@@ -1452,7 +1468,8 @@ struct Decided {
     /// The outcome, as `prove --format json` writes it.
     outcome: Outcome,
     /// For an unprovable sequent, whether the refutation passed its own
-    /// checker, `Disproof::check`. `null` otherwise.
+    /// checker, `Disproof::check_within` under the settings' limits.
+    /// `null` otherwise, and where a bound ended the check.
     refutation_checked: Option<bool>,
 }
 
@@ -1470,7 +1487,7 @@ pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
         deduxit::linear::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
             .map_err(Failure::from)?;
     written(&Decided {
-        refutation_checked: refutation_checked(&outcome),
+        refutation_checked: refutation_checked(&outcome, &settings.limits),
         outcome,
     })
 }
@@ -1766,11 +1783,25 @@ pub fn index(number: f64, what: &str) -> Result<u32, Failure> {
 }
 
 /// Returns, for an unprovable outcome, whether its refutation passes its
-/// own checker.
-fn refutation_checked(outcome: &Outcome) -> Option<bool> {
+/// own checker within the settings' limits: `None` for any other verdict,
+/// and where a bound ended the check before it decided.
+fn refutation_checked(outcome: &Outcome, limits: &deduxit::Limits) -> Option<bool> {
     match &outcome.verdict {
-        Verdict::Unprovable(disproof) => Some(disproof.check().is_ok()),
+        Verdict::Unprovable(disproof) => disproof_checked(disproof, limits),
         _ => None,
+    }
+}
+
+/// Returns whether a refutation passes its own checker within `limits`,
+/// or `None` where a bound ended the check.
+fn disproof_checked(
+    disproof: &deduxit::linear::Disproof,
+    limits: &deduxit::Limits,
+) -> Option<bool> {
+    match disproof.check_within(limits, never) {
+        Ok(()) => Some(true),
+        Err(Error::Refused(_)) => None,
+        Err(_) => Some(false),
     }
 }
 
@@ -2611,4 +2642,26 @@ pub fn net_eliminate(session: &str, net: &str, settings: &str) -> Result<String,
         undrawn: drawings.undrawn,
         reached: NetView::of(&reached, mode, &settings),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::disproof_checked;
+    use deduxit::linear::search::{Refutation, Saturated};
+    use deduxit::linear::{Disproof, Mode, Sequent, Sign};
+
+    /// A refutation is checked within the tab's limits: one whose check
+    /// passes the work bound is not called checked, and not failed
+    /// either, where the check once ran unbounded and said it held.
+    #[test]
+    fn a_refutation_is_checked_within_the_limits() {
+        let pairs = ["(a & a)"; 18].join(" | ");
+        let sequent: Sequent = format!("|- {pairs}").parse().unwrap();
+        let set = Saturated::new(vec![Sign::Dual], vec![]);
+        let disproof = Disproof::new(sequent, Mode::CLASSICAL, Refutation::Saturated(set));
+        let limits = deduxit::Limits::default();
+        assert_eq!(disproof_checked(&disproof, &limits), Some(true));
+        let bounded = limits.with_work(Some(1));
+        assert_eq!(disproof_checked(&disproof, &bounded), None);
+    }
 }

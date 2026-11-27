@@ -374,6 +374,25 @@ fn following_the_hints_proves_a_sequent() {
     }
 }
 
+/// The view's lists keep to the tab's memory bound: a session whose
+/// derivation passes it lists no invertible step, where the view built it
+/// under the library's gibibyte.
+#[wasm_bindgen_test(unsupported = test)]
+fn the_view_keeps_to_the_tab_s_memory() {
+    let atoms: Vec<String> = (1..=600).map(|i| format!("a{i}")).collect();
+    let sequent = format!("|- {}", atoms.join(" par "));
+    let on = settings(&json!({"interactive": {"invertible": true}}));
+    let started = value(&calls::start(&sequent, "classical", &on).unwrap());
+    let state = started["session"].to_string();
+    let listed = |settings: &str| {
+        let view = value(&calls::view(&state, settings).unwrap());
+        view["invertible"].as_array().unwrap().len()
+    };
+    assert_eq!(listed(""), 599);
+    let small = settings(&json!({"limits": {"memory_bytes": 1 << 20}}));
+    assert_eq!(listed(&small), 0);
+}
+
 /// With `interactive.invertible` on, starting and every step apply the
 /// invertible rules, and the view names the inferences they closed. A
 /// hint says whether its rule is invertible, and following the hints
