@@ -1720,6 +1720,23 @@ impl Image {
     }
 }
 
+/// Returns the first eigenvariable number past every one the arena
+/// holds: a sequent over a derivation's or a session's arena holds its
+/// eigenvariables as parameters, and a proof's own are numbered past them.
+pub(super) fn next_eigen(formulas: &Formulas) -> u32 {
+    use crate::first_order::FoTerm;
+    formulas
+        .first_order()
+        .terms
+        .iter()
+        .filter_map(|t| match *t {
+            FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
+            FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
+        })
+        .max()
+        .unwrap_or(0)
+}
+
 /// The size of an arena as the read-back charges it: its nodes, terms,
 /// argument lists and atoms with their keys, each with the hash entry that
 /// finds it.
@@ -1923,15 +1940,7 @@ impl<'a> Instances<'a> {
             // (a sequent over a derivation's arena holds some), which the
             // image reads as constants of symbols past the arena's.
             let tables = arena.first_order();
-            let offset = tables
-                .terms
-                .iter()
-                .filter_map(|t| match *t {
-                    FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
-                    FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
-                })
-                .max()
-                .unwrap_or(0);
+            let offset = next_eigen(arena);
             let symbols = tables.symbols.len();
             let both = crate::linear::occurrences::instances::Terms { fo, table };
             terms.reserve(table.terms.len());

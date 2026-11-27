@@ -60,6 +60,36 @@ pub(super) struct Counts {
     pub(super) path_length: u32,
 }
 
+impl Counts {
+    /// Returns the counts as the prover's statistics.
+    pub(super) const fn statistics(&self) -> super::Statistics {
+        super::Statistics {
+            steps: self.steps,
+            extensions: self.extensions,
+            reductions: self.reductions,
+            lemmata: self.lemmata,
+            path_length: self.path_length,
+        }
+    }
+}
+
+/// Returns the reason a refusal of the matrix's build ends a prover
+/// with, as the same refusal of the search would: the stop or the memory
+/// bound; any other error stays an error.
+///
+/// # Errors
+///
+/// Any error but the stop's and the memory bound's refusal.
+pub(super) fn build_ended(error: Error) -> Result<Reason, Error> {
+    if let Error::Refused(crate::Refusal::Memory { limit_bytes, .. }) = error {
+        Ok(Reason::MemoryLimit { limit_bytes })
+    } else if matches!(error, Error::Refused(crate::Refusal::Stopped { .. })) {
+        Ok(Reason::Stopped)
+    } else {
+        Err(error)
+    }
+}
+
 /// How a search ended.
 #[derive(Debug)]
 pub(super) enum End<F> {

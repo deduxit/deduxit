@@ -48,9 +48,9 @@ mod terms;
 mod tests;
 
 use super::{Evidence, Logic, Method, Sequent, Verdict};
+use crate::Error;
 use crate::limits::{Limits, Progress};
 use crate::linear::search::{self, Reason};
-use crate::{Error, Refusal};
 
 /// What the connection prover counted.
 #[non_exhaustive]
@@ -110,9 +110,9 @@ pub struct Outcome {
 ///
 /// [`Error::Logic`] for minimal logic; [`Error::Succedents`] for an
 /// intuitionistic sequent with more than one formula right of `⊢`;
-/// [`Refusal::Occurrences`] for a sequent that
+/// [`Refusal::Occurrences`](crate::Refusal::Occurrences) for a sequent that
 /// unfolds past `limits.occurrences` (an equivalence's operands unfold
-/// twice); [`Refusal::Terms`] where an instance the read-back builds
+/// twice); [`Refusal::Terms`](crate::Refusal::Terms) where an instance the read-back builds
 /// would pass `limits.terms`; and [`Error::ReadBack`] where a proof does
 /// not read back or its derivation fails the check, a defect. Another
 /// bound or the stop that ends the read-back or the check is no error:
@@ -162,11 +162,7 @@ fn run(
     };
     let matrix = match matrix::Matrix::of(sequent, limits, &mut *stop) {
         Ok(matrix) => matrix,
-        Err(Error::Refused(Refusal::Stopped { .. })) => return Ok(unknown(Reason::Stopped)),
-        Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => {
-            return Ok(unknown(Reason::MemoryLimit { limit_bytes }));
-        }
-        Err(error) => return Err(error),
+        Err(error) => return Ok(unknown(prove::build_ended(error)?)),
     };
     let config = prove::Config {
         path_length: options.path_length,
@@ -207,12 +203,6 @@ fn run(
     Ok(Outcome {
         verdict,
         logic,
-        statistics: Statistics {
-            steps: counts.steps,
-            extensions: counts.extensions,
-            reductions: counts.reductions,
-            lemmata: counts.lemmata,
-            path_length: counts.path_length,
-        },
+        statistics: counts.statistics(),
     })
 }

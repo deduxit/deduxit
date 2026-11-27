@@ -175,16 +175,7 @@ pub(super) fn read_back(
 ) -> Result<Derivation, Error> {
     let formulas = sequent.formulas().clone();
     // The eigenvariables of the arena are parameters: number past them.
-    let base = formulas
-        .first_order()
-        .terms
-        .iter()
-        .filter_map(|t| match t {
-            FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
-            FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
-        })
-        .max()
-        .unwrap_or(0);
+    let base = super::super::derivation::next_eigen(&formulas);
     let budget = TermBudget::new(&formulas, limits.terms);
     let mut back = ReadBack {
         matrix,

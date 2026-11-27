@@ -173,16 +173,7 @@ pub(super) fn read_back(
     let mut formulas = sequent.formulas().clone();
     crate::ordinary::translate::Extra::add(&mut formulas)?;
     let falsity = formulas.add(Node::False)?;
-    let first = formulas
-        .first_order()
-        .terms
-        .iter()
-        .filter_map(|t| match *t {
-            FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
-            FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
-        })
-        .max()
-        .unwrap_or(0);
+    let first = crate::ordinary::derivation::next_eigen(&formulas);
     let budget = TermBudget::new(&formulas, limits.terms);
     let mut search = Search {
         matrix,

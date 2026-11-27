@@ -1891,17 +1891,7 @@ impl Build<'_> {
     /// introduced eigenvariable, numbered past the arena's, the least
     /// nested first.
     fn deskolemized(mut self, sequent: &Sequent) -> Result<Derivation, Error> {
-        let base = self
-            .formulas
-            .first_order()
-            .terms
-            .iter()
-            .filter_map(|t| match t {
-                FoTerm::Eigen(e) => Some(e.get().saturating_add(1)),
-                FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
-            })
-            .max()
-            .unwrap_or(0);
+        let base = super::derivation::next_eigen(&self.formulas);
         let mut made = std::mem::take(&mut self.made);
         made.sort_by_cached_key(|&s| self.nesting(s));
         let mut image: HashMap<FoTermId, FoTermId> = HashMap::default();

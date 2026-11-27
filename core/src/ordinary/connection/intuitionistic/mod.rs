@@ -30,9 +30,8 @@ use super::matrix::Matrix;
 use super::prove::{Config, Counts};
 use super::{Outcome, Statistics};
 use crate::Error;
-use crate::Refusal;
 use crate::limits::{Limits, Progress};
-use crate::linear::search::{self, Reason};
+use crate::linear::search;
 use crate::ordinary::{Evidence, Logic, Sequent, Verdict};
 
 /// Decides an intuitionistic sequent by the prefixed connection prover
@@ -41,8 +40,8 @@ use crate::ordinary::{Evidence, Logic, Sequent, Verdict};
 /// # Errors
 ///
 /// [`Error::Succedents`] for more than one formula right of `⊢`;
-/// [`Refusal::Occurrences`] for a sequent that
-/// unfolds past `limits.occurrences`; [`Refusal::Terms`] where an
+/// [`Refusal::Occurrences`](crate::Refusal::Occurrences) for a sequent that
+/// unfolds past `limits.occurrences`; [`Refusal::Terms`](crate::Refusal::Terms) where an
 /// instance would pass `limits.terms`; and [`Error::ReadBack`] where a
 /// derivation read back fails the check, a defect. Another bound or the
 /// stop that ends a read-back or its check is no error: the outcome is
@@ -84,11 +83,7 @@ fn decide_counting(
     });
     let (matrix, mut prefixes) = match built {
         Ok(built) => built,
-        Err(Error::Refused(Refusal::Stopped { .. })) => return Ok((unknown(Reason::Stopped), 0)),
-        Err(Error::Refused(Refusal::Memory { limit_bytes, .. })) => {
-            return Ok((unknown(Reason::MemoryLimit { limit_bytes }), 0));
-        }
-        Err(error) => return Err(error),
+        Err(error) => return Ok((unknown(super::prove::build_ended(error)?), 0)),
     };
     let config = Config {
         path_length: options.path_length,
@@ -134,13 +129,7 @@ fn decide_counting(
     let outcome = Outcome {
         verdict,
         logic,
-        statistics: Statistics {
-            steps: counts.steps,
-            extensions: counts.extensions,
-            reductions: counts.reductions,
-            lemmata: counts.lemmata,
-            path_length: counts.path_length,
-        },
+        statistics: counts.statistics(),
     };
     Ok((outcome, rejected.1))
 }
