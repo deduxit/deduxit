@@ -406,7 +406,10 @@ fn run(
                 Err(error) => Err(error),
             };
             let checked = match derivation {
-                Ok(derivation) => derivation.check(limits, &mut stop).map(|()| derivation),
+                Ok(derivation) => derivation
+                    .check(limits, &mut stop)
+                    .map_err(|e| derivation.own_fault(e))
+                    .map(|()| derivation),
                 Err(error) => Err(error),
             };
             match checked {

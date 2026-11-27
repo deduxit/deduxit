@@ -126,6 +126,15 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   the `¬` rules a classical negation needs, since it has no image of its
   own (`unwind`). LJ's `→L` is Gentzen's, context split; `∧R` and `∨L`
   share it under cbn and 01, split it under cbv (`⊗`).
+- **The checker's refusal is `Error::InvalidDerivation`** (kind invalid,
+  the calculus by name), whoever made the derivation (F-4a-01; it was
+  `ReadBack`, a defect, for a user's derivation too). The crate's own
+  searches and read-backs map it back to `ReadBack` (`own_fault`, on the
+  error path of the same `check` call: decide's read-back and
+  `Image::checked`, LJT, the SAT method, both connection provers,
+  Herbrand, a finished session), and the command's embedding evidence
+  takes either as a defect; `term` on a JSON derivation, `interpolant`
+  and `deduxit check` answer `InvalidDerivation`.
 - **The checker trusts nothing of the read-back**: per inference, the
   rule against the principal formula (a position given), the premises as
   multisets either sharing the context or splitting it (G1c/G1i/G1m of

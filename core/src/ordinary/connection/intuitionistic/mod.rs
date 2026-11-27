@@ -108,7 +108,9 @@ fn decide_counting(
         };
         // A derivation the checker refuses is a defect; a bound or the stop
         // refusing the check is that refusal.
-        derivation.check(limits, &mut *stop)?;
+        derivation
+            .check(limits, &mut *stop)
+            .map_err(|e| derivation.own_fault(e))?;
         Ok(Some(derivation))
     };
     let mut search_stop = |progress: Progress| (*stop_cell.borrow_mut())(progress);

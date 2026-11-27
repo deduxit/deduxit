@@ -754,7 +754,9 @@ pub(super) fn deskolemized(
     }
     build.derive(root, stop)?;
     let derivation = build.deskolemized(sequent)?;
-    derivation.check(limits, &mut *stop)?;
+    derivation
+        .check(limits, &mut *stop)
+        .map_err(|e| derivation.own_fault(e))?;
     Ok(derivation)
 }
 

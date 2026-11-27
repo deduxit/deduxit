@@ -1449,7 +1449,7 @@ fn two_sided(reading: &Reading, style: &Style) -> String {
 /// - [`Error::InvalidOption`] for a style [`Style::check`] refuses, before
 ///   anything is written.
 /// - With [`Style::lambda`], [`Error::NoTerm`] for a derivation without a
-///   term, [`Error::ReadBack`] for a derivation of LJ read from JSON that
+///   term, [`Error::InvalidDerivation`] for a derivation of LJ read from JSON that
 ///   its [`check`](crate::ordinary::Derivation::check) refuses, and the
 ///   refusal of a term past the output bound, before anything is
 ///   written.

@@ -493,7 +493,10 @@ fn with_evidence(
                 Err(error @ Error::ReadBack { .. }) => return Err(error),
                 Err(_) => return Ok(solved),
             };
-            match derivation.check(limits, &mut stop) {
+            match derivation
+                .check(limits, &mut stop)
+                .map_err(|e| derivation.own_fault(e))
+            {
                 Ok(()) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
                 Err(error @ Error::ReadBack { .. }) => return Err(error),
                 Err(_) => return Ok(solved),
@@ -620,7 +623,9 @@ impl super::Image {
             }
             read => read?,
         };
-        derivation.check(limits, &mut stop)?;
+        derivation
+            .check(limits, &mut stop)
+            .map_err(|e| derivation.own_fault(e))?;
         Ok(Some(derivation))
     }
 
@@ -891,7 +896,9 @@ fn dispatch(
             // the image's proof as the evidence there (`Image::outcome`).
             read => {
                 let derivation = read?;
-                derivation.check(limits, &mut stop)?;
+                derivation
+                    .check(limits, &mut stop)
+                    .map_err(|e| derivation.own_fault(e))?;
                 Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
             }
         },

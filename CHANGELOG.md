@@ -12,6 +12,20 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### What breaks, and what to do instead
 
+- **`ordinary::Derivation::check` refuses a derivation that breaks a
+  rule with `Error::InvalidDerivation`** (kind `invalid`, code
+  `invalid_derivation`, the calculus `LK`, or `LJ` for intuitionistic and
+  minimal logic), as a rule
+  file's checker does: it answered `Error::ReadBack`, kind `defect`, as
+  if this crate had built it wrongly, also for a derivation a user wrote.
+  Match `InvalidDerivation` where you matched `ReadBack` from `check`;
+  `ReadBack` stays the error of a derivation the crate's own searches and
+  read-backs build, a defect; the command names a refusal of the
+  derivation it reads back itself a defect of deduxit, its cause the
+  checker's error. `deduxit check` of a broken derivation says
+  "not a derivation in the calculus LK: …" where it said "the proof read
+  back is not a derivation of LK: …", and its JSON's error code is
+  `invalid_derivation`.
 - **A refused witness, binding or step says why in fields.**
   `linear::StepError::Witness` and `ordinary::StepError::Witness` hold a
   `WitnessFault` in `fault`, `ordinary::StepError::Binding` a
@@ -176,8 +190,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   copy of the clauses' arena it makes the steps in) and `limits.terms`,
   as the propositional refutation's check does; `check(stop)` is the
   same with no bound on work or memory, as before. The search checks its
-  refutation within its own limits now, and an atom past the bound on
-  terms is that refusal, where it was a failed check.
+  refutation within its own limits now, so a search that finds `□` under
+  a work or memory bound its check passes answers that refusal (`resolve`
+  says unknown, exit 3), where 0.8.0 answered valid from a check that ran
+  past the bounds; an atom past the bound on terms is that refusal, where
+  it was a failed check.
 - **The protocol's check of a first-order resolution asks the stop** at
   each step it makes again, and a stop leaves the refutation `open`; it
   ran to the end, and in a workspace no clock ends a call.

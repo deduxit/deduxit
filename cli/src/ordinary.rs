@@ -635,6 +635,15 @@ pub(crate) fn solver_model(outcome: &mut ordinary::Outcome, solved: Option<&ordi
     }
 }
 
+/// Returns the checker's refusal of a derivation the library read back
+/// from the command's own proof as what it is: a defect of deduxit, not a
+/// fault of the input (the library maps its own read-backs so; the command
+/// reads back itself).
+fn read_back_fault(error: Error) -> anyhow::Error {
+    anyhow!(error)
+        .context("the derivation read back fails its check, a defect of deduxit to report")
+}
+
 /// Returns what the embedding's `outcome` on the image gives for a
 /// sequent the SAT solver `solved`, as the library's default asks.
 pub(crate) fn evidence(
@@ -651,9 +660,11 @@ pub(crate) fn evidence(
                 Err(error @ Error::ReadBack { .. }) => return Err(error.into()),
                 Err(_) => return Ok(Embedded::Nothing),
             };
+            // A read-back the checker refuses is a defect, said as such.
             match derivation.check(limits, |_| halt()) {
                 Ok(()) => Ok(Embedded::Derivation(Box::new(derivation))),
                 Err(error @ Error::ReadBack { .. }) => Err(error.into()),
+                Err(error @ Error::InvalidDerivation { .. }) => Err(read_back_fault(error)),
                 Err(_) => Ok(Embedded::Nothing),
             }
         }
@@ -1300,6 +1311,7 @@ pub(crate) fn derivation(
     };
     match d.check(&show.limits, |_| halt()) {
         Err(Error::Refused(Refusal::Stopped { .. })) => return Ok(stopped()),
+        Err(error @ Error::InvalidDerivation { .. }) => return Err(read_back_fault(error)),
         checked => checked?,
     }
     crate::show::shown(shown(d, show), show.fit(), show, halt, why, prefix, out)

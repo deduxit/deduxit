@@ -738,9 +738,10 @@ impl Derivation {
     ///
     /// # Errors
     ///
-    /// [`Error::ReadBack`] naming the first inference that breaks a rule;
-    /// [`Refusal::Work`] past the bound and [`Refusal::Stopped`] when
-    /// `stop` fired, neither a verdict on the derivation.
+    /// [`Error::InvalidDerivation`] naming the first inference that breaks
+    /// a rule, whoever made the derivation; [`Refusal::Work`] past the
+    /// bound and [`Refusal::Stopped`] when `stop` fired, neither a verdict
+    /// on the derivation.
     pub fn check(
         &self,
         limits: &Limits,
@@ -752,18 +753,18 @@ impl Derivation {
             return Err(Error::Refused(Refusal::Work { limit }));
         }
         let calculus = self.logic.calculus();
-        let fail = |n: usize, why: String| Error::ReadBack {
-            calculus,
+        let fail = |n: usize, why: String| Error::InvalidDerivation {
+            calculus: calculus.into(),
             reason: format!("inference {n} ({}): {why}", self.inferences[n].rule),
         };
-        let root = self
-            .inferences
-            .len()
-            .checked_sub(1)
-            .ok_or(Error::ReadBack {
-                calculus,
-                reason: "no inference".to_owned(),
-            })?;
+        let root =
+            self.inferences
+                .len()
+                .checked_sub(1)
+                .ok_or_else(|| Error::InvalidDerivation {
+                    calculus: calculus.into(),
+                    reason: "no inference".to_owned(),
+                })?;
         let root_inference = &self.inferences[root];
         if !same(&root_inference.left, &self.left) || !same(&root_inference.right, &self.right) {
             return Err(fail(
@@ -795,6 +796,24 @@ impl Derivation {
         }
         self.trusted.0.store(true, Ordering::Relaxed);
         Ok(())
+    }
+
+    /// Returns the error of [`check`](Self::check) as it is for a derivation
+    /// this crate built, a search's or a read-back's: a broken rule there is
+    /// [`Error::ReadBack`], a defect of this crate, not a fault of an input.
+    /// It maps the error, so each caller calls the check itself and keeps
+    /// one instance of it: a helper around the check is instantiated anew
+    /// and inlined, which costs the hot path.
+    #[cold]
+    pub(crate) fn own_fault(&self, error: Error) -> Error {
+        if let Error::InvalidDerivation { reason, .. } = error {
+            Error::ReadBack {
+                calculus: self.logic.calculus(),
+                reason,
+            }
+        } else {
+            error
+        }
     }
 }
 
@@ -2167,7 +2186,7 @@ mod tests {
         );
         assert!(matches!(
             forged(Logic::Minimal).check(&unbounded, |_| false),
-            Err(Error::ReadBack { .. })
+            Err(Error::InvalidDerivation { .. })
         ));
     }
 
@@ -2385,7 +2404,7 @@ mod tests {
             assert_eq!(json["version"], crate::wire::ORDINARY_CUT);
         }
         let reason = |d: &Derivation| match d.check(&unbounded, |_| false) {
-            Err(Error::ReadBack { reason, .. }) => reason,
+            Err(Error::InvalidDerivation { reason, .. }) => reason,
             other => panic!("{other:?}"),
         };
         assert!(
@@ -2521,7 +2540,7 @@ mod tests {
             let mut d = derivation.clone();
             mutate(&mut d);
             match d.check(&unbounded, |_| false) {
-                Err(Error::ReadBack { reason, .. }) => {
+                Err(Error::InvalidDerivation { reason, .. }) => {
                     assert!(reason.contains(why), "{why}: {reason}")
                 }
                 other => panic!("{why}: {other:?}"),
@@ -2542,7 +2561,7 @@ mod tests {
             derivation
         };
         let reason = |d: &Derivation| match d.check(&unbounded, |_| false) {
-            Err(Error::ReadBack { reason, .. }) => reason,
+            Err(Error::InvalidDerivation { reason, .. }) => reason,
             other => panic!("{other:?}"),
         };
         let cbn = Translation::CallByName;
@@ -2665,7 +2684,7 @@ mod tests {
         let broken: Derivation = serde_json::from_str(&json.replace("\"→R\"", "\"∧R\"")).unwrap();
         assert!(matches!(
             broken.term(&limits, |_| false),
-            Err(Error::ReadBack { .. })
+            Err(Error::InvalidDerivation { .. })
         ));
         // An open goal has no term, checked or not.
         assert!(json.contains("\"ax\""), "{json}");
@@ -2757,7 +2776,7 @@ mod tests {
     fn the_quantifier_rules_check() {
         let limits = Limits::default();
         let reason = |d: &Derivation| match d.check(&limits, |_| false) {
-            Err(Error::ReadBack { reason, .. }) => reason,
+            Err(Error::InvalidDerivation { reason, .. }) => reason,
             other => panic!("expected a refusal, got {other:?}"),
         };
         let (derivation, [e0, _]) = swapped(1);

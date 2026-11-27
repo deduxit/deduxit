@@ -202,7 +202,10 @@ fn run(
             let mut lj = Lj::new(&search, limits, bounds.most_drawn, &mut stop);
             lj.plant = plant;
             let checked = match lj.translate(root, sequent.left(), goal) {
-                Ok(derivation) => derivation.check(limits, &mut stop).map(|()| derivation),
+                Ok(derivation) => derivation
+                    .check(limits, &mut stop)
+                    .map_err(|e| derivation.own_fault(e))
+                    .map(|()| derivation),
                 Err(error) => Err(error),
             };
             match checked {

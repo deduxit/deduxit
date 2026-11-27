@@ -3196,7 +3196,9 @@ impl Interactive {
         }
         let view = ViewOptions::default().with_structural(Structural::Explicit);
         let derivation = self.derivation_within(&view, limits, &mut stop)?;
-        derivation.check(limits, stop)?;
+        derivation
+            .check(limits, stop)
+            .map_err(|e| derivation.own_fault(e))?;
         Ok(derivation)
     }
 }
@@ -4828,7 +4830,7 @@ mod tests {
         let arrow = derivation_of(arrow).unwrap();
         assert!(matches!(
             arrow.check(&Limits::default(), |_| false),
-            Err(Error::ReadBack { .. })
+            Err(Error::InvalidDerivation { .. })
         ));
         #[cfg(feature = "rocq")]
         {
