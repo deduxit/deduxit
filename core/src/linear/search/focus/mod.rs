@@ -749,17 +749,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
 
     /// Returns the counters, with the memo's.
     fn statistics(&self) -> Statistics {
-        let mut statistics = Statistics {
+        Statistics {
             memo_hits: self.memo.hits(),
             memo_entries: self.memo.peak() as u64,
-            ..self.statistics
-        };
-        if Z::FIRST_ORDER {
-            let (unifications, bindings) = self.zone.counts();
-            statistics.unifications += unifications;
-            statistics.bindings += bindings;
+            ..self.own_counters()
         }
-        statistics
     }
 
     /// The counters a worker hands the engine that spawned it: its own and
@@ -767,6 +761,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
     /// or each reads its own.
     #[cfg(feature = "parallel")]
     fn report(&self) -> Statistics {
+        self.own_counters()
+    }
+
+    /// Returns the engine's own counters and its zone's.
+    fn own_counters(&self) -> Statistics {
         let mut statistics = self.statistics;
         if Z::FIRST_ORDER {
             let (unifications, bindings) = self.zone.counts();
@@ -1584,33 +1583,13 @@ impl<'a, Z: Zone> Run<'a, Z> {
             return Ok(entry);
         }
         self.memo.clear();
-        let entry = match entry {
-            Entry::Proved(node) => Entry::Proved(
-                self.nodes
-                    .collect(Some(node), false)
-                    .expect("the root given"),
-            ),
-            failed => {
-                self.nodes.collect(None, false);
-                failed
-            }
-        };
+        let entry = collected(&mut self.nodes, entry, false);
         if self.memo.insert(key, hash, entry, self.problem.account) == Inserted::Done {
             return Ok(entry);
         }
         // Not even the first entry fits. The memory the dropped proofs leave
         // free is the last there is, so all of it is given back.
-        let entry = match entry {
-            Entry::Proved(node) => Entry::Proved(
-                self.nodes
-                    .collect(Some(node), true)
-                    .expect("the root given"),
-            ),
-            failed => {
-                self.nodes.collect(None, true);
-                failed
-            }
-        };
+        let entry = collected(&mut self.nodes, entry, true);
         match self.memo.insert(key, hash, entry, self.problem.account) {
             Inserted::Done => Ok(entry),
             _ => Err(Reason::MemoryLimit {
@@ -2219,5 +2198,19 @@ impl<'a, Z: Zone> Run<'a, Z> {
     /// Leaves a nested engine call.
     fn leave(&mut self) {
         self.depth -= 1;
+    }
+}
+
+/// Drops the kept proofs but the one `entry` names, as [`Arena::collect`]
+/// with `tight`, and returns the entry with its proof renumbered.
+fn collected(nodes: &mut Arena<'_>, entry: Entry, tight: bool) -> Entry {
+    match entry {
+        Entry::Proved(node) => {
+            Entry::Proved(nodes.collect(Some(node), tight).expect("the root given"))
+        }
+        failed => {
+            nodes.collect(None, tight);
+            failed
+        }
     }
 }
