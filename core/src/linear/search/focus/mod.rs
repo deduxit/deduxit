@@ -112,6 +112,7 @@ use crate::linear::occurrences::{Forest, OccId, Reading};
 use crate::linear::proofs::{Branch, Node, NodeId};
 use crate::linear::sequents::Kind;
 use crate::memory::{Account, Charged};
+use keyed::{failure_of, settled};
 
 /// The stack depth that stands for "no pruned sequent depends on an
 /// ancestor".
@@ -1338,21 +1339,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
             return Ok((Found::failed(Cuts::BUDGET), false));
         }
         if self.problem.rules.stack {
-            if self.stack_len == self.stack.len() {
-                self.scratch
-                    .charge(size_of::<Key>() + size_of::<u64>() + size_of::<usize>());
-                self.stack.push(Key::default());
-                self.hashes.push(0);
-                self.marks.push(0);
-            }
-            // Into the entry's own buffer, which grows to the longest
-            // linear zone it held.
-            let pushed = &mut self.stack[self.stack_len];
-            pushed.assign(key);
-            pushed.members.settle(&mut self.scratch);
-            self.hashes[self.stack_len] = hash;
-            self.marks[self.stack_len] = self.waiting.len();
-            self.stack_len += 1;
+            self.push_stack(key, hash);
         }
         let mark = self.nodes.mark();
         // The members with their repeats, listed only to be decided: a
@@ -1367,12 +1354,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
             self.give_list(members);
             result
         };
-        let own_depth = if self.problem.rules.stack {
-            self.stack_len -= 1;
-            (self.above() + self.stack_len) as u32
-        } else {
-            NO_DEPENDENCY
-        };
+        let own_depth = self.pop_stack();
         let (found, hereditary) = result?;
         // What a failure rests on, as the steps it ran returned it. A
         // dependency on this very sequent is settled with it: the pruned
@@ -1383,11 +1365,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
                 None,
                 Cuts {
                     exhausted: cuts.exhausted,
-                    dependency: if cuts.dependency >= own_depth {
-                        NO_DEPENDENCY
-                    } else {
-                        cuts.dependency
-                    },
+                    dependency: settled(cuts.dependency, own_depth),
                 },
             ),
         };
@@ -1425,11 +1403,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
                     // A complete failure answers for every relative (a sequent
                     // equal up to interchangeable members). One cut by the
                     // budget stays under the sequent's own key.
-                    let complete = if hereditary {
-                        Failure::Hereditary
-                    } else {
-                        Failure::Complete
-                    };
+                    let complete = failure_of(hereditary);
                     recorded = if cuts.exhausted {
                         self.remember(key, hash, Entry::Failed(Failure::Exhausted(budget)))
                     } else if renamed {
@@ -1525,11 +1499,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
                 .remember(key, hash, Entry::Failed(Failure::Exhausted(budget)))
                 .map(|_| ());
         }
-        let complete = if hereditary {
-            Failure::Hereditary
-        } else {
-            Failure::Complete
-        };
+        let complete = failure_of(hereditary);
         if !self.problem.classes.renames_any(key.members) {
             return self
                 .remember(key, hash, Entry::Failed(complete))

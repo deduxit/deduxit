@@ -109,12 +109,7 @@ impl<Z: Zone> Run<'_, Z> {
         gamma.list_into(&mut members);
         let result = self.decide(theta, gamma, &members, budget);
         self.give_list(members);
-        let own_depth = if self.problem.rules.stack {
-            self.stack_len -= 1;
-            (self.above() + self.stack_len) as u32
-        } else {
-            NO_DEPENDENCY
-        };
+        let own_depth = self.pop_stack();
         let (found, hereditary) = result?;
         let Found::Failed(cuts) = found else {
             return Ok((found, false));
@@ -122,21 +117,16 @@ impl<Z: Zone> Run<'_, Z> {
         self.nodes.release(nodes);
         self.zone.undo(zone);
         // A prune that rested on this very sequent is settled here.
-        let dependency = if cuts.dependency >= own_depth {
-            NO_DEPENDENCY
-        } else {
-            cuts.dependency
-        };
+        let dependency = settled(cuts.dependency, own_depth);
         if dependency == NO_DEPENDENCY && !self.zone.excluding() {
             if cuts.exhausted {
                 self.remember(own, own_hash, Entry::Failed(Failure::Exhausted(budget)))?;
             } else {
-                let complete = if hereditary {
-                    Failure::Hereditary
-                } else {
-                    Failure::Complete
-                };
-                self.remember(canonical, canonical_hash, Entry::Failed(complete))?;
+                self.remember(
+                    canonical,
+                    canonical_hash,
+                    Entry::Failed(failure_of(hereditary)),
+                )?;
             }
         }
         let cuts = Cuts {
@@ -146,9 +136,9 @@ impl<Z: Zone> Run<'_, Z> {
         Ok((Found::failed(cuts), hereditary))
     }
 
-    /// Pushes a stable sequent on the branch stack, as the propositional
-    /// engine does, into the entry's own buffer.
-    fn push_stack(&mut self, key: Zones<'_>, hash: u64) {
+    /// Pushes a stable sequent on the branch stack, into the entry's own
+    /// buffer, which grows to the longest linear zone it held.
+    pub(super) fn push_stack(&mut self, key: Zones<'_>, hash: u64) {
         if self.stack_len == self.stack.len() {
             self.scratch
                 .charge(size_of::<Key>() + size_of::<u64>() + size_of::<usize>());
@@ -162,5 +152,38 @@ impl<Z: Zone> Run<'_, Z> {
         self.hashes[self.stack_len] = hash;
         self.marks[self.stack_len] = self.waiting.len();
         self.stack_len += 1;
+    }
+
+    /// Pops the stable sequent [`push_stack`](Self::push_stack) pushed
+    /// last, where the rules keep a stack, and returns its depth, which a
+    /// failure that rests on it names; `NO_DEPENDENCY` without a stack.
+    pub(super) fn pop_stack(&mut self) -> u32 {
+        if self.problem.rules.stack {
+            self.stack_len -= 1;
+            (self.above() + self.stack_len) as u32
+        } else {
+            NO_DEPENDENCY
+        }
+    }
+}
+
+/// Returns what a failure decided below a stable sequent at `own_depth`
+/// rests on: its dependency, or none where that is the sequent itself or
+/// one pushed after it, which the sequent's failure settles.
+pub(super) const fn settled(dependency: u32, own_depth: u32) -> u32 {
+    if dependency >= own_depth {
+        NO_DEPENDENCY
+    } else {
+        dependency
+    }
+}
+
+/// Returns the failure of a sequent decided without the budget's cut:
+/// hereditary where `hereditary` says so, else complete.
+pub(super) const fn failure_of(hereditary: bool) -> Failure {
+    if hereditary {
+        Failure::Hereditary
+    } else {
+        Failure::Complete
     }
 }
