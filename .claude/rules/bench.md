@@ -803,18 +803,41 @@ serde_json, which the CLI and the core's tests already have.
 
 ## The journeys and the ratchet
 
-- **`src/journeys.rs`** holds the journeys: small runs of the hot paths
+- **`src/journeys/`** holds the journeys: small runs of the hot paths,
+  each preparing its input and then doing the work it measures inside
+  `measured`, which callgrind's `--toggle-collect=*journeys::measured*`
+  counts alone. `deduxit-bench journeys` lists them, `journey NAME` runs
+  one, `journey NAME --repeat N` prints the measured part's wall-clock
+  time of each run. `mod.rs` has the list and the first twenty
   (searches of the target set's rows and of each engine, the five
   readers, the checker, a derivation, the three text renderers, a batch,
-  ordinary logic end to end), each preparing its input and then doing
-  the work it measures inside `measured`, which callgrind's
-  `--toggle-collect=*journeys::measured*` counts alone. `deduxit-bench
-  journeys` lists them, `journey NAME` runs one, `journey NAME --repeat
-  N` prints the measured part's wall-clock time of each run.
+  ordinary logic through the embedding); `ordinary_logic.rs` ordinary
+  logic's own engines (the SAT method in classical and intuitionistic
+  logic, LJT, both connection provers, propositional and first-order
+  resolution, the finite and the Kripke model search) and its session;
+  `linear_logic.rs` a first-order search, the inverse method, the check
+  of a saturated refutation, cut elimination and the linear session;
+  `other_suites.rs` the modal tableau, lambda-terms (check, reduce,
+  inhabit), a session in natural deduction, a rule file's checker and a
+  workspace run (the harness depends on `protocol` for it). The modal
+  suite and lambda-terms have no session of their own.
+- **A session journey is one driver**: on each open goal, the candidates
+  at every formula, the first that applies and is invertible taken
+  (`is_invertible`), else the goal closed by the search; it ends because
+  invertible steps make lighter goals. The rule files have no
+  `is_invertible`: `session-rules` takes `→I` and `∧I` by name. Closing
+  searches pass `deterministic()` (one thread, the rarer literal's
+  search alone).
+- **Each journey's size was chosen for its count**: a few million to
+  sixty million instructions, so that the ratchet's time stays about
+  what it was. `workspace-run` decides in intuitionistic logic, since
+  the classical default's evidence search through the embedding was 98 %
+  of its count in classical logic, and propositional resolution names a
+  bound of 20 000 clauses, past its default, for four pigeons.
 - **`batch-families` batches the propositional families' smallest
   instances**: the first-order families (`is_first_order`) are left out,
   so that adding them kept the journey's input, and its ceiling, what
-  they were; no journey searches a first-order sequent.
+  they were; `search-chain-fo-32` is the first-order search.
 - **Every journey is deterministic**: one thread, and the rarer
   literal's search alone where the sequent has exponentials, since the
   default bias runs two searches in turns whose waiting thread wakes on

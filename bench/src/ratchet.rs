@@ -4,7 +4,7 @@
 //! The ratchet: every journey's instruction count under callgrind, and the
 //! heap blocks its measured part allocates, against their committed
 //! ceilings in `bench/ceilings.csv`. A journey is a small, deterministic
-//! run of a hot path (`journeys.rs`).
+//! run of a hot path (`journeys/`).
 //!
 //! The blocks are callgrind's count of the calls to the allocator's entry
 //! points ([`ALLOCATORS`]) inside the measured part, so a journey's input,

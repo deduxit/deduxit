@@ -12,6 +12,14 @@
 //! Every search runs on one thread, so a count is a function of the build
 //! and the input.
 
+/// The journeys of the linear suite beyond its searches.
+mod linear_logic;
+/// The journeys of ordinary logic's own engines.
+mod ordinary_logic;
+/// The journeys of modal logic, lambda-terms, rule files and the
+/// workspace.
+mod other_suites;
+
 use anyhow::{Context, Result, bail};
 use deduxit::export::{latex, svg, typst};
 use deduxit::linear::proofs::TextOptions;
@@ -138,6 +146,116 @@ pub static JOURNEYS: &[Journey] = &[
         summary: "ordinary logic: a classical pigeonhole formula translated, proved, read back to LK and checked",
         run: ordinary,
     },
+    Journey {
+        name: "ordinary-sat-classical",
+        summary: "the SAT method in classical logic on a pigeonhole formula, its clausal proof checked",
+        run: ordinary_logic::sat_classical,
+    },
+    Journey {
+        name: "ordinary-sat-intuitionistic",
+        summary: "the SAT method in intuitionistic logic on ILTP's SYJ202, its derivation read off and checked",
+        run: ordinary_logic::sat_intuitionistic,
+    },
+    Journey {
+        name: "ordinary-ljt",
+        summary: "LJT on Korn and Kreitz's formula (ILTP's SYJ205), its derivation checked",
+        run: ordinary_logic::ljt,
+    },
+    Journey {
+        name: "ordinary-connection-classical",
+        summary: "the classical connection prover on a first-order chain, its derivation of LK checked",
+        run: ordinary_logic::connection_classical,
+    },
+    Journey {
+        name: "ordinary-connection-intuitionistic",
+        summary: "the intuitionistic connection prover on a nest of implications, its derivation of LJ checked",
+        run: ordinary_logic::connection_intuitionistic,
+    },
+    Journey {
+        name: "ordinary-resolution",
+        summary: "propositional resolution by saturation on pigeonhole clauses, its refutation checked",
+        run: ordinary_logic::resolution,
+    },
+    Journey {
+        name: "ordinary-resolution-first-order",
+        summary: "first-order resolution on a first-order chain, its refutation checked and read back",
+        run: ordinary_logic::resolution_first_order,
+    },
+    Journey {
+        name: "ordinary-models",
+        summary: "the finite model search in classical logic, a structure of three elements checked",
+        run: ordinary_logic::models_finite,
+    },
+    Journey {
+        name: "ordinary-kripke",
+        summary: "the Kripke model search in intuitionistic logic, the model checked",
+        run: ordinary_logic::models_kripke,
+    },
+    Journey {
+        name: "session-ordinary",
+        summary: "a session of classical logic: candidates everywhere, invertible steps applied, the rest closed",
+        run: ordinary_logic::session,
+    },
+    Journey {
+        name: "search-chain-fo-32",
+        summary: "chain-fo/32, a first-order search of the focused engine",
+        run: linear_logic::search_first_order,
+    },
+    Journey {
+        name: "search-inverse",
+        summary: "contraction/16#0, the inverse method forced",
+        run: linear_logic::search_inverse,
+    },
+    Journey {
+        name: "check-saturated",
+        summary: "the check of the inverse method's saturated set refuting contraction/8#1",
+        run: linear_logic::check_saturated,
+    },
+    Journey {
+        name: "cut-elimination",
+        summary: "cut elimination on a proof of !a ⊢ a ⊗ … ⊗ a through a cut on !a",
+        run: linear_logic::cut_elimination,
+    },
+    Journey {
+        name: "session-linear",
+        summary: "a session in classical MALL on 16 conjuncts: candidates everywhere, invertible steps applied, the rest closed",
+        run: linear_logic::session,
+    },
+    Journey {
+        name: "modal-tableau",
+        summary: "the modal tableau in K on Halpern and Moses's formula, its countermodel checked",
+        run: other_suites::modal_tableau,
+    },
+    Journey {
+        name: "lambda-check",
+        summary: "the type checker on a simply typed term of 4 000 nested redexes",
+        run: other_suites::lambda_check,
+    },
+    Journey {
+        name: "lambda-reduce",
+        summary: "β-reduction of such a term of 100 redexes to its normal form, each term reached checked",
+        run: other_suites::lambda_reduce,
+    },
+    Journey {
+        name: "lambda-inhabit",
+        summary: "the terms of a → … → a found, listed, counted and checked",
+        run: other_suites::lambda_inhabit,
+    },
+    Journey {
+        name: "session-rules",
+        summary: "a session in natural deduction (NJ): candidates, →I and ∧I applied, the rest closed",
+        run: other_suites::rules_session,
+    },
+    Journey {
+        name: "rules-check",
+        summary: "the checker of a rule file on a derivation of LK of a pigeonhole formula",
+        run: other_suites::rules_check,
+    },
+    Journey {
+        name: "workspace-run",
+        summary: "a workspace that decides a chain of implications in intuitionistic logic, its promise checked",
+        run: other_suites::workspace,
+    },
 ];
 
 /// Runs `work` and returns its result. This is the part of a journey that
@@ -193,6 +311,13 @@ fn options(sequent: &Sequent, copies: Option<u32>) -> Options {
         .with_bias(bias)
         .with_copies(Some(copies.unwrap_or(Options::DEFAULT_COPIES)))
         .with_check(false)
+}
+
+/// Returns the options of a search inside another call (a session's
+/// close, the embedding of ordinary logic): one thread, and the rarer
+/// literal's search alone, whose count is a function of the input.
+fn deterministic() -> Options {
+    Options::default().with_jobs(1).with_bias(Bias::Rarer)
 }
 
 /// Returns an instance of a family.

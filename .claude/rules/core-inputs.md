@@ -167,7 +167,7 @@ the generated families are read or changed; the harness that runs them is
   sequent marked unprovable). A generator that gains a shape raises
   `instances` with it, or the new shape stays unreachable.
 - **`batch-families`'s input is a list of names** (`BATCHED` in
-  `bench/src/journeys.rs`): a family added later stays out of the
+  `bench/src/journeys/mod.rs`): a family added later stays out of the
   journey, so that its ceiling keeps measuring the same batch.
 - **`Instance::witness_depth`** is the depth under which a proof
   exists, `None` where the default serves; `verdicts_as_constructed`
