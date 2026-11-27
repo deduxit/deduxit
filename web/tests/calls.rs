@@ -1376,7 +1376,8 @@ fn a_first_order_cut_is_made_and_eliminated() {
 /// The first-order bounds are settings of the tab:
 ///
 /// - the bound on terms is the tab's occurrences, and the page's
-///   `limits.terms` replaces it and refuses a witness past it;
+///   `limits.terms` replaces it: the session is read within it and a
+///   witness past it is refused;
 /// - `search.witness_depth` stops a search that needs deeper witnesses;
 /// - `search.instances` is read.
 #[wasm_bindgen_test(unsupported = test)]
@@ -1387,11 +1388,12 @@ fn the_first_order_bounds_are_settings() {
     let text = "forall x. p(x) |- p(f(f(f(a))))";
     let answer = calls::start(text, "intuitionistic", "").unwrap();
     let root = open_goals(&answer)[0];
-    let small = settings(&json!({"limits": {"terms": 3}}));
+    // The session's own terms are 5, the witness's 7.
+    let small = settings(&json!({"limits": {"terms": 5}}));
     let error = calls::apply(
         &session(&answer),
         root,
-        &witnessed(0, "∀L", Some("f(f(f(f(a))))")),
+        &witnessed(0, "∀L", Some("f(f(f(f(f(f(a))))))")),
         &small,
     )
     .unwrap_err();

@@ -120,7 +120,7 @@ impl Readable for ProofStructure {
             ));
         }
         let build = || {
-            let sequent = crate::linear::Sequent::try_from(net.sequent)?;
+            let sequent = net.sequent.within(limits)?;
             let forest = Forest::from_owned(sequent, limits)?;
             let pair = |&(x, y): &(u32, u32)| (VertexId::new(x), VertexId::new(y));
             let links: Vec<(VertexId, VertexId)> = net.links.iter().map(pair).collect();
@@ -310,7 +310,7 @@ impl Readable for MellStructure {
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let boxed = Boxed::deserialize(deserializer)?;
         let build = || {
-            let sequent = crate::linear::Sequent::try_from(boxed.sequent)?;
+            let sequent = boxed.sequent.within(limits)?;
             let forest = Forest::from_owned(sequent, limits)?;
             let pair = |&(x, y): &(u32, u32)| (VertexId::new(x), VertexId::new(y));
             let parts = Parts {

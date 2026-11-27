@@ -300,7 +300,7 @@ impl Proof {
     /// It checks the bounds and the order of the nodes, not the proof, and
     /// refuses an instance table beside a goal off the roots.
     pub(super) fn within(self, limits: &Limits) -> Result<Prf, crate::Error> {
-        let sequent = crate::linear::Sequent::try_from(self.sequent)?;
+        let sequent = self.sequent.within(limits)?;
         let forest = Forest::from_owned(sequent, limits)?;
         let nodes: Vec<Node> = self.nodes.into_iter().map(Node::from).collect();
         // The root is the last node, whose index must be a node id.

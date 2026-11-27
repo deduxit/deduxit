@@ -256,7 +256,7 @@ impl Interactive {
     /// one that its rule does not yield.
     fn within(self, limits: &Limits) -> Result<State, crate::Error> {
         let proxy = self;
-        let sequent = crate::linear::Sequent::try_from(proxy.sequent)?;
+        let sequent = proxy.sequent.within(limits)?;
         let forest = Forest::from_owned(sequent, limits)?;
         let inferences = proxy
             .inferences

@@ -1249,3 +1249,44 @@ fn first_order_ordinary_sequent_json() {
         );
     }
 }
+
+/// Every reader of a document that holds a sequent builds it within the
+/// caller's bound on terms: a proof, a proof structure and a session past
+/// it are refused, and read within the default.
+#[test]
+fn readers_build_their_sequent_within_the_caller_s_terms() {
+    use deduxit::linear::Verdict;
+    use deduxit::{Error, Refusal, wire};
+    let sequent: Sequent = "p(f(f(a))) |- p(f(f(a)))".parse().unwrap();
+    let Verdict::Proved(proof) = prove(&sequent, Mode::CLASSICAL, &Options::default())
+        .unwrap()
+        .verdict
+    else {
+        panic!("the sequent is provable");
+    };
+    let low = Limits::default().with_terms(Some(1));
+    let refused = |read: Result<(), Error>| {
+        assert!(
+            matches!(read, Err(Error::Refused(Refusal::Terms { .. }))),
+            "{read:?}"
+        );
+    };
+    let document = serde_json::to_value(&*proof).unwrap();
+    refused(wire::upgrade::<Proof, _>(&document, &low).map(drop));
+    assert!(wire::upgrade::<Proof, _>(&document, &Limits::default()).is_ok());
+    let structure =
+        ProofStructure::from_proof(&proof, Criterion::MLL, &Limits::default(), |_| false).unwrap();
+    let document = serde_json::to_value(&structure).unwrap();
+    refused(wire::upgrade::<ProofStructure, _>(&document, &low).map(drop));
+    let boxes =
+        MellStructure::from_proof(&proof, Criterion::MLL, &Limits::default(), |_| false).unwrap();
+    let document = serde_json::to_value(&boxes).unwrap();
+    refused(wire::upgrade::<MellStructure, _>(&document, &low).map(drop));
+    assert!(wire::upgrade::<MellStructure, _>(&document, &Limits::default()).is_ok());
+    #[cfg(feature = "interactive")]
+    {
+        let session = Interactive::new(&sequent, Mode::CLASSICAL).unwrap();
+        let document = serde_json::to_value(&session).unwrap();
+        refused(wire::upgrade::<Interactive, _>(&document, &low).map(drop));
+    }
+}

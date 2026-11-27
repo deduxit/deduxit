@@ -568,21 +568,11 @@ impl Sequent {
     }
 }
 
-impl TryFrom<Sequent> for Seq {
-    type Error = crate::Error;
-
-    /// Converts a deserialized sequent back. Fails if its arena breaks the
-    /// invariants, or if an atom's name would not read back as that atom
-    /// in the text syntax. Names equal in NFC are one atom, as in a parsed
-    /// sequent.
-    fn try_from(s: Sequent) -> Result<Seq, Self::Error> {
-        Self::read_within(s, &Limits::default())
-    }
-}
-
 impl Seq {
-    /// Converts a deserialized sequent back as `TryFrom` does, the terms
-    /// of its atoms counted against `limits.terms`.
+    /// Converts a deserialized sequent back, the terms of its atoms counted
+    /// against `limits.terms`. Fails if its arena breaks the invariants, or
+    /// if an atom's name would not read back as that atom in the text
+    /// syntax. Names equal in NFC are one atom, as in a parsed sequent.
     fn read_within(s: Sequent, limits: &Limits) -> Result<Seq, crate::Error> {
         let (mut fo, atoms) = Tables {
             symbols: s.symbols,
