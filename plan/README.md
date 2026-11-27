@@ -8776,3 +8776,16 @@ move (D26).
   check passed; rebased onto the Rocq lock move, its head (`qzkqqqtp`) in CI before `main`. Wave B
   on it: 87b1 (the linear suite, with the panel; 87a's worker, cores 4-6, panel 13-15) beside 87b2
   (the other suites; fixup-31's worker, cores 10-12); 87b3 after 87b1.
+- 2026-11-27, about 14:57: **87b2 reviewed and pushed.** (Opus, high; the panel on the three commits
+  that touch a checker's entry, the reviewer on Fable.) Eleven fixes of the other suites, each with
+  what a 0.8.0 user sees change: a broken LK or LJ derivation refused as invalid, not a defect
+  (`InvalidDerivation`); a first-order refutation checked within the caller's bounds
+  (`check_within`); the protocol's resolution replay stoppable; invertible runs of an ordinary
+  session stoppable (Ctrl-C in `interact --logic`); a written tableau reviewed only against the
+  tableau's rule file; a rule file's sequent text bounded as a whole; the workspace keeping every
+  bound's setting; `Workspace::read_trusted` (`read_own` deprecated); Herbrand's witness terms walked
+  as graphs; a PDF date checked. Additions only in `breaks 0.8.0` (with one deprecation). The
+  reviewer's finding (a sticky Ctrl-C flag stopped the next invertible run) fixed. (departs from
+  the plan) F-4e-02's panics on a bad id stay for part 2's P13. Both target sets equal, ratchet within
+  tolerance (resolution +0.53 %, the new bounds). Full check passed; pushed (`mouwsnlw`). 87b1 is in
+  its last review; 87b3 follows it.

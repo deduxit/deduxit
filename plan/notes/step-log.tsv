@@ -160,4 +160,4 @@ fixup-31	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local
 87r	library	opus-5-5	high	panel on 87r2 (fable argument), reviewer (fable)	local_323b92cf	2026-11-27 10:16	2026-11-27 12:26	the Rocq library's refactor, part 1 (87r1 to 87r4)
 87a	small	opus-5-5	high	reviewer (fable)	local_f82f76ce	2026-11-27 10:16	2026-11-27 12:59	journeys and pins for what nothing measures (starts when fixup-31 lands)
 87b1	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_f82f76ce	2026-11-27 12:59		the linear suite's bounds and misleading calls
-87b2	small	opus-5-5	high	reviewer (fable)	local_444bd43f	2026-11-27 12:59		the other suites' bounds and misleading calls
+87b2	small	opus-5-5	high	reviewer (fable)	local_444bd43f	2026-11-27 12:59	2026-11-27 14:57	the other suites' bounds and misleading calls
