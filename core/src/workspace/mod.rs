@@ -1538,22 +1538,15 @@ fn limit_named(reason: &str, setting: Option<&str>) -> Limit {
         .find(|&&name| name == reason)
         .copied()
         .unwrap_or("unknown");
+    // The keys the reasons and refusals name, which their tests hold to
+    // every variant: a key missing here would lose the setting of a run
+    // that bound ended.
     let setting = setting.and_then(|setting| {
-        [
-            "limits.memory_bytes",
-            "limits.occurrences",
-            "limits.terms",
-            "limits.derivation_bytes",
-            "limits.work",
-            "limits.table_atoms",
-            "limits.form_occurrences",
-            "limits.recursion_depth",
-            "search.copies",
-            "search.witness_depth",
-            "search.instances",
-        ]
-        .into_iter()
-        .find(|&key| key == setting)
+        crate::linear::search::Reason::SETTINGS
+            .iter()
+            .chain(crate::Refusal::SETTINGS)
+            .find(|&&key| key == setting)
+            .copied()
     });
     Limit {
         reason: known,

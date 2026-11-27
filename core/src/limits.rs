@@ -724,6 +724,26 @@ impl Refusal {
         }
     }
 
+    /// Every settings key [`setting`](Self::setting) names, once each:
+    /// what a record read back may name, held to the refusals themselves.
+    #[cfg(feature = "protocol")]
+    pub(crate) const SETTINGS: &'static [&'static str] = &[
+        "limits.memory_bytes",
+        "limits.occurrences",
+        "limits.terms",
+        "limits.derivation_bytes",
+        "limits.work",
+        "limits.table_atoms",
+        "limits.form_occurrences",
+        "limits.workspace.nodes",
+        "limits.workspace.records",
+        "limits.workspace.log",
+        "limits.workspace.bytes",
+        "styles.png.pixels",
+        "cut.steps",
+        "cut.nodes",
+    ];
+
     /// Returns the settings key whose bound refused the call. `None` for
     /// the stop and for a representation's width, which no setting lifts.
     pub const fn setting(&self) -> Option<&'static str> {

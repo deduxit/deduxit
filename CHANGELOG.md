@@ -157,6 +157,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   sequent and `--assume`, count the whole text's tokens against
   `limits.occurrences`, as their docs say; each member was bounded
   alone, so a sequent of many short members passed.
+- **A workspace keeps the setting of every bound that ends a run.** A
+  run ended by the connection prover's path length or the model search's
+  size or worlds (`search.path_length`, `search.model_size`,
+  `search.model_worlds`) lost the setting that lifts it, in the record
+  and in `workspace show`; the workspace now knows every key a reason or
+  a refusal names.
 
 ## [0.8.0] - 2026-11-23
 

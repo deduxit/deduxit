@@ -3637,6 +3637,21 @@ impl Reason {
         }
     }
 
+    /// Every settings key [`setting`](Self::setting) names, once each:
+    /// what a record read back may name, held to the reasons themselves.
+    #[cfg(feature = "protocol")]
+    pub(crate) const SETTINGS: &'static [&'static str] = &[
+        "limits.recursion_depth",
+        "search.copies",
+        "limits.memory_bytes",
+        "limits.work",
+        "search.witness_depth",
+        "search.instances",
+        "search.path_length",
+        "search.model_size",
+        "search.model_worlds",
+    ];
+
     /// Returns the settings key whose bound the search reached, which a
     /// caller raises to search further.
     ///

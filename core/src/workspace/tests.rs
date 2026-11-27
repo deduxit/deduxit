@@ -859,3 +859,123 @@ fn the_program_s_own_document_keeps_its_checks_and_a_claim_does_not() {
         "workspace_limit"
     );
 }
+
+/// A run ended by any bound keeps the setting that lifts it: every key a
+/// reason or a refusal names is one the workspace knows. Its own list
+/// lacked ordinary logic's three (`search.path_length`,
+/// `search.model_size`, `search.model_worlds`), so such a record lost
+/// its setting.
+#[test]
+fn every_bound_keeps_its_setting() {
+    use crate::limits::{Bound, Held, Phase, Refusal, Space};
+    use crate::linear::search::Reason;
+    // A new variant fails to compile here until it is listed below.
+    let listed = |reason: &Reason| match reason {
+        Reason::Stopped
+        | Reason::RecursionLimit { .. }
+        | Reason::CopyBound { .. }
+        | Reason::MemoryLimit { .. }
+        | Reason::IndexLimit
+        | Reason::WorkLimit { .. }
+        | Reason::Unchecked { .. }
+        | Reason::WitnessDepth { .. }
+        | Reason::Instances { .. }
+        | Reason::Incomplete
+        | Reason::PathLength { .. }
+        | Reason::ModelSize { .. }
+        | Reason::KripkeSize { .. } => (),
+    };
+    let reasons = [
+        Reason::Stopped,
+        Reason::RecursionLimit { depth: 1 },
+        Reason::CopyBound { copies: 1 },
+        Reason::MemoryLimit { limit_bytes: 1 },
+        Reason::IndexLimit,
+        Reason::WorkLimit { limit: 1 },
+        Reason::Unchecked { limit_bytes: 1 },
+        Reason::WitnessDepth { depth: 1 },
+        Reason::Instances { instances: 1 },
+        Reason::Incomplete,
+        Reason::PathLength { length: 1 },
+        Reason::ModelSize { size: 1 },
+        Reason::KripkeSize { worlds: 1, size: 1 },
+    ];
+    let refused = |refusal: &Refusal| match refusal {
+        Refusal::Stopped { .. }
+        | Refusal::Memory { .. }
+        | Refusal::Occurrences { .. }
+        | Refusal::Terms { .. }
+        | Refusal::Output { .. }
+        | Refusal::Work { .. }
+        | Refusal::Pixels { .. }
+        | Refusal::Elimination { .. }
+        | Refusal::Atoms { .. }
+        | Refusal::Workspace { .. }
+        | Refusal::Index { .. }
+        | Refusal::Form { .. } => (),
+    };
+    let mut refusals = vec![
+        Refusal::Stopped {
+            phase: Phase::Search,
+        },
+        Refusal::Memory {
+            phase: Phase::Search,
+            limit_bytes: 1,
+            needed_bytes: None,
+        },
+        Refusal::Occurrences {
+            occurrences: 2,
+            limit: 1,
+        },
+        Refusal::Terms { terms: 2, limit: 1 },
+        Refusal::Output {
+            what: "derivation",
+            estimate_bytes: 2,
+            limit_bytes: 1,
+            least_bytes: None,
+        },
+        Refusal::Work { limit: 1 },
+        Refusal::Pixels {
+            pixels: 2,
+            limit: 1,
+        },
+        Refusal::Atoms { atoms: 2, limit: 1 },
+        Refusal::Index {
+            what: Space::Term,
+            count: 2,
+            most: 1,
+        },
+        Refusal::Form {
+            occurrences: 2,
+            limit: 1,
+        },
+    ];
+    for what in [Bound::Steps, Bound::Nodes, Bound::Vertices] {
+        refusals.push(Refusal::Elimination { what, limit: 1 });
+    }
+    for what in [Held::Nodes, Held::Records, Held::Log, Held::Bytes] {
+        refusals.push(Refusal::Workspace {
+            what,
+            count: 2,
+            limit: 1,
+        });
+    }
+    reasons.iter().for_each(listed);
+    refusals.iter().for_each(refused);
+    let settings = reasons
+        .iter()
+        .filter_map(Reason::setting)
+        .chain(refusals.iter().filter_map(Refusal::setting));
+    for setting in settings {
+        assert_eq!(
+            super::limit_named("work_limit", Some(setting)).setting,
+            Some(setting),
+            "{setting}"
+        );
+    }
+    let ended = super::limit_named("model_size", Some("search.model_size"));
+    assert_eq!(
+        (ended.reason, ended.setting),
+        ("model_size", Some("search.model_size"))
+    );
+}
