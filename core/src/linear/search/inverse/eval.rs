@@ -16,6 +16,7 @@
 
 use super::rules::{Partner, Shape, Step};
 use crate::linear::occurrences::{Member, OccId};
+use crate::linear::proofs::multiset::{add, excess, insert, remove, within};
 use crate::linear::proofs::{Node, NodeId};
 
 /// A sequent as the search derives it: the linear zone sorted with its
@@ -44,46 +45,6 @@ pub(super) struct Zone {
     pub(super) node: Option<NodeId>,
 }
 
-/// Inserts into a sorted list, keeping repeats.
-pub(super) fn insert(list: &mut Vec<OccId>, o: OccId) {
-    let at = list.partition_point(|&x| x <= o);
-    list.insert(at, o);
-}
-
-/// Removes one copy from a sorted list, and returns whether there was
-/// one.
-fn remove(list: &mut Vec<OccId>, o: OccId) -> bool {
-    match list.binary_search(&o) {
-        Ok(at) => {
-            list.remove(at);
-            true
-        }
-        Err(_) => false,
-    }
-}
-
-/// Merges `from` into `into`, both sorted, keeping repeats: the sum of
-/// two multisets.
-fn sum(into: &mut Vec<OccId>, from: &[OccId]) {
-    if from.is_empty() {
-        return;
-    }
-    let mut merged = Vec::with_capacity(into.len() + from.len());
-    let (mut i, mut j) = (0, 0);
-    while i < into.len() && j < from.len() {
-        if into[i] <= from[j] {
-            merged.push(into[i]);
-            i += 1;
-        } else {
-            merged.push(from[j]);
-            j += 1;
-        }
-    }
-    merged.extend_from_slice(&into[i..]);
-    merged.extend_from_slice(&from[j..]);
-    *into = merged;
-}
-
 /// Merges `from` into `into`, both sorted sets: their union.
 fn union(into: &mut Vec<OccId>, from: &[OccId]) {
     for &o in from {
@@ -91,39 +52,6 @@ fn union(into: &mut Vec<OccId>, from: &[OccId]) {
             into.insert(at, o);
         }
     }
-}
-
-/// Returns the members of `of` beyond those of `within`, with repeats:
-/// what `within` lacks to hold `of`. Both are sorted multisets.
-pub(super) fn excess(of: &[OccId], within: &[OccId]) -> Vec<OccId> {
-    let mut out = Vec::new();
-    let mut j = 0;
-    for &o in of {
-        while j < within.len() && within[j] < o {
-            j += 1;
-        }
-        if j < within.len() && within[j] == o {
-            j += 1;
-        } else {
-            out.push(o);
-        }
-    }
-    out
-}
-
-/// Returns whether one sorted multiset lies within another.
-pub(super) fn within(small: &[OccId], large: &[OccId]) -> bool {
-    let mut j = 0;
-    for &o in small {
-        while j < large.len() && large[j] < o {
-            j += 1;
-        }
-        if j == large.len() || large[j] != o {
-            return false;
-        }
-        j += 1;
-    }
-    true
 }
 
 /// The rules of the calculus the search derives in, read forward.
@@ -200,7 +128,7 @@ impl Calculus<'_, '_> {
         nodes: &mut Option<&mut Vec<Node>>,
     ) -> Option<(Zone, Option<(NodeId, NodeId)>)> {
         let mut most = l.gamma.clone();
-        sum(&mut most, &excess(&r.gamma, &l.gamma));
+        add(&mut most, &excess(&r.gamma, &l.gamma));
         let gamma = match (l.top, r.top) {
             (true, true) => most,
             (false, false) if l.gamma == r.gamma => most,
@@ -302,7 +230,7 @@ impl Calculus<'_, '_> {
                     if !self.take(&mut l, a, &mut nodes) || !self.take(&mut r, b, &mut nodes) {
                         return None;
                     }
-                    sum(&mut l.gamma, &r.gamma);
+                    add(&mut l.gamma, &r.gamma);
                     union(&mut l.theta, &r.theta);
                     l.top |= r.top;
                     l.outputs += r.outputs;
@@ -406,7 +334,7 @@ impl Calculus<'_, '_> {
     /// Returns the Mix of two sequents: the two side by side.
     pub(super) fn mix(&self, l: &Zone, r: &Zone, nodes: Option<&mut Vec<Node>>) -> Option<Zone> {
         let mut z = l.clone();
-        sum(&mut z.gamma, &r.gamma);
+        add(&mut z.gamma, &r.gamma);
         union(&mut z.theta, &r.theta);
         z.top |= r.top;
         z.outputs += r.outputs;

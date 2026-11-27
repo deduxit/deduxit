@@ -45,9 +45,10 @@ use crate::hash::HashMap;
 use crate::limits::Limits;
 use crate::linear::fragment::Fragment;
 use crate::linear::occurrences::OccId;
+use crate::linear::proofs::multiset::{excess, within};
 use crate::linear::proofs::{Node, NodeId};
 use crate::memory::{Account, Charged, bytes_of};
-use eval::{Calculus, Zone, within};
+use eval::{Calculus, Zone};
 use rules::{Rules, Shape};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
@@ -553,10 +554,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
             let top = self.kept[id as usize].top;
             if within(gamma, leaves)
                 && (weak || gamma.len() == leaves.len())
-                && (top
-                    || eval::excess(leaves, gamma)
-                        .iter()
-                        .all(|&o| !self.shape.output(o)))
+                && (top || excess(leaves, gamma).iter().all(|&o| !self.shape.output(o)))
                 && within(self.theta(id), theta)
             {
                 self.filled[h as usize] = Some(id);
@@ -832,7 +830,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
     fn premise(&self, hole: u32, id: u32) -> Premise {
         let hole = &self.rules.holes[hole as usize];
         let leaves = &self.rules.leaves[hole.leaves.start as usize..hole.leaves.end as usize];
-        let context = eval::excess(self.gamma(id), leaves);
+        let context = excess(self.gamma(id), leaves);
         let outputs = context.iter().filter(|&&o| self.shape.output(o)).count() as u64;
         Premise {
             id,
@@ -969,7 +967,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
         if self.shape.affine && !z.top && within(&z.gamma, goal) {
             // The members that the premises weakened away are weakened in
             // below the root.
-            for o in eval::excess(goal, &z.gamma) {
+            for o in excess(goal, &z.gamma) {
                 let weakened = self.calculus.weaken_in(&mut z, o, &mut nodes);
                 debug_assert!(weakened, "only inputs go unused under a reading");
             }

@@ -62,8 +62,7 @@ impl<T: Copy + Ord> Multiset<T> {
 
     /// Adds one copy of `o`.
     pub(crate) fn insert(&mut self, o: T) {
-        let i = self.0.partition_point(|&x| x <= o);
-        self.0.insert(i, o);
+        insert(&mut self.0, o);
     }
 
     /// Adds `o` if it is not a member.
@@ -75,17 +74,12 @@ impl<T: Copy + Ord> Multiset<T> {
 
     /// Removes one copy of `o` and returns whether there was one.
     pub(crate) fn remove(&mut self, o: T) -> bool {
-        match self.position(o) {
-            Some(i) => {
-                self.0.remove(i);
-                true
-            }
-            None => false,
-        }
+        remove(&mut self.0, o)
     }
 
     /// Returns the multiset that holds each id `f(a, b)` times, where `a`
     /// and `b` are its counts here and in `other`.
+    #[cfg(test)]
     fn merge(&self, other: &Self, f: impl Fn(usize, usize) -> usize) -> Self {
         let (a, b) = (&self.0, &other.0);
         let mut out = Vec::with_capacity(a.len() + b.len());
@@ -108,7 +102,7 @@ impl<T: Copy + Ord> Multiset<T> {
 
     /// Returns the multiset sum: the counts add up.
     pub(crate) fn sum(&self, other: &Self) -> Self {
-        self.merge(other, |a, b| a + b)
+        Self(merged(&self.0, &other.0))
     }
 
     /// Returns the multiset union: per id, the larger count.
@@ -120,13 +114,91 @@ impl<T: Copy + Ord> Multiset<T> {
     /// Returns the multiset difference: per id, this count minus the
     /// other's, or zero if that is negative.
     pub(crate) fn difference(&self, other: &Self) -> Self {
-        self.merge(other, usize::saturating_sub)
+        Self(excess(&self.0, &other.0))
     }
 
     /// Returns whether no id has more copies here than in `other`.
     pub(crate) fn is_subset(&self, other: &Self) -> bool {
-        self.difference(other).is_empty()
+        within(&self.0, &other.0)
     }
+}
+
+/// Inserts `o` into a sorted list, keeping repeats.
+pub(crate) fn insert<T: Copy + Ord>(list: &mut Vec<T>, o: T) {
+    let at = list.partition_point(|&x| x <= o);
+    list.insert(at, o);
+}
+
+/// Removes one copy of `o` from a sorted list, and returns whether there
+/// was one.
+pub(crate) fn remove<T: Copy + Ord>(list: &mut Vec<T>, o: T) -> bool {
+    let at = list.partition_point(|&x| x < o);
+    if list.get(at) == Some(&o) {
+        list.remove(at);
+        true
+    } else {
+        false
+    }
+}
+
+/// Merges `from` into `into`, both sorted, keeping repeats: the sum of two
+/// multisets.
+pub(crate) fn add<T: Copy + Ord>(into: &mut Vec<T>, from: &[T]) {
+    if !from.is_empty() {
+        *into = merged(into, from);
+    }
+}
+
+/// Returns the sum of the sorted multisets `a` and `b`, sorted.
+fn merged<T: Copy + Ord>(a: &[T], b: &[T]) -> Vec<T> {
+    let mut merged = Vec::with_capacity(a.len() + b.len());
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() && j < b.len() {
+        if a[i] <= b[j] {
+            merged.push(a[i]);
+            i += 1;
+        } else {
+            merged.push(b[j]);
+            j += 1;
+        }
+    }
+    merged.extend_from_slice(&a[i..]);
+    merged.extend_from_slice(&b[j..]);
+    merged
+}
+
+/// Returns the members of `of` beyond those of `within`, with repeats:
+/// what `within` lacks to hold `of`. Both are sorted multisets.
+pub(crate) fn excess<T: Copy + Ord>(of: &[T], within: &[T]) -> Vec<T> {
+    let mut out = Vec::new();
+    let mut j = 0;
+    for &o in of {
+        while j < within.len() && within[j] < o {
+            j += 1;
+        }
+        if j < within.len() && within[j] == o {
+            j += 1;
+        } else {
+            out.push(o);
+        }
+    }
+    out
+}
+
+/// Returns whether the sorted multiset `small` lies within the sorted
+/// multiset `large`.
+pub(crate) fn within<T: Copy + Ord>(small: &[T], large: &[T]) -> bool {
+    let mut j = 0;
+    for &o in small {
+        while j < large.len() && large[j] < o {
+            j += 1;
+        }
+        if j == large.len() || large[j] != o {
+            return false;
+        }
+        j += 1;
+    }
+    true
 }
 
 #[cfg(test)]

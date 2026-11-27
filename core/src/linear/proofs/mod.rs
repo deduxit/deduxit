@@ -28,8 +28,8 @@ mod first_order;
 pub(crate) mod fmt;
 #[cfg(feature = "interactive")]
 pub mod interactive;
-/// Multisets of occurrence ids.
-mod multiset;
+/// Multisets of occurrence ids, and the same operations on sorted lists.
+pub(crate) mod multiset;
 /// A second, independent checker that the tests compare the checker with.
 #[cfg(all(test, feature = "parse"))]
 mod oracle;
