@@ -31,6 +31,9 @@ struct Written<'a> {
     types: Option<&'a [Type]>,
     /// The variables.
     variables: &'a [Variable],
+    /// The type variables' names, left out outside System F.
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    type_variables: &'a [Box<str>],
     /// The variables of the hypotheses, in the order written.
     context: &'a [VarId],
     /// The term's type, left out in an untyped term.
@@ -46,12 +49,19 @@ impl Serialize for Term {
     /// Serializes the term as a document at the level of the term's
     /// form.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let level = if self.calculus().is_typed() {
-            wire::LAMBDA
-        } else {
-            wire::UNTYPED
-        };
+        let level = level(self.calculus());
         written(self, Some(level)).serialize(serializer)
+    }
+}
+
+/// Returns the level of a term of a calculus.
+const fn level(calculus: Calculus) -> u32 {
+    if calculus.is_polymorphic() {
+        wire::POLYMORPHIC
+    } else if calculus.is_typed() {
+        wire::LAMBDA
+    } else {
+        wire::UNTYPED
     }
 }
 
@@ -65,6 +75,7 @@ fn written(term: &Term, version: Option<u32>) -> Written<'_> {
         atoms: typed.then(|| term.atoms()),
         types: typed.then(|| term.types()),
         variables: term.variables(),
+        type_variables: term.type_variables(),
         context: term.context(),
         goal: term.goal(),
         nodes: term.nodes(),
@@ -120,7 +131,7 @@ impl Serialize for Reduction {
             .map(|step| StepForm { redex: step.redex })
             .collect();
         ReductionForm {
-            version: wire::UNTYPED,
+            version: level(self.term.calculus()).max(wire::UNTYPED),
             strategy: self.strategy,
             term: written(&self.term, None),
             steps: &steps,
@@ -159,6 +170,9 @@ struct TermForm {
     types: Vec<Type>,
     /// The variables.
     variables: Vec<VariableForm>,
+    /// The type variables' names, none outside System F.
+    #[serde(default)]
+    type_variables: Vec<String>,
     /// The variables of the hypotheses, in the order written.
     context: Vec<VarId>,
     /// The term's type, none in an untyped term.
@@ -195,6 +209,7 @@ impl Readable for Term {
                 .into_iter()
                 .map(|variable| (variable.ty, variable.name))
                 .collect(),
+            type_variables: form.type_variables,
             context: form.context,
             goal: form.goal,
             nodes: form.nodes,

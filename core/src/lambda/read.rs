@@ -6,7 +6,10 @@
 //! comes before it. Whether the term is well typed is
 //! [`Term::check`]'s to say.
 
-use super::{Calculus, Node, Term, TermId, Type, TypeId, Types, VarId, Variable, names_variable};
+use super::{
+    Calculus, Node, Term, TermId, Type, TypeId, TypeVarId, Types, VarId, Variable, names_variable,
+    poly,
+};
 use crate::Error;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Refusal};
@@ -25,6 +28,8 @@ pub(crate) struct Parts {
     pub(crate) types: Vec<Type>,
     /// Each variable's type, none in an untyped term, and name.
     pub(crate) variables: Vec<(Option<TypeId>, String)>,
+    /// The type variables' names, none outside System F.
+    pub(crate) type_variables: Vec<String>,
     /// The variables of the hypotheses.
     pub(crate) context: Vec<VarId>,
     /// The term's type, none in an untyped term.
@@ -46,8 +51,13 @@ fn malformed(message: String) -> Error {
 /// Hands every type a type names to `f`.
 fn type_operands(ty: Type, mut f: impl FnMut(TypeId)) {
     match ty {
-        Type::Atom { .. } | Type::One | Type::Top | Type::Zero => {}
-        Type::Bang { of } => f(of),
+        Type::Atom { .. }
+        | Type::One
+        | Type::Top
+        | Type::Zero
+        | Type::Bound { .. }
+        | Type::Variable { .. } => {}
+        Type::Bang { of } | Type::Forall { body: of, .. } => f(of),
         Type::Tensor { left, right } | Type::With { left, right } | Type::Plus { left, right } => {
             f(left);
             f(right);
@@ -63,8 +73,17 @@ fn type_operands(ty: Type, mut f: impl FnMut(TypeId)) {
 /// to.
 fn retyped(ty: Type, f: impl Fn(TypeId) -> TypeId) -> Type {
     match ty {
-        Type::Atom { .. } | Type::One | Type::Top | Type::Zero => ty,
+        Type::Atom { .. }
+        | Type::One
+        | Type::Top
+        | Type::Zero
+        | Type::Bound { .. }
+        | Type::Variable { .. } => ty,
         Type::Bang { of } => Type::Bang { of: f(of) },
+        Type::Forall { variable, body } => Type::Forall {
+            variable,
+            body: f(body),
+        },
         Type::Tensor { left, right } => Type::Tensor {
             left: f(left),
             right: f(right),
@@ -107,7 +126,9 @@ fn variables_of(node: &Node, mut f: impl FnMut(VarId)) {
         | Node::True { .. }
         | Node::False { .. }
         | Node::Derelict { .. }
-        | Node::Discard { .. } => {}
+        | Node::Discard { .. }
+        | Node::TypeLambda { .. }
+        | Node::TypeApply { .. } => {}
     }
 }
 
@@ -121,6 +142,7 @@ impl Term {
             atoms,
             types,
             variables,
+            type_variables,
             context,
             goal,
             mut nodes,
@@ -130,6 +152,7 @@ impl Term {
             atoms.len(),
             types.len(),
             variables.len(),
+            type_variables.len(),
             context.len(),
             nodes.len(),
         ]
@@ -159,6 +182,25 @@ impl Term {
                 "an untyped term gives no `goal` and no variable's `type`".to_owned()
             }));
         }
+        if !calculus.is_polymorphic() && !type_variables.is_empty() {
+            return Err(malformed(
+                "only a term of System F has type variables".to_owned(),
+            ));
+        }
+        // A type variable is named as an atom may be, and a name's
+        // spellings are one.
+        let type_variables = type_variables
+            .iter()
+            .map(|name| {
+                if calculus.is_ordinary() {
+                    name::check_ordinary(name)?;
+                } else {
+                    name::check(name)?;
+                }
+                Ok(name::normalized(name).into())
+            })
+            .collect::<Result<Vec<Box<str>>, Error>>()?;
+        let named = |v: TypeVarId| v.index() < type_variables.len();
         // The atoms, one index per name: `merged` maps the document's
         // index. A name is composed as the parsers compose it, so that
         // two spellings of one name are one atom.
@@ -166,7 +208,7 @@ impl Term {
         let mut merged: Vec<u32> = Vec::with_capacity(atoms.len());
         let mut names: Vec<Box<str>> = Vec::new();
         for atom in &atoms {
-            if calculus == Calculus::Simple {
+            if calculus.is_ordinary() {
                 name::check_ordinary(atom)?;
             } else {
                 name::check(atom)?;
@@ -193,6 +235,10 @@ impl Term {
                         ty
                     }
                 },
+                Type::Forall { variable, .. } | Type::Variable { variable } => {
+                    fits &= named(variable);
+                    ty
+                }
                 Type::One
                 | Type::Top
                 | Type::Zero
@@ -200,19 +246,30 @@ impl Term {
                 | Type::With { .. }
                 | Type::Plus { .. }
                 | Type::Lollipop { .. }
-                | Type::Bang { .. } => ty,
+                | Type::Bang { .. }
+                | Type::Bound { .. } => ty,
             };
             if !fits {
                 return Err(malformed(format!(
-                    "type {i} names a type that does not come before it, or an atom past the list"
+                    "type {i} names a type that does not come before it, or an atom or a type variable past the list"
                 )));
             }
             ids.push(interned.add(retyped(ty, |operand| ids[operand.index()])));
         }
+        // A type a term writes is closed: every `bound` index names a
+        // `forall` inside it.
+        let needs = poly::needs(&interned.list);
         let known = |ty: TypeId, what: &str| {
-            ids.get(ty.index())
+            let id = ids
+                .get(ty.index())
                 .copied()
-                .ok_or_else(|| malformed(format!("{what} names a type past the list")))
+                .ok_or_else(|| malformed(format!("{what} names a type past the list")))?;
+            if needs[id.index()] > 0 {
+                return Err(malformed(format!(
+                    "{what} names a type with a `bound` index that no `forall` around it binds"
+                )));
+            }
+            Ok(id)
         };
         let variables = variables
             .into_iter()
@@ -241,7 +298,15 @@ impl Term {
             match node {
                 Node::Left { sum: ty, .. }
                 | Node::Right { sum: ty, .. }
-                | Node::False { goal: ty, .. } => *ty = known(*ty, "a node")?,
+                | Node::False { goal: ty, .. }
+                | Node::TypeApply { argument: ty, .. } => *ty = known(*ty, "a node")?,
+                Node::TypeLambda { variable, .. } => {
+                    if !named(*variable) {
+                        return Err(malformed(format!(
+                            "node {i} names a type variable past the list"
+                        )));
+                    }
+                }
                 Node::Var { .. }
                 | Node::Lambda { .. }
                 | Node::Apply { .. }
@@ -280,6 +345,7 @@ impl Term {
             goal: goal.map(|goal| known(goal, "`goal`")).transpose()?,
             types: interned.list,
             variables,
+            type_variables,
             context,
             nodes,
             root,

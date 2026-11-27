@@ -36,6 +36,9 @@ design, with its sources and the alternatives weighed, is
   `reduce.rs`: `Term::reduce`, `ReduceOptions`, `Strategy` (with
   `pick`), `Step`, `End`, `Reduction`, and the copy (`copied`) that
   `infer.rs` shares; `infer.rs`: `Term::principal_type`;
+  `poly.rs`: System F's operations on types (`close`, `open`,
+  `substitute`, `free`);
+  `system_f_tests.rs`: System F's terms, substitution and type β;
   `tests.rs`: the round trips against a checker of the tests' own;
   `untyped_tests.rs`: untyped terms, the stepper against a de Bruijn
   reducer of the tests' own, and the principal type against every
@@ -259,10 +262,69 @@ design, with its sources and the alternatives weighed, is
   commuting conversions (a `let` or `case` moved past a cut), which the
   test's normaliser does not implement; extend it with those
   conversions before widening the fragment.
-- **Where quantifiers go**: a `Node` variant for type abstraction and
-  application and a `Type` variant with a bound type variable, in the
-  arena's operand-first order; `NoTerm::Quantified` stays for
-  first-order quantifiers, which are no type quantifiers.
+- **System F is the typing axis's third value** (`Calculus::SystemF`,
+  `SystemFLinear`, `SystemFAffine`; `is_polymorphic`): the simple or the
+  linear calculus's nodes and types (`is_ordinary` says which, where
+  code once compared with `Calculus::Simple`) plus `Type::Forall`,
+  `Bound`, `Variable` and `Node::TypeLambda`, `TypeApply`. Church style
+  only: no inference (Wells, undecidable) and no inhabitation search, by
+  the author's word; `NoTerm::Quantified` stays for first-order
+  quantifiers, which are no type quantifiers.
+- **A `∀`'s variable is a de Bruijn index** (`Type::Bound`, counted from
+  the nearest `∀`), and the name a `∀` keeps (`Forall::variable`, an
+  entry of `Term::type_variables`) is for printing alone: the arena
+  keys a type by `Type::key`, which erases it, so types equal up to
+  bound names are one id and the rules still compare ids. The first name
+  interned wins: a type prints with the names of the first equal type
+  made, which the manual says. Every type a term writes is closed
+  (`from_parts` refuses a loose index with `poly::free`'s `needs`), so
+  `poly::open` substitutes a closed argument and nothing can be captured
+  by construction; the capture the tests hold is the printed one.
+- **A `ΛX`'s variable is a `TypeVarId` of its own** (`Type::Variable` in
+  the types inside `M`); `poly::close` turns it into indices for the
+  abstraction's type. Its side condition (`X` free in no hypothesis) is
+  `check::scope`: a node's free type variables are those of the types it
+  writes (`check::written`: a binder's variables', a sum, `false`'s
+  goal, a type argument) and of its subterms, less its own at a `ΛX`;
+  the root's, with the context's and the goal's, must be none. A term
+  variable's type is written where it is bound, so a variable bound
+  outside `ΛX` whose type names `X` leaves `X` free at the root. Sets are
+  per node, so a shared node is scoped once. That argument needs each
+  `TypeVarId` bound by one `ΛX` node at most (`TypeTwice`): a document
+  with `ΛX. λx:X. ΛX. x` under one id passed with the type `∀X. X → ∀X.
+  X`, the inner `ΛX` generalizing the outer `x` and the outer taking `X`
+  out (the review's witness, closed at `a → ⊥`; a test now). The parser
+  and the stepper's copy give every `ΛX` its own. `scope` also refuses a
+  `ΛX` named as an atom, or one that would take in another type variable
+  of its name (`TypeNamed`, `TypeCaptured`), so its text reads back.
+- **Free type variables are found per written type, on demand**
+  (`poly::Walker`, a mark per type and nothing else, each walk's types
+  ticked and each result held against the limits): a list per type of
+  the arena, made before any limit was asked, took 344 MB for 218 KB of
+  text under a bound of 50 MB (the review's witness, a chain of arrows
+  over as many type variables). The reader's check of loose indices is
+  `poly::needs`, a number per type.
+- **The printer renames a `∀` only where its name is free in its body**
+  (`print::free_in`: per type its atoms' and variables' names and the
+  indices that point past it): a name equal to one of those, or to the
+  printed name of an outer `∀` the body refers to, takes the least index
+  free (`fresh`, `X₁`). A rule that renamed against every name of the
+  whole printed type renamed `∀Y` in one half of a judgement because an
+  atom `Y` stood in the other.
+- **System F's rules make types and count their work** (`Types::work`,
+  which `poly`'s walks raise, a unit per type met at a depth): the
+  checker ticks its meter by the difference after each `rule` and holds
+  the types made past one per node; the parser counts each against the
+  occurrence bound.
+- **A type β step copies with a fresh `TypeVarId` per `ΛX` copied**
+  (`Copier::type_standing`, the type each source variable stands for at
+  the place: its copy's `Variable`, or a redex's argument), as term
+  binders get fresh variables, so no `ΛX` is bound twice and a type put
+  in place cannot meet an abstraction of its own variable;
+  `needs_copy` copies a term whose `ΛX`s share a variable first.
+  `rename_types` then renames a copied `ΛX` whose name would take in a
+  free type variable of its name or is an atom's, as `rename` does for
+  term variables.
 - **Inhabitation goes through the ordinary engines** (`inhabit.rs`):
   `inhabit` is `ordinary::decide_within` of the sequent in
   intuitionistic logic, LJT again where the default method gave no

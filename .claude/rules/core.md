@@ -192,7 +192,10 @@ Each entry point is described in the file of its module:
   (`Calculus::Untyped`, `UntypedLinear`, `UntypedAffine`),
   `Term::reduce(&ReduceOptions, &limits, stop, each)` to a `Reduction`
   with an `End`, `Strategy::pick`, `Term::write_marked`, and
-  `Term::principal_type(&limits, stop)` (`core-lambda.md`).
+  `Term::principal_type(&limits, stop)`; System F's calculi
+  (`Calculus::SystemF`, `SystemFLinear`, `SystemFAffine`), `Type::Forall`,
+  `Bound`, `Variable`, `Node::TypeLambda`, `TypeApply` and
+  `Term::type_variables` (`core-lambda.md`).
 
 ## Crate-wide rules
 

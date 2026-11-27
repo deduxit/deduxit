@@ -11,8 +11,9 @@
 //! longer than the derivation by any factor. The bound is computed over
 //! the DAG, each node once.
 
-use super::{Calculus, Node, Notation, Options, Term, TermId, Type, TypeId, VarId};
+use super::{Calculus, Node, Notation, Options, Term, TermId, Type, TypeId, TypeVarId, VarId};
 use crate::Error;
+use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::sequents::notation::Atoms;
 use std::fmt::Write;
@@ -44,6 +45,12 @@ pub(crate) struct Connectives {
 pub(crate) struct Spelling {
     /// `λ`
     lambda: &'static str,
+    /// `Λ`, the type abstraction of System F.
+    type_lambda: &'static str,
+    /// `∀` before its variable.
+    forall: &'static str,
+    /// What a type application's type is written between.
+    type_argument: (&'static str, &'static str),
     /// What stands between a binder's variable and its body.
     dot: &'static str,
     /// What stands between a variable and its type in a binder.
@@ -104,6 +111,9 @@ pub(crate) enum Index {
 /// default.
 pub(crate) const UNICODE: Spelling = Spelling {
     lambda: "λ",
+    type_lambda: "Λ",
+    forall: "∀",
+    type_argument: ("[", "]"),
     dot: ". ",
     colon: ":",
     has_type: " : ",
@@ -150,6 +160,9 @@ const SIMPLE_UNICODE: Connectives = Connectives {
 /// The ASCII spelling, the types as the parsers read them.
 pub(crate) const ASCII: Spelling = Spelling {
     lambda: "\\",
+    type_lambda: "/\\",
+    forall: "forall ",
+    type_argument: ("[", "]"),
     dot: ". ",
     colon: ":",
     has_type: " : ",
@@ -195,6 +208,9 @@ pub(crate) const ASCII: Spelling = Spelling {
 #[cfg(feature = "latex")]
 pub(crate) const LATEX: Spelling = Spelling {
     lambda: r"\lambda ",
+    type_lambda: r"\Lambda ",
+    forall: r"\forall ",
+    type_argument: ("[", "]"),
     dot: r".\,",
     colon: r"{:}",
     has_type: r" : ",
@@ -240,6 +256,9 @@ pub(crate) const LATEX: Spelling = Spelling {
 #[cfg(feature = "typst")]
 pub(crate) const TYPST: Spelling = Spelling {
     lambda: "lambda ",
+    type_lambda: "Lambda ",
+    forall: "forall ",
+    type_argument: ("[", "]"),
     dot: ". ",
     colon: ":",
     has_type: " : ",
@@ -314,14 +333,25 @@ pub(crate) fn write_name(
 }
 
 /// Writes a type of an arena in a calculus's connectives, in brackets if
-/// it is binary and `bracket` is set, every binary operand in brackets,
-/// with a stack of its own.
+/// it is binary or a `∀` and `bracket` is set, every such operand in
+/// brackets, with a stack of its own.
+///
+/// A `∀` is written with the name it keeps, or, where that name is free
+/// in its body (an atom's, a type variable's, or that of a `∀` around
+/// whose variable the body names), with the least index that makes it
+/// none of them (`X₁`): the text then reads back as the type, whatever
+/// names a substitution brought in.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the arenas a type names and how to spell it"
+)]
 pub(crate) fn write_type(
     out: &mut impl Write,
     types: &[Type],
     atoms: &[Box<str>],
+    type_variables: &[Box<str>],
+    spelling: &Spelling,
     connectives: &Connectives,
-    atom: Atoms,
     ty: TypeId,
     bracket: bool,
 ) -> std::fmt::Result {
@@ -331,13 +361,26 @@ pub(crate) fn write_type(
         Type(TypeId, bool),
         /// Text.
         Text(&'static str),
+        /// The end of a `∀`'s body: its name leaves the names in scope.
+        Leave,
     }
     let c = connectives;
+    let atom = spelling.atom;
+    let name = |out: &mut _, name: &str| write_name(out, name, spelling.index, atom);
+    // The printed names of the `∀`s around, the innermost last.
+    let mut scope: Vec<Box<str>> = Vec::new();
+    // What each type of the root's names freely: computed at the first
+    // `∀`.
+    let mut free: Option<HashMap<TypeId, Free<'_>>> = None;
     let mut stack = vec![Step::Type(ty, bracket)];
     while let Some(step) = stack.pop() {
         let (t, bracket) = match step {
             Step::Text(s) => {
                 out.write_str(s)?;
+                continue;
+            }
+            Step::Leave => {
+                scope.pop();
                 continue;
             }
             Step::Type(t, bracket) => (t, bracket),
@@ -366,26 +409,156 @@ pub(crate) fn write_type(
             Type::With { left, right } => binary(&mut stack, left, c.with, right),
             Type::Plus { left, right } => binary(&mut stack, left, c.plus, right),
             Type::Lollipop { from, to } => binary(&mut stack, from, c.lollipop, to),
+            Type::Variable { variable } => name(out, &type_variables[variable.index()])?,
+            Type::Bound { index } => {
+                // A closed type's index names a `∀` around it.
+                let at = scope.len().checked_sub(index as usize + 1);
+                match at.and_then(|at| scope.get(at)) {
+                    Some(bound) => name(out, bound)?,
+                    None => out.write_str("?")?,
+                }
+            }
+            Type::Forall { variable, body } => {
+                let free = free.get_or_insert_with(|| free_in(types, atoms, type_variables, ty));
+                let inner = &free[&body];
+                // `Bound { index: k }` with `k ≥ 1` in the body names the
+                // `∀` `k - 1` places out from this one.
+                let outer = |candidate: &str| {
+                    inner.escapes.iter().any(|&k| {
+                        k >= 1
+                            && scope
+                                .len()
+                                .checked_sub(k as usize)
+                                .and_then(|at| scope.get(at))
+                                .is_some_and(|name| &**name == candidate)
+                    })
+                };
+                let chosen = fresh(&type_variables[variable.index()], |candidate| {
+                    inner.names.contains(&candidate) || outer(candidate)
+                });
+                if bracket {
+                    out.write_str("(")?;
+                    stack.push(Step::Text(")"));
+                }
+                out.write_str(spelling.forall)?;
+                name(out, &chosen)?;
+                out.write_str(spelling.dot)?;
+                scope.push(chosen);
+                stack.push(Step::Leave);
+                stack.push(Step::Type(body, false));
+            }
         }
     }
     Ok(())
+}
+
+/// What a type names freely: the names of its atoms and type variables,
+/// and the bound indices that point past it, as counted at its top.
+struct Free<'a> {
+    /// The names, sorted, each once.
+    names: Vec<&'a str>,
+    /// The indices, sorted, each once.
+    escapes: Vec<u32>,
+}
+
+/// Returns what every type that `root` reaches names freely, each type
+/// of its DAG visited once, its operands before it.
+fn free_in<'a>(
+    types: &[Type],
+    atoms: &'a [Box<str>],
+    type_variables: &'a [Box<str>],
+    root: TypeId,
+) -> HashMap<TypeId, Free<'a>> {
+    let mut made: HashMap<TypeId, Free<'a>> = HashMap::default();
+    let mut stack = vec![(root, false)];
+    while let Some((t, left)) = stack.pop() {
+        if made.contains_key(&t) {
+            continue;
+        }
+        let ty = types[t.index()];
+        let mut operands: Vec<TypeId> = Vec::new();
+        match ty {
+            Type::Tensor { left, right }
+            | Type::With { left, right }
+            | Type::Plus { left, right } => {
+                operands.extend([left, right]);
+            }
+            Type::Lollipop { from, to } => operands.extend([from, to]),
+            Type::Bang { of } | Type::Forall { body: of, .. } => operands.push(of),
+            Type::Atom { .. }
+            | Type::One
+            | Type::Top
+            | Type::Zero
+            | Type::Bound { .. }
+            | Type::Variable { .. } => {}
+        }
+        if !left {
+            stack.push((t, true));
+            stack.extend(operands.iter().map(|&o| (o, false)));
+            continue;
+        }
+        let mut names: Vec<&'a str> = Vec::new();
+        let mut escapes: Vec<u32> = Vec::new();
+        match ty {
+            Type::Atom { atom } => names.push(&atoms[atom as usize]),
+            Type::Variable { variable } => names.push(&type_variables[variable.index()]),
+            Type::Bound { index } => escapes.push(index),
+            Type::Forall { body, .. } => {
+                let inner = &made[&body];
+                names.extend_from_slice(&inner.names);
+                escapes.extend(inner.escapes.iter().filter_map(|k| k.checked_sub(1)));
+            }
+            Type::One
+            | Type::Top
+            | Type::Zero
+            | Type::Tensor { .. }
+            | Type::With { .. }
+            | Type::Plus { .. }
+            | Type::Lollipop { .. }
+            | Type::Bang { .. } => {
+                for o in &operands {
+                    names.extend_from_slice(&made[o].names);
+                    escapes.extend_from_slice(&made[o].escapes);
+                }
+            }
+        }
+        names.sort_unstable();
+        names.dedup();
+        escapes.sort_unstable();
+        escapes.dedup();
+        made.insert(t, Free { names, escapes });
+    }
+    made
+}
+
+/// Returns `name` if `taken` refuses it not, else its letters with the
+/// least index that `taken` refuses not: `X`, then `X1`, `X2`, ….
+pub(crate) fn fresh(name: &str, taken: impl Fn(&str) -> bool) -> Box<str> {
+    if !taken(name) {
+        return name.into();
+    }
+    let stem = name.trim_end_matches(|c: char| c.is_ascii_digit());
+    let stem = if stem.is_empty() { name } else { stem };
+    (1u64..)
+        .map(|index| format!("{stem}{index}"))
+        .find(|candidate| !taken(candidate))
+        .map_or_else(|| name.into(), Into::into)
 }
 
 impl Spelling {
     /// Returns the type connectives of a calculus.
     pub(crate) const fn connectives(&self, calculus: Calculus) -> &Connectives {
         match calculus {
-            Calculus::Linear | Calculus::Affine => &self.linear,
+            Calculus::Linear
+            | Calculus::Affine
+            | Calculus::SystemFLinear
+            | Calculus::SystemFAffine => &self.linear,
             Calculus::Simple
             | Calculus::Untyped
             | Calculus::UntypedLinear
-            | Calculus::UntypedAffine => &self.simple,
+            | Calculus::UntypedAffine
+            | Calculus::SystemF => &self.simple,
         }
-    }
-
-    /// Returns how the spelling writes an atom's name.
-    pub(crate) const fn atom(&self) -> Atoms {
-        self.atom
     }
 }
 
@@ -417,6 +590,7 @@ enum Place {
 const fn bracketed(node: &Node, place: Place) -> bool {
     match node {
         Node::Lambda { .. }
+        | Node::TypeLambda { .. }
         | Node::LetTensor { .. }
         | Node::LetUnit { .. }
         | Node::Case { .. }
@@ -424,7 +598,7 @@ const fn bracketed(node: &Node, place: Place) -> bool {
         | Node::Discard { .. }
         | Node::Copy { .. } => !matches!(place, Place::Free),
         Node::Tensor { .. } => !matches!(place, Place::Free),
-        Node::Apply { .. } => matches!(place, Place::Argument),
+        Node::Apply { .. } | Node::TypeApply { .. } => matches!(place, Place::Argument),
         Node::Var { .. }
         | Node::Unit
         | Node::Pair { .. }
@@ -449,6 +623,8 @@ enum Piece {
     Term(TermId, Place),
     /// A variable's name.
     Var(VarId),
+    /// A type variable's name.
+    TypeVar(TypeVarId),
     /// A type, bracketed if binary and the flag says so.
     Type(TypeId, bool),
     /// The start of the marked subterm's text.
@@ -499,6 +675,16 @@ impl<'t> Printer<'t> {
             type_lengths: Vec::with_capacity(term.types.len()),
         };
         let c = printer.connectives();
+        // A type variable's name, written with an index that renaming may
+        // have added: every character at most four bytes, the index's
+        // digits at most twenty, each as a mark around it at most.
+        let longest = term
+            .type_variables
+            .iter()
+            .map(|name| name.len() as u64)
+            .max()
+            .unwrap_or(0);
+        let named = longest.saturating_mul(4).saturating_add(120);
         let mut lengths: Vec<u64> = Vec::with_capacity(term.types.len());
         for ty in &term.types {
             let of = |t: TypeId| lengths[t.index()];
@@ -523,6 +709,10 @@ impl<'t> Printer<'t> {
                 Type::With { left, right } => binary(left, c.with, right),
                 Type::Plus { left, right } => binary(left, c.plus, right),
                 Type::Lollipop { from, to } => binary(from, c.lollipop, to),
+                Type::Forall { body, .. } => of(body)
+                    .saturating_add(named)
+                    .saturating_add((spelling.forall.len() + spelling.dot.len() + 2) as u64),
+                Type::Bound { .. } | Type::Variable { .. } => named,
             };
             lengths.push(length);
         }
@@ -556,6 +746,16 @@ impl<'t> Printer<'t> {
         )
     }
 
+    /// Writes a type variable's name.
+    fn type_var(&self, out: &mut impl Write, v: TypeVarId) -> std::fmt::Result {
+        write_name(
+            out,
+            &self.term.type_variables[v.index()],
+            self.spelling.index,
+            self.spelling.atom,
+        )
+    }
+
     /// Writes a type, in brackets if it is binary and `bracket` is set,
     /// every binary operand in brackets.
     fn ty(&self, out: &mut impl Write, ty: TypeId, bracket: bool) -> std::fmt::Result {
@@ -563,8 +763,9 @@ impl<'t> Printer<'t> {
             out,
             &self.term.types,
             &self.term.atoms,
+            &self.term.type_variables,
+            self.spelling,
             self.connectives(),
-            self.spelling.atom,
             ty,
             bracket,
         )
@@ -574,7 +775,7 @@ impl<'t> Printer<'t> {
     fn pieces(&self, node: &Node) -> Vec<Piece> {
         use Piece::{Keyword, Term as T, Text, Var};
         let s = self.spelling;
-        let linear = self.term.calculus != Calculus::Simple;
+        let linear = !self.term.calculus.is_ordinary();
         let typed = |v: VarId| match self.term.variables[v.index()].ty {
             Some(ty) if self.types => vec![Var(v), Text(s.colon), Piece::Type(ty, true)],
             _ => vec![Var(v)],
@@ -624,6 +825,19 @@ impl<'t> Printer<'t> {
                 T(*function, Place::Function),
                 Text(s.apply),
                 T(*argument, Place::Argument),
+            ],
+            Node::TypeLambda { variable, body } => vec![
+                Text(s.type_lambda),
+                Piece::TypeVar(*variable),
+                Text(s.dot),
+                T(*body, Place::Free),
+            ],
+            Node::TypeApply { term, argument } => vec![
+                T(*term, Place::Function),
+                Text(s.apply),
+                Text(s.type_argument.0),
+                Piece::Type(*argument, false),
+                Text(s.type_argument.1),
             ],
             Node::Tensor { left, right } => vec![
                 T(*left, Place::Operand),
@@ -788,6 +1002,7 @@ impl<'t> Printer<'t> {
             }
             Piece::Term(..) | Piece::MarkStart | Piece::Marked => return 0,
             Piece::Var(v) => self.var(&mut text, v),
+            Piece::TypeVar(v) => self.type_var(&mut text, v),
             Piece::Type(t, _) => return self.type_lengths[t.index()],
         };
         written.map_or(u64::MAX, |()| text.len() as u64)
@@ -806,6 +1021,7 @@ impl<'t> Printer<'t> {
                     other @ (Piece::Text(_)
                     | Piece::Keyword(_)
                     | Piece::Var(_)
+                    | Piece::TypeVar(_)
                     | Piece::Type(..)
                     | Piece::MarkStart
                     | Piece::Marked) => self.length(other),
@@ -897,6 +1113,7 @@ impl<'t> Printer<'t> {
                     out.write_str(s.keyword.1)?;
                 }
                 Piece::Var(v) => self.var(out, v)?,
+                Piece::TypeVar(v) => self.type_var(out, v)?,
                 Piece::Type(t, bracket) => self.ty(out, t, bracket)?,
                 Piece::MarkStart => start = out.bytes,
                 Piece::Marked => marked = Some(start..out.bytes),

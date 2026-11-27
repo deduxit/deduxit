@@ -11,9 +11,9 @@
 //! uses count at every place that names it.
 
 use super::print::{UNICODE, write_name, write_type};
-use super::{Calculus, Node, Term, TermId, Type, TypeId, Types, VarId, Variable};
+use super::{Calculus, Node, Term, TermId, Type, TypeId, TypeVarId, Types, VarId, Variable, poly};
 use crate::Error;
-use crate::hash::HashMap;
+use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use std::fmt::Write;
 
@@ -156,6 +156,30 @@ pub(crate) enum Fault {
         /// The type claimed.
         goal: TypeId,
     },
+    /// A type variable is named outside the type abstraction that binds
+    /// it: in a type written there, or in the type of a variable bound
+    /// outside it.
+    TypeFree {
+        /// The type variable.
+        variable: TypeVarId,
+    },
+    /// A type variable is named under a type abstraction of another type
+    /// variable of its name, so the printed term would name the other.
+    TypeCaptured {
+        /// The type variable named.
+        variable: TypeVarId,
+    },
+    /// A type abstraction's variable has the name of an atom, so the
+    /// printed term would read the atom as the variable.
+    TypeNamed {
+        /// The type variable.
+        variable: TypeVarId,
+    },
+    /// Two type abstractions bind one type variable.
+    TypeTwice {
+        /// The type variable.
+        variable: TypeVarId,
+    },
 }
 
 /// The most characters of a type that an error's message writes.
@@ -190,6 +214,8 @@ pub(crate) struct Names<'a> {
     pub(crate) atoms: &'a [Box<str>],
     /// The variables.
     pub(crate) variables: &'a [Variable],
+    /// The type variables' names.
+    pub(crate) type_variables: &'a [Box<str>],
     /// The calculus.
     pub(crate) calculus: Calculus,
 }
@@ -206,8 +232,9 @@ impl Names<'_> {
             &mut out,
             self.types,
             self.atoms,
+            self.type_variables,
+            &UNICODE,
             connectives,
-            UNICODE.atom(),
             ty,
             false,
         );
@@ -230,6 +257,19 @@ impl Names<'_> {
         out
     }
 
+    /// Returns a type variable's name in Unicode.
+    fn type_variable(&self, variable: TypeVarId) -> String {
+        let mut out = String::new();
+        // Writing into a `String` does not fail.
+        let _ = write_name(
+            &mut out,
+            &self.type_variables[variable.index()],
+            super::print::Index::Subscript,
+            crate::linear::sequents::notation::Atoms::Plain,
+        );
+        out
+    }
+
     /// Returns the calculus's name in a sentence.
     const fn calculus(&self) -> &'static str {
         match self.calculus {
@@ -239,6 +279,9 @@ impl Names<'_> {
             Calculus::Untyped => "the untyped lambda calculus",
             Calculus::UntypedLinear => "the untyped linear lambda calculus",
             Calculus::UntypedAffine => "the untyped affine lambda calculus",
+            Calculus::SystemF => "System F",
+            Calculus::SystemFLinear => "linear System F",
+            Calculus::SystemFAffine => "affine System F",
         }
     }
 }
@@ -322,6 +365,28 @@ pub(crate) fn describe(fault: Fault, names: Names<'_>) -> String {
             names.ty(found),
             names.ty(goal)
         ),
+        Fault::TypeFree { variable } => {
+            let name = names.type_variable(variable);
+            format!(
+                "the type variable {name} is named outside the type abstraction Λ{name} that binds it: in a type written there, or in the type of a term variable bound outside it, which Λ{name} cannot generalize"
+            )
+        }
+        Fault::TypeCaptured { variable } => {
+            let name = names.type_variable(variable);
+            format!(
+                "the type variable {name} is named under a type abstraction of another type variable named {name}, so the term's text would name the other; rename one"
+            )
+        }
+        Fault::TypeTwice { variable } => format!(
+            "two type abstractions bind the type variable {}; give each its own",
+            names.type_variable(variable)
+        ),
+        Fault::TypeNamed { variable } => {
+            let name = names.type_variable(variable);
+            format!(
+                "the type variable {name} of a type abstraction has the name of an atom, so the term's text would read the atom as the variable; rename one"
+            )
+        }
     }
 }
 
@@ -339,7 +404,7 @@ pub(crate) fn rule(
     variable: impl Fn(VarId) -> TypeId,
     of: impl Fn(TermId) -> TypeId,
 ) -> Result<TypeId, Fault> {
-    let simple = calculus == Calculus::Simple;
+    let simple = calculus.is_ordinary();
     let foreign = |what| {
         if simple {
             Err(Fault::Foreign { what })
@@ -364,7 +429,30 @@ pub(crate) fn rule(
             Ok(())
         }
     };
+    let polymorphic = |what| {
+        if calculus.is_polymorphic() {
+            Ok(())
+        } else {
+            Err(Fault::Foreign { what })
+        }
+    };
     match node {
+        Node::TypeLambda { variable: x, body } => {
+            polymorphic("a type abstraction `ΛX. M`")?;
+            Ok(poly::close(types, of(*body), *x))
+        }
+        Node::TypeApply { term, argument } => {
+            polymorphic("a type application `M [A]`")?;
+            let found = of(*term);
+            let Type::Forall { body, .. } = types.get(found) else {
+                return Err(Fault::Shape {
+                    of: "the term a type is applied to",
+                    needs: "a type ∀X. A",
+                    found,
+                });
+            };
+            Ok(poly::open(types, body, *argument))
+        }
         Node::Var { variable: v } => Ok(variable(*v)),
         Node::Lambda { variable: v, body } => Ok(types.add(Type::Lollipop {
             from: variable(*v),
@@ -592,19 +680,31 @@ fn banged(types: &Types, found: TypeId, of: &'static str) -> Result<TypeId, Faul
     }
 }
 
-/// Returns the first type of an arena that the simple calculus does not
-/// have, in words.
-fn foreign_type(types: &[Type]) -> Option<&'static str> {
+/// Returns the first type of an arena that a typed calculus does not
+/// have, in words: the simple calculus and System F have no `⊗`, `1` or
+/// `!`, and only System F has `∀`.
+fn foreign_type(types: &[Type], calculus: Calculus) -> Option<&'static str> {
+    let ordinary = calculus.is_ordinary();
+    let polymorphic = calculus.is_polymorphic();
     types.iter().find_map(|ty| match ty {
-        Type::Tensor { .. } => Some("a pair type `A ⊗ B`"),
-        Type::One => Some("the type `1`"),
-        Type::Bang { .. } => Some("a type `!A`"),
+        Type::Tensor { .. } if ordinary => Some("a pair type `A ⊗ B`"),
+        Type::One if ordinary => Some("the type `1`"),
+        Type::Bang { .. } if ordinary => Some("a type `!A`"),
+        Type::Forall { .. } | Type::Bound { .. } | Type::Variable { .. } if !polymorphic => {
+            Some("a type `∀X. A`")
+        }
         Type::Atom { .. }
+        | Type::One
         | Type::Top
         | Type::Zero
+        | Type::Tensor { .. }
         | Type::With { .. }
         | Type::Plus { .. }
-        | Type::Lollipop { .. } => None,
+        | Type::Lollipop { .. }
+        | Type::Bang { .. }
+        | Type::Forall { .. }
+        | Type::Bound { .. }
+        | Type::Variable { .. } => None,
     })
 }
 
@@ -624,6 +724,8 @@ fn untyped_foreign(node: &Node) -> Option<&'static str> {
         Node::Promote { .. } | Node::Derelict { .. } | Node::Discard { .. } | Node::Copy { .. } => {
             Some("a node of `!`")
         }
+        Node::TypeLambda { .. } => Some("a type abstraction `ΛX. M`"),
+        Node::TypeApply { .. } => Some("a type application `M [A]`"),
     }
 }
 
@@ -693,9 +795,12 @@ impl Meter<'_> {
 
     /// Counts `uses` more uses kept, and refuses past the memory bound.
     fn hold(&mut self, uses: usize) -> Result<(), Error> {
-        self.held = self
-            .held
-            .saturating_add((uses as u64).saturating_mul(USE_BYTES));
+        self.hold_bytes((uses as u64).saturating_mul(USE_BYTES))
+    }
+
+    /// Counts `bytes` more held, and refuses past the memory bound.
+    fn hold_bytes(&mut self, bytes: u64) -> Result<(), Error> {
+        self.held = self.held.saturating_add(bytes);
         match self.memory {
             Some(limit) if self.held > limit => Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Check,
@@ -885,7 +990,9 @@ impl Pass<'_, '_> {
             | Node::Second { term }
             | Node::Left { term, .. }
             | Node::Right { term, .. }
-            | Node::Derelict { term } => self.take(*term)?,
+            | Node::Derelict { term }
+            | Node::TypeApply { term, .. } => self.take(*term)?,
+            Node::TypeLambda { body, .. } => self.take(*body)?,
             Node::Case {
                 term,
                 left,
@@ -947,6 +1054,7 @@ fn ill_typed(term: &Term, types: &Types, node: usize, fault: Fault) -> Error {
         types: &types.list,
         atoms: &term.atoms,
         variables: &term.variables,
+        type_variables: &term.type_variables,
         calculus: term.calculus,
     };
     Error::IllTyped {
@@ -975,8 +1083,8 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
     }
     let mut types = Types::of(&term.types, nodes);
     let root = term.root.index();
-    if term.calculus == Calculus::Simple
-        && let Some(what) = foreign_type(&term.types)
+    if term.calculus.is_typed()
+        && let Some(what) = foreign_type(&term.types, term.calculus)
     {
         return Err(ill_typed(term, &types, root, Fault::Foreign { what }));
     }
@@ -1016,6 +1124,7 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
     for (i, node) in term.nodes.iter().enumerate() {
         pass.meter.tick(1)?;
         if typed {
+            let (work, made) = (types.work, types.len());
             let ty = rule(
                 node,
                 term.calculus,
@@ -1024,6 +1133,11 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
                 |t| of[t.index()],
             )
             .map_err(|fault| ill_typed(term, &types, i, fault))?;
+            // The estimate counted one type made per node; System F's
+            // rules can make more, and count their work.
+            pass.meter.tick((types.work - work) as usize)?;
+            let more = (types.len() - made).saturating_sub(1) as u64;
+            pass.meter.hold_bytes(more.saturating_mul(TYPE_BYTES))?;
             of.push(ty);
         } else if let Some(what) = untyped_foreign(node) {
             return Err(ill_typed(term, &types, i, Fault::Foreign { what }));
@@ -1055,10 +1169,138 @@ fn check(term: &Term, limits: &Limits, stop: &mut dyn FnMut() -> bool) -> Result
             return Err(ill_typed(term, &types, root, Fault::Goal { found, goal }));
         }
     }
+    if term.calculus.is_polymorphic() {
+        scope(term, &types, &mut pass.meter)?;
+    }
     Ok(Typing {
         types: types.list,
         of,
     })
+}
+
+/// Returns the types a node writes: its variables' (of a `λ` or a
+/// pattern), an injection's sum, `false`'s type and a type application's
+/// argument.
+pub(crate) fn written(term: &Term, node: &Node, mut f: impl FnMut(TypeId)) {
+    let mut variable = |v: &VarId| f(term.variables[v.index()].typed());
+    match node {
+        Node::Lambda { variable: v, .. } => variable(v),
+        Node::LetTensor { left, right, .. }
+        | Node::Copy { left, right, .. }
+        | Node::Case { left, right, .. } => {
+            variable(left);
+            variable(right);
+        }
+        Node::Promote { variables, .. } => variables.iter().for_each(variable),
+        Node::Left { sum, .. } | Node::Right { sum, .. } => f(*sum),
+        Node::False { goal, .. } => f(*goal),
+        Node::TypeApply { argument, .. } => f(*argument),
+        Node::Var { .. }
+        | Node::Apply { .. }
+        | Node::Tensor { .. }
+        | Node::Unit
+        | Node::LetUnit { .. }
+        | Node::Pair { .. }
+        | Node::First { .. }
+        | Node::Second { .. }
+        | Node::True { .. }
+        | Node::Derelict { .. }
+        | Node::Discard { .. }
+        | Node::TypeLambda { .. } => {}
+    }
+}
+
+/// Checks that every type variable of a term of System F is bound by one
+/// type abstraction `ΛX. M` at most and named only inside it, under no
+/// other type variable's abstraction of its name, and with no atom's
+/// name.
+///
+/// A node's free type variables are those of the types it writes and of
+/// its subterms, less its own at a `ΛX`; the root's, with those of the
+/// context's types and the goal, must be none. A term variable's type is
+/// written where it is bound, so a variable bound outside `ΛX. M` whose
+/// type names `X` leaves `X` free: this is `∀`'s side condition, that `X`
+/// is free in no hypothesis. It needs `X` bound by that one `ΛX`: under a
+/// second `ΛX` inside the first, a use of the outer variable `x : X`
+/// would be generalized by the inner one and `X` taken out by the outer,
+/// and `ΛX. λx:X. ΛX. x` would have the type `∀X. X → ∀X. X`. Sets are
+/// per node, whatever the place, so a shared node is scoped once.
+fn scope(term: &Term, types: &Types, meter: &mut Meter<'_>) -> Result<(), Error> {
+    let root = term.root.index();
+    let fault = |node: usize, fault| Err(ill_typed(term, types, node, fault));
+    let mut bound = vec![false; term.type_variables.len()];
+    for (i, node) in term.nodes.iter().enumerate() {
+        if let Node::TypeLambda { variable, .. } = node
+            && std::mem::replace(&mut bound[variable.index()], true)
+        {
+            return fault(
+                i,
+                Fault::TypeTwice {
+                    variable: *variable,
+                },
+            );
+        }
+    }
+    let mut atoms: HashSet<&str> =
+        HashSet::with_capacity_and_hasher(term.atoms.len(), Default::default());
+    atoms.extend(term.atoms.iter().map(|a| &**a));
+    // The free type variables of each type a term writes, found when
+    // first asked, within the limits.
+    let mut walker = poly::Walker::new(term.types.len());
+    let mut known: HashMap<TypeId, Box<[TypeVarId]>> = HashMap::default();
+    let mut free = |t: TypeId, meter: &mut Meter<'_>| -> Result<Box<[TypeVarId]>, Error> {
+        if let Some(found) = known.get(&t) {
+            return Ok(found.clone());
+        }
+        let (found, visited) = walker.variables(&term.types, t);
+        meter.tick(visited as usize)?;
+        meter.hold_bytes((found.len() as u64).saturating_mul(16))?;
+        let found: Box<[TypeVarId]> = found.into();
+        known.insert(t, found.clone());
+        Ok(found)
+    };
+    let mut of: Vec<Box<[TypeVarId]>> = Vec::with_capacity(term.nodes.len());
+    for (i, node) in term.nodes.iter().enumerate() {
+        let mut writes: Vec<TypeId> = Vec::new();
+        written(term, node, |t| writes.push(t));
+        let mut own: Vec<TypeVarId> = Vec::new();
+        for t in writes {
+            own.extend_from_slice(&free(t, meter)?);
+        }
+        super::operands(node, |t| own.extend_from_slice(&of[t.index()]));
+        own.sort_unstable();
+        own.dedup();
+        if let Node::TypeLambda { variable, .. } = node {
+            let name = &term.type_variables[variable.index()];
+            if atoms.contains(&**name) {
+                return fault(
+                    i,
+                    Fault::TypeNamed {
+                        variable: *variable,
+                    },
+                );
+            }
+            own.retain(|v| v != variable);
+            if let Some(&other) = own.iter().find(|v| term.type_variables[v.index()] == *name) {
+                return fault(i, Fault::TypeCaptured { variable: other });
+            }
+        }
+        meter.tick(own.len() + 1)?;
+        meter.hold_bytes((own.len() as u64).saturating_mul(8))?;
+        of.push(own.into());
+    }
+    let mut outside: Vec<TypeVarId> = of[root].to_vec();
+    let context = term
+        .context
+        .iter()
+        .map(|v| term.variables[v.index()].typed());
+    for t in context.chain(term.goal) {
+        outside.extend_from_slice(&free(t, meter)?);
+    }
+    match outside.into_iter().min() {
+        Some(variable) => fault(root, Fault::TypeFree { variable }),
+        None => Ok(()),
+    }
 }
 
 impl Term {
@@ -1080,7 +1322,12 @@ impl Term {
     ///   the [`context`](Self::context);
     /// - the whole term has the type [`goal`](Self::goal);
     /// - no variable is used under a binder of another variable with the
-    ///   same name, so that the printed term reads back as this term.
+    ///   same name, so that the printed term reads back as this term;
+    /// - in System F, a type variable is named only inside the type
+    ///   abstraction `ΛX. M` that binds it, so that no variable bound
+    ///   outside it has `X` in its type (the side condition of `∀`
+    ///   introduction), and a `ΛX`'s variable has neither an atom's name
+    ///   nor that of another type variable named inside it.
     ///
     /// The check is one pass over the nodes. It keeps the uses of every
     /// subterm's free variables until the subterms that name it have

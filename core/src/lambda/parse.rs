@@ -11,7 +11,8 @@
 
 use super::check::{Fault, Names, describe, rule};
 use super::{
-    Builder, Calculus, Node, SUBSCRIPTED, Term, TermId, Type, TypeId, VarId, names_variable,
+    Builder, Calculus, Node, SUBSCRIPTED, Term, TermId, Type, TypeId, TypeVarId, VarId,
+    names_variable,
 };
 use crate::Error;
 use crate::errors::ParseError;
@@ -81,6 +82,8 @@ enum Frame {
     Last(usize, Vec<TermId>, TypeId),
     /// `λx:A. M`
     Lambda(usize, VarId),
+    /// `ΛX. M`
+    TypeLambda(usize, TypeVarId),
     /// `let M be … in N` before `be`.
     LetTerm(usize),
     /// `let M be x ⊗ y in N` or `let M be ∗ in N` after `in`.
@@ -157,8 +160,20 @@ enum Pending {
     Not,
     /// `!`
     Bang,
+    /// `∀X.`, with the name `X` is printed with.
+    Forall(TypeVarId),
     /// A binary connective with its left operand.
     Binary(Binary, TypeId),
+}
+
+/// What a name in a type stands for.
+#[derive(Clone, Copy, Debug)]
+enum TypeBinding {
+    /// The variable of the `∀` that is the given one open in the type
+    /// being read, counted from 0.
+    Forall(u32),
+    /// The variable of a type abstraction `ΛX` around.
+    Lambda(TypeVarId),
 }
 
 /// A text in the reading.
@@ -180,6 +195,12 @@ struct Parser<'a> {
     bound: Vec<Box<str>>,
     /// What waits for a subterm, the innermost last.
     frames: Vec<Frame>,
+    /// The type variables in scope by name, each name's innermost last.
+    type_scope: HashMap<Box<str>, Vec<TypeBinding>>,
+    /// How many `∀` are open in the type being read.
+    foralls: u32,
+    /// The type variable that names every `∀` of a name.
+    hints: HashMap<Box<str>, TypeVarId>,
     /// How many nodes, waiting constructs and type operators were made.
     made: u64,
     /// The most of them, the caller's bound on occurrences.
@@ -199,6 +220,7 @@ impl<'a> Parser<'a> {
             types: &self.builder.types.list,
             atoms: &self.builder.atoms,
             variables: &self.builder.variables,
+            type_variables: &self.builder.type_variables,
             calculus: self.calculus,
         };
         let offset = |at: usize| u32::try_from(at).unwrap_or(u32::MAX);
@@ -339,6 +361,7 @@ impl<'a> Parser<'a> {
     /// says why it has no type.
     fn make(&mut self, node: Node, start: usize) -> Result<Value, Error> {
         self.count()?;
+        let made = self.builder.types.len();
         let (variables, of) = (&self.builder.variables, &self.of);
         let ty = rule(
             &node,
@@ -348,6 +371,10 @@ impl<'a> Parser<'a> {
             |t| of[t.index()],
         )
         .map_err(|fault| self.ill_typed(fault, start, self.at))?;
+        // A type System F's rules make counts as a connective read.
+        for _ in made..self.builder.types.len() {
+            self.count()?;
+        }
         let id = self.builder.node(node);
         self.of.push(ty);
         Ok(Value {
@@ -377,7 +404,7 @@ impl<'a> Parser<'a> {
     /// Refuses, in the simple calculus, a construct of the linear ones
     /// whose text starts at `start`.
     fn linear_only(&self, what: &'static str, start: usize) -> Result<(), Error> {
-        if self.calculus == Calculus::Simple {
+        if self.calculus.is_ordinary() {
             Err(self.ill_typed(Fault::Foreign { what }, start, self.at))
         } else {
             Ok(())
@@ -394,7 +421,7 @@ impl<'a> Parser<'a> {
     fn starts_operand(&mut self) -> bool {
         match self.word() {
             Some(word) => !ENDS.contains(&word),
-            None => self.rest().starts_with(['(', '∗', '⟨', '<', '\\']),
+            None => self.rest().starts_with(['(', '∗', '⟨', '<', '\\', '/']),
         }
     }
 
@@ -422,6 +449,8 @@ impl<'a> Parser<'a> {
                 self.open(Frame::Bracket(start))?;
             } else if self.eat_any(&["⟨", "<"]) {
                 self.open(Frame::PairLeft(start))?;
+            } else if self.eat("/\\") {
+                self.type_lambda(start)?;
             } else if self.eat("\\") {
                 self.lambda(start)?;
             } else {
@@ -432,6 +461,11 @@ impl<'a> Parser<'a> {
         if word.starts_with('λ') {
             self.at += 'λ'.len_utf8();
             self.lambda(start)?;
+            return Ok(None);
+        }
+        if word.starts_with('Λ') {
+            self.at += 'Λ'.len_utf8();
+            self.type_lambda(start)?;
             return Ok(None);
         }
         let subscripted = SUBSCRIPTED.iter().find_map(|&k| {
@@ -543,12 +577,16 @@ impl<'a> Parser<'a> {
     fn lambda(&mut self, start: usize) -> Result<(), Error> {
         let name = self.name()?;
         if !self.eat(":") {
+            let hint = if self.calculus.is_polymorphic() {
+                "System F infers no types, since type inference is undecidable there: write \
+                 the variable's type, as in λx:X. x"
+            } else {
+                "write the variable's type, as in λx:a. x, or read the term in an untyped \
+                 calculus"
+            };
             return Err(
                 ParseError::new(self.input, self.at, &["`:` and the variable's type"])
-                    .with_hint(
-                        "write the variable's type, as in λx:a. x, or read the term in an \
-                         untyped calculus",
-                    )
+                    .with_hint(hint)
                     .into(),
             );
         }
@@ -556,6 +594,54 @@ impl<'a> Parser<'a> {
         self.expect(&["."], &["a connective", "`.`"])?;
         let variable = self.bind(ty, name)?;
         self.open(Frame::Lambda(start, variable))
+    }
+
+    /// Refuses, outside System F, a construct of System F whose text
+    /// starts at `start`.
+    fn polymorphic_only(&self, what: &'static str, start: usize) -> Result<(), Error> {
+        if self.calculus.is_polymorphic() {
+            Ok(())
+        } else {
+            Err(self.ill_typed(Fault::Foreign { what }, start, self.at))
+        }
+    }
+
+    /// Reads a type variable's name where it is bound: a variable's name
+    /// that is no constant of the types.
+    fn type_variable_name(&mut self) -> Result<Box<str>, Error> {
+        let at = self.at;
+        let name = self.name()?;
+        let known = if self.calculus.is_ordinary() {
+            name::check_ordinary(&name)
+        } else {
+            name::check(&name)
+        };
+        if known.is_err() || matches!(&*name, "top") {
+            return Err(ParseError::spanning(self.input, at..self.at, &["a type variable"]).into());
+        }
+        Ok(name)
+    }
+
+    /// Reads `X.` after a `Λ` whose text starts at `start`, and leaves the
+    /// type abstraction waiting for its body.
+    fn type_lambda(&mut self, start: usize) -> Result<(), Error> {
+        self.polymorphic_only("a type abstraction `ΛX. M`", start)?;
+        let name = self.type_variable_name()?;
+        self.expect(&["."], &["`.`"])?;
+        self.count()?;
+        let variable = self.builder.type_variable(&name);
+        self.type_scope
+            .entry(name)
+            .or_default()
+            .push(TypeBinding::Lambda(variable));
+        self.open(Frame::TypeLambda(start, variable))
+    }
+
+    /// Takes the innermost type variable of `name` out of scope.
+    fn unscope_type(&mut self, name: &str) {
+        if let Some(known) = self.type_scope.get_mut(name) {
+            known.pop();
+        }
     }
 
     /// Reads `x, … in` after a `promote`'s `for`, and leaves the
@@ -633,6 +719,17 @@ impl<'a> Parser<'a> {
                     }
                     None => value,
                 };
+                let mut applied = applied;
+                while self.eat("[") {
+                    self.polymorphic_only("a type application `M [A]`", applied.start)?;
+                    let argument = self.ty(false)?;
+                    self.expect(&["]"], &["a connective", "`]`"])?;
+                    let node = Node::TypeApply {
+                        term: applied.id,
+                        argument,
+                    };
+                    applied = self.make(node, applied.start)?;
+                }
                 if self.starts_operand() {
                     let function = Some(applied);
                     self.frames.push(Frame::Run { left, function });
@@ -729,6 +826,13 @@ impl<'a> Parser<'a> {
                 unscoped(self, 1);
                 let body = value.id;
                 self.make(Node::Lambda { variable, body }, start).map(Some)
+            }
+            Frame::TypeLambda(start, variable) => {
+                let name = self.builder.type_variables[variable.index()].clone();
+                self.unscope_type(&name);
+                let body = value.id;
+                self.make(Node::TypeLambda { variable, body }, start)
+                    .map(Some)
             }
             Frame::LetTerm(start) => {
                 self.expect_keyword("be", &["`be`"])?;
@@ -883,26 +987,37 @@ impl<'a> Parser<'a> {
     /// Returns the type that `word` names where a type stands at byte
     /// `at`: a constant of the calculus, or an atom.
     fn constant_or_atom(&mut self, word: &str, at: usize) -> Result<TypeId, Error> {
-        let simple = self.calculus == Calculus::Simple;
-        let ty = match word {
-            "true" if simple => Type::Top,
-            "false" if simple => Type::Zero,
-            "top" if !simple => Type::Top,
-            "1" if !simple => Type::One,
-            "0" if !simple => Type::Zero,
-            _ => {
-                let known = if simple {
-                    name::check_ordinary(word)
-                } else {
-                    name::check(word)
-                };
-                if known.is_err() {
-                    let span = at..at + word.len();
-                    return Err(ParseError::spanning(self.input, span, &["a type"]).into());
+        let simple = self.calculus.is_ordinary();
+        let bound = self
+            .type_scope
+            .get(&*name::normalized(word))
+            .and_then(|known| known.last().copied());
+        let ty = match (word, bound) {
+            (_, Some(TypeBinding::Lambda(variable))) => Type::Variable { variable },
+            (_, Some(TypeBinding::Forall(depth))) => Type::Bound {
+                // The `∀` is open, so `foralls` counts it.
+                index: self.foralls - depth - 1,
+            },
+            (word, None) => match word {
+                "true" if simple => Type::Top,
+                "false" if simple => Type::Zero,
+                "top" if !simple => Type::Top,
+                "1" if !simple => Type::One,
+                "0" if !simple => Type::Zero,
+                _ => {
+                    let known = if simple {
+                        name::check_ordinary(word)
+                    } else {
+                        name::check(word)
+                    };
+                    if known.is_err() {
+                        let span = at..at + word.len();
+                        return Err(ParseError::spanning(self.input, span, &["a type"]).into());
+                    }
+                    let atom = self.builder.atom(&name::normalized(word));
+                    Type::Atom { atom }
                 }
-                let atom = self.builder.atom(&name::normalized(word));
-                Type::Atom { atom }
-            }
+            },
         };
         self.count()?;
         Ok(self.builder.ty(ty))
@@ -910,11 +1025,23 @@ impl<'a> Parser<'a> {
 
     /// Reads a type's constant or atom.
     fn primary(&mut self) -> Result<TypeId, Error> {
-        let simple = self.calculus == Calculus::Simple;
+        let simple = self.calculus.is_ordinary();
         if let Some(word) = self.word() {
             let at = self.at;
             self.at += word.len();
-            return self.constant_or_atom(word, at);
+            if !self.calculus.is_polymorphic() {
+                return self.constant_or_atom(word, at);
+            }
+            // A type variable renamed is printed with an index.
+            let mut written = word.to_owned();
+            for c in self.input[self.at..].chars() {
+                let Some(digit) = (c as u32).checked_sub(0x2080).filter(|&d| d < 10) else {
+                    break;
+                };
+                written.push(char::from_digit(digit, 10).unwrap_or('0'));
+                self.at += c.len_utf8();
+            }
+            return self.constant_or_atom(&written, at);
         }
         let constant = if self.eat("⊤") {
             Type::Top
@@ -963,7 +1090,7 @@ impl<'a> Parser<'a> {
     /// it. With `prefix`, it reads no binary connective outside
     /// brackets: the type after a subscript's `_`.
     fn ty(&mut self, prefix: bool) -> Result<TypeId, Error> {
-        let simple = self.calculus == Calculus::Simple;
+        let simple = self.calculus.is_ordinary();
         let binaries: &[(&str, Binary)] = if simple {
             &[
                 ("<->", Binary::Iff),
@@ -995,6 +1122,26 @@ impl<'a> Parser<'a> {
                 if self.eat("(") {
                     open += 1;
                     pending.push(Pending::Open);
+                } else if self.calculus.is_polymorphic()
+                    && (!prefix || open > 0)
+                    && (self.eat("∀") || self.keyword("forall"))
+                {
+                    let name = self.type_variable_name()?;
+                    self.expect(&["."], &["`.`"])?;
+                    let hint = match self.hints.get(&name) {
+                        Some(&hint) => hint,
+                        None => {
+                            let hint = self.builder.type_variable(&name);
+                            self.hints.insert(name.clone(), hint);
+                            hint
+                        }
+                    };
+                    self.type_scope
+                        .entry(name)
+                        .or_default()
+                        .push(TypeBinding::Forall(self.foralls));
+                    self.foralls += 1;
+                    pending.push(Pending::Forall(hint));
                 } else if simple && self.eat_any(&["~", "¬"]) {
                     pending.push(Pending::Not);
                 } else if !simple && self.eat("!") {
@@ -1035,6 +1182,37 @@ impl<'a> Parser<'a> {
                 if let Some(next) = next {
                     pending.push(Pending::Binary(next, operand));
                     break;
+                }
+                // A `∀` reaches as far right as it can: up to the bracket
+                // that closes, or the end of the type. A prefix under it
+                // takes all of it.
+                loop {
+                    operand = match pending.last() {
+                        Some(&Pending::Forall(variable)) => {
+                            pending.pop();
+                            self.foralls -= 1;
+                            let name = self.builder.type_variables[variable.index()].clone();
+                            self.unscope_type(&name);
+                            self.builder.ty(Type::Forall {
+                                variable,
+                                body: operand,
+                            })
+                        }
+                        Some(&Pending::Binary(binary, left)) => {
+                            pending.pop();
+                            self.binary(binary, left, operand)
+                        }
+                        Some(&Pending::Not) => {
+                            pending.pop();
+                            let to = self.builder.ty(Type::Zero);
+                            self.builder.ty(Type::Lollipop { from: operand, to })
+                        }
+                        Some(&Pending::Bang) => {
+                            pending.pop();
+                            self.builder.ty(Type::Bang { of: operand })
+                        }
+                        Some(Pending::Open) | None => break,
+                    };
                 }
                 if closes {
                     pending.pop();
@@ -1351,6 +1529,9 @@ impl Term {
             scope: HashMap::default(),
             bound: Vec::new(),
             frames: Vec::new(),
+            type_scope: HashMap::default(),
+            foralls: 0,
+            hints: HashMap::default(),
             made: 0,
             limit: limits.occurrences,
         };

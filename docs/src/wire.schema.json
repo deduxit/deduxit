@@ -133,7 +133,7 @@
       "type": "object"
     },
     "typed_term": {
-      "description": "A lambda-term (level 23, an untyped one level 30): a term of the linear, the affine or the simply typed lambda calculus with the variables of its hypotheses and its type, or of an untyped calculus without `atoms`, `types`, `goal` and its variables' `type`. A type and a node name what they are built from by index, and each comes after what it names. The library reads it and checks its typing.",
+      "description": "A lambda-term (level 23, an untyped one level 30, one of System F level 31): a term of the linear, the affine or the simply typed lambda calculus, or of System F over one of them, with the variables of its hypotheses and its type, or of an untyped calculus without `atoms`, `types`, `goal` and its variables' `type`. A type and a node name what they are built from by index, and each comes after what it names. The library reads it and checks its typing.",
       "type": "object",
       "required": [
         "calculus",
@@ -154,7 +154,10 @@
             "simple",
             "untyped",
             "untyped_linear",
-            "untyped_affine"
+            "untyped_affine",
+            "system_f",
+            "system_f_linear",
+            "system_f_affine"
           ]
         },
         "atoms": {
@@ -165,7 +168,7 @@
           }
         },
         "types": {
-          "description": "The types, each after its operands: `atom` (`atom`), `one`, `top`, `zero`, `tensor`, `with` and `plus` (`left`, `right`), `lollipop` (`from`, `to`) and `bang` (`of`). In the simple calculus `with` is the conjunction, `plus` the disjunction, `lollipop` the implication, `top` true and `zero` false.",
+          "description": "The types, each after its operands: `atom` (`atom`), `one`, `top`, `zero`, `tensor`, `with` and `plus` (`left`, `right`), `lollipop` (`from`, `to`), `bang` (`of`), and in System F `forall` (`variable`, the name it is printed with, and `body`), `bound` (`index`, counted from the nearest `forall`) and `variable` (`variable`, bound by a `type_lambda`). In the simple calculus `with` is the conjunction, `plus` the disjunction, `lollipop` the implication, `top` true and `zero` false.",
           "type": "array",
           "items": {
             "type": "object",
@@ -183,7 +186,10 @@
                   "with",
                   "plus",
                   "lollipop",
-                  "bang"
+                  "bang",
+                  "forall",
+                  "bound",
+                  "variable"
                 ]
               }
             }
@@ -216,13 +222,20 @@
             "minimum": 0
           }
         },
+        "type_variables": {
+          "description": "The names of the type variables, in a term of System F alone.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "goal": {
           "description": "The term's type, none in an untyped term.",
           "type": "integer",
           "minimum": 0
         },
         "nodes": {
-          "description": "The nodes, each after the nodes it names: `var`, `lambda`, `apply`, `tensor`, `let_tensor`, `unit`, `let_unit`, `pair`, `first`, `second`, `left`, `right`, `case`, `true`, `false`, `promote`, `derelict`, `discard` and `copy`.",
+          "description": "The nodes, each after the nodes it names: `var`, `lambda`, `apply`, `tensor`, `let_tensor`, `unit`, `let_unit`, `pair`, `first`, `second`, `left`, `right`, `case`, `true`, `false`, `promote`, `derelict`, `discard`, `copy`, and in System F `type_lambda` (`variable`, `body`) and `type_apply` (`term`, `argument`).",
           "type": "array",
           "items": {
             "type": "object",
@@ -250,7 +263,9 @@
                   "promote",
                   "derelict",
                   "discard",
-                  "copy"
+                  "copy",
+                  "type_lambda",
+                  "type_apply"
                 ]
               }
             }
@@ -264,7 +279,7 @@
       }
     },
     "lambda_typing": {
-      "description": "A lambda-term checked (level 23, an untyped one level 30; `term check --format json`, and `term infer --format json` for the term typed at its principal type; written only): the term's document, then the type of every node (none for an untyped term) and the judgement with every type. The command adds `deduxit` and `verdict`. The keys of the term come first, so the document reads back as the term.",
+      "description": "A lambda-term checked (level 23, an untyped one level 30, one of System F level 31; `term check --format json`, and `term infer --format json` for the term typed at its principal type; written only): the term's document, then the type of every node (none for an untyped term) and the judgement with every type. The command adds `deduxit` and `verdict`. The keys of the term come first, so the document reads back as the term.",
       "type": "object",
       "required": [
         "version",
@@ -343,7 +358,7 @@
       }
     },
     "lambda_ill_typed": {
-      "description": "A lambda-term that its calculus refuses (level 23, an untyped one level 30; `term check`, `term reduce` and `term infer` with `--format json`, written only): the error, whose code is `ill_typed`. The verdict is `ill_typed` for a typed term, `ill_formed` for an untyped one, and `no_simple_type` for a term that has no principal type.",
+      "description": "A lambda-term that its calculus refuses (level 23, an untyped one level 30, one of System F level 31; `term check`, `term reduce` and `term infer` with `--format json`, written only): the error, whose code is `ill_typed`. The verdict is `ill_typed` for a typed term, `ill_formed` for an untyped one, and `no_simple_type` for a term that has no principal type.",
       "type": "object",
       "required": [
         "version",
@@ -454,7 +469,7 @@
       }
     },
     "lambda_reduction": {
-      "description": "A lambda-term reduced by β step by step (level 30, written only; `term reduce --format json` adds `deduxit` and `text`, the term reached as text). Each step's `redex` is a node of the term the step was taken on, an application of a λ.",
+      "description": "A lambda-term reduced by β step by step (level 30, a term of System F level 31, written only; `term reduce --format json` adds `deduxit` and `text`, the term reached as text). Each step's `redex` is a node of the term the step was taken on, an application of a λ, or of a type abstraction to a type.",
       "type": "object",
       "required": [
         "version",

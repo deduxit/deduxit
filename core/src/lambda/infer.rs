@@ -400,7 +400,9 @@ impl Term {
                 | Node::Promote { .. }
                 | Node::Derelict { .. }
                 | Node::Discard { .. }
-                | Node::Copy { .. } => {
+                | Node::Copy { .. }
+                | Node::TypeLambda { .. }
+                | Node::TypeApply { .. } => {
                     unreachable!("the check refuses every node an untyped calculus lacks")
                 }
             };
@@ -431,6 +433,7 @@ impl Term {
             atoms: solution.atoms,
             types: solution.types.list,
             variables,
+            type_variables: Vec::new(),
             context: tree.context,
             goal: Some(goal),
             nodes: tree.nodes,

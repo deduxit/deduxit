@@ -28,9 +28,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   `None` in a term of an untyped calculus. A typed term has every type,
   so `.expect(…)` or `?` on an `Option` keeps a program that reads typed
   terms as it was.
-- **The wire level is 30.** An untyped lambda-term and a term's
-  reduction are written at it; a reader of 0.8.0 refuses them by their
-  level.
+- **The wire level is 31.** An untyped lambda-term and a term's
+  reduction are written at 30, a term of System F and its reduction at
+  31; a reader of 0.8.0 refuses them by their level.
+- **`lambda::Type` and `lambda::Node` have System F's variants.**
+  `Type::Forall`, `Type::Bound` and `Type::Variable`, and
+  `Node::TypeLambda` and `Node::TypeApply`: a `match` over either names
+  them. A term of the other calculi never holds them.
 
 ### Added
 
@@ -83,6 +87,23 @@ second number (0.1.x to 0.2.0), anything else the third.
   writes a term and says where a subterm's text stands, and
   `Strategy::pick` names the next redex. The command `term reduce`
   prints each step.
+- System F: `lambda::Calculus::SystemF`, `SystemFLinear` and
+  `SystemFAffine`, the simply typed, the linear and the affine calculus
+  with types `∀X. A` (`forall X. A`), the type abstraction `ΛX. M`
+  (`/\X. M`) and the type application `M [A]`. `Term::parse` reads their
+  terms and `Term::check` checks them in Church's style, every
+  abstraction and application of a type written: type inference, which
+  is undecidable there, is not offered, and a `λ` without its type is
+  refused with that reason. Bound type variables are de Bruijn indices,
+  so types equal up to bound names are one and substituting a type
+  captures nothing; a `∀` is printed with an index where its name would
+  take in another variable (`∀Y₁`). `ΛX. M` is refused where a term
+  variable bound outside it has `X` in its type. `Term::reduce` takes
+  type β steps `(ΛX. M) [A]`, the typing derivation draws `∀I` and `∀E`,
+  and `Term::type_variables` holds the type variables' names. `term
+  check --calculus system-f` (and `system-f-linear`, `system-f-affine`)
+  checks one, `term reduce` reduces one, and the bindings read them in
+  `lambda_read` as `system_f`.
 - `Term::principal_type`: an untyped term's principal simple type by
   unification, as the term typed at it and checked, or why it has none
   (a type that would contain itself). The command `term infer` prints

@@ -76,6 +76,9 @@ fn of_type(term: &Term, id: TypeId) -> T {
         Type::Plus { left, right } => T::Plus(of(left), of(right)),
         Type::Lollipop { from, to } => T::Arrow(of(from), of(to)),
         Type::Bang { of: a } => T::Bang(of(a)),
+        Type::Forall { .. } | Type::Bound { .. } | Type::Variable { .. } => {
+            unreachable!("a read-back makes no type of System F")
+        }
     }
 }
 
@@ -134,6 +137,9 @@ impl Checker<'_> {
             Calculus::Simple => {}
             Calculus::Untyped | Calculus::UntypedLinear | Calculus::UntypedAffine => {
                 unreachable!("the reference checker types terms")
+            }
+            Calculus::SystemF | Calculus::SystemFLinear | Calculus::SystemFAffine => {
+                unreachable!("a read-back is in no calculus of System F")
             }
         }
     }
@@ -315,6 +321,9 @@ impl Checker<'_> {
                 self.bind(&mut v, *left);
                 self.bind(&mut v, *right);
                 (b, sum(u, v))
+            }
+            Node::TypeLambda { .. } | Node::TypeApply { .. } => {
+                unreachable!("a read-back makes no node of System F")
             }
         }
     }

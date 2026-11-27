@@ -4,18 +4,20 @@
 //! β-reduction, one step at a time.
 //!
 //! A step replaces a redex `(λx. M) N` by `M` with `N` in place of every
-//! use of `x`. Each step builds the term afresh as a tree, every binder a
-//! variable of its own: a copy of `N` gets new variables for its binders,
-//! so no variable is ever bound twice, and a use cannot be captured by
-//! its variable. Names can still clash: where a binder would take in a
-//! free variable of its name, the binder is renamed to a name the term
-//! does not use, so that the text names the right variables.
+//! use of `x`, or, in System F, a redex `(ΛX. M) [A]` by `M` with the type
+//! `A` for `X` in every type `M` writes. Each step builds the term afresh
+//! as a tree, every binder a variable of its own, a type abstraction's
+//! too: a copy of `N` gets new variables for its binders, so no variable
+//! is ever bound twice, and a use cannot be captured by its variable.
+//! Names can still clash: where a binder would take in a free variable of
+//! its name, the binder is renamed to a name the term does not use, so
+//! that the text names the right variables.
 //!
 //! Every term a step makes is checked by [`Term::check`] before the next
 //! step: a typed term keeps its type (subject reduction), and a linear or
 //! affine term keeps using each variable as its calculus allows.
 
-use super::{Node, Term, TermId, VarId, Variable};
+use super::{Node, Term, TermId, Type, TypeId, TypeVarId, Types, VarId, Variable, poly};
 use crate::Error;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
@@ -125,14 +127,11 @@ impl Strategy {
     }
 
     /// Returns the redex of `term` that the strategy reduces next: an
-    /// application of a `λ`, or `None` for a term in normal form. In a
-    /// term whose nodes are shared, it is the first place the term's text
-    /// writes it.
+    /// application of a `λ`, or of a type abstraction `ΛX` to a type, or
+    /// `None` for a term in normal form. In a term whose nodes are shared,
+    /// it is the first place the term's text writes it.
     pub fn pick(self, term: &Term) -> Option<TermId> {
-        let redex = |id: TermId| {
-            matches!(term.node(id), Node::Apply { function, .. }
-                if matches!(term.node(*function), Node::Lambda { .. }))
-        };
+        let redex = |id: TermId| redex_of(term, id).is_some();
         match self {
             Self::NormalOrder => {
                 let mut stack = vec![term.root];
@@ -189,8 +188,8 @@ impl std::str::FromStr for Strategy {
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Step {
-    /// The redex reduced, an application of a `λ`: a node of the term the
-    /// step was taken on.
+    /// The redex reduced, an application of a `λ` or of a type
+    /// abstraction: a node of the term the step was taken on.
     pub redex: TermId,
 }
 
@@ -249,8 +248,44 @@ enum Task {
     /// Copy the subterm at a node of the source.
     Enter(TermId),
     /// Make the copy of a node whose subterms are copied, and put back
-    /// the variables its binders hid.
-    Exit(TermId, Vec<(VarId, Option<VarId>)>),
+    /// the variables its binders hid, a type abstraction's last.
+    Exit(
+        TermId,
+        Vec<(VarId, Option<VarId>)>,
+        Option<(TypeVarId, Option<TypeId>)>,
+    ),
+    /// Put back what a type variable stood for before a type redex's body
+    /// was copied with its argument for it.
+    Restore(TypeVarId, Option<TypeId>),
+}
+
+/// A redex of a term.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Redex {
+    /// `(λx. M) N`: `x` and `N`.
+    Term(VarId, TermId),
+    /// `(ΛX. M) [A]`: `X` and `A`.
+    Type(TypeVarId, TypeId),
+}
+
+/// Returns the redex at `id`, an application of a `λ` or of a type
+/// abstraction, with what its reduct puts for what.
+fn redex_of(term: &Term, id: TermId) -> Option<Redex> {
+    let node = term.node(id);
+    if let Node::Apply { function, argument } = node
+        && let Node::Lambda { variable, .. } = term.node(*function)
+    {
+        return Some(Redex::Term(*variable, *argument));
+    }
+    if let Node::TypeApply {
+        term: function,
+        argument,
+    } = node
+        && let Node::TypeLambda { variable, .. } = term.node(*function)
+    {
+        return Some(Redex::Type(*variable, *argument));
+    }
+    None
 }
 
 /// The work and the bytes a reduction may spend, and its stop.
@@ -311,12 +346,20 @@ struct Copier<'t> {
     standing: Vec<Option<VarId>>,
     /// The variables of the copy.
     variables: Vec<Variable>,
+    /// The types of the copy: the source's, then those the copy made.
+    types: Types,
+    /// The type variables of the copy: the source's, then a new one for
+    /// every type abstraction copied.
+    type_variables: Vec<Box<str>>,
+    /// The type each type variable of the source stands for at the place
+    /// being copied: its copy's, or a type redex's argument.
+    type_standing: Vec<Option<TypeId>>,
     /// The nodes of the copy.
     nodes: Vec<Node>,
     /// The node of the source each node of the copy was copied from.
     origin: Vec<TermId>,
-    /// The redex to reduce, with its variable and its argument.
-    redex: Option<(TermId, VarId, TermId)>,
+    /// The redex to reduce and what its reduct puts for what.
+    redex: Option<(TermId, Redex)>,
     /// The most nodes the copy may have.
     limit: Option<u64>,
 }
@@ -354,12 +397,43 @@ impl Copier<'_> {
         Ok(TermId(made as u32))
     }
 
-    /// Returns a new variable of the copy, as the source's `v`.
-    fn fresh(&mut self, v: VarId) -> VarId {
+    /// Returns a new variable of the copy, as the source's `v`, its type
+    /// as the place being copied has it.
+    fn fresh(&mut self, v: VarId, budget: &mut Budget<'_>) -> Result<VarId, Halt> {
         // `push` holds the variables below 2³², a node binding at most
         // as many variables as it has nodes.
         let id = VarId(self.variables.len() as u32);
-        self.variables.push(self.term.variables[v.index()].clone());
+        let mut variable = self.term.variables[v.index()].clone();
+        if let Some(ty) = variable.ty {
+            variable.ty = Some(self.retyped(ty, budget)?);
+        }
+        self.variables.push(variable);
+        Ok(id)
+    }
+
+    /// Returns a type of the source as the place being copied has it:
+    /// each type variable of a type abstraction around replaced by what
+    /// it stands for there.
+    fn retyped(&mut self, ty: TypeId, budget: &mut Budget<'_>) -> Result<TypeId, Halt> {
+        if self.type_standing.iter().all(Option::is_none) {
+            return Ok(ty);
+        }
+        let before = self.types.work;
+        let standing = &self.type_standing;
+        let made = poly::substitute(&mut self.types, ty, |v| standing[v.index()]);
+        budget
+            .tick(self.types.work - before, self.nodes.len() as u64)
+            .map_err(Halt::Refused)?;
+        Ok(made)
+    }
+
+    /// Returns a new type variable of the copy, named as the source's `x`.
+    fn fresh_type(&mut self, x: TypeVarId) -> TypeVarId {
+        // One per type abstraction copied, each a node of the copy, which
+        // `push` holds below 2³².
+        let id = TypeVarId(self.type_variables.len() as u32);
+        self.type_variables
+            .push(self.term.type_variables[x.index()].clone());
         id
     }
 
@@ -372,21 +446,38 @@ impl Copier<'_> {
             match task {
                 Task::Enter(id) => {
                     let node = self.term.node(id);
-                    if let Some((redex, variable, argument)) = self.redex
-                        && redex == id
-                    {
-                        let Node::Apply { function, .. } = node else {
-                            unreachable!("a redex is an application");
-                        };
-                        let Node::Lambda { body, .. } = self.term.node(*function) else {
-                            unreachable!("a redex applies a λ");
-                        };
-                        debug_assert_eq!(Some((variable, argument)), lambda_of(self.term, id));
-                        tasks.push(Task::Enter(*body));
-                        continue;
+                    match self.redex {
+                        Some((redex, Redex::Term(variable, argument))) if redex == id => {
+                            let Node::Apply { function, .. } = node else {
+                                unreachable!("a redex is an application");
+                            };
+                            let Node::Lambda { body, .. } = self.term.node(*function) else {
+                                unreachable!("a redex applies a λ");
+                            };
+                            debug_assert_eq!(
+                                Some(Redex::Term(variable, argument)),
+                                redex_of(self.term, id)
+                            );
+                            tasks.push(Task::Enter(*body));
+                            continue;
+                        }
+                        Some((redex, Redex::Type(variable, argument))) if redex == id => {
+                            let Node::TypeApply { term: function, .. } = node else {
+                                unreachable!("a type redex is a type application");
+                            };
+                            let Node::TypeLambda { body, .. } = self.term.node(*function) else {
+                                unreachable!("a type redex applies a type abstraction");
+                            };
+                            let argument = self.retyped(argument, budget)?;
+                            let before = self.type_standing[variable.index()].replace(argument);
+                            tasks.push(Task::Restore(variable, before));
+                            tasks.push(Task::Enter(*body));
+                            continue;
+                        }
+                        Some(_) | None => {}
                     }
                     if let Node::Var { variable } = node {
-                        if let Some((_, x, argument)) = self.redex
+                        if let Some((_, Redex::Term(x, argument))) = self.redex
                             && x == *variable
                         {
                             tasks.push(Task::Enter(argument));
@@ -400,15 +491,22 @@ impl Copier<'_> {
                     }
                     let mut hidden = Vec::new();
                     for v in binders(node) {
-                        let fresh = self.fresh(v);
+                        let fresh = self.fresh(v, budget)?;
                         hidden.push((v, self.standing[v.index()].replace(fresh)));
                     }
-                    tasks.push(Task::Exit(id, hidden));
+                    let mut hidden_type = None;
+                    if let Node::TypeLambda { variable: x, .. } = node {
+                        let fresh = self.fresh_type(*x);
+                        let ty = self.types.add(Type::Variable { variable: fresh });
+                        hidden_type = Some((*x, self.type_standing[x.index()].replace(ty)));
+                    }
+                    tasks.push(Task::Exit(id, hidden, hidden_type));
                     let first = tasks.len();
                     super::operands(node, |t| tasks.push(Task::Enter(t)));
                     tasks[first..].reverse();
                 }
-                Task::Exit(id, hidden) => {
+                Task::Restore(x, before) => self.type_standing[x.index()] = before,
+                Task::Exit(id, hidden, hidden_type) => {
                     let mut node = self.term.node(id).clone();
                     let mut count = 0;
                     super::operands(&node, |_| count += 1);
@@ -425,8 +523,26 @@ impl Copier<'_> {
                     rebind(&mut node, |v| {
                         standing[v.index()].expect("a node's variables stand for one of the copy")
                     });
+                    if let Node::Left { sum: ty, .. }
+                    | Node::Right { sum: ty, .. }
+                    | Node::False { goal: ty, .. }
+                    | Node::TypeApply { argument: ty, .. } = &mut node
+                    {
+                        *ty = self.retyped(*ty, budget)?;
+                    }
+                    if let Node::TypeLambda { variable, .. } = &mut node {
+                        let stands =
+                            self.type_standing[variable.index()].map(|ty| self.types.get(ty));
+                        let Some(Type::Variable { variable: copy }) = stands else {
+                            unreachable!("a type abstraction copied stands for its copy's");
+                        };
+                        *variable = copy;
+                    }
                     for (v, before) in hidden.into_iter().rev() {
                         self.standing[v.index()] = before;
+                    }
+                    if let Some((x, before)) = hidden_type {
+                        self.type_standing[x.index()] = before;
                     }
                     let copy = self.push(node, id, budget)?;
                     made.push(copy);
@@ -435,17 +551,6 @@ impl Copier<'_> {
         }
         Ok(made.pop().expect("the root's copy"))
     }
-}
-
-/// Returns the variable and the argument of the redex at `id`.
-fn lambda_of(term: &Term, id: TermId) -> Option<(VarId, TermId)> {
-    let Node::Apply { function, argument } = term.node(id) else {
-        return None;
-    };
-    let Node::Lambda { variable, .. } = term.node(*function) else {
-        return None;
-    };
-    Some((*variable, *argument))
 }
 
 /// Returns the variables a node binds.
@@ -469,7 +574,9 @@ fn binders(node: &Node) -> Vec<VarId> {
         | Node::True { .. }
         | Node::False { .. }
         | Node::Derelict { .. }
-        | Node::Discard { .. } => Vec::new(),
+        | Node::Discard { .. }
+        | Node::TypeLambda { .. }
+        | Node::TypeApply { .. } => Vec::new(),
     }
 }
 
@@ -497,7 +604,9 @@ fn rebind(node: &mut Node, f: impl Fn(VarId) -> VarId) {
         | Node::True { .. }
         | Node::False { .. }
         | Node::Derelict { .. }
-        | Node::Discard { .. } => {}
+        | Node::Discard { .. }
+        | Node::TypeLambda { .. }
+        | Node::TypeApply { .. } => {}
     }
 }
 
@@ -515,36 +624,88 @@ pub(super) fn copied(
         term,
         standing: vec![None; term.variables.len()],
         variables: Vec::with_capacity(term.variables.len()),
+        types: Types::of(&term.types, 0),
+        type_variables: term.type_variables.clone(),
+        type_standing: vec![None; term.type_variables.len()],
         nodes: Vec::new(),
         origin: Vec::new(),
-        redex: redex.map(|id| {
-            let (variable, argument) = lambda_of(term, id).expect("a redex applies a λ");
-            (id, variable, argument)
-        }),
+        redex: redex.map(|id| (id, redex_of(term, id).expect("a redex applies a λ or a Λ"))),
         limit,
     };
-    let context: Vec<VarId> = term
-        .context
-        .iter()
-        .map(|&v| {
-            let fresh = copy.fresh(v);
-            copy.standing[v.index()] = Some(fresh);
-            fresh
-        })
-        .collect();
+    let mut context: Vec<VarId> = Vec::with_capacity(term.context.len());
+    for &v in &term.context {
+        let fresh = copy.fresh(v, budget)?;
+        copy.standing[v.index()] = Some(fresh);
+        context.push(fresh);
+    }
     let root = copy.subterm(term.root, budget)?;
     let mut made = Term {
         calculus: term.calculus,
         atoms: term.atoms.clone(),
-        types: term.types.clone(),
+        types: copy.types.list,
         variables: copy.variables,
+        type_variables: copy.type_variables,
         context,
         goal: term.goal,
         nodes: copy.nodes,
         root,
     };
     rename(&mut made, budget).map_err(Halt::Refused)?;
+    rename_types(&mut made, budget).map_err(Halt::Refused)?;
     Ok((made, copy.origin))
+}
+
+/// Renames every type abstraction of a tree whose type variable would
+/// take in a free type variable of its name, or has an atom's name, to a
+/// name the term does not use, so that its text names the right types.
+fn rename_types(term: &mut Term, budget: &mut Budget<'_>) -> Result<(), Refusal> {
+    let mut counts: HashMap<Box<str>, u32> = HashMap::default();
+    for name in term.atoms.iter().chain(&term.type_variables) {
+        let count = counts.entry(name.clone()).or_default();
+        *count = count.saturating_add(1);
+    }
+    let clashes = term.nodes.iter().any(|node| {
+        matches!(node, Node::TypeLambda { variable, .. }
+            if counts[&term.type_variables[variable.index()]] > 1)
+    });
+    if !clashes {
+        return Ok(());
+    }
+    let atoms: HashSet<Box<str>> = term.atoms.iter().cloned().collect();
+    let mut taken: HashSet<Box<str>> = counts.into_keys().collect();
+    let mut walker = poly::Walker::new(term.types.len());
+    // The free type variables of each node, moved up the tree: each node
+    // of a tree has one user.
+    let mut of: Vec<Option<Vec<TypeVarId>>> = Vec::with_capacity(term.nodes.len());
+    for i in 0..term.nodes.len() {
+        let node = &term.nodes[i];
+        let mut own: Vec<TypeVarId> = Vec::new();
+        let mut writes: Vec<TypeId> = Vec::new();
+        super::check::written(term, node, |t| writes.push(t));
+        for t in writes {
+            let (found, visited) = walker.variables(&term.types, t);
+            budget.tick(visited, i as u64)?;
+            own.extend(found);
+        }
+        super::operands(node, |t| {
+            own.extend(of[t.index()].take().unwrap_or_default())
+        });
+        own.sort_unstable();
+        own.dedup();
+        budget.tick(own.len() as u64 + 1, i as u64)?;
+        if let Node::TypeLambda { variable, .. } = *node {
+            own.retain(|&v| v != variable);
+            let name = &term.type_variables[variable.index()];
+            let captures = own.iter().any(|v| term.type_variables[v.index()] == *name);
+            if atoms.contains(name) || captures {
+                let fresh = fresh_name(name, &taken);
+                taken.insert(fresh.clone());
+                term.type_variables[variable.index()] = fresh;
+            }
+        }
+        of.push(Some(own));
+    }
+    Ok(())
 }
 
 /// Renames every binder of a tree that would take in a free variable of
@@ -616,8 +777,10 @@ impl Term {
     /// a bound or `stop` ends the reduction.
     ///
     /// Each step reduces the redex `(λx. M) N` that the strategy of
-    /// `options` picks to `M` with `N` for `x`, renaming a binder where it
-    /// would take in a free variable of its name. A term whose nodes are
+    /// `options` picks to `M` with `N` for `x`, or the type redex
+    /// `(ΛX. M) [A]` of System F to `M` with `A` for `X` in its types,
+    /// renaming a binder where it would take in a free variable of its
+    /// name. A term whose nodes are
     /// shared, such as one read back from a proof, is first written out
     /// as a tree, which is the term the first step is taken on. Only the
     /// application of a `λ` is a redex: a pair taken apart, a `case` of
@@ -743,9 +906,10 @@ impl Term {
 }
 
 /// Returns whether a step cannot be taken on the term as it is: a node
-/// other than a variable's has more than one place, or a variable is
-/// bound twice or bound and declared, so that a copy of a subterm could
-/// be taken in by a binder of its own variable.
+/// other than a variable's has more than one place, or a variable or a
+/// type variable is bound twice, or a variable bound and declared, so
+/// that a copy of a subterm could be taken in by a binder of its own
+/// variable.
 fn needs_copy(term: &Term) -> bool {
     let mut users = vec![0u32; term.nodes.len()];
     users[term.root.index()] = 1;
@@ -758,12 +922,15 @@ fn needs_copy(term: &Term) -> bool {
     for &v in &term.context {
         bound[v.index()] = true;
     }
+    let mut type_bound = vec![false; term.type_variables.len()];
     term.nodes.iter().zip(&users).any(|(node, &count)| {
         let shared = count > 1 && !matches!(node, Node::Var { .. });
         let twice = binders(node)
             .into_iter()
             .any(|v| std::mem::replace(&mut bound[v.index()], true));
-        shared || twice
+        let type_twice = matches!(node, Node::TypeLambda { variable, .. }
+            if std::mem::replace(&mut type_bound[variable.index()], true));
+        shared || twice || type_twice
     })
 }
 

@@ -656,6 +656,9 @@ impl<'a> Search<'a> {
                         connective: "a linear connective",
                     });
                 }
+                Type::Forall { .. } | Type::Bound { .. } | Type::Variable { .. } => {
+                    return Err(Error::NotEnumerable { connective: "∀" });
+                }
             };
             formula_of.push(node);
         }
@@ -895,7 +898,10 @@ impl<'a> Search<'a> {
                 | Type::One
                 | Type::Plus { .. }
                 | Type::Tensor { .. }
-                | Type::Bang { .. } => {}
+                | Type::Bang { .. }
+                | Type::Forall { .. }
+                | Type::Bound { .. }
+                | Type::Variable { .. } => {}
             }
         }
         self.ways_held = before;
@@ -1061,7 +1067,10 @@ impl<'a> Search<'a> {
             | Type::One
             | Type::Plus { .. }
             | Type::Tensor { .. }
-            | Type::Bang { .. } => {
+            | Type::Bang { .. }
+            | Type::Forall { .. }
+            | Type::Bound { .. }
+            | Type::Variable { .. } => {
                 results.push(Found::default());
             }
         }

@@ -179,11 +179,14 @@ mod inhabit;
 pub(crate) mod linear;
 #[cfg(feature = "parse")]
 mod parse;
+mod poly;
 pub(crate) mod print;
 #[cfg(feature = "serialize")]
 pub(crate) mod read;
 mod reduce;
 pub(crate) mod simple;
+#[cfg(all(test, feature = "parse"))]
+mod system_f_tests;
 #[cfg(all(test, feature = "parse"))]
 mod tests;
 #[cfg(all(test, feature = "parse"))]
@@ -247,6 +250,23 @@ impl TypeId {
     }
 }
 
+/// The index of a type variable in a [`Term`]: a name in
+/// [`Term::type_variables`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
+pub struct TypeVarId(u32);
+
+impl TypeVarId {
+    /// Returns the index as a `usize`, for indexing the type variables.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// The calculus a term belongs to: whether its `λ`s carry types, and
 /// how often it may use a variable.
 ///
@@ -254,16 +274,23 @@ impl TypeId {
 /// (`λx:A. M`), so a term has one type at most. The untyped ones have
 /// variables, `λ` and application alone (`λx. M`), and no types.
 ///
-/// | uses of a variable | typed | untyped |
-/// |---|---|---|
-/// | any number | [`Simple`](Self::Simple) | [`Untyped`](Self::Untyped) |
-/// | exactly once | [`Linear`](Self::Linear) | [`UntypedLinear`](Self::UntypedLinear) |
-/// | at most once | [`Affine`](Self::Affine) | [`UntypedAffine`](Self::UntypedAffine) |
+/// | uses of a variable | simple types | System F | untyped |
+/// |---|---|---|---|
+/// | any number | [`Simple`](Self::Simple) | [`SystemF`](Self::SystemF) | [`Untyped`](Self::Untyped) |
+/// | exactly once | [`Linear`](Self::Linear) | [`SystemFLinear`](Self::SystemFLinear) | [`UntypedLinear`](Self::UntypedLinear) |
+/// | at most once | [`Affine`](Self::Affine) | [`SystemFAffine`](Self::SystemFAffine) | [`UntypedAffine`](Self::UntypedAffine) |
+///
+/// System F (Girard's, and Reynolds's polymorphic lambda calculus) adds
+/// types `∀X. A` over type variables, the type abstraction `ΛX. M` and the
+/// type application `M [A]` to a typed calculus. Its terms are typed in
+/// Church's style too: every abstraction and application of a type is
+/// written, so a term is checked, never inferred.
 ///
 /// # JSON
 ///
 /// With the feature `serialize`, `"linear"`, `"affine"`, `"simple"`,
-/// `"untyped"`, `"untyped_linear"` or `"untyped_affine"`.
+/// `"untyped"`, `"untyped_linear"`, `"untyped_affine"`, `"system_f"`,
+/// `"system_f_linear"` or `"system_f_affine"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -290,6 +317,15 @@ pub enum Calculus {
     /// The untyped affine lambda calculus: as the untyped one, every
     /// variable used at most once.
     UntypedAffine,
+    /// System F: the simply typed calculus with types `∀X. A`, `ΛX. M` and
+    /// `M [A]`.
+    SystemF,
+    /// Linear System F: the linear calculus with types `∀X. A`, `ΛX. M`
+    /// and `M [A]`, every term variable used exactly once.
+    SystemFLinear,
+    /// Affine System F: as linear System F, a term variable used at most
+    /// once.
+    SystemFAffine,
 }
 
 impl Calculus {
@@ -301,6 +337,9 @@ impl Calculus {
         Self::Untyped,
         Self::UntypedLinear,
         Self::UntypedAffine,
+        Self::SystemF,
+        Self::SystemFLinear,
+        Self::SystemFAffine,
     ];
 
     /// The names, as the JSON form and the command write them.
@@ -311,6 +350,9 @@ impl Calculus {
         "untyped",
         "untyped_linear",
         "untyped_affine",
+        "system_f",
+        "system_f_linear",
+        "system_f_affine",
     ];
 
     /// Returns the calculus's name.
@@ -322,22 +364,53 @@ impl Calculus {
             Self::Untyped => "untyped",
             Self::UntypedLinear => "untyped_linear",
             Self::UntypedAffine => "untyped_affine",
+            Self::SystemF => "system_f",
+            Self::SystemFLinear => "system_f_linear",
+            Self::SystemFAffine => "system_f_affine",
         }
     }
 
     /// Returns whether the calculus's `λ`s carry types.
     pub const fn is_typed(self) -> bool {
-        matches!(self, Self::Linear | Self::Affine | Self::Simple)
+        matches!(
+            self,
+            Self::Linear
+                | Self::Affine
+                | Self::Simple
+                | Self::SystemF
+                | Self::SystemFLinear
+                | Self::SystemFAffine
+        )
+    }
+
+    /// Returns whether the calculus is a System F: it has types `∀X. A`,
+    /// `ΛX. M` and `M [A]`.
+    pub const fn is_polymorphic(self) -> bool {
+        matches!(
+            self,
+            Self::SystemF | Self::SystemFLinear | Self::SystemFAffine
+        )
+    }
+
+    /// Returns whether the types are ordinary formulas (`∧`, `∨`, `→`, `⊤`,
+    /// `⊥`) and the nodes those of the simple calculus, as in the simply
+    /// typed calculus and System F; the other typed calculi have the
+    /// formulas and nodes of intuitionistic linear logic.
+    pub(crate) const fn is_ordinary(self) -> bool {
+        matches!(self, Self::Simple | Self::SystemF)
     }
 
     /// Returns whether every variable is used exactly once.
     pub(crate) const fn is_linear(self) -> bool {
-        matches!(self, Self::Linear | Self::UntypedLinear)
+        matches!(
+            self,
+            Self::Linear | Self::UntypedLinear | Self::SystemFLinear
+        )
     }
 
     /// Returns whether a variable may be used any number of times.
     pub(crate) const fn is_unrestricted(self) -> bool {
-        matches!(self, Self::Simple | Self::Untyped)
+        matches!(self, Self::Simple | Self::Untyped | Self::SystemF)
     }
 }
 
@@ -363,11 +436,20 @@ impl std::str::FromStr for Calculus {
 /// In the linear calculi a type is a formula of intuitionistic linear
 /// logic. In the simple calculus it is an ordinary formula: `With` is the
 /// conjunction `∧`, `Plus` the disjunction `∨`, `Lollipop` the
-/// implication `→`, `Top` true and `Zero` false (`⊥`).
+/// implication `→`, `Top` true and `Zero` false (`⊥`). System F adds
+/// `∀X. A` to either.
 ///
 /// A type names its operands by their [`TypeId`], and they come before it
 /// in [`Term::types`]. Two equal types are one id, so a type's text can
 /// be much longer than the list of types.
+///
+/// Inside `∀X. A`, an occurrence of `X` is [`Bound`](Self::Bound) by its
+/// distance to its `∀`, counted from 0 (a de Bruijn index), so two types
+/// that differ only in the names of their bound variables are equal, and
+/// one id. A `∀` keeps the name it was written with for printing alone;
+/// the printer renames it where the name would take in another type
+/// variable of that name. A type variable that a type abstraction `ΛX. M`
+/// binds is a [`Variable`](Self::Variable) in the types inside `M`.
 ///
 /// # JSON
 ///
@@ -422,6 +504,49 @@ pub enum Type {
         /// `A`
         of: TypeId,
     },
+    /// `∀X. A`, in System F.
+    Forall {
+        /// The name `X` is printed with.
+        variable: TypeVarId,
+        /// `A`, in which `X` is `Bound { index: 0 }` at its top.
+        body: TypeId,
+    },
+    /// A type variable bound by a `∀` of the type around it.
+    Bound {
+        /// How many `∀` stand between it and its own.
+        index: u32,
+    },
+    /// A type variable that a type abstraction `ΛX. M` binds, in a type
+    /// inside `M`.
+    Variable {
+        /// The variable.
+        variable: TypeVarId,
+    },
+}
+
+impl Type {
+    /// Returns the type as the arena compares it: a `∀` without the name
+    /// it is printed with, so that types equal up to the names of their
+    /// bound variables are one id.
+    const fn key(self) -> Self {
+        match self {
+            Self::Forall { body, .. } => Self::Forall {
+                variable: TypeVarId(u32::MAX),
+                body,
+            },
+            Self::Atom { .. }
+            | Self::One
+            | Self::Top
+            | Self::Zero
+            | Self::Tensor { .. }
+            | Self::With { .. }
+            | Self::Plus { .. }
+            | Self::Lollipop { .. }
+            | Self::Bang { .. }
+            | Self::Bound { .. }
+            | Self::Variable { .. } => self,
+        }
+    }
 }
 
 /// A variable of a term: its type and the name it is printed with.
@@ -628,6 +753,22 @@ pub enum Node {
         /// `N`
         body: TermId,
     },
+    /// `ΛX. M`, the type abstraction of System F, of type `∀X. A` where `M`
+    /// has type `A`.
+    TypeLambda {
+        /// `X`
+        variable: TypeVarId,
+        /// `M`
+        body: TermId,
+    },
+    /// `M [A]`, the type application of System F: `M` of type `∀X. B`
+    /// applied to the type `A`, of type `B` with `A` for `X`.
+    TypeApply {
+        /// `M`
+        term: TermId,
+        /// `A`
+        argument: TypeId,
+    },
 }
 
 /// A lambda-term with its typing judgement: the variables it may use
@@ -674,6 +815,8 @@ pub struct Term {
     types: Vec<Type>,
     /// The variables.
     variables: Vec<Variable>,
+    /// The names of the type variables, empty outside System F.
+    type_variables: Vec<Box<str>>,
     /// The variables of the hypotheses, in the order written.
     context: Vec<VarId>,
     /// The term's type, `None` in an untyped calculus.
@@ -703,6 +846,12 @@ impl Term {
     /// Returns the variables.
     pub fn variables(&self) -> &[Variable] {
         &self.variables
+    }
+
+    /// Returns the names of the type variables: those a `ΛX. M` binds,
+    /// and those a `∀X. A` is printed with. Empty outside System F.
+    pub fn type_variables(&self) -> &[Box<str>] {
+        &self.type_variables
     }
 
     /// Returns the variables of the hypotheses, in the order the sequent
@@ -780,7 +929,9 @@ pub struct Options {
     /// `inl`, `inr`, `false` and `abort` the type they give (`false_A`).
     /// Off by default ([`DEFAULT_TYPES`](Self::DEFAULT_TYPES)), since the
     /// sequent beside the term shows the types. A term written with it
-    /// reads back ([`Term::parse`]).
+    /// reads back ([`Term::parse`]). A type abstraction `ΛX. M` and a
+    /// type application `M [A]` of System F are shown either way: they
+    /// are part of the term.
     pub types: bool,
 }
 
@@ -948,8 +1099,11 @@ fn names_variable(word: &str) -> bool {
 pub(crate) struct Types {
     /// The types, operands first.
     list: Vec<Type>,
-    /// The id of every type.
+    /// The id of every type, by its [`key`](Type::key).
     ids: HashMap<Type, TypeId>,
+    /// The units of work the operations on types of System F did
+    /// (`poly`), which their callers count against their limits.
+    pub(crate) work: u64,
 }
 
 impl Types {
@@ -965,14 +1119,15 @@ impl Types {
             types
                 .iter()
                 .enumerate()
-                .map(|(i, &ty)| (ty, TypeId(i as u32))),
+                .map(|(i, &ty)| (ty.key(), TypeId(i as u32))),
         );
-        Self { list, ids }
+        Self { list, ids, work: 0 }
     }
 
-    /// Returns the id of a type, added if new.
+    /// Returns the id of a type, added if new. A `∀` equal to one in the
+    /// arena but for its name is that one.
     pub(crate) fn add(&mut self, ty: Type) -> TypeId {
-        if let Some(&id) = self.ids.get(&ty) {
+        if let Some(&id) = self.ids.get(&ty.key()) {
             return id;
         }
         // A read-back adds one type per occurrence or ordinary formula at
@@ -983,8 +1138,13 @@ impl Types {
         // near their ends, which the reader's limit keeps them from.
         let id = TypeId(self.list.len() as u32);
         self.list.push(ty);
-        self.ids.insert(ty, id);
+        self.ids.insert(ty.key(), id);
         id
+    }
+
+    /// Returns how many types the arena holds.
+    pub(crate) fn len(&self) -> usize {
+        self.list.len()
     }
 
     /// Returns the type at `id`.
@@ -1006,6 +1166,8 @@ struct Builder {
     types: Types,
     /// The variables.
     variables: Vec<Variable>,
+    /// The names of the type variables.
+    type_variables: Vec<Box<str>>,
     /// How many variables of functions and of other types were named.
     named: [u32; 2],
     /// The nodes.
@@ -1023,9 +1185,20 @@ impl Builder {
             atom_ids: HashMap::default(),
             types: Types::default(),
             variables: Vec::new(),
+            type_variables: Vec::new(),
             named: [0; 2],
             nodes: Vec::new(),
         }
+    }
+
+    /// Returns a new type variable named `name`.
+    #[cfg(feature = "parse")]
+    fn type_variable(&mut self, name: &str) -> TypeVarId {
+        // A reader counts its type variables against its limit, which a
+        // `u32` holds.
+        let id = TypeVarId(self.type_variables.len() as u32);
+        self.type_variables.push(name.into());
+        id
     }
 
     /// Returns the index of the atom named `name`, added if new.
@@ -1118,6 +1291,7 @@ impl Builder {
             atoms: self.atoms,
             types: self.types.list,
             variables: self.variables,
+            type_variables: self.type_variables,
             context,
             goal,
             root: renumbered[root.index()],
@@ -1130,7 +1304,7 @@ impl Builder {
 pub(crate) fn operands(node: &Node, mut f: impl FnMut(TermId)) {
     match node {
         Node::Var { .. } | Node::Unit => {}
-        Node::Lambda { body, .. } => f(*body),
+        Node::Lambda { body, .. } | Node::TypeLambda { body, .. } => f(*body),
         Node::Apply { function, argument } => {
             f(*function);
             f(*argument);
@@ -1150,7 +1324,8 @@ pub(crate) fn operands(node: &Node, mut f: impl FnMut(TermId)) {
         | Node::Second { term }
         | Node::Left { term, .. }
         | Node::Right { term, .. }
-        | Node::Derelict { term } => f(*term),
+        | Node::Derelict { term }
+        | Node::TypeApply { term, .. } => f(*term),
         Node::Case {
             term,
             left_body,
@@ -1177,7 +1352,7 @@ pub(crate) fn operands(node: &Node, mut f: impl FnMut(TermId)) {
 fn renumber(node: &mut Node, f: impl Fn(TermId) -> TermId) {
     match node {
         Node::Var { .. } | Node::Unit => {}
-        Node::Lambda { body, .. } => *body = f(*body),
+        Node::Lambda { body, .. } | Node::TypeLambda { body, .. } => *body = f(*body),
         Node::Apply { function, argument } => {
             *function = f(*function);
             *argument = f(*argument);
@@ -1197,7 +1372,8 @@ fn renumber(node: &mut Node, f: impl Fn(TermId) -> TermId) {
         | Node::Second { term }
         | Node::Left { term, .. }
         | Node::Right { term, .. }
-        | Node::Derelict { term } => *term = f(*term),
+        | Node::Derelict { term }
+        | Node::TypeApply { term, .. } => *term = f(*term),
         Node::Case {
             term,
             left_body,

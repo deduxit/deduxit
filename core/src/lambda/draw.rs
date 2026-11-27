@@ -5,7 +5,7 @@
 //! exports: one inference per subterm, its judgement `Γ ⊢ M : A`.
 
 use super::print::{Framing, Spelling, UNICODE, lengths, write_judgement_at};
-use super::{Calculus, Node, Options, Term, TermId, TypeId, VarId};
+use super::{Node, Options, Term, TermId, TypeId, VarId};
 use crate::hash::HashMap;
 use crate::linear::InfId;
 use crate::linear::proofs::Labels;
@@ -44,6 +44,8 @@ const LABELS: [[&str; 2]; Rule::COUNT] = [
     ["!E", "!E"],
     ["!w", "!w"],
     ["!c", "!c"],
+    ["∀I", "∀I"],
+    ["∀E", "∀E"],
 ];
 
 /// The rules' names in plain text, as [`LABELS`] has them.
@@ -67,6 +69,8 @@ const NAMES: [[&str; 2]; Rule::COUNT] = [
     ["!E", "!E"],
     ["!w", "!w"],
     ["!c", "!c"],
+    ["∀I", "∀I"],
+    ["∀E", "∀E"],
 ];
 
 /// The typing rule a node's inference is an instance of: one per kind of
@@ -111,11 +115,15 @@ enum Rule {
     Weaken,
     /// `copy M as x, y in N`
     Contract,
+    /// `ΛX. M`
+    ForallI,
+    /// `M [A]`
+    ForallE,
 }
 
 impl Rule {
     /// How many rules there are.
-    const COUNT: usize = 19;
+    const COUNT: usize = 21;
 
     /// Returns the rule of a node.
     const fn of(node: &Node) -> Self {
@@ -139,6 +147,8 @@ impl Rule {
             Node::Derelict { .. } => Self::BangE,
             Node::Discard { .. } => Self::Weaken,
             Node::Copy { .. } => Self::Contract,
+            Node::TypeLambda { .. } => Self::ForallI,
+            Node::TypeApply { .. } => Self::ForallE,
         }
     }
 }
@@ -199,7 +209,9 @@ fn premises(node: &Node) -> Vec<Premise> {
         | Node::Second { term }
         | Node::Left { term, .. }
         | Node::Right { term, .. }
-        | Node::Derelict { term } => vec![one(*term, 0, Vec::new())],
+        | Node::Derelict { term }
+        | Node::TypeApply { term, .. }
+        | Node::TypeLambda { body: term, .. } => vec![one(*term, 0, Vec::new())],
         Node::Case {
             term,
             left,
@@ -499,7 +511,7 @@ impl Drawing {
 
     /// Returns the column of the calculus in the rules' tables.
     const fn column(&self) -> usize {
-        if matches!(self.term.calculus, Calculus::Simple) {
+        if self.term.calculus.is_ordinary() {
             1
         } else {
             0
