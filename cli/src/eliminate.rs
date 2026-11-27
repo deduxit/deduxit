@@ -439,7 +439,7 @@ fn eliminate_net(
         }
     }
     if show.verdict {
-        println!("{line}");
+        io::write(None, &line)?;
     }
     Ok(status(&end, asked))
 }

@@ -1324,6 +1324,22 @@ fn interactive_session() {
     }
     assert!(!dir.join(format!("net-{}.svg", steps + 1)).exists());
     assert!(!dir.join("net-0.svg").exists());
+    // A reader that closes standard output keeps the exit status, where
+    // the verdict's line once panicked (exit status 101).
+    let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
+        .args([&args[..], &[drawing.to_str().unwrap(), file]].concat())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let closed = child.wait_with_output().unwrap();
+    assert_eq!(
+        closed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&closed.stderr)
+    );
     // Past the bound on the drawings' bytes the steps go on undrawn, a
     // line says from which step, and the net reached is still drawn.
     let bounded = dir.join("bounded.svg");
