@@ -8,8 +8,8 @@ use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Net, Rendered, Show, Shown, abbreviated, bytes_text, derivation, every_steps, net_of,
-    nets_exist, note, render,
+    Net, Rendered, Show, Shown, abbreviated, bytes_text, counted, derivation, every_steps,
+    net_of, nets_exist, note, render,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Result, bail};
@@ -177,61 +177,12 @@ fn eliminate_into(
         |_| over(),
         |before, step| formulas.push(cut_formula(before, step.formula, mode, reading.as_ref())),
     );
-    let sequent = |proof: &Proof| {
-        let formulas = proof.sequent().roots().len();
-        match Forest::new(proof.sequent())
-            .ok()
-            .filter(|_| mode.is_intuitionistic())
-            .and_then(|forest| {
-                Reading::of_mode(&forest, mode)
-                    .ok()
-                    .map(|reading| abbreviated(&reading, show.abbreviate, formulas))
-            }) {
-            Some(two_sided) => two_sided,
-            None => abbreviated(proof.sequent(), show.abbreviate, formulas),
-        }
-    };
     let elimination = match result {
         Ok(elimination) => elimination,
         Err(Error::Check(error)) => {
-            let (status, message) = match &error {
-                CheckError::Refused(refused) => (
-                    Status::Unknown,
-                    format!(
-                        "unknown: the proof of {} ({mode}) is not checked: {error}{}",
-                        sequent(proof),
-                        advice(&refused.refusal, deadline)
-                    ),
-                ),
-                _ => (
-                    Status::No,
-                    format!(
-                        "invalid proof of {} ({mode}): {}",
-                        sequent(proof),
-                        error
-                            .describe(proof)
-                            .in_mode(mode)
-                            .abbreviated(show.abbreviate)
-                    ),
-                ),
-            };
+            let (status, message) = check_failed(&error, proof, mode, show, deadline);
             if show.format == Format::Json {
-                let checked = Checked {
-                    version: CHECKED_LEVEL,
-                    verdict: if matches!(status, Status::No) {
-                        "invalid"
-                    } else {
-                        "unknown"
-                    },
-                    mode: Some(mode),
-                    logic: None,
-                    calculus: None,
-                    system: None,
-                    error: Some(Error::Check(error)),
-                    message: Some(message),
-                    lambda: None,
-                    failing: None,
-                };
+                let checked = check_record(status, error, message, mode);
                 serde_json::to_writer(out.stream(), &checked)?;
                 return Ok((status, true));
             }
@@ -250,7 +201,7 @@ fn eliminate_into(
         &elimination,
         mode,
         &formulas,
-        &sequent(&elimination.proof),
+        &sequent_of(&elimination.proof, mode, show),
         deadline,
     );
     let prefix = show.open(out, show.verdict.then_some(line.as_str()))?;
@@ -383,7 +334,7 @@ fn eliminate_net(
     // undrawn by the bound on them.
     let (mut drawn, mut undrawn) = (0u64, None);
     let mut k = 0;
-    let (reached, steps, end) = run(&net, mode, settings, &stopping, |before, step, line| {
+    let mut each = |before: &Net<'_>, step: &deduxit::linear::nets::cut::Step, line: String| {
         k += 1;
         if quiet || undrawn.is_some() || failed.borrow().is_some() {
             return;
@@ -407,7 +358,13 @@ fn eliminate_net(
         if let Err(error) = write(&file, &bytes) {
             *failed.borrow_mut() = Some(error);
         }
-    })?;
+    };
+    let Ran {
+        reached,
+        steps,
+        end,
+        ..
+    } = run(&net, mode, settings, &stopping, Some(&mut each))?;
     if let Some(error) = failed.into_inner() {
         return Err(error);
     }
@@ -486,34 +443,18 @@ fn eliminate_net_into(
         }
     };
     if show.format == Format::Json {
-        let status = match &net {
-            Net::Mll(net) => {
-                let e = deduxit::linear::nets::cut::eliminate(
-                    net.as_ref(),
-                    &settings.cut,
-                    &settings.limits,
-                    |_| over(),
-                    |_, _| {},
-                )?;
-                serde_json::to_writer(out.stream(), &e)?;
-                status(&e.end, asked)
-            }
-            Net::Mell(net) => {
-                let e = deduxit::linear::nets::cut::eliminate(
-                    net,
-                    &settings.cut,
-                    &settings.limits,
-                    |_| over(),
-                    |_, _| {},
-                )?;
-                serde_json::to_writer(out.stream(), &e)?;
-                status(&e.end, asked)
-            }
-        };
+        let ran = run(&net, mode, settings, &over, None)?;
+        out.stream()
+            .write_all(ran.record.as_deref().unwrap_or_default().as_bytes())?;
         out.finish()?;
-        return Ok(status);
+        return Ok(status(&ran.end, asked));
     }
-    let (reached, steps, end) = run(&net, mode, settings, &over, |_, _, _| {})?;
+    let Ran {
+        reached,
+        steps,
+        end,
+        ..
+    } = run(&net, mode, settings, &over, Some(&mut |_, _, _| {}))?;
     let line = net_report(
         &steps,
         &end,
@@ -541,38 +482,63 @@ fn eliminate_net_into(
     Ok(status(&end, asked))
 }
 
-/// Eliminates the cut links of a net by the settings, giving `each` the
-/// net every step was taken on, the step and its line, and returns the
-/// net reached, each step's line and how it ended.
+/// What sees each step of an elimination on a net: the net the step was
+/// taken on, the step and its line.
+type Each<'e> = dyn FnMut(&Net<'_>, &deduxit::linear::nets::cut::Step, String) + 'e;
+
+/// What an elimination on a net gives its callers.
+struct Ran<'n> {
+    /// The net reached.
+    reached: Net<'n>,
+    /// Each step's line, empty where no `each` was given.
+    steps: Vec<String>,
+    /// How it ended.
+    end: End,
+    /// The library's record as JSON, where no `each` was given.
+    record: Option<String>,
+}
+
+/// Eliminates the cut links of a net by the settings. With `each`, it gives
+/// `each` the net every step was taken on, the step and its line, and
+/// returns each step's line; without, it returns the library's record as
+/// JSON in their place.
 fn run<'n>(
     net: &Net<'n>,
     mode: Mode,
     settings: &Settings,
     over: &dyn Fn() -> bool,
-    mut each: impl FnMut(&Net<'_>, &deduxit::linear::nets::cut::Step, String),
-) -> Result<(Net<'n>, Vec<String>, End)> {
+    mut each: Option<&mut Each<'_>>,
+) -> Result<Ran<'n>> {
     use std::borrow::Cow;
+    let json = each.is_none();
     let mut lines = Vec::new();
     let mut seen = |before: &Net<'_>, step: &deduxit::linear::nets::cut::Step| {
-        let line = format!(
-            "{}. {} on the cut of {}",
-            lines.len() + 1,
-            step.case.name(),
-            before.formula(step.cut.0, mode)
-        );
-        each(before, step, line.clone());
-        lines.push(line);
+        if let Some(each) = each.as_mut() {
+            let line = format!(
+                "{}. {} on the cut of {}",
+                lines.len() + 1,
+                step.case.name(),
+                before.formula(step.cut.0, mode)
+            );
+            each(before, step, line.clone());
+            lines.push(line);
+        }
     };
-    let (reached, end) = match net {
+    let (reached, end, record) = match net {
         Net::Mll(net) => {
             let e = deduxit::linear::nets::cut::eliminate(
                 net.as_ref(),
                 &settings.cut,
                 &settings.limits,
                 |_| over(),
-                |before, step| seen(&Net::Mll(Cow::Borrowed(before)), step),
+                |before, step| {
+                    if !json {
+                        seen(&Net::Mll(Cow::Borrowed(before)), step);
+                    }
+                },
             )?;
-            (Net::Mll(Cow::Owned(e.net)), e.end)
+            let record = if json { Some(serde_json::to_string(&e)?) } else { None };
+            (Net::Mll(Cow::Owned(e.net)), e.end, record)
         }
         Net::Mell(net) => {
             let e = deduxit::linear::nets::cut::eliminate(
@@ -580,12 +546,22 @@ fn run<'n>(
                 &settings.cut,
                 &settings.limits,
                 |_| over(),
-                |before, step| seen(&Net::Mell(before.clone()), step),
+                |before, step| {
+                    if !json {
+                        seen(&Net::Mell(before.clone()), step);
+                    }
+                },
             )?;
-            (Net::Mell(e.net), e.end)
+            let record = if json { Some(serde_json::to_string(&e)?) } else { None };
+            (Net::Mell(e.net), e.end, record)
         }
     };
-    Ok((reached, lines, end))
+    Ok(Ran {
+        reached,
+        steps: lines,
+        end,
+        record,
+    })
 }
 
 /// Returns the lines that say what an elimination on a net did: a line
@@ -616,23 +592,16 @@ fn net_report(
     lines.join("\n")
 }
 
-/// Checks the proof as the elimination on terms does before its first
-/// step and writes what it says when it is no proof in the mode, or its
-/// check is given up, into `out`, or to standard error without one;
-/// returns the status then, `None` for a proof that checks.
-fn unchecked(
+/// Returns the status and the line of a proof whose check failed, invalid,
+/// or was given up at a bound or the stop, unknown.
+fn check_failed(
+    error: &CheckError,
     proof: &Proof,
     mode: Mode,
-    settings: &Settings,
     show: &Show,
     deadline: &Deadline,
-    out: Option<&mut io::Output>,
-) -> Result<Option<Status>> {
-    let over = || interrupted() || deadline.passed() || io::closed();
-    let Err(error) = proof.check_within(mode, &settings.limits, |_| over()) else {
-        return Ok(None);
-    };
-    let (status, message) = match &error {
+) -> (Status, String) {
+    match error {
         CheckError::Refused(refused) => (
             Status::Unknown,
             format!(
@@ -652,25 +621,50 @@ fn unchecked(
                     .abbreviated(show.abbreviate)
             ),
         ),
+    }
+}
+
+/// Returns `check`'s JSON record of a proof whose check failed or was
+/// given up, with the status and line [`check_failed`] gave.
+fn check_record(status: Status, error: CheckError, message: String, mode: Mode) -> Checked {
+    Checked {
+        version: CHECKED_LEVEL,
+        verdict: if matches!(status, Status::No) {
+            "invalid"
+        } else {
+            "unknown"
+        },
+        mode: Some(mode),
+        logic: None,
+        calculus: None,
+        system: None,
+        error: Some(Error::Check(error)),
+        message: Some(message),
+        lambda: None,
+        failing: None,
+    }
+}
+
+/// Checks the proof as the elimination on terms does before its first
+/// step and writes what it says when it is no proof in the mode, or its
+/// check is given up, into `out`, or to standard error without one;
+/// returns the status then, `None` for a proof that checks.
+fn unchecked(
+    proof: &Proof,
+    mode: Mode,
+    settings: &Settings,
+    show: &Show,
+    deadline: &Deadline,
+    out: Option<&mut io::Output>,
+) -> Result<Option<Status>> {
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let Err(error) = proof.check_within(mode, &settings.limits, |_| over()) else {
+        return Ok(None);
     };
+    let (status, message) = check_failed(&error, proof, mode, show, deadline);
     match out {
         Some(out) if show.format == Format::Json => {
-            let checked = Checked {
-                version: CHECKED_LEVEL,
-                verdict: if matches!(status, Status::No) {
-                    "invalid"
-                } else {
-                    "unknown"
-                },
-                mode: Some(mode),
-                logic: None,
-                calculus: None,
-                system: None,
-                error: Some(Error::Check(error)),
-                message: Some(message),
-                lambda: None,
-                failing: None,
-            };
+            let checked = check_record(status, error, message, mode);
             serde_json::to_writer(out.stream(), &checked)?;
         }
         Some(out) => {
@@ -680,11 +674,6 @@ fn unchecked(
         None => eprintln!("{message}"),
     }
     Ok(Some(status))
-}
-
-/// Returns `count` and the noun for one or for many.
-pub(crate) fn counted(count: usize, one: &str, many: &str) -> String {
-    format!("{count} {}", if count == 1 { one } else { many })
 }
 
 /// Returns the lines that say what the elimination did: a numbered line

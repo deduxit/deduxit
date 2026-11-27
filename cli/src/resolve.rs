@@ -11,6 +11,7 @@ use crate::argument_parsing::{
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
+use crate::show::counted;
 use crate::{Status, catch_interrupt, interrupted, io};
 use anyhow::{Context, Result, bail};
 use deduxit::linear::search::Jobs;
@@ -204,13 +205,16 @@ fn first_order_text(
             not_read_back,
         } => {
             let n = refutation.inferences().len();
-            let steps = format!("a checked refutation of {n} inference{}", plural(n));
+            let steps = format!(
+                "a checked refutation of {}",
+                counted(n, "inference", "inferences")
+            );
             let back = match (derivation, not_read_back) {
                 (Some(d), _) => {
                     let k = d.inferences().len();
                     format!(
-                        ", read back as a checked derivation of LK ({k} inference{})",
-                        plural(k)
+                        ", read back as a checked derivation of LK ({})",
+                        counted(k, "inference", "inferences")
                     )
                 }
                 (None, Some(why)) => format!(
@@ -324,7 +328,10 @@ fn answer_text(
     match &answer.verdict {
         Verdict::Refuted(r) => {
             let n = r.resolvents().len();
-            let steps = format!("a checked refutation of {n} resolution{}", plural(n));
+            let steps = format!(
+                "a checked refutation of {}",
+                counted(n, "resolution", "resolutions")
+            );
             if of_sequent {
                 writeln!(
                     text,
@@ -418,11 +425,6 @@ fn resolvents(answer: &resolution::Resolution) -> usize {
         Verdict::Refuted(r) => r.resolvents().len(),
         _ => 0,
     }
-}
-
-/// Returns "s" for a count other than one.
-const fn plural(n: usize) -> &'static str {
-    if n == 1 { "" } else { "s" }
 }
 
 /// Writes a refutation's resolvents, numbered on from its clauses, from
@@ -524,11 +526,13 @@ pub(crate) fn check_outside(
         Ok(proof) => (
             Status::Yes,
             format!(
-                "valid: the proof refutes the {} clause{}, {} step{} checked",
-                clauses.clauses().len(),
-                plural(clauses.clauses().len()),
-                proof.steps(),
-                plural(usize::try_from(proof.steps()).unwrap_or(usize::MAX))
+                "valid: the proof refutes the {}, {} checked",
+                counted(clauses.clauses().len(), "clause", "clauses"),
+                counted(
+                    usize::try_from(proof.steps()).unwrap_or(usize::MAX),
+                    "step",
+                    "steps"
+                )
             ),
         ),
         Err(error @ (Error::InvalidRefutation { .. } | Error::ClauseFile { .. })) => {
@@ -565,9 +569,9 @@ pub(crate) fn check_refutation(
         Ok(()) => (
             Status::Yes,
             format!(
-                "valid: a refutation of {} clauses by {n} resolution{}",
+                "valid: a refutation of {} clauses by {}",
                 refutation.clauses().clauses().len(),
-                plural(n)
+                counted(n, "resolution", "resolutions")
             ),
         ),
         Err(error @ Error::InvalidRefutation { .. }) => (Status::No, format!("invalid: {error}")),

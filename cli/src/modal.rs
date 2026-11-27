@@ -10,7 +10,7 @@ use crate::check::{CHECKED_LEVEL, Checked};
 use crate::io::{self, Most, bound, refused};
 use crate::limit::{Deadline, Notice};
 use crate::prove::{Ended, NOTICE_AFTER, Stop, advice, notice_line, on_large_stack, stopped};
-use crate::show::{Prefixed, Rendered, Show, Shown, render};
+use crate::show::{Prefixed, Show, Shown, counted, drawn_into};
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, bail};
 use deduxit::export::{rocq, svg};
@@ -275,24 +275,14 @@ fn countermodel_shown(
                         )));
                     }
                 };
-            if show.format == Format::Svg {
-                write!(out.stream(), "{}{drawing}", prefix.unwrap_or(""))?;
-                return Ok(Shown::Written);
-            }
-            Ok(
-                match render(
-                    drawing,
-                    show.format,
-                    &show.styles,
-                    show.limits.memory_bytes,
-                    halt,
-                )? {
-                    Rendered::Bytes(bytes) => Shown::Rendered(bytes),
-                    Rendered::Refused(line) => Shown::LeftOut(line),
-                    Rendered::Stopped => {
-                        Shown::LeftOut("the countermodel is not drawn: it was stopped".to_owned())
-                    }
-                },
+            drawn_into(
+                drawing,
+                show.format == Format::Svg,
+                "the countermodel",
+                show,
+                |text| Ok(write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?),
+                halt,
+                &|| "it was stopped".to_owned(),
             )
         }
         _ => Ok(Shown::LeftOut(
@@ -527,9 +517,4 @@ pub(crate) fn check_model(
     }
     out.stream().write_all(text.as_bytes())?;
     Ok((status, true))
-}
-
-/// Returns `n` with the noun that counts it.
-fn counted(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }

@@ -12,7 +12,7 @@ use crate::argument_parsing::{
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
-use crate::show::bytes_text;
+use crate::show::{bytes_text, counted};
 use crate::{Status, catch_interrupt, interrupted, io};
 use anyhow::{Result, bail};
 use deduxit::linear::search::{Jobs, Reason};
@@ -381,10 +381,9 @@ fn herbrand_text(found: &Herbrand, deadline: &Deadline, memory: Option<u64>) -> 
         .as_ref()
         .is_some_and(|r| matches!(r.verdict, Verdict::Valid(_)));
     let terms = format!(
-        "terms up to depth {} ({} term{})",
+        "terms up to depth {} ({})",
         found.depth,
-        found.statistics.terms,
-        if found.statistics.terms == 1 { "" } else { "s" }
+        counted(found.statistics.terms, "term", "terms")
     );
     if refuted {
         writeln!(
@@ -422,9 +421,9 @@ fn herbrand_text(found: &Herbrand, deadline: &Deadline, memory: Option<u64>) -> 
         Verdict::Valid(Evidence::Derivation(d)) => {
             let n = d.inferences().len();
             format!(
-                "valid (classical logic by Herbrand's theorem): a checked derivation of LK ({n} \
-                 inference{}) built from the instances",
-                if n == 1 { "" } else { "s" }
+                "valid (classical logic by Herbrand's theorem): a checked derivation of LK ({}) \
+                 built from the instances",
+                counted(n, "inference", "inferences")
             )
         }
         Verdict::Valid(_) => {
@@ -503,8 +502,8 @@ fn verdict(outcome: &Outcome, deadline: &Deadline) -> String {
             let n = d.inferences().len();
             let calculus = d.logic().calculus();
             format!(
-                "valid, a checked derivation of {calculus} ({n} inference{})",
-                if n == 1 { "" } else { "s" }
+                "valid, a checked derivation of {calculus} ({})",
+                counted(n, "inference", "inferences")
             )
         }
         Verdict::Valid(Evidence::Clausal(_)) => "valid, a checked clausal proof".to_owned(),

@@ -644,7 +644,7 @@ fn script(
         settings.clone(),
         Input::Script(answer.to_owned()),
     )?;
-    let commands = crate::eliminate::counted(ran.commands, "command", "commands");
+    let commands = crate::show::counted(ran.commands, "command", "commands");
     let mut graded = if ran.finished {
         Graded::new(
             Verdict::Correct,

@@ -670,25 +670,9 @@ pub(crate) fn first_order_model_drawn(
             )));
         }
     };
-    if matches!(show.format, Format::Svg | Format::Latex | Format::Typst) {
-        write!(out, "{}{drawing}", prefix.unwrap_or(""))?;
-        return Ok(Shown::Written);
-    }
-    Ok(
-        match render(
-            drawing,
-            show.format,
-            &show.styles,
-            show.limits.memory_bytes,
-            halt,
-        )? {
-            Rendered::Bytes(bytes) => Shown::Rendered(bytes),
-            Rendered::Refused(line) => Shown::LeftOut(line),
-            Rendered::Stopped => {
-                Shown::LeftOut(format!("the countermodel is not drawn: {}", why()))
-            }
-        },
-    )
+    let as_text = matches!(show.format, Format::Svg | Format::Latex | Format::Typst);
+    let write = |text: &str| Ok(write!(out, "{}{text}", prefix.unwrap_or(""))?);
+    drawn_into(drawing, as_text, "the countermodel", show, write, halt, why)
 }
 
 /// Writes the drawing of a countermodel into `out` after `prefix`, for
@@ -732,8 +716,32 @@ pub(crate) fn model_drawn(
                 )));
             }
         };
-    if show.format == Format::Svg {
-        write!(out, "{}{drawing}", prefix.unwrap_or(""))?;
+    let as_text = show.format == Format::Svg;
+    let write = |text: &str| Ok(write!(out, "{}{text}", prefix.unwrap_or(""))?);
+    drawn_into(drawing, as_text, "the countermodel", show, write, halt, why)
+}
+
+/// Gives a drawing to `write` where the output takes it as text
+/// (`as_text`), or renders it to PNG or PDF, and returns what was shown: a
+/// render the bound refused is left out with its line, one the stop ended
+/// with "`what` is not drawn" and `why`. `write` is the caller's, so that
+/// each output keeps its own way of writing and of reporting a failed
+/// write.
+///
+/// # Errors
+///
+/// Those of `write`, a renderer's error.
+pub(crate) fn drawn_into(
+    drawing: String,
+    as_text: bool,
+    what: &str,
+    show: &Show,
+    write: impl FnOnce(&str) -> Result<()>,
+    halt: &dyn Fn() -> bool,
+    why: &dyn Fn() -> String,
+) -> Result<Shown> {
+    if as_text {
+        write(&drawing)?;
         return Ok(Shown::Written);
     }
     Ok(
@@ -746,9 +754,7 @@ pub(crate) fn model_drawn(
         )? {
             Rendered::Bytes(bytes) => Shown::Rendered(bytes),
             Rendered::Refused(line) => Shown::LeftOut(line),
-            Rendered::Stopped => {
-                Shown::LeftOut(format!("the countermodel is not drawn: {}", why()))
-            }
+            Rendered::Stopped => Shown::LeftOut(format!("{what} is not drawn: {}", why())),
         },
     )
 }
@@ -1534,23 +1540,9 @@ pub(crate) fn net_into(
         Ok(drawing) => drawing,
         Err(line) => return Ok(Shown::LeftOut(line)),
     };
-    if show.format == Format::Svg {
-        write!(out, "{separator}{drawing}")?;
-        return Ok(Shown::Written);
-    }
-    Ok(
-        match render(
-            drawing,
-            show.format,
-            &show.styles,
-            show.limits.memory_bytes,
-            stop,
-        )? {
-            Rendered::Bytes(bytes) => Shown::Rendered(bytes),
-            Rendered::Refused(line) => Shown::LeftOut(line),
-            Rendered::Stopped => Shown::LeftOut(format!("the proof net is not drawn: {}", why())),
-        },
-    )
+    let as_text = show.format == Format::Svg;
+    let write = |text: &str| Ok(write!(out, "{separator}{text}")?);
+    drawn_into(drawing, as_text, "the proof net", show, write, stop, why)
 }
 
 /// Writes the proof net of a proof as its JSON document into `out`, and
@@ -1670,6 +1662,15 @@ pub(crate) fn lambda_json(
         }
         Err(error) => serde_json::json!({ "error": error }),
     })
+}
+
+/// Returns `count` and the noun for one or for many: `1 step`, `3 steps`.
+pub(crate) fn counted<T>(count: T, one: &str, many: &str) -> String
+where
+    T: std::fmt::Display + PartialEq + From<u8>,
+{
+    let noun = if count == T::from(1) { one } else { many };
+    format!("{count} {noun}")
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use crate::check::{CHECKED_LEVEL, Checked};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, stopped};
-use crate::show::{Prefixed, Rendered, Show, Shown, note, render};
+use crate::show::{Prefixed, Show, Shown, counted, drawn_into, note};
 use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Drawable, latex, rocq, svg, typst};
@@ -452,24 +452,14 @@ pub(crate) fn shown(
                 Ok(text) => text,
                 Err(error) => return Ok(Shown::LeftOut(left_out(&error))),
             };
-            if !show.format.is_binary() {
-                write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?;
-                return Ok(Shown::Written);
-            }
-            Ok(
-                match render(
-                    text,
-                    show.format,
-                    &show.styles,
-                    show.limits.memory_bytes,
-                    halt,
-                )? {
-                    Rendered::Bytes(bytes) => Shown::Rendered(bytes),
-                    Rendered::Refused(line) => Shown::LeftOut(line),
-                    Rendered::Stopped => {
-                        Shown::LeftOut("the derivation is not drawn: it was stopped".to_owned())
-                    }
-                },
+            drawn_into(
+                text,
+                !show.format.is_binary(),
+                "the derivation",
+                show,
+                |text| Ok(write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?),
+                halt,
+                &|| "it was stopped".to_owned(),
             )
         }
         Format::Rocq => {
@@ -599,9 +589,4 @@ pub(crate) fn lines(derivation: &Derivation, calculus: &Calculus) -> String {
         .map(|node| node_line(derivation, calculus, node, SESSION_LINE))
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-/// Returns `n` with the noun that counts it.
-fn counted(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }

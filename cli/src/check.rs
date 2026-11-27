@@ -656,7 +656,7 @@ fn checked_table(
     let sequent = abbreviated(table.sequent(), show.abbreviate, 0);
     let line = format!(
         "valid truth table of {sequent} ({logic} logic): none of its {} falsifies it",
-        crate::eliminate::counted(
+        crate::show::counted(
             usize::try_from(table.rows()).unwrap_or(usize::MAX),
             "row",
             "rows"
@@ -870,7 +870,7 @@ fn check_countermodel(
         Ok(()) => format!(
             "valid refutation of {sequent} ({logic} logic): a Kripke model of {} refutes it at \
              world {}",
-            crate::eliminate::counted(model.worlds.len(), "world", "worlds"),
+            crate::show::counted(model.worlds.len(), "world", "worlds"),
             model.world
         ),
         Err(error) if status == Status::No => {
@@ -944,7 +944,7 @@ fn check_structure(
     let structure = &countermodel.structure;
     let model = format!(
         "a finite structure of {}",
-        crate::eliminate::counted(structure.size as usize, "element", "elements")
+        crate::show::counted(structure.size as usize, "element", "elements")
     );
     let refuted = Refuted {
         sequent: &countermodel.sequent,
@@ -972,7 +972,7 @@ fn check_kripke_structure(
     let result = countermodel.check(logic, &show.limits, |_| over());
     let model = format!(
         "a Kripke model of {}",
-        crate::eliminate::counted(countermodel.model.worlds.len(), "world", "worlds")
+        crate::show::counted(countermodel.model.worlds.len(), "world", "worlds")
     );
     let refuted = Refuted {
         sequent: &countermodel.sequent,
