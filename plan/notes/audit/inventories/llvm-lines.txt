@@ -1,0 +1,200 @@
+  Lines                  Copies               Function name
+  -----                  ------               -------------
+  3343501                68808                (TOTAL)
+    12983 (0.4%,  0.4%)      1 (0.0%,  0.0%)  deduxit[17d936367021a811]::export::svg::mell::draw
+     8385 (0.3%,  0.6%)      1 (0.0%,  0.0%)  <deduxit[17d936367021a811]::errors::Error as core[62e902411887be45]::fmt::Display>::fmt
+     7331 (0.2%,  0.9%)     20 (0.0%,  0.0%)  <<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     6653 (0.2%,  1.1%)      1 (0.0%,  0.0%)  <deduxit[17d936367021a811]::protocol::ordinary::Ordinary as deduxit[17d936367021a811]::protocol::Suite>::run
+     6475 (0.2%,  1.3%)      1 (0.0%,  0.0%)  deduxit[17d936367021a811]::modal::calculus::form
+     5158 (0.2%,  1.4%)      1 (0.0%,  0.0%)  <deduxit[17d936367021a811]::ordinary::rocq::Certificate>::tasks
+     4916 (0.1%,  1.6%)      1 (0.0%,  0.0%)  <deduxit[17d936367021a811]::serialize::errors::Details as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     4848 (0.1%,  1.7%)      1 (0.0%,  0.0%)  <deduxit[17d936367021a811]::ordinary::kripke_structure::KripkeStructure>::evaluate
+     4676 (0.1%,  1.8%)      1 (0.0%,  0.0%)  deduxit[17d936367021a811]::export::svg::net::draw
+     4460 (0.1%,  2.0%)      9 (0.0%,  0.1%)  <<deduxit[17d936367021a811]::serialize::search::WhyNot as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     4037 (0.1%,  2.1%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::ordinary::ljt::Lj<&mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>>::step
+     3927 (0.1%,  2.2%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::rules::fitch::Fitch>::new
+     3825 (0.1%,  2.3%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::protocol::linear::Linear as deduxit[17d936367021a811]::protocol::Suite>::run
+     3630 (0.1%,  2.4%)     15 (0.0%,  0.1%)  <&mut serde_json[1a38b4e062258bb9]::de::Deserializer<serde_json[1a38b4e062258bb9]::read::StrRead> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_seq::<<<deduxit[17d936367021a811]::serialize::proofs::Step as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_enum::__Visitor>
+     3614 (0.1%,  2.5%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::rules::interactive::Interactive>::plan
+     3440 (0.1%,  2.6%)     20 (0.0%,  0.1%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_any::<<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor>
+     3428 (0.1%,  2.7%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<(), deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3428 (0.1%,  2.8%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::cut::Record, deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3428 (0.1%,  3.0%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::derivation::build::Record<deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>, deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3428 (0.1%,  3.1%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::derivation::build::Record<deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>, deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3428 (0.1%,  3.2%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>, deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3428 (0.1%,  3.3%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>, deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>>::rule
+     3422 (0.1%,  3.4%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<(), deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3422 (0.1%,  3.5%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::cut::Record, deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3422 (0.1%,  3.6%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::derivation::build::Record<deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>, deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3422 (0.1%,  3.7%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::derivation::build::Record<deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>, deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3422 (0.1%,  3.8%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Framed>, deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3422 (0.1%,  3.9%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::linear::proofs::check::pass::Pass<deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>, deduxit[17d936367021a811]::linear::proofs::check::frames::Ground>>::rule
+     3408 (0.1%,  4.0%)      1 (0.0%,  0.1%)  deduxit[17d936367021a811]::ordinary::grounding::ground
+     3310 (0.1%,  4.1%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::lambda::parse::Parser>::deliver
+     3275 (0.1%,  4.2%)      1 (0.0%,  0.1%)  <deduxit[17d936367021a811]::errors::step::StepFault as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     3033 (0.1%,  4.3%)     20 (0.0%,  0.2%)  <<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_seq::<&mut serde[911bab250015a68c]::private::de::content::SeqDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     2894 (0.1%,  4.3%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::linear::nets::NetError>::write_over
+     2888 (0.1%,  4.4%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::errors::step::StepFault as core[62e902411887be45]::fmt::Display>::fmt
+     2884 (0.1%,  4.5%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::lambda::linear::ReadBack>::enter
+     2795 (0.1%,  4.6%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::ordinary::connection::intuitionistic::read_back::Search>::rules
+     2787 (0.1%,  4.7%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::ordinary::rocq::write::<alloc[2a0ada2ddd1fabff]::string::String, deduxit[17d936367021a811]::limits::counting<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#0}>
+     2750 (0.1%,  4.8%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::ordinary::translate::translate
+     2705 (0.1%,  4.9%)     20 (0.0%,  0.2%)  <serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::MapAccess>::next_key_seed::<core[62e902411887be45]::marker::PhantomData<<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Field>>
+     2690 (0.1%,  4.9%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::linear::nets::NetError as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     2685 (0.1%,  5.0%)      1 (0.0%,  0.2%)  <<deduxit[17d936367021a811]::export::svg::Style as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde_json[1a38b4e062258bb9]::value::de::MapDeserializer>
+     2681 (0.1%,  5.1%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::ordinary::rocq_models::written::<alloc[2a0ada2ddd1fabff]::string::String>
+     2660 (0.1%,  5.2%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     2647 (0.1%,  5.3%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::lambda::simple::ReadBack>::enter
+     2610 (0.1%,  5.3%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::workspace::form::built
+     2595 (0.1%,  5.4%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::limits::Refusal as core[62e902411887be45]::fmt::Display>::fmt
+     2555 (0.1%,  5.5%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::rules::calculus::Calculus>::from_form
+     2545 (0.1%,  5.6%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::ordinary::normal::NormalForm>::claims
+     2544 (0.1%,  5.6%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::ordinary::derivation::check_inference
+     2513 (0.1%,  5.7%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::serialize::ordinary::SequentForm>::within
+     2509 (0.1%,  5.8%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::ordinary::translate::Image>::read_back_with
+     2485 (0.1%,  5.9%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::kripke::Model>::forcing_with
+     2471 (0.1%,  5.9%)      1 (0.0%,  0.2%)  deduxit[17d936367021a811]::ordinary::kripke_search::force
+     2466 (0.1%,  6.0%)      9 (0.0%,  0.2%)  <<deduxit[17d936367021a811]::lambda::Type as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     2422 (0.1%,  6.1%)      1 (0.0%,  0.2%)  <deduxit[17d936367021a811]::protocol::ordinary::Ordinary as deduxit[17d936367021a811]::protocol::Suite>::check
+     2420 (0.1%,  6.2%)     20 (0.0%,  0.3%)  serde[911bab250015a68c]::private::de::content::visit_content_map::<<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor, serde_json[1a38b4e062258bb9]::error::Error>
+     2380 (0.1%,  6.2%)     15 (0.0%,  0.3%)  <<<deduxit[17d936367021a811]::serialize::proofs::Step as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_enum::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_seq::<serde_json[1a38b4e062258bb9]::de::SeqAccess<serde_json[1a38b4e062258bb9]::read::StrRead>>
+     2360 (0.1%,  6.3%)      1 (0.0%,  0.3%)  deduxit[17d936367021a811]::ordinary::negative::translate
+     2335 (0.1%,  6.4%)     15 (0.0%,  0.3%)  <<<deduxit[17d936367021a811]::serialize::proofs::Step as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_enum::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_seq::<&mut serde[911bab250015a68c]::private::de::content::SeqDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     2332 (0.1%,  6.4%)      1 (0.0%,  0.3%)  <deduxit[17d936367021a811]::lambda::check::Pass>::node
+     2318 (0.1%,  6.5%)      1 (0.0%,  0.3%)  <deduxit[17d936367021a811]::rules::interactive::Interactive>::from_parts
+     2300 (0.1%,  6.6%)     20 (0.0%,  0.3%)  serde[911bab250015a68c]::private::de::content::visit_content_seq::<<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor, serde_json[1a38b4e062258bb9]::error::Error>
+     2297 (0.1%,  6.6%)      1 (0.0%,  0.3%)  deduxit[17d936367021a811]::ordinary::written::shapes
+     2286 (0.1%,  6.7%)      1 (0.0%,  0.3%)  <deduxit[17d936367021a811]::lambda::print::Printer>::pieces
+     2265 (0.1%,  6.8%)      1 (0.0%,  0.3%)  <<deduxit[17d936367021a811]::export::svg::Style as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_seq::<&mut serde_json[1a38b4e062258bb9]::value::de::SeqDeserializer>
+     2261 (0.1%,  6.8%)      1 (0.0%,  0.3%)  <deduxit[17d936367021a811]::modal::search::Search>::model::<&mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     2261 (0.1%,  6.9%)      1 (0.0%,  0.3%)  <deduxit[17d936367021a811]::modal::search::Search>::model::<&mut deduxit[17d936367021a811]::modal::decide::decide::{closure#0}>
+     2261 (0.1%,  7.0%)      1 (0.0%,  0.3%)  deduxit[17d936367021a811]::export::svg::kripke::describe
+     2217 (0.1%,  7.0%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::protocol::modal::Modal as deduxit[17d936367021a811]::protocol::Suite>::run
+     2211 (0.1%,  7.1%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::export::rocq::deduxit::disproof::<alloc[2a0ada2ddd1fabff]::string::String>
+     2171 (0.1%,  7.2%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::ordinary::normal::encoded
+     2166 (0.1%,  7.2%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::lambda::check::rule::<<deduxit[17d936367021a811]::lambda::parse::Parser>::make::{closure#0}, <deduxit[17d936367021a811]::lambda::parse::Parser>::make::{closure#1}>
+     2166 (0.1%,  7.3%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::lambda::check::rule::<deduxit[17d936367021a811]::lambda::check::check::{closure#3}, deduxit[17d936367021a811]::lambda::check::check::{closure#4}>
+     2141 (0.1%,  7.4%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::lambda::Term>::from_parts
+     2098 (0.1%,  7.4%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::linear::search::refutation::write_unbalanced
+     2089 (0.1%,  7.5%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::ordinary::interpolant::maehara::<&mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     2089 (0.1%,  7.6%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::ordinary::interpolant::maehara::<&mut deduxit[17d936367021a811]::ordinary::interpolant::interpolate_default::{closure#0}>
+     2085 (0.1%,  7.6%)     10 (0.0%,  0.4%)  <<deduxit[17d936367021a811]::serialize::search::Why as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     2066 (0.1%,  7.7%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::ordinary::kripke_search::write
+     2062 (0.1%,  7.7%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::ordinary::translate::pattern
+     2061 (0.1%,  7.8%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::linear::mist::read
+     2035 (0.1%,  7.9%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::cut
+     2026 (0.1%,  7.9%)      1 (0.0%,  0.4%)  deduxit[17d936367021a811]::linear::occurrences::instances::canonical
+     2025 (0.1%,  8.0%)     15 (0.0%,  0.4%)  <serde[911bab250015a68c]::private::de::content::VariantDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::VariantAccess>::tuple_variant::<<<deduxit[17d936367021a811]::serialize::proofs::Step as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_enum::__Visitor>
+     2023 (0.1%,  8.0%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::linear::proofs::interactive::StepError as core[62e902411887be45]::fmt::Display>::fmt
+     2020 (0.1%,  8.1%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::linear::search::inverse::eval::Calculus>::derive
+     2013 (0.1%,  8.2%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::protocol::lambda::Lambda as deduxit[17d936367021a811]::protocol::Suite>::run
+     1969 (0.1%,  8.2%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::protocol::lambda::Lambda as deduxit[17d936367021a811]::protocol::Suite>::check
+     1957 (0.1%,  8.3%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::ordinary::tableau::Tableau>::of::<&mut &mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1940 (0.1%,  8.3%)     20 (0.0%,  0.4%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_identifier::<<deduxit[17d936367021a811]::lambda::Node as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__FieldVisitor>
+     1932 (0.1%,  8.4%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::linear::search::focus::counts::Counts>::new_until
+     1930 (0.1%,  8.5%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::errors::step::WitnessFault as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<serde[911bab250015a68c]::private::ser::FlatMapSerializer<serde_json[1a38b4e062258bb9]::ser::Compound<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>, serde_json[1a38b4e062258bb9]::ser::CompactFormatter>>>
+     1928 (0.1%,  8.5%)      1 (0.0%,  0.4%)  <deduxit[17d936367021a811]::rules::natural::Translator>::classical_inference
+     1927 (0.1%,  8.6%)      9 (0.0%,  0.5%)  <<deduxit[17d936367021a811]::serialize::search::WhyNot as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_seq::<&mut serde[911bab250015a68c]::private::de::content::SeqDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     1925 (0.1%,  8.6%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::written::Walk>::split
+     1917 (0.1%,  8.7%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::protocol::ordinary::Ordinary as deduxit[17d936367021a811]::protocol::Suite>::summary
+     1913 (0.1%,  8.7%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::resolution::first_order::read_back
+     1895 (0.1%,  8.8%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::interactive::StepError as core[62e902411887be45]::fmt::Display>::fmt
+     1894 (0.1%,  8.9%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::structure::Structure>::evaluate
+     1886 (0.1%,  8.9%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::search::refutation::Refutation>::write
+     1884 (0.1%,  9.0%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::interactive::StepError as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1882 (0.1%,  9.0%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::lambda::parse::Parser>::operand
+     1882 (0.1%,  9.1%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::linear::search::basis::check
+     1873 (0.1%,  9.1%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::carry_back_from
+     1822 (0.1%,  9.2%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::kripke_structure::KripkeStructure as core[62e902411887be45]::fmt::Display>::fmt
+     1822 (0.1%,  9.3%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::interpolant::checked::<&mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1822 (0.1%,  9.3%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::interpolant::checked::<&mut deduxit[17d936367021a811]::ordinary::interpolant::interpolate_default::{closure#0}>
+     1808 (0.1%,  9.4%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::rules::calculus::Compiler>::rule
+     1791 (0.1%,  9.4%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::transfer::copy
+     1773 (0.1%,  9.5%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::search::net::Symmetry>::new
+     1770 (0.1%,  9.5%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::errors::step::WitnessFault as core[62e902411887be45]::fmt::Display>::fmt
+     1767 (0.1%,  9.6%)      3 (0.0%,  0.5%)  <<deduxit[17d936367021a811]::ordinary::resolution::first_order::Step as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     1748 (0.1%,  9.6%)      8 (0.0%,  0.5%)  <<deduxit[17d936367021a811]::serialize::ordinary::SearchRead as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error>>
+     1738 (0.1%,  9.7%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::lambda::draw::Drawing>::new::<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1721 (0.1%,  9.7%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::normal::NormalForm>::replay
+     1720 (0.1%,  9.8%)     10 (0.0%,  0.5%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_any::<<deduxit[17d936367021a811]::serialize::search::Why as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor>
+     1704 (0.1%,  9.8%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::rules::calculus::Calculus>::term_of
+     1700 (0.1%,  9.9%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::modal::decide::derivation::<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1700 (0.1%,  9.9%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::modal::decide::derivation::<deduxit[17d936367021a811]::modal::decide::decide::{closure#0}>
+     1688 (0.1%, 10.0%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::serialize::modal::SequentForm>::within
+     1669 (0.0%, 10.0%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::grounding::normal_form
+     1661 (0.0%, 10.1%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::interactive::Replay>::run
+     1653 (0.0%, 10.1%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::written
+     1652 (0.0%, 10.2%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::serialize::proofs::Step as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1645 (0.0%, 10.2%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::export::typst::model_table
+     1636 (0.0%, 10.3%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::mist::Reader>::rule
+     1635 (0.0%, 10.3%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::check::error::Fault as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1606 (0.0%, 10.4%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::nets::mell::graph::Graph>::new
+     1606 (0.0%, 10.4%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::search::saturated::Calculus>::derive
+     1601 (0.0%, 10.5%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::export::rocq::deduxit::write::<alloc[2a0ada2ddd1fabff]::string::String, deduxit[17d936367021a811]::limits::counting<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#0}>
+     1585 (0.0%, 10.5%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::lambda::check::describe
+     1572 (0.0%, 10.6%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::limits::Refusal as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1561 (0.0%, 10.6%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::ordinary::normal::copy_formulas
+     1558 (0.0%, 10.7%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::ordinary::connection::matrix::Matrix>::free_slots
+     1555 (0.0%, 10.7%)      1 (0.0%,  0.5%)  deduxit[17d936367021a811]::linear::lltp::clauses
+     1553 (0.0%, 10.8%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::from_parts
+     1551 (0.0%, 10.8%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::lambda::parse::Parser>::untyped
+     1551 (0.0%, 10.8%)      1 (0.0%,  0.5%)  <deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Framed> as deduxit[17d936367021a811]::linear::proofs::check::pass::Observer>::derived
+     1551 (0.0%, 10.9%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::proofs::size::Measure<deduxit[17d936367021a811]::linear::proofs::check::frames::Ground> as deduxit[17d936367021a811]::linear::proofs::check::pass::Observer>::derived
+     1548 (0.0%, 10.9%)      9 (0.0%,  0.6%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_any::<<deduxit[17d936367021a811]::lambda::Type as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor>
+     1548 (0.0%, 11.0%)      9 (0.0%,  0.6%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_any::<<deduxit[17d936367021a811]::serialize::search::WhyNot as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor>
+     1543 (0.0%, 11.0%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::protocol::ordinary::resolved
+     1535 (0.0%, 11.1%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::interactive::StepError as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1527 (0.0%, 11.1%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::rules::check::Checker>::equations
+     1512 (0.0%, 11.2%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::expand
+     1495 (0.0%, 11.2%)     10 (0.0%,  0.6%)  <<deduxit[17d936367021a811]::serialize::search::WhyNot as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__FieldVisitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_bytes::<serde_json[1a38b4e062258bb9]::error::Error>
+     1491 (0.0%, 11.3%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::serialize::search::WhyNot as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<&mut serde_json[1a38b4e062258bb9]::ser::Serializer<&mut alloc[2a0ada2ddd1fabff]::vec::Vec<u8>>>
+     1491 (0.0%, 11.3%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::lambda::check::check
+     1483 (0.0%, 11.3%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::modal::search::Search>::keep::<&mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1483 (0.0%, 11.4%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::modal::search::Search>::keep::<&mut deduxit[17d936367021a811]::modal::decide::decide::{closure#0}>
+     1482 (0.0%, 11.4%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::protocol::ordinary::first_order_checked
+     1476 (0.0%, 11.5%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::serialize::ordinary::OutcomeRead>::within
+     1475 (0.0%, 11.5%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::rules::derivation::Derivation>::from_tableau
+     1472 (0.0%, 11.6%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::ordinary::sat::classical::encode::<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1467 (0.0%, 11.6%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::nets::mell::sequentialize::Sequentialization>::stage
+     1459 (0.0%, 11.7%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::rules::check::Checker>::rule
+     1452 (0.0%, 11.7%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::proofs::interactive::terms::Terms>::term
+     1448 (0.0%, 11.7%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::models::Expansion>::new
+     1434 (0.0%, 11.8%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::export::svg::fitch::draw::<alloc[2a0ada2ddd1fabff]::string::String, deduxit[17d936367021a811]::limits::counting<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#0}>
+     1428 (0.0%, 11.8%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::occurrences::Forest>::build
+     1420 (0.0%, 11.9%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::lambda::Type as serde_core[4b3dc7fa26ed4bbf]::ser::Serialize>::serialize::<serde_json[1a38b4e062258bb9]::value::ser::Serializer>
+     1419 (0.0%, 11.9%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::written::WrittenTableau>::review_dyn
+     1418 (0.0%, 12.0%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::ordinary::resolution::first_order::given_clauses
+     1416 (0.0%, 12.0%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::serialize::sequents::Tables>::read::<deduxit[17d936367021a811]::linear::sequents::term::TermId>
+     1416 (0.0%, 12.0%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::serialize::sequents::Tables>::read::<deduxit[17d936367021a811]::ordinary::NodeId>
+     1416 (0.0%, 12.1%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::ordinary::normal::definition
+     1408 (0.0%, 12.1%)      1 (0.0%,  0.6%)  <<deduxit[17d936367021a811]::export::typst::Options as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde_json[1a38b4e062258bb9]::value::de::MapDeserializer>
+     1407 (0.0%, 12.2%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::interactive::Interactive>::shape
+     1401 (0.0%, 12.2%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::linear::nets::mell::MellStructure>::from_parts
+     1400 (0.0%, 12.2%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::ordinary::normal::transfer
+     1389 (0.0%, 12.3%)      1 (0.0%,  0.6%)  deduxit[17d936367021a811]::ordinary::rocq::countermodel::<alloc[2a0ada2ddd1fabff]::string::String, &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1383 (0.0%, 12.3%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::connection::read_back::ReadBack>::step
+     1377 (0.0%, 12.4%)      1 (0.0%,  0.6%)  <<deduxit[17d936367021a811]::linear::search::Options as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<&mut serde_json[1a38b4e062258bb9]::value::de::MapDeserializer>
+     1376 (0.0%, 12.4%)      8 (0.0%,  0.6%)  <serde[911bab250015a68c]::private::de::content::ContentDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::Deserializer>::deserialize_any::<<deduxit[17d936367021a811]::serialize::ordinary::SearchRead as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor>
+     1376 (0.0%, 12.5%)      1 (0.0%,  0.6%)  <deduxit[17d936367021a811]::ordinary::herbrand::Build>::step
+     1376 (0.0%, 12.5%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::serialize::ill::Ill>::within
+     1372 (0.0%, 12.5%)      1 (0.0%,  0.7%)  <<deduxit[17d936367021a811]::serialize::lambda::TermForm as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Visitor as serde_core[4b3dc7fa26ed4bbf]::de::Visitor>::visit_map::<serde_json[1a38b4e062258bb9]::de::MapAccess<serde_json[1a38b4e062258bb9]::read::StrRead>>
+     1372 (0.0%, 12.6%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::linear::proofs::interactive::Interactive>::witness
+     1372 (0.0%, 12.6%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::countermodel<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#1}>::{closure#14}
+     1372 (0.0%, 12.7%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::first_order_model::{closure#2}>::{closure#14}
+     1372 (0.0%, 12.7%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::modal_countermodel<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#1}>::{closure#14}
+     1371 (0.0%, 12.7%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::linear::search::essential::Essential>::new
+     1370 (0.0%, 12.8%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::modal::rocq::head
+     1369 (0.0%, 12.8%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::countermodel<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#1}>
+     1369 (0.0%, 12.9%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::modal_countermodel<&mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>::{closure#1}>
+     1365 (0.0%, 12.9%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::svg::kripke::draw::<deduxit[17d936367021a811]::export::svg::first_order_model::{closure#2}>
+     1364 (0.0%, 12.9%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::protocol::rules::Rules as deduxit[17d936367021a811]::protocol::Suite>::run
+     1362 (0.0%, 13.0%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::export::latex::model_table
+     1360 (0.0%, 13.0%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::ordinary::normal::NormalForm>::check::<&mut &mut &mut dyn core[62e902411887be45]::ops::function::FnMut<(deduxit[17d936367021a811]::limits::Progress,), Output = bool>>
+     1360 (0.0%, 13.1%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::ordinary::normal::NormalForm>::check::<&mut deduxit[17d936367021a811]::ordinary::normal::normalize_default::{closure#0}>
+     1359 (0.0%, 13.1%)     10 (0.0%,  0.7%)  <serde[911bab250015a68c]::private::de::content::MapDeserializer<serde_json[1a38b4e062258bb9]::error::Error> as serde_core[4b3dc7fa26ed4bbf]::de::MapAccess>::next_key_seed::<core[62e902411887be45]::marker::PhantomData<<deduxit[17d936367021a811]::serialize::search::Why as serde_core[4b3dc7fa26ed4bbf]::de::Deserialize>::deserialize::__Field>>
+     1355 (0.0%, 13.1%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::rules::draw::Drawing>::new
+     1351 (0.0%, 13.2%)      1 (0.0%,  0.7%)  deduxit[17d936367021a811]::linear::search::weighted::overweight
+     1349 (0.0%, 13.2%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::linear::nets::mell::MellStructure as deduxit[17d936367021a811]::sealed::Net>::reduce
+     1347 (0.0%, 13.3%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::ordinary::connection::matrix::Matrix>::build
+     1346 (0.0%, 13.3%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::lambda::Term>::principal_type_in
+     1345 (0.0%, 13.4%)      1 (0.0%,  0.7%)  <deduxit[17d936367021a811]::ordinary::connection::intuitionistic::read_back::Emit>::emit

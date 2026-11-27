@@ -44,9 +44,12 @@ In the first tree (`A` below stands for it):
   - `text.md`: sentences that match a pattern of the writing rules;
   - `help.md` and `help/`: every `--help` of the command and its flags
     as one table;
-  - `type-sizes.txt`, `llvm-lines.txt`, `dhat/`: the layout of every
-    type, the functions with the most LLVM IR, each journey's
-    allocations;
+  - `type-sizes.txt` (12 MB: `grep` it for a type's name, never read it
+    whole), `llvm-lines.txt`, `dhat.md`: the layout of every type, the
+    functions with the most LLVM IR, each journey's allocations and the
+    frames that allocate most;
+  - `ratchet.out`: each journey's instructions under callgrind against
+    its ceiling;
   - `timings.md`: compile and test times;
   - `rocq.md`: the Rocq library's build, warnings and assumptions.
   An inventory is a pointer, not a finding: open the place it names
