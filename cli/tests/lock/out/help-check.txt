@@ -51,19 +51,19 @@ Limits:
           
           [default: none]
 
-      --table-atoms <N>
-          The most atoms a truth table may have, or `none` (limits.table_atoms); see `prove --table-atoms`
-          
-          A truth table that `prove --method table --table-atoms N` made with more atoms is checked only with the same bound.
-          
-          [default: 10]
-
       --derivation-limit <SIZE>
           The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
           
           A derivation writes out the whole sequent at every inference, and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format. The verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn, and left out above the same limit. Under --logic the derivation of LK or LJ is built and checked within --memory-limit whatever its size, so the verdict is a checked one, and this limit bounds only its drawing (the tableau method builds its tableau within it); `prove --format json` writes the derivation at any size.
           
           [default: 64MiB]
+
+      --table-atoms <N>
+          The most atoms a truth table may have, or `none` (limits.table_atoms); see `prove --table-atoms`
+          
+          A truth table that `prove --method table --table-atoms N` made with more atoms is checked only with the same bound.
+          
+          [default: 10]
 
 Input:
       --occurrence-limit <N>
@@ -145,17 +145,6 @@ Logic:
           The file is then a Kripke model in JSON, as `prove --system --format json` writes one under `countermodel`, each world's arrows the worlds it sees, and --sequent names the modal sequent to check it against. The model must meet the system's frame conditions on its arrows as written (a model of S4 lists its loops); the check names the first condition it does not meet. Then it says whether the sequent holds at the world --world names, or at every world, and where it fails, the value there of each subformula and the world each false □ or true ◇ looks to. The exit status is 0 where the sequent holds, 1 where it fails and 2 for a model that is none of the system.
 
 Output:
-      --layout <LAYOUT>
-          With a derivation in a calculus given as data, how it is written: as a proof tree, or as a Fitch proof (view.layout)
-          
-          As a tree, text lists the derivation's nodes, and latex, typst and svg draw it with the conclusion at the root; in natural deduction a hypothesis stands alone at a leaf, the ones a rule discharges in brackets with a number, which the rule's name carries. As a Fitch proof, every format writes numbered lines, each with its rule and the lines it cites, a subproof's lines together under its hypotheses; latex uses the package fitch and typst the package fitchcraft. A derivation whose lines cannot be put in such an order is left out with the reason, and the verdict stands.
-
-          Possible values:
-          - tree:  A proof tree
-          - fitch: A Fitch proof: numbered lines, subproofs together
-          
-          [default: tree]
-
       --format <FORMAT>
           The output format; by default the one the `--output` file's extension names (.txt, .json, .tex, .typ, .svg, .png, .pdf, .v), else text
 
@@ -170,7 +159,7 @@ Output:
           - rocq:  The verdict as a comment, then the derivation as a Rocq certificate for the kernel `--kernel` names or the mode chooses. For NanoYalla 1.1.3, the kernel of Click & coLLecT (the nanoyalla directory of github.com/ComputerAidedLL/click-and-collect, built with Rocq 9 and its standard library, no Yalla needed), it is a lemma stating the sequent one-sided, proved rule by rule; this kernel refuses Mix and the weakening of affine mode. For deduxit's own library, it is a lemma stating the sequent in the mode's calculus, two-sided for intuitionistic logic, proved from the proof term by the library's checker. The lemma ends with Qed; `--standalone` adds the imports (`--prelude`), and `--lemma` names the lemma
 
   -o, --output <PATH>
-          Write to this file instead of standard output
+          Write to this file instead of standard output, which `-` names
           
           The file is made only when it holds a derivation or a net, and always in JSON. Otherwise the verdict goes to standard error.
 
@@ -292,4 +281,15 @@ Output:
           - two: Two-sided, as the sequent was written
           
           [default: one]
+
+      --layout <LAYOUT>
+          With a derivation in a calculus given as data, how it is written: as a proof tree, or as a Fitch proof (view.layout)
+          
+          As a tree, text lists the derivation's nodes, and latex, typst and svg draw it with the conclusion at the root; in natural deduction a hypothesis stands alone at a leaf, the ones a rule discharges in brackets with a number, which the rule's name carries. As a Fitch proof, every format writes numbered lines, each with its rule and the lines it cites, a subproof's lines together under its hypotheses; latex uses the package fitch and typst the package fitchcraft. A derivation whose lines cannot be put in such an order is left out with the reason, and the verdict stands.
+
+          Possible values:
+          - tree:  A proof tree
+          - fitch: A Fitch proof: numbered lines, subproofs together
+          
+          [default: tree]
 --- stderr

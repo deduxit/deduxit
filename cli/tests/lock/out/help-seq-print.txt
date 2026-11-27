@@ -38,7 +38,7 @@ Options:
           Write a document that compiles on its own instead of a fragment to paste (latex and typst)
 
   -o, --output <PATH>
-          Write to this file instead of standard output
+          Write to this file instead of standard output, which `-` names
 
       --memory-limit <SIZE>
           The most memory a png or pdf render may take, by its estimate: a number of bytes with a unit, such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit`

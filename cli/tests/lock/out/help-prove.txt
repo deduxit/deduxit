@@ -166,7 +166,7 @@ Output:
           - rocq:  The verdict as a comment, then the derivation as a Rocq certificate for the kernel `--kernel` names or the mode chooses. For NanoYalla 1.1.3, the kernel of Click & coLLecT (the nanoyalla directory of github.com/ComputerAidedLL/click-and-collect, built with Rocq 9 and its standard library, no Yalla needed), it is a lemma stating the sequent one-sided, proved rule by rule; this kernel refuses Mix and the weakening of affine mode. For deduxit's own library, it is a lemma stating the sequent in the mode's calculus, two-sided for intuitionistic logic, proved from the proof term by the library's checker. The lemma ends with Qed; `--standalone` adds the imports (`--prelude`), and `--lemma` names the lemma
 
   -o, --output <PATH>
-          Write to this file instead of standard output
+          Write to this file instead of standard output, which `-` names
           
           The file is made only when it holds a derivation or a net, and always in JSON. Otherwise the verdict goes to standard error.
 
