@@ -2,14 +2,14 @@
 // Licensed under the EUPL
 
 use crate::argument_parsing::{EliminateArgs, Format};
-use crate::check::{CHECKED_LEVEL, Checked, proof_mode, read_proof};
+use crate::check::{Checked, proof_mode, read_proof};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Net, Rendered, Show, Shown, abbreviated, bytes_text, counted, derivation, every_steps,
-    net_of, nets_exist, note, render,
+    Net, Rendered, Show, Shown, abbreviated, bytes_text, counted, derivation, every_steps, net_of,
+    nets_exist, note, render,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Result, bail};
@@ -64,18 +64,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
         );
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
         if show.format == Format::Json {
-            let unknown = Checked {
-                version: CHECKED_LEVEL,
-                verdict: "unknown",
-                mode: Some(mode),
-                logic: None,
-                calculus: None,
-                system: None,
-                error: None,
-                message: Some(line),
-                lambda: None,
-                failing: None,
-            };
+            let unknown = Checked::new("unknown").with_mode(mode).with_message(line);
             serde_json::to_writer(out.stream(), &unknown)?;
             out.finish()?;
         } else {
@@ -537,7 +526,11 @@ fn run<'n>(
                     }
                 },
             )?;
-            let record = if json { Some(serde_json::to_string(&e)?) } else { None };
+            let record = if json {
+                Some(serde_json::to_string(&e)?)
+            } else {
+                None
+            };
             (Net::Mll(Cow::Owned(e.net)), e.end, record)
         }
         Net::Mell(net) => {
@@ -552,7 +545,11 @@ fn run<'n>(
                     }
                 },
             )?;
-            let record = if json { Some(serde_json::to_string(&e)?) } else { None };
+            let record = if json {
+                Some(serde_json::to_string(&e)?)
+            } else {
+                None
+            };
             (Net::Mell(e.net), e.end, record)
         }
     };
@@ -627,22 +624,11 @@ fn check_failed(
 /// Returns `check`'s JSON record of a proof whose check failed or was
 /// given up, with the status and line [`check_failed`] gave.
 fn check_record(status: Status, error: CheckError, message: String, mode: Mode) -> Checked {
-    Checked {
-        version: CHECKED_LEVEL,
-        verdict: if matches!(status, Status::No) {
-            "invalid"
-        } else {
-            "unknown"
-        },
-        mode: Some(mode),
-        logic: None,
-        calculus: None,
-        system: None,
-        error: Some(Error::Check(error)),
-        message: Some(message),
-        lambda: None,
-        failing: None,
-    }
+    // `status` is no or unknown here.
+    Checked::of(status)
+        .with_mode(mode)
+        .with_error(Error::Check(error))
+        .with_message(message)
 }
 
 /// Checks the proof as the elimination on terms does before its first

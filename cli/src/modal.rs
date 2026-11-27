@@ -6,7 +6,7 @@
 //! against a modal sequent.
 
 use crate::argument_parsing::{Format, ProveArgs, Tree};
-use crate::check::{CHECKED_LEVEL, Checked};
+use crate::check::Checked;
 use crate::io::{self, Most, bound, refused};
 use crate::limit::{Deadline, Notice};
 use crate::prove::{Ended, NOTICE_AFTER, Stop, advice, notice_line, on_large_stack, stopped};
@@ -368,22 +368,10 @@ pub(crate) fn check_outcome(
         ),
     };
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: None,
-            logic: None,
-            calculus: None,
-            system: Some(system),
-            error: result.as_ref().err().cloned(),
-            message: (status != Status::Yes).then_some(line),
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_system(system)
+            .with_error(result.as_ref().err().cloned())
+            .with_message((status != Status::Yes).then_some(line));
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -468,22 +456,14 @@ pub(crate) fn check_model(
                 .collect();
             serde_json::json!({"world": w, "forcing": forcing})
         });
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: if failing.is_some() {
-                "invalid"
-            } else {
-                "valid"
-            },
-            mode: None,
-            logic: None,
-            calculus: None,
-            system: Some(system),
-            error: None,
-            message: Some(line),
-            lambda: None,
-            failing,
-        };
+        let checked = Checked::new(if failing.is_some() {
+            "invalid"
+        } else {
+            "valid"
+        })
+        .with_system(system)
+        .with_message(line)
+        .with_failing(failing);
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }

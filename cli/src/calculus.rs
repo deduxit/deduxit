@@ -6,7 +6,7 @@
 //! and the derivation's nodes as a list.
 
 use crate::argument_parsing::{Format, Tree};
-use crate::check::{CHECKED_LEVEL, Checked};
+use crate::check::Checked;
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, stopped};
@@ -209,22 +209,10 @@ pub(crate) fn check_rules(
         Err(error) => format!("invalid in the calculus given ({name}): {error}"),
     };
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: None,
-            logic: None,
-            calculus: Some(name.to_owned()),
-            system: None,
-            error: result.as_ref().err().cloned(),
-            message: result.is_err().then_some(line),
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_calculus(name.to_owned())
+            .with_error(result.as_ref().err().cloned())
+            .with_message(result.is_err().then_some(line));
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }

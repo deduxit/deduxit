@@ -753,6 +753,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `render(svg, format, &styles, &stop)` answers `Rendered::Bytes`,
   `Refused(line)` (a bound of the library's refused it before the
   parse) or `Stopped`, and is what a batch of drawings calls too.
+  `show::drawn_into` is the one tail that writes a drawing as text or
+  renders it and says why one is left out ("WHAT is not drawn: WHY"):
+  the countermodels', the net's, the modal model's and a rules
+  derivation's drawings call it, each passing what it says when the
+  stop ends a render (the last two say "it was stopped").
   Binary outputs are never written to a terminal, their
   verdict and notes on standard error and their output without a
   closing newline. A PDF's date is `SOURCE_DATE_EPOCH` when it is set,
@@ -820,6 +825,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   linear after it, so they need no stop. There
   is no `net` subcommand: the CLI's nets are those of proofs, which
   `prove` and `check` draw.
+- **Shared small writers**: `show::counted` writes a count with its noun
+  (`1 step`, `3 steps`) for every command; `check::Checked::new(word)`
+  or `Checked::of(status)` (`valid`, `unknown`, else `invalid`) with
+  `with_mode`, `with_logic`, `with_calculus`, `with_system`,
+  `with_error`, `with_message`, `with_lambda`, `with_failing` (each takes
+  a value or an `Option`) builds `check`'s JSON record wherever a
+  command writes one. The suite is still named by which of the four
+  optional keys is set: one tagged key would be a change of the wire
+  form, which the proposal for all wire forms decides.
 
 ## Invariants
 

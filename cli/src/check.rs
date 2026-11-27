@@ -67,18 +67,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         );
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
         let keep = if show.format == Format::Json {
-            let checked = Checked {
-                version: CHECKED_LEVEL,
-                verdict: "unknown",
-                mode: Some(mode),
-                logic: None,
-                calculus: None,
-                system: None,
-                error: None,
-                message: Some(line),
-                lambda: None,
-                failing: None,
-            };
+            let checked = Checked::new("unknown").with_mode(mode).with_message(line);
             serde_json::to_writer(out.stream(), &checked)?;
             true
         } else {
@@ -494,22 +483,14 @@ pub(crate) fn check_disproof(
             Some(Err(error)) => Some(error.clone()),
             _ => None,
         };
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::No => "invalid",
-                _ => "unknown",
-            },
-            mode: Some(mode),
-            logic: None,
-            calculus: None,
-            system: None,
-            message: (status != Status::Yes).then_some(line),
-            error,
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::new(match status {
+            Status::Yes => "valid",
+            Status::No => "invalid",
+            _ => "unknown",
+        })
+        .with_mode(mode)
+        .with_error(error)
+        .with_message((status != Status::Yes).then_some(line));
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -663,18 +644,7 @@ fn checked_table(
         )
     );
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: "valid",
-            mode: None,
-            logic: Some(logic),
-            calculus: None,
-            system: None,
-            error: None,
-            message: None,
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::new("valid").with_logic(logic);
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok(true);
     }
@@ -693,18 +663,9 @@ fn unchecked_into(
     out: &mut io::Output,
 ) -> Result<bool> {
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: "unknown",
-            mode: None,
-            logic,
-            calculus: None,
-            system: None,
-            error: None,
-            message: Some(line.to_owned()),
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::new("unknown")
+            .with_logic(logic)
+            .with_message(line.to_owned());
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok(true);
     }
@@ -789,22 +750,11 @@ pub(crate) fn check_derivation(
             }
             _ => None,
         };
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: None,
-            logic: Some(logic),
-            calculus: None,
-            system: None,
-            error: result.as_ref().err().cloned(),
-            message: result.is_err().then_some(line),
-            lambda,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_logic(logic)
+            .with_error(result.as_ref().err().cloned())
+            .with_message(result.is_err().then_some(line))
+            .with_lambda(lambda);
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -881,22 +831,10 @@ fn check_countermodel(
         }
     };
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: None,
-            logic: Some(logic),
-            calculus: None,
-            system: None,
-            error: result.as_ref().err().cloned(),
-            message: result.is_err().then_some(line),
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_logic(logic)
+            .with_error(result.as_ref().err().cloned())
+            .with_message(result.is_err().then_some(line));
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -1026,22 +964,10 @@ fn write_refuted(
         }
     };
     if show.format == Format::Json {
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: None,
-            logic: Some(logic),
-            calculus: None,
-            system: None,
-            error: result.as_ref().err().cloned(),
-            message: result.is_err().then_some(line),
-            lambda: None,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_logic(logic)
+            .with_error(result.as_ref().err().cloned())
+            .with_message(result.is_err().then_some(line));
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -1155,22 +1081,14 @@ pub(crate) fn check_model(
                 .collect();
             serde_json::json!({"world": v, "forcing": forcing})
         });
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: if status == Status::Yes {
-                "valid"
-            } else {
-                "invalid"
-            },
-            mode: None,
-            logic: Some(logic),
-            calculus: None,
-            system: None,
-            error: None,
-            message: (status != Status::Yes).then_some(line),
-            lambda: None,
-            failing,
-        };
+        let checked = Checked::new(if status == Status::Yes {
+            "valid"
+        } else {
+            "invalid"
+        })
+        .with_logic(logic)
+        .with_message((status != Status::Yes).then_some(line))
+        .with_failing(failing);
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
@@ -1269,6 +1187,100 @@ pub(crate) struct Checked {
     /// forces of each subformula.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) failing: Option<serde_json::Value>,
+}
+
+impl Checked {
+    /// Returns the record of a verdict, `valid`, `invalid` or `unknown`,
+    /// with nothing else set.
+    pub(crate) const fn new(verdict: &'static str) -> Self {
+        Self {
+            version: CHECKED_LEVEL,
+            verdict,
+            mode: None,
+            logic: None,
+            calculus: None,
+            system: None,
+            error: None,
+            message: None,
+            lambda: None,
+            failing: None,
+        }
+    }
+
+    /// Returns the record of a check's status: `valid` for yes, `unknown`
+    /// for unknown, else `invalid`.
+    pub(crate) const fn of(status: Status) -> Self {
+        Self::new(match status {
+            Status::Yes => "valid",
+            Status::Unknown => "unknown",
+            _ => "invalid",
+        })
+    }
+
+    /// Returns the record with the linear mode checked in.
+    pub(crate) fn with_mode(self, mode: impl Into<Option<Mode>>) -> Self {
+        Self {
+            mode: mode.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with the ordinary logic checked in.
+    pub(crate) fn with_logic(self, logic: impl Into<Option<ordinary::Logic>>) -> Self {
+        Self {
+            logic: logic.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with the calculus checked in.
+    pub(crate) fn with_calculus(self, calculus: impl Into<Option<String>>) -> Self {
+        Self {
+            calculus: calculus.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with the modal system checked in.
+    pub(crate) fn with_system(self, system: impl Into<Option<deduxit::modal::System>>) -> Self {
+        Self {
+            system: system.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with why the proof is not valid.
+    pub(crate) fn with_error(self, error: impl Into<Option<Error>>) -> Self {
+        Self {
+            error: error.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with the error's message, or why the check was
+    /// not made.
+    pub(crate) fn with_message(self, message: impl Into<Option<String>>) -> Self {
+        Self {
+            message: message.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with the proof's lambda-term.
+    pub(crate) fn with_lambda(self, lambda: impl Into<Option<serde_json::Value>>) -> Self {
+        Self {
+            lambda: lambda.into(),
+            ..self
+        }
+    }
+
+    /// Returns the record with where a Kripke model fails the sequent.
+    pub(crate) fn with_failing(self, failing: impl Into<Option<serde_json::Value>>) -> Self {
+        Self {
+            failing: failing.into(),
+            ..self
+        }
+    }
 }
 
 /// Reads a proof file, its sequent within `limits.occurrences`; the
@@ -1373,22 +1385,11 @@ pub(crate) fn check_into(
             }
             _ => None,
         };
-        let checked = Checked {
-            version: CHECKED_LEVEL,
-            verdict: match status {
-                Status::Yes => "valid",
-                Status::Unknown => "unknown",
-                _ => "invalid",
-            },
-            mode: Some(mode),
-            logic: None,
-            calculus: None,
-            system: None,
-            error,
-            message,
-            lambda,
-            failing: None,
-        };
+        let checked = Checked::of(status)
+            .with_mode(mode)
+            .with_error(error)
+            .with_message(message)
+            .with_lambda(lambda);
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
