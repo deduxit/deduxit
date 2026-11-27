@@ -8899,3 +8899,16 @@ move (D26).
   87c9 (`mklmyskz` committed; F-7a-14 unverified in its working copy; the before run at 2 019 of
   5 340 rows, resumable from its CSV) paused by the graceful-stop skill, each with its checklist in
   its report. 87d4 and 87c4 finish their checks; each resumes one paused step as it lands.
+- 2026-11-28, about 00:05: **87d4 reviewed; 87c7 resumed in its place.** 87d4 (Opus, high; the
+  panel, the reviewer on Fable): kernel certificates (`--kernel deduxit`) bind their largest shared
+  formulas with `let`, as many as an estimate of Rocq's cost favours, at most 1 024 (`!A ⊢ A^256`
+  4.72 s to 1.23 s in Rocq, balanced trees 13-16 % faster; the statement unchanged, nine snapshots
+  equal to the base once expanded). A classical countermodel's certificate keeps to
+  `derivation_bytes` and is refused past `isize::MAX` under any limit. The panel's argument member
+  found that binding every shared formula overflowed Rocq's stack (8 188 nested `let`s): the cap
+  and the cost estimate answer it. (departs from the plan) The classical certificate's statement
+  takes no `let`s (a statement is written out); `write_not_valid` keeps to the default 64 MiB, since
+  a bounded form is an API addition (part 2, with P-items of the signed proposal). Found outside
+  the step: a first-order embedding's "unknown" writes a classical certificate Rocq refuses (on
+  `main` too); a fixup once a slot is free. Rebased onto `main` with no conflict; in CI before
+  `main`. 87c7 resumed from its checklist on cores 7-9.
