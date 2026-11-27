@@ -787,7 +787,6 @@ fn answer_goal<'a>(
     let mut due = head_start;
     let turns = std::cell::RefCell::new(Turns {
         spent: 0,
-        asked: false,
         share,
         answer: None,
     });
@@ -1678,8 +1677,6 @@ fn turn_bounds() -> (u64, u64) {
 struct Turns {
     /// The work the turns did.
     spent: u64,
-    /// Whether the row was asked whether it gives turns.
-    asked: bool,
     /// The share of the engine's work a turn may do: [`TURN_SHARE`], or a
     /// test's (0 lets a turn run to its end).
     share: u64,
@@ -1691,17 +1688,15 @@ impl Turns {
     /// Takes the turn due when the search has done `done` units, the
     /// turns' included.
     ///
-    /// On the first turn it asks whether the row gives turns. Then it runs
-    /// the inverse method on the task within its share. It counts the
-    /// turn's work in `mine`, and asks `stop` and the bound on work at the
-    /// turn's polls.
+    /// It runs the inverse method on the task within its share; the caller
+    /// asked [`probes`] first. It counts the turn's work in `mine`, and
+    /// asks `stop` and the bound on work at the turn's polls.
     ///
     /// Returns whether the engine must stop, and the work at which the
     /// next turn is due. The engine must stop when the turn decided (the
     /// turn's answer is kept), or the caller's stop or the bound on work
-    /// fired. No turn is due (`u64::MAX`) when the row gives none, or when
-    /// the turn met the memory bound or an index limit, which a longer
-    /// turn would meet sooner.
+    /// fired. No turn is due (`u64::MAX`) when the turn met the memory
+    /// bound or an index limit, which a longer turn would meet sooner.
     ///
     /// It is kept apart from the poll, which it leaves one comparison.
     /// Inlined there, it makes every poll some seven instructions dearer.
@@ -1722,12 +1717,6 @@ impl Turns {
         mine: &mut Counted<'_>,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> (bool, u64) {
-        if !self.asked {
-            self.asked = true;
-            if !probes(task, options) {
-                return (false, u64::MAX);
-            }
-        }
         let own = done.saturating_sub(self.spent);
         let budget = own.checked_div(self.share).unwrap_or(u64::MAX);
         let mut turn = 0u64;
