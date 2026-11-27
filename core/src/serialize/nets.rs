@@ -82,7 +82,7 @@ fn form(net: &ProofStructure) -> Net {
         // The cyclic order needs level 2. The sequent's own level is 6
         // with cut formulas and 7 when it is first-order.
         version: Some(if order.is_some() {
-            wire::level_of_sequent(net.sequent()).max(2)
+            wire::level_of_sequent(net.sequent()).max(wire::ORDERED)
         } else {
             wire::level_of_sequent(net.sequent())
         }),

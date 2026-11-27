@@ -346,25 +346,63 @@ use serde::de::{DeserializeSeed, Deserializer};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
-/// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 31;
+/// The highest wire level this build reads and writes: the last of the
+/// levels below, which stand in their order.
+pub const LEVEL: u32 = POLYMORPHIC;
 
-/// The level of a lambda-term.
-pub(crate) const LAMBDA: u32 = 23;
+/// The level of every document that no later level's feature raises.
+pub(crate) const BASE: u32 = 1;
 
-/// The level of an untyped lambda-term, and of a term's reduction.
-pub(crate) const UNTYPED: u32 = 30;
+/// The level of a document in an ordered mode (cyclic, Lambek).
+pub(crate) const ORDERED: u32 = 2;
 
-/// The level of a term of System F, and of a reduction of one.
-pub(crate) const POLYMORPHIC: u32 = 31;
+/// The level of a disproof or an outcome refuted by a classical
+/// assignment.
+pub(crate) const CLASSICAL: u32 = 2;
 
-/// The level of a type's terms listed and counted, and of whether a type
-/// has a term, which are written only.
-pub(crate) const INHABITANTS: u32 = 24;
+/// The level of a disproof or an outcome refuted by a saturated set.
+pub(crate) const SATURATED: u32 = 3;
+
+/// The level of a proof structure with boxes.
+pub(crate) const BOXES: u32 = 4;
+
+/// The level of an intuitionistic sequent.
+pub(crate) const ILL: u32 = 5;
+
+/// The level of a sequent with cut formulas.
+pub(crate) const CUTS: u32 = 6;
+
+/// The level of a first-order sequent.
+pub(crate) const TERMS: u32 = 7;
+
+/// The level of the forms of ordinary logic.
+pub(crate) const ORDINARY: u32 = 8;
+
+/// The level of a form of ordinary logic that holds LJ's cut.
+pub(crate) const ORDINARY_CUT: u32 = 9;
+
+/// The level of a disproof or an outcome refuted by the basis of a
+/// backward search.
+pub(crate) const BASIS: u32 = 11;
+
+/// The level of an ordinary outcome: its search tagged by its method,
+/// the image's outcome nested under the embedding.
+pub(crate) const SEARCH: u32 = 12;
+
+/// The level of a Kripke model.
+pub(crate) const KRIPKE: u32 = 13;
+
+/// The level of a truth table and a tableau, and of an ordinary outcome
+/// decided by either.
+pub(crate) const TABLES: u32 = 14;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
 pub(crate) const RULES: u32 = 15;
+
+/// The level of a negative translation compared and of an interpolation,
+/// which are written only.
+pub(crate) const TRANSFORMS: u32 = 16;
 
 /// The level of a session of step-by-step proving in a calculus given as
 /// data.
@@ -384,14 +422,48 @@ pub(crate) const WORKSPACE: u32 = 19;
 /// outcome.
 pub(crate) const MODAL: u32 = 20;
 
-/// The level of every document that no later level's feature raises.
-pub(crate) const BASE: u32 = 1;
+/// The level of a normal form with its steps, which is written only.
+pub(crate) const FORMS: u32 = 21;
 
-/// The level of a proof structure with boxes.
-pub(crate) const BOXES: u32 = 4;
+/// The level of a refutation by resolution and of a clause set decided.
+pub(crate) const CLAUSES: u32 = 22;
 
-/// The level of an intuitionistic sequent.
-pub(crate) const ILL: u32 = 5;
+/// The level of a lambda-term.
+pub(crate) const LAMBDA: u32 = 23;
+
+/// The level of a type's terms listed and counted, and of whether a type
+/// has a term, which are written only.
+pub(crate) const INHABITANTS: u32 = 24;
+
+/// The level of a first-order form of ordinary logic.
+pub(crate) const ORDINARY_TERMS: u32 = 25;
+
+/// The level of the finite model search's forms, which a reader of level
+/// 25 refuses: its outcome (`"method": "models"`), its unknown
+/// (`model_size`), and a finite structure that interprets function
+/// symbols (its `functions`).
+pub(crate) const MODELS: u32 = 26;
+
+/// The level of an ordinary outcome refuted by a Kripke model with
+/// growing domains (its `kripke_structure`), or unknown at the bound on a
+/// Kripke model's worlds (`kripke_size`), which a reader of level 26
+/// refuses.
+pub(crate) const KRIPKE_STRUCTURES: u32 = 27;
+
+/// The level of Herbrand's theorem applied, which is written only.
+#[cfg(feature = "sat")]
+pub(crate) const HERBRAND: u32 = 28;
+
+/// The level of a sequent's clauses decided by first-order resolution,
+/// which is written only.
+#[cfg(feature = "sat")]
+pub(crate) const FIRST_ORDER_CLAUSES: u32 = 29;
+
+/// The level of an untyped lambda-term, and of a term's reduction.
+pub(crate) const UNTYPED: u32 = 30;
+
+/// The level of a term of System F, and of a reduction of one.
+pub(crate) const POLYMORPHIC: u32 = 31;
 
 /// A form that [`upgrade`] and [`Within`] read, counting its sequents
 /// against the caller's limits. It is sealed: only the crate's data forms
@@ -531,67 +603,6 @@ pub(crate) fn version<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Opti
     }
 }
 
-/// The level of a sequent with cut formulas.
-pub(crate) const CUTS: u32 = 6;
-
-/// The level of a first-order sequent.
-pub(crate) const TERMS: u32 = 7;
-
-/// The level of the forms of ordinary logic.
-pub(crate) const ORDINARY: u32 = 8;
-
-/// The level of a form of ordinary logic that holds LJ's cut.
-pub(crate) const ORDINARY_CUT: u32 = 9;
-
-/// The level of a first-order form of ordinary logic.
-pub(crate) const ORDINARY_TERMS: u32 = 25;
-
-/// The level of the finite model search's forms, which a reader of level
-/// 25 refuses: its outcome (`"method": "models"`), its unknown
-/// (`model_size`), and a finite structure that interprets function
-/// symbols (its `functions`).
-pub(crate) const MODELS: u32 = 26;
-
-/// The level of an ordinary outcome refuted by a Kripke model with
-/// growing domains (its `kripke_structure`), or unknown at the bound on a
-/// Kripke model's worlds (`kripke_size`), which a reader of level 26
-/// refuses.
-pub(crate) const KRIPKE_STRUCTURES: u32 = 27;
-
-/// The level of an ordinary outcome: its search tagged by its method,
-/// the image's outcome nested under the embedding.
-pub(crate) const SEARCH: u32 = 12;
-
-/// The level of a Kripke model.
-pub(crate) const KRIPKE: u32 = 13;
-
-/// The level of a truth table and a tableau, and of an ordinary outcome
-/// decided by either.
-pub(crate) const TABLES: u32 = 14;
-
-/// The level of a negative translation compared and of an interpolation,
-/// which are written only.
-pub(crate) const TRANSFORMS: u32 = 16;
-
-/// The level of a normal form with its steps, which is written only.
-pub(crate) const FORMS: u32 = 21;
-
-/// The level of a refutation by resolution and of a clause set decided.
-pub(crate) const CLAUSES: u32 = 22;
-
-/// The level of Herbrand's theorem applied, which is written only.
-#[cfg(feature = "sat")]
-pub(crate) const HERBRAND: u32 = 28;
-
-/// The level of a sequent's clauses decided by first-order resolution,
-/// which is written only.
-#[cfg(feature = "sat")]
-pub(crate) const FIRST_ORDER_CLAUSES: u32 = 29;
-
-/// The level of a disproof or an outcome refuted by the basis of a
-/// backward search.
-pub(crate) const BASIS: u32 = 11;
-
 /// The level of a document that holds `sequent`: 25 where it names
 /// equality (an image of an ordinary sequent with `=`, which the readers
 /// before that level refuse by its name), 7 where it is first-order, 6
@@ -615,7 +626,7 @@ pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
 /// mode, else 1.
 pub(crate) const fn level_in(mode: Option<crate::linear::Mode>) -> u32 {
     match mode {
-        Some(mode) if mode.is_ordered() => 2,
+        Some(mode) if mode.is_ordered() => ORDERED,
         _ => BASE,
     }
 }
@@ -629,8 +640,8 @@ pub(crate) const fn level_of(
 ) -> u32 {
     match refutation {
         crate::linear::search::Refutation::Basis(_) => BASIS,
-        crate::linear::search::Refutation::Saturated(_) => 3,
-        crate::linear::search::Refutation::Classical(_) => 2,
+        crate::linear::search::Refutation::Saturated(_) => SATURATED,
+        crate::linear::search::Refutation::Classical(_) => CLASSICAL,
         _ => level_in(Some(mode)),
     }
 }
