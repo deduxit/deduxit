@@ -162,9 +162,8 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
 }
 
 /// Writes `text` for the inside of a Typst string: `"` and `\` escaped.
-// Inlined into each writer, as the loop was before it was shared: called,
-// it cost the Typst drawing of a derivation 6 % more instructions (an atom
-// name is a few characters, so the call is most of the work).
+// Inlined into each writer: an atom's name is a few characters, so a call
+// is most of the work, 6 % of the Typst drawing of a derivation.
 #[inline(always)]
 fn quoted<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
     for c in text.chars() {

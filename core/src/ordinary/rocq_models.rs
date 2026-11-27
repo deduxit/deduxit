@@ -454,8 +454,8 @@ fn formula(sequent: &Sequent, id: NodeId, argument: bool, text: &mut Bounded) ->
                 if argument && !nullary {
                     text.push("(")?;
                 }
-                // The name and its space in one piece, as a refusal's
-                // length has always counted them.
+                // The name and its space in one piece, so that a refusal
+                // counts them together.
                 text.push_all(&[library::ordinary(node), if nullary { "" } else { " " }])?;
                 // A leaf has no exit, so its bracket closes here.
                 if let Node::Atom(a) = node {
