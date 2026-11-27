@@ -28,8 +28,9 @@ recorded choice, and looked for callers the change would break
 
 A finding's full text (its witness, the change, the value, the net) is
 `units/UNIT/findings.md`, and its verifier's reasons and corrections
-`units/UNIT/verdicts.md`: read both before acting on one, since a
-verdict of "confirmed" often corrects the place, the cost or the change.
+`units/UNIT/verdicts.md`: read both before acting on one, since most
+verdicts of "confirmed" correct the place, the cost, the kind or the
+change (216 of 256 in stages 3 to 5).
 `findings-index.md` lists all 379 in one table. `rejected.md` holds the
 eight a verifier refuted, `standing.md` the recorded decisions a
 proposal must answer, `handovers.md` what one unit asked of another.
