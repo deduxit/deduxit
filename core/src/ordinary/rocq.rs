@@ -559,7 +559,7 @@ pub(crate) fn not_valid(
     disproof.check()?;
     let linear = image.sequent();
     let value = |name: &str| linear.atom(name).is_some_and(|a| assignment[a.index()]);
-    falsified(image.ordinary(), value, options, out)
+    falsified(image.ordinary(), value, options, None, out)
 }
 
 /// Writes the certificate that an ordinary sequent is false under the
@@ -570,11 +570,15 @@ pub(crate) fn not_valid(
 /// closed formula left. The assignment is checked first: it must make
 /// every hypothesis true and every formula right of `⊢` false. A
 /// standalone certificate starts with `options.prelude` only where one is
-/// given, since it needs no library.
+/// given, since it needs no library. With a `limit`, a text estimated past
+/// it is refused before anything is written: the statement writes every
+/// formula out, and a formula that shares its subformulas doubles its
+/// text with each level.
 fn falsified(
     sequent: &Sequent,
     value: impl Fn(&str) -> bool,
     options: &Options,
+    limit: Option<u64>,
     out: &mut impl Write,
 ) -> Result<(), Error> {
     let formulas = sequent.formulas();
@@ -604,6 +608,18 @@ fn falsified(
     for atom in &mut atoms {
         while USED.contains(&atom.as_str()) {
             atom.push('\'');
+        }
+    }
+    if let Some(limit) = limit {
+        let estimate = falsified_bytes(sequent, &atoms, options);
+        if estimate > limit {
+            return Err(Refusal::Output {
+                what: "certificate",
+                estimate_bytes: estimate,
+                limit_bytes: limit,
+                least_bytes: None,
+            }
+            .into());
         }
     }
     if options.form == Form::Standalone
@@ -667,6 +683,52 @@ fn falsified(
     Ok(())
 }
 
+/// Returns at least the bytes of [`falsified`]'s text for `sequent`, its
+/// atoms named `atoms`: per formula of the arena, counted from its
+/// operands' (no formula is written twice the same way, so the count of a
+/// shared operand is added at each use), its symbol with its spaces and
+/// two brackets.
+fn falsified_bytes(sequent: &Sequent, atoms: &[String], options: &Options) -> u64 {
+    let formulas = sequent.formulas();
+    let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
+    for id in 0..formulas.len() {
+        let of = |k: NodeId| bytes[k.index()];
+        let b = match formulas.node(NodeId(id as u32)) {
+            Node::Atom(a) => atoms[a as usize].len() as u64,
+            Node::True | Node::False => 5,
+            // `(~ A)`.
+            Node::Not(a) => of(a).saturating_add(4),
+            // `(A <-> B)`, the longest symbol.
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                of(a).saturating_add(of(b)).saturating_add(7)
+            }
+            Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+        };
+        bytes.push(b);
+    }
+    // Each formula of the sequent with its separator and the brackets of a
+    // negation; each atom bound and instantiated; the lemma's frame.
+    let sides = sequent
+        .left()
+        .iter()
+        .chain(sequent.right())
+        .fold(0u64, |sum, id| {
+            sum.saturating_add(bytes[id.index()]).saturating_add(6)
+        });
+    let names = atoms
+        .iter()
+        .fold(0u64, |sum, a| sum.saturating_add(a.len() as u64 + 7));
+    let prelude = match (&options.form, &options.prelude) {
+        (Form::Standalone, Some(prelude)) => prelude.len() as u64 + 2,
+        _ => 0,
+    };
+    sides
+        .saturating_add(names)
+        .saturating_add(prelude)
+        .saturating_add(options.lemma.as_str().len() as u64)
+        .saturating_add(100)
+}
+
 /// Writes the certificate that an ordinary sequent is not valid, from a
 /// countermodel, after checking it in `logic` under `limits`: in
 /// intuitionistic and minimal logic the lemma `options.lemma` stating
@@ -693,7 +755,7 @@ pub(crate) fn countermodel(
         Logic::Classical => {
             let world = &model.worlds[model.world as usize];
             let value = |name: &str| world.atoms.iter().any(|a| a == name);
-            return falsified(sequent, value, options, out);
+            return falsified(sequent, value, options, limits.derivation_bytes, out);
         }
         Logic::Intuitionistic => "intuitionistic",
         Logic::Minimal => "minimal",
@@ -954,5 +1016,58 @@ fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Countermodel, Formulas, Logic, Node, Options, Sequent};
+    use crate::kripke::{Model, World};
+    use crate::{Error, Limits, Refusal};
+
+    /// A classical countermodel's certificate writes its formulas out, and
+    /// a formula that shares its subformulas doubles its text with each
+    /// level: forty levels would be a text of terabytes, which the bound
+    /// refuses before anything is written.
+    #[test]
+    fn a_classical_countermodel_keeps_to_the_bound() {
+        let mut formulas = Formulas::default();
+        let mut formula = formulas.atom("p").expect("an atom");
+        for _ in 0..40 {
+            formula = formulas
+                .add(Node::And(formula, formula))
+                .expect("a conjunction");
+        }
+        let sequent = Sequent::new(formulas, Vec::new(), vec![formula]).expect("a sequent");
+        let countermodel = Countermodel {
+            sequent,
+            model: Model {
+                worlds: vec![World::default()],
+                world: 0,
+            },
+        };
+        let limits = Limits::default()
+            .with_occurrences(None)
+            .with_derivation_bytes(Some(1 << 20));
+        let mut text = String::new();
+        let refused = super::countermodel(
+            &countermodel,
+            Logic::Classical,
+            &Options::default(),
+            &limits,
+            &mut text,
+            |_| false,
+        );
+        assert!(
+            matches!(
+                refused,
+                Err(Error::Refused(Refusal::Output {
+                    limit_bytes: 1_048_576,
+                    ..
+                }))
+            ),
+            "{refused:?}"
+        );
+        assert_eq!(text, "");
     }
 }
