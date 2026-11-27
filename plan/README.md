@@ -8916,3 +8916,18 @@ move (D26).
   started.** 87c9 resumed from its checklist on cores 4-6; 87c5 (walks, copies, and the repeats of
   ordinary and modal logic; the panel on F-4d-02's one evaluator) in 87d4's worker on `main`, cores
   13-15.
+- 2026-11-28, about 01:40: **87c7 reviewed; 87c6 started.** 87c7 (Opus, high; the panel, the
+  argument member and the reviewer on Opus once Fable's share passed half): one crate-private
+  `Refusal::stopped` at the 74 sites that built it by hand, the memory account at the crate's root
+  (`crate::memory`), one estimate of a hash table's bytes, and the linear engines' repeats shared
+  (the Horn engine's growth and clause walk, the focused engine's counters, pools and branch stack,
+  the inverse method's writer, the sorted-list multiset operations). Both target sets equal to 86;
+  the ratchet within 0.9 % per journey, five journeys with fewer heap blocks. No panel member found
+  a difference (36 900 generated inputs compared with the base). (departs from the plan) The one
+  meter waits for part 2's public `limits::Meter` (P7): the lambda suite's three meters report
+  progress in units a caller sees. F-2b-05's two loops, F-2b-07's first-order zone charge and two
+  pools of F-2b-14 stay, each for a measured reason in the report. The author asked at 01:20 to
+  stop at 80 % of the weekly limit (a guard checks every 15 minutes) and at 01:30 for unattended
+  work again. Rebased onto `main` with no conflict; in CI before `main`. 87c6 (the linear data
+  model, proofs and refutations; the panel and Kani's harnesses) in its worker on 87c7's head,
+  cores 7-9.
