@@ -681,27 +681,18 @@ impl Proof {
             .mode
             .filter(|mode| mode.is_intuitionistic())
             .and_then(|mode| Reading::of_mode(&self.forest, mode.with_empty_antecedents()).ok());
-        if let Some(table) = self.instances.as_deref()
-            && member.index() >= self.forest.len()
-        {
-            let framing = instances::Framing::new(&self.forest.sequent().fo, table);
-            let mut text = String::new();
-            crate::linear::sequents::notation::TEXT
-                .instance(
-                    &mut text,
-                    &self.forest,
-                    reading.as_ref(),
-                    &framing,
-                    member,
-                    Some(crate::errors::describe::TERM),
-                )
-                .expect("writing into a string cannot fail");
-            return text;
-        }
-        match reading {
-            Some(reading) => reading.formula(member.occ()).to_string(),
-            None => self.forest.formula(member.occ()).to_string(),
-        }
+        let framing = self
+            .instances
+            .as_deref()
+            .filter(|_| member.index() >= self.forest.len())
+            .map(|table| instances::Framing::new(&self.forest.sequent().fo, table));
+        member_text(
+            &self.forest,
+            reading.as_ref(),
+            framing.as_ref(),
+            member,
+            Some(crate::errors::describe::TERM),
+        )
     }
 
     /// Returns the proof with `goal` recorded as what its root concludes.
@@ -1023,6 +1014,32 @@ impl Node {
             Exists(o, w, p) => Exists(o, w, f(p)),
             leaf @ (Ax(..) | One(_) | Top(_)) => leaf,
         }
+    }
+}
+
+/// Returns the formula `member` stands for as text: an instance past the
+/// forest through `framing`, its terms cut after `cap` characters where
+/// one is given, else its occurrence as `reading` writes it, or
+/// one-sided where there is no reading.
+pub(crate) fn member_text(
+    forest: &Forest,
+    reading: Option<&Reading>,
+    framing: Option<&instances::Framing<'_>>,
+    member: Member,
+    cap: Option<usize>,
+) -> String {
+    if let Some(framing) = framing
+        && member.index() >= forest.len()
+    {
+        let mut text = String::new();
+        crate::linear::sequents::notation::TEXT
+            .instance(&mut text, forest, reading, framing, member, cap)
+            .expect("writing into a string cannot fail");
+        return text;
+    }
+    match reading {
+        Some(reading) => reading.formula(member.occ()).to_string(),
+        None => forest.formula(member.occ()).to_string(),
     }
 }
 

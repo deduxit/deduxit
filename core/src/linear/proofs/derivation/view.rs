@@ -718,26 +718,13 @@ impl<'a> Derivation<'a> {
     /// For a member past the forest that the proof's table of instances
     /// does not hold: no member of this derivation.
     pub fn formula(&self, member: Member) -> impl std::fmt::Display + 'a {
-        if let Some(framing) = &self.framing
-            && member.index() >= self.forest.len()
-        {
-            let mut text = String::new();
-            crate::linear::sequents::notation::TEXT
-                .instance(
-                    &mut text,
-                    self.forest,
-                    self.reading.as_ref(),
-                    framing,
-                    member,
-                    None,
-                )
-                .expect("writing into a string cannot fail");
-            return text;
-        }
-        match &self.reading {
-            Some(reading) => reading.formula(member.occ()).to_string(),
-            None => self.forest.formula(member.occ()).to_string(),
-        }
+        crate::linear::proofs::member_text(
+            self.forest,
+            self.reading.as_ref(),
+            self.framing.as_deref(),
+            member,
+            None,
+        )
     }
 
     /// Returns the instances of the proof's members past the forest,

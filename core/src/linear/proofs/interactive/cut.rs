@@ -15,7 +15,8 @@ use crate::linear::occurrences::{
     ClassicalSequent, Forest, IllSequent, Member, OccId, Reading, Side, Written,
 };
 use crate::linear::proofs::Rule;
-use crate::linear::proofs::derivation::{InfId, Inference};
+#[cfg(feature = "serialize")]
+use crate::linear::proofs::derivation::InfId;
 use crate::linear::proofs::multiset::Multiset;
 use crate::linear::sequents::Sequent;
 
@@ -258,12 +259,7 @@ impl Interactive {
             }
             .into());
         }
-        let mut used = vec![false; sequent.len()];
-        for &p in left {
-            if p >= sequent.len() || std::mem::replace(&mut used[p], true) {
-                return Err(StepError::Split { position: p }.into());
-            }
-        }
+        let used = super::chosen(sequent.len(), None, left)?;
         let named = if self.forest.sequent().is_first_order() || formula.formula.is_first_order() {
             self.cut_symbols(goal, &formula.formula)?
         } else {
@@ -369,6 +365,7 @@ impl Interactive {
         };
         // Pairs of a body's occurrence and the instance the cut is on.
         let mut instances: Vec<(Member, Member)> = Vec::new();
+        let step = self.step_number();
         match self.fo.as_mut() {
             Some(q) => {
                 let mark = q.mark();
@@ -391,9 +388,7 @@ impl Interactive {
                         let o = OccId::new(o.get() + depth);
                         instances.push((Member::from(o), q.member(o, frame)));
                     }
-                    // The cast is exact: there are fewer steps than
-                    // inferences, which an `InfId` numbers.
-                    q.made(self.history.len() as u32, mark);
+                    q.made(step, mark);
                 }
             }
             // A cut formula with a quantifier makes the session one with
@@ -428,26 +423,10 @@ impl Interactive {
             }
             None => Member::from(a),
         };
-        let base = self.inferences.len() as u32;
-        let ids = [InfId::new(base), InfId::new(base + 1)];
-        for premise in premises {
-            self.inferences.push(Inference {
-                sequent: premise,
-                rule: Rule::Open.into(),
-                principal: None,
-                premises: vec![],
-                times: 1,
-                cut: None,
-                node: None,
-            });
-        }
-        let inference = &mut self.inferences[goal.index()];
-        inference.rule = Rule::Cut.into();
-        inference.principal = None;
-        inference.premises = ids.to_vec();
-        inference.cut = Some(cut);
-        self.history.push(goal.inf());
-        Ok(ids.map(GoalId::of))
+        // A cut has no principal formula, so the position is not read.
+        let goals = self.record(goal, 0, Rule::Cut.into(), Vec::from(premises));
+        self.inferences[goal.index()].cut = Some(cut);
+        Ok([goals[0], goals[1]])
     }
 
     /// Returns `cut` and its dual's member, or `None` when `cut` is not a

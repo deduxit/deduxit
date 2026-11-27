@@ -13,7 +13,7 @@ use crate::linear::occurrences::instances::{Framing, eigen_names};
 use crate::linear::occurrences::{Member, OccId, Reading, Side};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
 use crate::linear::proofs::multiset::Multiset;
-use crate::linear::proofs::{Branch, CheckError, Named, Proof, Rule};
+use crate::linear::proofs::{Branch, Named, Proof, Rule};
 use crate::linear::search::{self, Options, Verdict, focus};
 use crate::linear::sequents::Kind;
 use crate::unify::Clash;
@@ -322,7 +322,7 @@ impl Interactive {
     ) -> Result<Vec<Vec<Member>>, StepError> {
         // The number the step will have. It fits a `u32`: there are fewer
         // steps than inferences, which an `InfId` numbers.
-        let step = self.history.len() as u32;
+        let step = self.step_number();
         let mark = self.fo.as_ref().expect("a first-order session").mark();
         let made = self
             .make_premises(goal, position, rule, left, witness)
@@ -365,7 +365,7 @@ impl Interactive {
         // The number the step will have, under which its bindings are
         // trailed. It fits a `u32`: there are fewer steps than inferences,
         // which an `InfId` numbers.
-        let step = self.history.len() as u32;
+        let step = self.step_number();
         if rule == Ax {
             let [x, y] = members[..] else {
                 unreachable!("the occurrences' check holds two literals");
@@ -528,15 +528,7 @@ impl Interactive {
             .map(|i| InfId::new(base + i))
             .collect();
         for premise in premises {
-            self.inferences.push(Inference {
-                sequent: premise,
-                rule: Rule::Open.into(),
-                principal: None,
-                premises: vec![],
-                times: 1,
-                cut: None,
-                node: None,
-            });
+            self.inferences.push(super::open_goal(premise));
         }
         let inference = &mut self.inferences[goal.index()];
         inference.rule = rule;
@@ -617,13 +609,8 @@ impl Interactive {
         rest.remove(o);
         let mut going_left = Multiset::new();
         if splits {
-            let mut used = vec![false; sequent.len()];
-            used[position] = true;
+            let used = super::chosen(sequent.len(), Some(position), left)?;
             for &p in left {
-                if p >= sequent.len() || used[p] {
-                    return Err(StepError::Split { position: p });
-                }
-                used[p] = true;
                 going_left.insert(sequent[p]);
             }
             // In an ordered mode each premise takes an arc: going round
@@ -885,7 +872,7 @@ impl Interactive {
         // The step's number, under which its bindings were trailed. It
         // fits a `u32`: there are fewer steps than inferences, which an
         // `InfId` numbers.
-        let step = self.history.len() as u32;
+        let step = self.step_number();
         if let Some(q) = self.fo.as_mut() {
             q.undo(step);
         }
@@ -945,12 +932,7 @@ impl Interactive {
         )?;
         let mut grafted = Ok(());
         if let Verdict::Proved(proof) = &outcome.verdict {
-            grafted = match self.close_with(goal, proof, view, limits, stop) {
-                Ok(()) => Ok(()),
-                Err(Error::Refused(refusal)) => Err(refusal),
-                Err(Error::Check(CheckError::Refused(refused))) => Err(refused.refusal),
-                Err(error) => return Err(error),
-            };
+            grafted = super::graft_ended(self.close_with(goal, proof, view, limits, stop))?;
         }
         Ok(Closed { outcome, grafted })
     }
@@ -971,9 +953,9 @@ impl Interactive {
     ///
     /// [`Error::Step`] for a goal that is not open, [`Error::ForeignProof`]
     /// for a proof of another sequent, [`Error::GoalMismatch`] for one of
-    /// another goal, [`Error::Check`] with [`CheckError::Invalid`] for one
+    /// another goal, [`Error::Check`] with [`CheckError::Invalid`](crate::linear::proofs::CheckError::Invalid) for one
     /// the checker rejects in the session's mode; and, leaving the goal
-    /// open, [`Error::Check`] with [`CheckError::Refused`] when a bound or
+    /// open, [`Error::Check`] with [`CheckError::Refused`](crate::linear::proofs::CheckError::Refused) when a bound or
     /// `stop` ends the check, and [`Error::Refused`] when they refuse the
     /// graft. [`Error::is_refusal`] tells the refusals from the rejection.
     pub fn close_with(
@@ -1015,7 +997,7 @@ impl Interactive {
     /// [`Error::SequentMismatch`] for a proof whose conclusions are not the
     /// goal's formulas, and the errors of
     /// [`close_with`](Self::close_with). Among them is [`Error::Check`]
-    /// with [`CheckError::Invalid`] for a proof the checker rejects in the
+    /// with [`CheckError::Invalid`](crate::linear::proofs::CheckError::Invalid) for a proof the checker rejects in the
     /// session's mode, such as one that uses another mode's rules.
     pub fn fill(
         &mut self,

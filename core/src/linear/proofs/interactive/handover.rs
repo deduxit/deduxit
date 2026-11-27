@@ -30,7 +30,7 @@ use crate::limits::{Limits, Progress};
 use crate::linear::occurrences::instances::{Terms, binders, eigen_names};
 use crate::linear::occurrences::{Forest, Member, OccId};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
-use crate::linear::proofs::{CheckError, Named, Node, Proof, Rule};
+use crate::linear::proofs::{Named, Node, Proof, Rule};
 use crate::linear::search::{self, Options, Verdict};
 use crate::linear::sequents::fo::{FirstOrder, Interner};
 use crate::linear::sequents::{Atom, Eigen, FoTerm, FoTermId, Sequent, Symbol, Term, TermId};
@@ -89,12 +89,9 @@ impl Interactive {
             search::prove_within(&written.sequent, self.mode, options, limits, &mut stop)?;
         let mut grafted = Ok(());
         if let Verdict::Proved(proof) = &outcome.verdict {
-            grafted = match self.carry_back(goal, &members, &written, proof, view, limits, stop) {
-                Ok(()) => Ok(()),
-                Err(Error::Refused(refusal)) => Err(refusal),
-                Err(Error::Check(CheckError::Refused(refused))) => Err(refused.refusal),
-                Err(error) => return Err(error),
-            };
+            grafted = super::graft_ended(
+                self.carry_back(goal, &members, &written, proof, view, limits, stop),
+            )?;
         }
         Ok(Closed { outcome, grafted })
     }
@@ -107,12 +104,7 @@ impl Interactive {
         // The goal's formulas, the hypotheses first in an intuitionistic
         // mode, and the variables their frames hold once bindings are
         // followed.
-        let mut order: Vec<Member> = members.to_vec();
-        if let Some(reading) = self.reading() {
-            order.sort_by_key(|&m| {
-                reading.position(self.occurrence(m)) == crate::linear::Side::Output
-            });
-        }
+        let order = self.written_order(members);
         let (mut eigens, mut metas) = (Vec::new(), Vec::new());
         for &m in &order {
             for t in q.frame_terms(q.instance(m).1) {
@@ -158,7 +150,7 @@ impl Interactive {
         }
         // The symbols: the sequent's, in their order and roles, then one
         // constant per eigenvariable that the prefix does not bind.
-        let predicates: Vec<Symbol> = fo.atoms.iter().map(|&(p, _)| p).collect();
+        let predicates = super::predicates(fo);
         let mut interner = Interner::new();
         for (i, (name, arity)) in fo.symbols.iter().enumerate() {
             let predicate = predicates.contains(&Symbol::new(i as u32));
@@ -263,9 +255,7 @@ impl Interactive {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        // The cast is exact: there are fewer steps than inferences, which
-        // an `InfId` numbers.
-        let step = self.history.len() as u32;
+        let step = self.step_number();
         let mark = self.fo.as_ref().expect("a first-order session").mark();
         let carried =
             self.carry_back_from(goal, members, written, proof, view, limits, &mut stop, step);
@@ -314,12 +304,7 @@ impl Interactive {
             table,
         };
         // The goal's formulas in the order written.
-        let mut order: Vec<Member> = members.to_vec();
-        if let Some(reading) = self.reading() {
-            order.sort_by_key(|&m| {
-                reading.position(self.occurrence(m)) == crate::linear::Side::Output
-            });
-        }
+        let order = self.written_order(members);
         let places = places(found, written.prefix.len(), order.len());
         let depth = binders(found);
         // The proof's eigenvariables: the prefix's are the session's, and

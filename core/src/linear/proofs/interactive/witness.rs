@@ -39,7 +39,7 @@ impl Interactive {
             .as_ref()
             .map(|q| eigen_names(fo, &q.shown.eigenvariables()))
             .unwrap_or_default();
-        let predicates: Vec<Symbol> = fo.atoms.iter().map(|&(p, _)| p).collect();
+        let predicates = super::predicates(fo);
         // The tokens: names, brackets and commas.
         let mut tokens = Vec::new();
         let mut name = String::new();
@@ -153,7 +153,7 @@ impl Interactive {
         let fo = &self.forest.sequent().fo;
         let q = self.fo.as_mut().expect("a first-order session");
         let names = eigen_names(fo, &q.shown.eigenvariables());
-        let predicates: Vec<Symbol> = fo.atoms.iter().map(|&(p, _)| p).collect();
+        let predicates = super::predicates(fo);
         let mut built: Vec<FoTermId> = Vec::with_capacity(nodes.len());
         for (i, node) in nodes.iter().enumerate() {
             let term = match node {

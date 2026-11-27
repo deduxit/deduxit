@@ -573,7 +573,7 @@ impl Quantified {
         q.limit = limit;
         let fo = &forest.sequent().fo;
         let loose = fo.loose();
-        let predicates: Vec<Symbol> = fo.atoms.iter().map(|&(p, _)| p).collect();
+        let predicates = super::predicates(fo);
         let base = q.table.base_terms as usize;
         let closed = |t: u32, before: usize| {
             (t as usize) < before && (t as usize >= base || loose.get(t as usize) == Some(&0))

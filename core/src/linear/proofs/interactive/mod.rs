@@ -658,6 +658,82 @@ pub struct Interactive {
     fo: Option<Box<Quantified>>,
 }
 
+/// Returns an open goal of `sequent`.
+fn open_goal(sequent: Vec<Member>) -> Inference {
+    Inference {
+        sequent,
+        rule: Rule::Open.into(),
+        principal: None,
+        premises: vec![],
+        times: 1,
+        cut: None,
+        node: None,
+    }
+}
+
+/// Returns how a graft of the search's proof ended: `Ok` with the graft,
+/// or with the refusal of a bound that ended it, which leaves the goal
+/// open.
+///
+/// # Errors
+///
+/// Any other error of the graft.
+fn graft_ended(graft: Result<(), Error>) -> Result<Result<(), Refusal>, Error> {
+    match graft {
+        Ok(()) => Ok(Ok(())),
+        Err(Error::Refused(refusal)) => Ok(Err(refusal)),
+        Err(Error::Check(crate::linear::proofs::CheckError::Refused(refused))) => {
+            Ok(Err(refused.refusal))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Returns the predicates of the sequent's atoms, by atom.
+fn predicates(fo: &crate::linear::sequents::fo::FirstOrder) -> Vec<Symbol> {
+    fo.atoms.iter().map(|&(p, _)| p).collect()
+}
+
+/// Returns which positions of a sequent of `len` formulas go left in a
+/// split that sends `left` there, the principal formula at `principal`
+/// counted as taken.
+///
+/// # Errors
+///
+/// [`StepError::Split`] for a position past the sequent, the principal's
+/// or one given twice.
+fn chosen(len: usize, principal: Option<usize>, left: &[usize]) -> Result<Vec<bool>, StepError> {
+    let mut used = vec![false; len];
+    if let Some(position) = principal {
+        used[position] = true;
+    }
+    for &p in left {
+        if p >= len || std::mem::replace(&mut used[p], true) {
+            return Err(StepError::Split { position: p });
+        }
+    }
+    Ok(used)
+}
+
+impl Interactive {
+    /// Returns the number of the step being taken: the steps taken so far.
+    fn step_number(&self) -> u32 {
+        // The cast is exact: there are fewer steps than inferences, which
+        // an `InfId` numbers.
+        self.history.len() as u32
+    }
+
+    /// Returns a goal's members in the order a sequent of its own writes
+    /// them: the hypotheses first in an intuitionistic mode.
+    fn written_order(&self, members: &[Member]) -> Vec<Member> {
+        let mut order: Vec<Member> = members.to_vec();
+        if let Some(reading) = self.reading() {
+            order.sort_by_key(|&m| reading.position(self.occurrence(m)) == Side::Output);
+        }
+        order
+    }
+}
+
 impl Interactive {
     /// Starts a proof of the sequent in the mode, with the whole sequent as
     /// the one open goal.
@@ -716,15 +792,7 @@ impl Interactive {
         } else {
             None
         };
-        let root = Inference {
-            sequent: forest.roots().iter().copied().map(Member::from).collect(),
-            rule: Rule::Open.into(),
-            principal: None,
-            premises: vec![],
-            times: 1,
-            cut: None,
-            node: None,
-        };
+        let root = open_goal(forest.roots().iter().copied().map(Member::from).collect());
         let fo = forest
             .has_binders()
             .then(|| Box::new(Quantified::new(&forest)));
@@ -822,30 +890,23 @@ impl Interactive {
     /// For a member past the forest that the session does not number. No
     /// goal of the session holds one.
     pub fn formula(&self, member: Member) -> impl Display + '_ {
-        if let Some(fo) = &self.fo
-            && member.index() >= self.forest.len()
-        {
-            let framing = crate::linear::occurrences::instances::Framing::new(
-                &self.forest.sequent().fo,
-                &fo.shown,
-            );
-            let mut text = String::new();
-            crate::linear::sequents::notation::TEXT
-                .instance(
-                    &mut text,
-                    &self.forest,
-                    self.reading().as_ref(),
-                    &framing,
-                    member,
-                    None,
+        let framing = self
+            .fo
+            .as_ref()
+            .filter(|_| member.index() >= self.forest.len())
+            .map(|fo| {
+                crate::linear::occurrences::instances::Framing::new(
+                    &self.forest.sequent().fo,
+                    &fo.shown,
                 )
-                .expect("writing into a string cannot fail");
-            return text;
-        }
-        match self.reading() {
-            Some(reading) => reading.formula(member.occ()).to_string(),
-            None => self.forest.formula(member.occ()).to_string(),
-        }
+            });
+        crate::linear::proofs::member_text(
+            &self.forest,
+            self.reading().as_ref(),
+            framing.as_ref(),
+            member,
+            None,
+        )
     }
 
     /// Returns the sequent being proved.
