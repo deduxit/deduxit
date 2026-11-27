@@ -6,10 +6,10 @@
 //! ceilings in `bench/ceilings.csv`. A journey is a small, deterministic
 //! run of a hot path (`journeys/`).
 //!
-//! The blocks are callgrind's count of the calls to the allocator's entry
-//! points ([`ALLOCATORS`]) inside the measured part, so a journey's input,
-//! made before it, stays out of them, which a DHAT profile of the whole
-//! process does not leave out.
+//! The blocks are how often the allocator's entry points ([`ALLOCATORS`])
+//! ran inside the measured part, read off callgrind's instruction
+//! positions, so a journey's input, made before it, stays out of them,
+//! which a DHAT profile of the whole process does not leave out.
 //!
 //! A count above its ceiling by more than [`TOLERANCE`] fails the check.
 //! `--lower` writes the counts that went down as the new ceilings, and
@@ -32,11 +32,11 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
 
-/// How far a count may pass its ceiling, as a fraction. The counts of one
-/// build are exact. But a build in the shell and one in the flake's
-/// sandbox, of the same sources in another directory, count up to 0.9 %
-/// apart (`render-svg`; under 0.1 % elsewhere). The ceilings are the
-/// larger of the two builds' counts.
+/// How far a count may pass its ceiling, as a fraction. A build in the
+/// shell and one in the flake's sandbox, of the same sources in another
+/// directory, count up to about 1 % apart (`render-latex` and `render-svg`;
+/// under 0.1 % elsewhere). The ceilings are the larger of the two builds'
+/// counts.
 pub const TOLERANCE: f64 = 0.02;
 
 /// The ceilings' file, relative to the workspace.
@@ -70,7 +70,7 @@ const CACHES: [&str; 3] = [
 ];
 
 /// The C library's functions that hand out a heap block, which Rust's
-/// system allocator calls: a call is a block, as DHAT counts blocks
+/// system allocator calls: an entry is a block, as DHAT counts blocks
 /// (`realloc` included).
 const ALLOCATORS: [&str; 6] = [
     "malloc",
@@ -86,7 +86,7 @@ const ALLOCATORS: [&str; 6] = [
 struct Counts {
     /// The instructions executed.
     instructions: u64,
-    /// The heap blocks allocated: calls to [`ALLOCATORS`].
+    /// The heap blocks allocated: entries into [`ALLOCATORS`].
     blocks: u64,
     /// The misses of the first level's caches, instructions and data.
     l1_misses: u64,
@@ -274,6 +274,8 @@ fn count(exe: &Path, name: &str, out: &Path) -> Result<Counts> {
         .arg("--cache-sim=yes")
         .args(CACHES)
         .arg("--toggle-collect=*journeys::measured*")
+        // The positions the blocks are read off.
+        .arg("--dump-instr=yes")
         .arg(format!("--callgrind-out-file={}", out.display()))
         .arg(exe)
         .args(["journey", name])
@@ -334,40 +336,98 @@ fn totals(text: &str) -> Option<Counts> {
     })
 }
 
-/// Counts the calls to [`ALLOCATORS`] in a callgrind file. A call is a
-/// `calls=` line after a `cfn=` line naming its callee; names are given
-/// once, `(id) name`, and then by `(id)` alone, in one table for `fn=` and
-/// `cfn=` lines.
+/// Counts the heap blocks a callgrind file records: how often the first
+/// instruction of each of [`ALLOCATORS`] ran, read off the instruction
+/// positions (`--dump-instr=yes`). The `calls=` lines are not counted:
+/// callgrind's calls into the allocator depend on how a build reaches it
+/// (an inlined `__rust_alloc`, a tail jump), and differed by 487 between
+/// two builds of one journey whose allocator ran alike. Names are given
+/// once, `(id) name`, then by `(id)` alone; a position is an absolute
+/// address, a relative one (`+n`, `-n`) or `*`, and the line after a
+/// `calls=` line holds the call's inclusive cost, which is not the
+/// function's own.
 fn blocks(text: &str) -> u64 {
+    let positions = text
+        .lines()
+        .find_map(|line| line.strip_prefix("positions: "))
+        .map_or(1, |p| p.split_whitespace().count());
+    let instructions = text
+        .lines()
+        .find_map(|line| line.strip_prefix("positions: "))
+        .is_some_and(|p| p.split_whitespace().next() == Some("instr"));
+    let ir = text
+        .lines()
+        .find_map(|line| line.strip_prefix("events: "))
+        .and_then(|events| events.split_whitespace().position(|e| e == "Ir"))
+        .unwrap_or(0);
     let mut names: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut allocator = false;
-    let mut blocks = 0;
+    // The lowest address of each allocator met, and how often it ran.
+    let mut entries: BTreeMap<&str, (u64, u64)> = BTreeMap::new();
+    let mut function: Option<&str> = None;
+    let mut address: u64 = 0;
+    let mut after_call = false;
     for line in text.lines() {
-        let (callee, rest) = if let Some(rest) = line.strip_prefix("cfn=") {
-            (true, rest)
-        } else if let Some(rest) = line.strip_prefix("fn=") {
-            (false, rest)
-        } else {
-            if allocator && let Some(calls) = line.strip_prefix("calls=") {
-                blocks += calls
-                    .split_whitespace()
-                    .next()
-                    .and_then(|n| n.parse::<u64>().ok())
-                    .unwrap_or(0);
+        if let Some(rest) = line
+            .strip_prefix("fn=")
+            .or_else(|| line.strip_prefix("cfn="))
+        {
+            let name = match rest.split_once(' ') {
+                Some((id, name)) if id.starts_with('(') => {
+                    names.insert(id, name.trim());
+                    Some(name.trim())
+                }
+                _ if rest.starts_with('(') => names.get(rest.trim()).copied(),
+                _ => Some(rest.trim()),
+            };
+            if line.starts_with("fn=") {
+                function = name;
             }
             continue;
+        }
+        if line.starts_with("calls=") {
+            after_call = true;
+            continue;
+        }
+        let mut fields = line.split_whitespace();
+        let Some(first) = fields.next() else {
+            continue;
         };
-        let name = match rest.split_once(' ') {
-            Some((id, name)) if id.starts_with('(') => {
-                names.insert(id, name.trim());
-                Some(name.trim())
-            }
-            _ if rest.starts_with('(') => names.get(rest.trim()).copied(),
-            _ => Some(rest.trim()),
+        if !instructions {
+            continue;
+        }
+        let moved = if first == "*" {
+            Some(address)
+        } else if let Some(hex) = first.strip_prefix("0x") {
+            u64::from_str_radix(hex, 16).ok()
+        } else if let Some(delta) = first.strip_prefix('+') {
+            delta.parse::<u64>().ok().map(|d| address.wrapping_add(d))
+        } else if let Some(delta) = first.strip_prefix('-') {
+            delta.parse::<u64>().ok().map(|d| address.wrapping_sub(d))
+        } else {
+            first.parse::<u64>().ok()
         };
-        allocator = callee && name.is_some_and(|name| ALLOCATORS.contains(&name));
+        let Some(moved) = moved else {
+            continue;
+        };
+        address = moved;
+        if std::mem::take(&mut after_call) {
+            continue;
+        }
+        let Some(name) = function.filter(|name| ALLOCATORS.contains(name)) else {
+            continue;
+        };
+        let runs = fields
+            .nth(positions - 1 + ir)
+            .and_then(|n| n.parse::<u64>().ok())
+            .unwrap_or(0);
+        let entry = entries.entry(name).or_insert((address, 0));
+        if address < entry.0 {
+            *entry = (address, runs);
+        } else if address == entry.0 {
+            entry.1 += runs;
+        }
     }
-    blocks
+    entries.values().map(|&(_, runs)| runs).sum()
 }
 
 /// Returns a value's change from a reference in percent, or `new` without
@@ -547,16 +607,18 @@ mod tests {
         assert!(moves(20_002, 10_001));
     }
 
-    /// The blocks are the calls to the allocator's entry points, named
-    /// once and then by id, from any caller; calls to other functions,
-    /// and the allocator's own calls, are not counted.
+    /// The blocks are how often each allocator's first instruction ran,
+    /// over every block of the function and whatever its callers' `calls=`
+    /// lines say; a call's inclusive cost and other functions do not count.
     #[test]
-    fn the_blocks_are_the_allocator_s_calls() {
-        let text = "events: Ir I1mr D1mr D1mw ILmr DLmr DLmw\nfn=(1) main\ncfn=(2) malloc\ncalls=3 10\n5 7\n\
-                    cfn=(3) helper\ncalls=2 11\n6 9\nfn=(3)\ncfn=(2)\ncalls=4 12\n7 1\n\
-                    cfn=(4) realloc\ncalls=1 13\n8 1\nfn=(2)\ncfn=(5) _int_malloc\n\
-                    calls=7 1\n9 1\nsummary: 100\n";
-        assert_eq!(blocks(text), 8);
-        assert_eq!(totals(text).map(|c| c.blocks), Some(8));
+    fn the_blocks_are_the_allocator_s_entries() {
+        let text = "positions: instr\nevents: Ir Dr\nfn=(1) main\n0x100 5\n\
+                    cfn=(2) malloc\ncalls=9 0x500\n+2 400\nfn=(2)\n0x500 3 1\n+4 3\n\
+                    cfn=(3) _int_malloc\ncalls=2 0x900\n+2 50\n+1 1\n\
+                    fn=(4) realloc\n0x700 2\n+3 2\n-3 1\nfn=(2)\n0x500 4\n\
+                    fn=(5) helper\n0x800 99\nsummary: 600\n";
+        assert_eq!(blocks(text), 10);
+        // Without instruction positions there is nothing to count.
+        assert_eq!(blocks("events: Ir\nfn=(1) malloc\n5 3\n"), 0);
     }
 }

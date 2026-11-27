@@ -878,18 +878,24 @@ serde_json, which the CLI and the core's tests already have.
   the file in a commit that says why. `--keep DIR` keeps callgrind's
   files for `callgrind_annotate`. The devshell's `ratchet` runs it on
   four journeys at a time; the flake's `ratchet` check runs `--check`.
-- **The blocks are callgrind's calls to the allocator** (`ALLOCATORS`:
-  `malloc`, `calloc`, `realloc` and the aligned ones, summed over the
-  `calls=` lines under a `cfn=` naming one) inside the measured part:
-  the blocks DHAT counts, of the measured part alone. DHAT's profile
-  (`plan/audit/stage0.sh dhat`) is of the whole process, so a journey's
-  input weighed in its table (51 % of `search-additive-14`'s blocks, the
-  family's generator; F-2c-12), never in a ceiling. A global allocator
-  that counts was the first way tried: the workspace forbids `unsafe`,
-  and it would have added its own instructions to every count. Blocks
-  move a little with the build, as instructions do: `read-json` counts
-  8 295 in the shell's build and 8 313 in the sandbox's, so a blocks
-  ceiling too is the larger of the two builds' counts.
+- **The blocks are how often the allocator was entered** inside the
+  measured part (`ALLOCATORS`: `malloc`, `calloc`, `realloc` and the
+  aligned ones): callgrind runs with `--dump-instr=yes`, and a function's
+  block is counted at its lowest address, its first instruction. They
+  are the blocks DHAT counts, of the measured part alone: DHAT's
+  profile of `read-text` and `workspace-run` filtered to the stacks
+  through `journeys::measured` gives 4 188 and 4 214, the ratchet's
+  counts. DHAT's own tables (`plan/audit/stage0.sh dhat`) are of the
+  whole process, so a journey's input weighs in them (51 % of
+  `search-additive-14`'s blocks, the family's generator; F-2c-12),
+  never in a ceiling. Two ways that failed: a global allocator that
+  counts (the workspace forbids `unsafe`, and it would have added
+  instructions to every count), and the `calls=` lines into the
+  allocator, which depend on how a build reaches it (an inlined
+  `__rust_alloc`, tail jumps): they counted twice the blocks on
+  `read-text` and differed by 487 between two builds of
+  `workspace-run` whose allocator ran alike. Entries are the same in
+  every build.
 - **Beside each count, the misses of a fixed cache model**
   (`--cache-sim=yes` with `CACHES`, a performance core of the author's
   machine: L1 instructions 64 KiB, L1 data 48 KiB, the last level 18 MiB
@@ -913,8 +919,10 @@ serde_json, which the CLI and the core's tests already have.
   time pinned to one core, never a regression by itself; the baselines'
   wall time on an idle machine is what decides speed.
 - **The shell's build and the flake's count apart**: the same sources
-  built in the sandbox count up to 0.9 % more on `render-svg` and under
-  0.1 % elsewhere, and the environment of a run changes nothing. The
+  built in the sandbox count about 1 % more on `render-latex` and
+  `render-svg` (1.0 % and 1.0 % at `kmxoxyxv`, where the sandbox's were
+  past the tolerance before their ceilings were raised) and under 0.1 %
+  elsewhere, and the environment of a run changes nothing. The
   committed ceilings are the larger of the two builds' counts; a
   before-and-after comparison takes both counts from one build.
 - **Counts are trusted where they track time**:
