@@ -171,6 +171,17 @@ It found criteria 2 to 5 sound: the preludes verbatim, the `let*`
 change unable to reparse a use (all `Local`, `k` still at level 200),
 the strict flags on the check's build only, the workflows and the bound.
 
+## After the push: fixup-32
+
+The new opam job failed on main in all four versions: it passed the
+version in an environment variable named `ROCQ`, which the makefile
+`rocq makefile` writes reads as the command that runs Rocq, so opam's
+build of the standard library ran `9.1.1` as a program ("command not
+found"). The local run had passed because it gave the versions as
+arguments. The variable is `ROCQ_VERSION` now (`kzoyyzun`), the rules
+file says which names to avoid, and the job's command with the job's
+environment installed and imported the library on Rocq 9.1.1 here.
+
 ## Left open
 
 - The `console` example of README (`deduxit prove --mix …`) runs in no
