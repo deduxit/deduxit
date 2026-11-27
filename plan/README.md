@@ -8831,3 +8831,14 @@ move (D26).
   suite's tags is refused with a message that names them (kind and code unchanged), pinned and in the
   changelog. The reviewer's three unresolved doc links fixed. Full check passed; pushed
   (`uruprwvn`). Its worker waits for 87b1 to land before 87c8 or 87c5, which touch 87b1's files.
+- 2026-11-27, about 19:07: **87b1 reviewed; 87b3 and 87c8 started.** 87b1 (Opus, high; the panel, the
+  reviewer on Fable): the linear suite's bounds and misleading calls (a refutation's check within
+  limits and a stop, the split test bounded and judging its own rule, the invertible run stoppable and
+  bounded on terms, a proof's net chosen in one place for the protocol, a document's sequent built
+  within limits, an atom found by its composed or decomposed name, the public encodings' empty items,
+  an unknown engine written back by its name). The panel's and the reviewer's findings fixed (a
+  saturated set's axioms' partners built before a poll, 2 GB at 16 000 literals; a work bound claimed
+  but not kept). (departs from the plan) `Engine::Unknown` stays in the options until P8. Both target
+  sets equal. Its full check passed before the rebase onto 87c1; the combined head in CI before
+  `main`. 87b3 (`cli/`, `web/`) in its worker, 87c8 (the library's session code, lambda-terms, rule
+  files, the workspace, the wire forms; the exports' tree layout left to after 87c3) in 87c1's.
