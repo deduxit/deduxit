@@ -193,7 +193,9 @@ first=$!
   run 2 --problems bench/problems/slow-tests.txt --timeout 300 "${repeat[@]}"
 ) &
 second=$!
-wait "$first" "$second"
+# One wait per stream: a wait for both answers the second's status alone.
+wait "$first"
+wait "$second"
 
 {
   head -n 1 "$out/$label.1.csv"

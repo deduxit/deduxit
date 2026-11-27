@@ -78,7 +78,11 @@ for k in $(seq 1 "$streams"); do
   stream "$k" &
   pids+=($!)
 done
-wait "${pids[@]}"
+# One wait per stream: a wait for several answers the last one's status
+# alone, and a stream that failed would go unnoticed.
+for pid in "${pids[@]}"; do
+  wait "$pid"
+done
 
 {
   head -n 1 "$out/connection-$label.1.csv"

@@ -6,7 +6,7 @@
 
 use super::ordinary_logic::pigeonhole;
 use super::{deterministic, measured};
-use anyhow::{Result, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use deduxit::lambda::{self, Calculus, InhabitOptions, ReduceOptions, Term};
 use deduxit::rules::{self, Apply, Status};
 use deduxit::workspace::{State, What, Workspace};
@@ -203,6 +203,16 @@ pub fn workspace() -> Result<()> {
         workspace.state(decided) == State::Current,
         "the decision is {:?}",
         workspace.state(decided)
+    );
+    let outcome: serde_json::Value = serde_json::from_str(
+        workspace
+            .value(decided)
+            .context("the decision has no value")?,
+    )?;
+    ensure!(
+        outcome["verdict"] == "valid",
+        "expected valid, got {}",
+        outcome["verdict"]
     );
     Ok(())
 }
