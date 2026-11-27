@@ -51,8 +51,8 @@ use super::net::{
     arrowhead, height, towards, towards_by,
 };
 use super::{
-    Conclusions, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, WhyNot, document,
-    escaped, lay, net_conclusion, net_formula, net_link, net_verdict, run, text,
+    Conclusions, NOTATION, NetDrawing, NetGroups, Premises, RAISED_BOT, Style, WhyNot, cut_bar,
+    escaped, lay, net_conclusion, net_document, net_formula, net_link, net_verdict, run, text,
 };
 use crate::export::svg::Marks;
 use crate::hash::HashMap;
@@ -1681,51 +1681,13 @@ pub(super) fn draw(
             true => &mut marked,
             false => &mut lines,
         };
-        writeln!(
+        cut_bar(
             out,
-            r#"<path id="c{a}-{d}" d="M{} {}V{low}H{}V{}"/>"#,
-            x[a as usize],
-            below(a),
-            x[d as usize],
-            below(d)
-        )
-        .unwrap();
-    }
-    let group = |out: &mut String, colour: &str, extra: &str, content: &str| {
-        writeln!(
-            out,
-            "<g fill=\"none\" stroke=\"{}\" stroke-width=\"{stroke}\"{extra}>",
-            escaped(colour)
-        )
-        .unwrap();
-        out.push_str(content);
-        out.push_str("</g>\n");
-    };
-    let body = |out: &mut String| {
-        group(out, &style.line, "", &lines);
-        if reading.is_some() {
-            group(out, &style.input, "", &input_lines);
-            group(out, &style.dominator, "", &dominator_lines);
-        }
-        if dashed {
-            group(
-                out,
-                &style.par,
-                &format!(r#" stroke-dasharray="{dash}""#),
-                &pars,
-            );
-        }
-        group(out, &style.link, "", &links);
-        if !marked.is_empty() {
-            group(out, &style.highlight, "", &marked);
-        }
-        out.push_str(&texts);
-    };
-    // An essential net is of the intuitionistic sequent its reading reads.
-    let mut title = String::new();
-    match reading {
-        Some(reading) => PLAIN.reading(&mut title, reading).unwrap(),
-        None => PLAIN.one_sided(&mut title, forest.sequent()).unwrap(),
+            (a, d),
+            (x[a as usize], below(a)),
+            (x[d as usize], below(d)),
+            low,
+        );
     }
     let width = if tops.is_empty() {
         2 * margin
@@ -1747,7 +1709,25 @@ pub(super) fn draw(
         describe(net, verdict, reading, &mut text).unwrap();
         text
     });
-    document(style, &title, description.as_deref(), (width, height), body)
+    let groups = NetGroups {
+        lines: &lines,
+        inputs: &input_lines,
+        dominators: &dominator_lines,
+        pars: &pars,
+        links: &links,
+        marked: &marked,
+        texts: &texts,
+    };
+    net_document(
+        style,
+        forest.sequent(),
+        reading,
+        stroke,
+        dashed,
+        &groups,
+        description.as_deref(),
+        (width, height),
+    )
 }
 
 /// Returns a sparse table of `values`: `table[k][i]` is the largest of

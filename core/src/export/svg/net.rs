@@ -35,8 +35,8 @@
 
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{
-    Marks, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, document, escaped, lay,
-    net_conclusion, net_link, net_verdict, run, text,
+    Marks, NOTATION, NetDrawing, NetGroups, Premises, RAISED_BOT, Style, cut_bar, escaped, lay,
+    net_conclusion, net_document, net_link, net_verdict, run, text,
 };
 use crate::linear::nets::{NetError, ProofStructure};
 use crate::linear::occurrences::{OccId, Reading, Side};
@@ -767,52 +767,13 @@ pub(super) fn draw(
             true => &mut marked,
             false => &mut lines,
         };
-        writeln!(
+        cut_bar(
             out,
-            r#"<path id="c{}-{}" d="M{} {}V{low}H{}V{}"/>"#,
-            a.get(),
-            d.get(),
-            x[a.index()],
-            below(a),
-            x[d.index()],
-            below(d)
-        )
-        .unwrap();
-    }
-    let group = |out: &mut String, colour: &str, extra: &str, content: &str| {
-        writeln!(
-            out,
-            "<g fill=\"none\" stroke=\"{}\" stroke-width=\"{stroke}\"{extra}>",
-            escaped(colour)
-        )
-        .unwrap();
-        out.push_str(content);
-        out.push_str("</g>\n");
-    };
-    let body = |out: &mut String| {
-        group(out, &style.line, "", &lines);
-        if reading.is_some() {
-            group(out, &style.input, "", &inputs);
-            group(out, &style.dominator, "", &dominators);
-        } else if style.net_look.premises == Premises::Dashed {
-            group(
-                out,
-                &style.par,
-                &format!(r#" stroke-dasharray="{dash}""#),
-                &pars,
-            );
-        }
-        group(out, &style.link, "", &links);
-        if !marked.is_empty() {
-            group(out, &style.highlight, "", &marked);
-        }
-        out.push_str(&texts);
-    };
-    // An essential net is of the intuitionistic sequent its reading reads.
-    let mut title = String::new();
-    match reading {
-        Some(reading) => PLAIN.reading(&mut title, reading).unwrap(),
-        None => PLAIN.one_sided(&mut title, forest.sequent()).unwrap(),
+            (a.get(), d.get()),
+            (x[a.index()], below(a)),
+            (x[d.index()], below(d)),
+            low,
+        );
     }
     let width = if tops.is_empty() {
         2 * margin
@@ -833,7 +794,26 @@ pub(super) fn draw(
         describe(net, described, reading, &mut text).unwrap();
         text
     });
-    document(style, &title, description.as_deref(), (width, height), body)
+    let groups = NetGroups {
+        lines: &lines,
+        inputs: &inputs,
+        dominators: &dominators,
+        pars: &pars,
+        links: &links,
+        marked: &marked,
+        texts: &texts,
+    };
+    let dashed = reading.is_none() && style.net_look.premises == Premises::Dashed;
+    net_document(
+        style,
+        forest.sequent(),
+        reading,
+        stroke,
+        dashed,
+        &groups,
+        description.as_deref(),
+        (width, height),
+    )
 }
 
 #[cfg(test)]

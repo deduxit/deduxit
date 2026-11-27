@@ -1307,6 +1307,90 @@ fn document(
     out
 }
 
+/// The groups of a net's drawing, each the elements of one colour.
+pub(super) struct NetGroups<'a> {
+    /// Premise edges and boxes, in the line colour.
+    pub(super) lines: &'a str,
+    /// Under a reading, the input occurrences' edges.
+    pub(super) inputs: &'a str,
+    /// Under a reading, the dotted lines an implication must dominate.
+    pub(super) dominators: &'a str,
+    /// The switched premises, drawn dashed when the look asks it.
+    pub(super) pars: &'a str,
+    /// The axiom links.
+    pub(super) links: &'a str,
+    /// What the verdict or the step highlights.
+    pub(super) marked: &'a str,
+    /// The formulas' texts.
+    pub(super) texts: &'a str,
+}
+
+/// Returns the document of a net's drawing: its title the sequent (as
+/// the reading writes it for an essential net), its description, and its
+/// groups in the order they stack, the switched premises dashed when
+/// `dashed`.
+#[expect(clippy::too_many_arguments, reason = "the parts of one document, from two drawings")]
+pub(super) fn net_document(
+    style: &Style,
+    sequent: &Sequent,
+    reading: Option<&Reading<'_>>,
+    stroke: i64,
+    dashed: bool,
+    groups: &NetGroups<'_>,
+    description: Option<&str>,
+    size: (i64, i64),
+) -> String {
+    let dash = format!("{} {}", 3 * stroke, 3 * stroke);
+    let group = |out: &mut String, colour: &str, extra: &str, content: &str| {
+        writeln!(
+            out,
+            "<g fill=\"none\" stroke=\"{}\" stroke-width=\"{stroke}\"{extra}>",
+            escaped(colour)
+        )
+        .unwrap();
+        out.push_str(content);
+        out.push_str("</g>\n");
+    };
+    let body = |out: &mut String| {
+        group(out, &style.line, "", groups.lines);
+        if reading.is_some() {
+            group(out, &style.input, "", groups.inputs);
+            group(out, &style.dominator, "", groups.dominators);
+        }
+        if dashed {
+            group(
+                out,
+                &style.par,
+                &format!(r#" stroke-dasharray="{dash}""#),
+                groups.pars,
+            );
+        }
+        group(out, &style.link, "", groups.links);
+        if !groups.marked.is_empty() {
+            group(out, &style.highlight, "", groups.marked);
+        }
+        out.push_str(groups.texts);
+    };
+    // An essential net is of the intuitionistic sequent its reading reads.
+    let mut title = String::new();
+    match reading {
+        Some(reading) => PLAIN.reading(&mut title, reading).unwrap(),
+        None => PLAIN.one_sided(&mut title, sequent).unwrap(),
+    }
+    document(style, &title, description, size, body)
+}
+
+/// Writes a cut link's bar, id `c<a>-<d>`: down from its two ends at
+/// `(x, y)`, along at `low`.
+pub(super) fn cut_bar(out: &mut String, ends: (u32, u32), a: (i64, i64), d: (i64, i64), low: i64) {
+    writeln!(
+        out,
+        r#"<path id="c{}-{}" d="M{} {}V{low}H{}V{}"/>"#,
+        ends.0, ends.1, a.0, a.1, d.0, d.1
+    )
+    .unwrap();
+}
+
 /// Returns a document that shows one line of text, the notation's `content`,
 /// titled `title`.
 ///
