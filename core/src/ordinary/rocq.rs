@@ -612,7 +612,9 @@ fn falsified(
     }
     if let Some(limit) = limit {
         let estimate = falsified_bytes(sequent, &atoms, options);
-        if estimate > limit {
+        // A saturated estimate is past any text a machine holds, even
+        // under a limit of `u64::MAX`.
+        if estimate > limit || estimate == u64::MAX {
             return Err(Refusal::Output {
                 what: "certificate",
                 estimate_bytes: estimate,
@@ -1027,13 +1029,14 @@ mod tests {
 
     /// A classical countermodel's certificate writes its formulas out, and
     /// a formula that shares its subformulas doubles its text with each
-    /// level: forty levels would be a text of terabytes, which the bound
-    /// refuses before anything is written.
+    /// level: sixty-four levels would be a text of exabytes, which the
+    /// bound refuses before anything is written, even the largest bound,
+    /// which the saturated estimate equals.
     #[test]
     fn a_classical_countermodel_keeps_to_the_bound() {
         let mut formulas = Formulas::default();
         let mut formula = formulas.atom("p").expect("an atom");
-        for _ in 0..40 {
+        for _ in 0..64 {
             formula = formulas
                 .add(Node::And(formula, formula))
                 .expect("a conjunction");
@@ -1046,28 +1049,27 @@ mod tests {
                 world: 0,
             },
         };
-        let limits = Limits::default()
-            .with_occurrences(None)
-            .with_derivation_bytes(Some(1 << 20));
-        let mut text = String::new();
-        let refused = super::countermodel(
-            &countermodel,
-            Logic::Classical,
-            &Options::default(),
-            &limits,
-            &mut text,
-            |_| false,
-        );
-        assert!(
-            matches!(
-                refused,
-                Err(Error::Refused(Refusal::Output {
-                    limit_bytes: 1_048_576,
-                    ..
-                }))
-            ),
-            "{refused:?}"
-        );
-        assert_eq!(text, "");
+        for bound in [1 << 20, u64::MAX] {
+            let limits = Limits::default()
+                .with_occurrences(None)
+                .with_derivation_bytes(Some(bound));
+            let mut text = String::new();
+            let refused = super::countermodel(
+                &countermodel,
+                Logic::Classical,
+                &Options::default(),
+                &limits,
+                &mut text,
+                |_| false,
+            );
+            assert!(
+                matches!(
+                    refused,
+                    Err(Error::Refused(Refusal::Output { limit_bytes, .. })) if limit_bytes == bound
+                ),
+                "{refused:?}"
+            );
+            assert_eq!(text, "");
+        }
     }
 }
