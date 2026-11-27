@@ -35,6 +35,9 @@ term its principal simple type.
   `reduces` and `principal`; the bindings' calls `lambda_reduce` and
   `lambda_infer` (file `web/src/lambda.rs`), rows in
   `plan/web/README.md`.
+- **The page**: D12's "Untyped" toggle is active; an untyped term is
+  checked, given its most general simple type and reduced a step at a
+  time with the next redex marked (section "The page").
 
 The commits are listed at the end, after the review and the checks.
 
@@ -158,6 +161,35 @@ the readers, the JSON reader's refusals of mixed documents, the
 `Option` change's callers, the exit statuses, the protocol's checks and
 the bindings' UTF-16 range.
 
+A second `fresh-reviewer` run (Fable 5.2 at medium) read the page's
+commits against the prompt, the guide and the client's rules, and
+probed the built site. Nothing in deduxit's lambda module, so step 85
+had nothing to rebase. Its findings on the page:
+1. **An untyped tab drew another tab's typing derivation** (a typed tab,
+   then an untyped one, then back and forth between the chips): the
+   drawing's resource keeps its last value when its source goes, and the
+   condition that showed it held for an untyped term too. Fixed in
+   `xmxstmss`: the drawing shows only on a typed tab.
+2. **The verdict kept the words of the tab shown before** ("Well formed"
+   on a typed term, "Well typed" on an untyped one): the words were
+   computed once in a `Show`'s callback. Older than this step for two
+   typed tabs (the first showed the second's type); fixed for all in
+   `xmxstmss`, with a Playwright test of both witnesses.
+3. **Turning a typed judgement untyped kept its context's types**
+   (`x : a, f : a -> b |- f x`): fixed in `klmtowxs`, `eraseTypes` drops
+   them too. A typed term with a trailing ascription or with pairs,
+   `let` and the linear constructs has no untyped form; the reader's
+   message says where.
+4. A question: `design/redesign-notes.md`'s table still says untyped
+   terms are not in deduxit. That file is the design's dated record, so
+   it stays; the guide's "needs from elsewhere" item was removed.
+
+What held: the step count and Undo (tool and Ctrl+Z), To the end past
+the bound on Ω (1 000, then 2 000), the redex's UTF-16 slice with `λ`,
+subscripts and astral names, stale answers held to the statement, the
+six calculi through the toggles, the link and `calculusOf`, Export
+limited to the links, and the words never saying "no normal form".
+
 ## The checks
 
 At the head `qqpmrwwk`:
@@ -177,6 +209,15 @@ At the head `qqpmrwwk`:
   cargo-semver-checks is step 81's change of `StepError::Witness`'s
   field, listed before.
 
+On the client, at its head `klmtowxs` (deduxit's input at `f6c67ff2`,
+deduxit's `main` with this step and step 83): the full `nix flake check`
+passed, every check (Vitest 741 tests, Playwright 373, none flaky, the
+format, lint, CSP and licence checks among them). Before it, `tests`,
+`lint` and the lambda, accessibility and target-size specs in the dev
+shell. The first full run at `sytpwtzu` failed in `treefmt` alone (the
+formatter hook had run from deduxit's folder), fixed by `nix fmt` in
+the same change; the run after it passed.
+
 ## What is left open
 
 - **Other detours are not reduced**: a pair taken apart, `case` of an
@@ -189,14 +230,50 @@ At the head `qqpmrwwk`:
   lambda kind**, so an unknown kind's error lists none of them; a gap
   from before this step (the test holds `OPERATIONS` alone), left as it
   was.
-- **The budget with step 82**: the chain is rebased onto step 82
+- **The budget with step 82**: the chain was rebased onto step 82
   (`orukyztp`, the planning session resolved the changelog's
-  `[Unreleased]`); step 82 took no wire level, so 30 stands, and the
-  combined module is checked against the new ceiling by the full check
-  on `ci/step-84`.
-- **The client part** (D12's "Untyped" toggle, the stepper and the
-  principal type on the page) waits for the planning session's go; its
-  section follows.
+  `[Unreleased]`); step 82 took no wire level, so 30 stands. The full
+  check on `ci/step-84` failed once in `conventions` (`--steps 1` in
+  the manual read as a step number), fixed in `puwpslqt` as
+  `--steps=1`, then passed, and the chain went to `main`.
+- **The page steps an untyped term again from the term as read**
+  (below): a reduction's `term` is nested without its `version`, so the
+  bindings' readers do not take it back. Writing it with its level (or a
+  `version` in the nested form) would let the page step from the term
+  reached; with steps bounded by 1 000 a step costs at most that many
+  copies, so it waits for a need.
+
+## The page
+
+Board D12 on the client (`deduxit.github.io`), from the guide's text
+(the board's canvas, an artifact of the design sessions, could not be
+read from this session):
+- **The toggle** "Typed"/"Untyped" is active, beside "Unrestricted",
+  "Linear", "Affine": the three untyped calculi are three more values of
+  the lambda suite's parameter (deduxit's names), so links
+  (`u=lambda&m=untyped_linear&s=…`), the shelf and the registry's test
+  against `about()` take them as any calculus. Turning a typed tab to
+  Untyped drops the binders' types from the field's text.
+- **An untyped term** is checked ("Well formed", or deduxit's reason for
+  a variable's uses), given its most general simple type ("Its most
+  general simple type is a → a.", or "No simple type fits it: in `x x`,
+  …"), and shown with the part reduced next in lapis and underlined.
+  The tools are Undo, Next step and To the end, as for cut elimination;
+  Ctrl+Z steps back. The words say "Normal form after 3 steps" or "Not
+  finished after N steps, the bound on steps", never that a term has no
+  normal form.
+- **Every step is taken again from the term as read** (`{"steps": n}`,
+  Undo n − 1, To the end n + 1 000), since the page cannot hand a
+  reached term back (above). The page keeps no list of earlier terms:
+  the guide draws one term and its next redex.
+- An untyped term has no typing derivation, so Export offers its links
+  alone and says why for the rest.
+- Tests: Vitest (the words, `eraseTypes`, the toggles' pairing, the
+  real module's reduction, bound and principal type, the registry), a
+  Playwright spec (the toggle, three steps and back by the tool and the
+  key, the type line, `\x. x x` with no type and refused as linear, the
+  link), and the axe and target-size walks over the untyped entry and a
+  step. The client's rules file records the design.
 
 ## Commits (deduxit)
 
@@ -209,4 +286,14 @@ At the head `qqpmrwwk`:
 | `yxnuytup` | Compile the β stepper and the principal type once |
 | `qqpmrwwk` | Raise the bindings' budget for untyped lambda-terms |
 
-This report is the change after them.
+This report is the change after them (`sourpplt`, and the change that
+completes it).
+
+## Commits (client)
+
+| change | subject |
+|---|---|
+| `pqrkonwz` | flake.lock: Update (deduxit's input to its `main`) |
+| `sytpwtzu` | Reduce and type untyped lambda-terms on the page |
+| `xmxstmss` | Keep each lambda tab's verdict and drawing its own |
+| `klmtowxs` | Drop a context's types too when a term turns untyped |
