@@ -430,7 +430,14 @@ engine. What the code relies on:
   disconnection indexed by their root, the opened conclusions marked and
   dropped once, Mix's parts sorted by label): the panel found both, a
   witness of 40 000 parts taking 3.4 s and a stage of 320 000 weakened
-  roots 3.7 s, neither asking the stop. A depth's kept count is its edges less what the switched
+  roots 3.7 s, neither asking the stop. The MLL criterion and its
+  sequentialization do the same since 0.9.0 (`Graph::parts` indexes the
+  parts by label, the Mix branch of a stage sorts the labels, in the
+  order of the first conclusion of `gamma` then of the cuts): at 80 000
+  pairs `⊢ a, a⊥, …` linked pairwise, the `Disconnected` witness took
+  1.96 s before and 5.8 ms after, the Mix sequentialization 8.56 s and
+  0.88 s (what is left of it grows faster than the parts, outside these
+  two steps). A depth's kept count is its edges less what the switched
   classes drop, which cannot go below zero because the classes are
   disjoint sets of edges.
 - **Modes**: classical, with or without Mix, and intuitionistic

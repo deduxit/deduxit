@@ -490,6 +490,10 @@ impl Graph {
         self.search(scratch, 0..n as u32);
         scratch.removed.fill(false);
         let mut parts: Vec<(u32, Vec<VertexId>)> = Vec::new();
+        // Per component's label, the index of its part, or `u32::MAX`: a
+        // search of the parts found so far per vertex was quadratic in
+        // them.
+        let mut index = vec![u32::MAX; scratch.component.len()];
         for v in forest.ids().filter(|&v| vertex(v)) {
             // A cut link is named by its end in a cut formula's tree.
             let cut = match forest.parent(v) {
@@ -501,10 +505,12 @@ impl Graph {
                 continue;
             }
             let label = scratch.component[v.index()];
-            match parts.iter_mut().find(|(l, _)| *l == label) {
-                Some((_, part)) => part.push(VertexId::of(v)),
-                None => parts.push((label, vec![VertexId::of(v)])),
+            let at = &mut index[label as usize];
+            if *at == u32::MAX {
+                *at = parts.len() as u32;
+                parts.push((label, Vec::new()));
             }
+            parts[*at as usize].1.push(VertexId::of(v));
         }
         parts.sort_by_key(|(label, _)| *label);
         parts.into_iter().map(|(_, part)| part).collect()

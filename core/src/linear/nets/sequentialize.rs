@@ -258,27 +258,38 @@ impl Sequentialization<'_> {
                 self.net.criterion.mix,
                 "a proof net without Mix is connected"
             );
-            let mut labels: Vec<OccId> = Vec::new();
-            for &c in gamma.iter().chain(&cuts) {
-                let label = self.scratch.component(c);
-                if !labels.contains(&label) {
-                    labels.push(label);
-                }
+            // The parts in the order of their first conclusion, of `gamma`
+            // then of `cuts`. Sorting the labels keeps a stage of many
+            // parts near linear, where a search of the labels per
+            // conclusion and a filter per part were quadratic.
+            let mut first: Vec<(OccId, usize)> = gamma
+                .iter()
+                .chain(&cuts)
+                .enumerate()
+                .map(|(i, &c)| (self.scratch.component(c), i))
+                .collect();
+            first.sort_unstable();
+            first.dedup_by_key(|&mut (label, _)| label);
+            let labels: Vec<OccId> = first.iter().map(|&(label, _)| label).collect();
+            first.sort_unstable_by_key(|&(_, i)| i);
+            let mut parts: Vec<(Vec<OccId>, Vec<OccId>)> =
+                vec![(Vec::new(), Vec::new()); labels.len()];
+            let part_of =
+                |label: OccId| labels.binary_search(&label).expect("every label is listed");
+            for &c in &gamma {
+                parts[part_of(self.scratch.component(c))].0.push(c);
+            }
+            for &c in &cuts {
+                parts[part_of(self.scratch.component(c))].1.push(c);
             }
             // The steps are taken from the last: the first part, then
             // every other one and the Mix that joins it to those before.
-            for (i, &label) in labels.iter().enumerate().rev() {
+            for (i, &(label, _)) in first.iter().enumerate().rev() {
                 if i > 0 {
                     self.steps.push(Step::Mix);
                 }
-                let of = |list: &[OccId]| {
-                    list.iter()
-                        .copied()
-                        .filter(|&c| self.scratch.component(c) == label)
-                        .collect()
-                };
-                let part = Step::Prove(of(&gamma), of(&cuts));
-                self.steps.push(part);
+                let (g, k) = std::mem::take(&mut parts[part_of(label)]);
+                self.steps.push(Step::Prove(g, k));
             }
         } else if cuts.is_empty() && gamma.iter().all(|&c| f.is_literal(c)) {
             debug_assert!(
