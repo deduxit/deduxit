@@ -2054,83 +2054,22 @@ impl Interactive {
         };
         let eigens = self.formulas.eigen_names().to_vec();
         let scope = self.scope(InfId::new(goal.get()));
-        // The tokens: names, brackets and commas.
-        let mut tokens = Vec::new();
-        let mut name = String::new();
-        for c in text.chars().chain([' ']) {
-            if c.is_whitespace() || matches!(c, '(' | ')' | ',') {
-                if !name.is_empty() {
-                    tokens.push(std::mem::take(&mut name));
-                }
-                if !c.is_whitespace() {
-                    tokens.push(c.to_string());
-                }
-            } else {
-                name.push(c);
-            }
-        }
+        let tokens = crate::witness::tokens(text);
         // A term of text shares nothing, so it is as long as its names; one
         // past the bound on terms is refused before any of it is made.
-        let names = tokens
-            .iter()
-            .filter(|t| !matches!(t.as_str(), "(" | ")" | ","))
-            .count() as u64;
+        let names = tokens.iter().filter(|t| crate::witness::is_name(t)).count() as u64;
         if names > self.terms {
             return Err(fault(WitnessFault::Symbols {
                 symbols: names,
                 limit: self.terms,
             }));
         }
-        // The open applications wait on a stack with their arguments.
-        let mut open: Vec<(String, Vec<FoTermId>)> = Vec::new();
-        let mut done: Option<FoTermId> = None;
-        let mut tokens = tokens.into_iter().peekable();
-        while let Some(token) = tokens.next() {
-            match token.as_str() {
-                "(" if done.is_none() => {
-                    return Err(fault(WitnessFault::Bracket));
-                }
-                "(" | ")" | "," if done.is_none() => {
-                    return Err(fault(WitnessFault::Missing { before: token }));
-                }
-                "," | ")" => {
-                    let (Some((_, args)), Some(arg)) = (open.last_mut(), done.take()) else {
-                        return Err(fault(WitnessFault::Unopened { token }));
-                    };
-                    args.push(arg);
-                    if token == ")"
-                        && let Some((f, args)) = open.pop()
-                    {
-                        done = Some(self.applied(&f, &args).map_err(fault)?);
-                    }
-                }
-                _ if done.is_some() => {
-                    return Err(fault(WitnessFault::Comma { token }));
-                }
-                word => {
-                    let applied = tokens.peek().is_some_and(|t| t == "(");
-                    if let Some(&(k, _)) = eigens.iter().find(|(_, n)| n == word) {
-                        if applied {
-                            return Err(fault(WitnessFault::Applied { name: word.into() }));
-                        }
-                        let term = self.formulas.interner().term(FoTerm::Eigen(Eigen::new(k)));
-                        if !scope.contains(&term) {
-                            return Err(fault(WitnessFault::OutOfScope { name: word.into() }));
-                        }
-                        done = Some(term);
-                    } else if applied {
-                        tokens.next();
-                        open.push((word.to_owned(), Vec::new()));
-                    } else {
-                        done = Some(self.applied(word, &[]).map_err(fault)?);
-                    }
-                }
-            }
-        }
-        if !open.is_empty() {
-            return Err(fault(WitnessFault::Unclosed));
-        }
-        done.ok_or_else(|| fault(WitnessFault::Empty))
+        let mut reading = Reading {
+            state: self,
+            eigens: &eigens,
+            scope: &scope,
+        };
+        crate::witness::read(&mut reading, tokens).map_err(fault)
     }
 
     /// Returns the term of the sequent's function symbol `name` applied to
@@ -3935,6 +3874,55 @@ impl Tree {
     }
 }
 
+/// A witness of the ordinary session read from text: its names resolved
+/// in the sequent's symbols and the eigenvariables in the goal's scope,
+/// its terms made in the session's arena.
+struct Reading<'a> {
+    /// The session.
+    state: &'a mut Interactive,
+    /// Every eigenvariable of the arena with the name it is written by.
+    eigens: &'a [(u32, String)],
+    /// The eigenvariables in the goal's scope.
+    scope: &'a [FoTermId],
+}
+
+impl crate::witness::Witnesses for Reading<'_> {
+    type Term = FoTermId;
+    type Function = String;
+
+    const BRACKET_AFTER_TERM: bool = false;
+
+    fn name(
+        &mut self,
+        word: &str,
+        applied: bool,
+    ) -> Result<crate::witness::Name<FoTermId, String>, WitnessFault> {
+        use crate::witness::Name;
+        if let Some(&(k, _)) = self.eigens.iter().find(|(_, n)| n == word) {
+            if applied {
+                return Err(WitnessFault::Applied { name: word.into() });
+            }
+            let term = self
+                .state
+                .formulas
+                .interner()
+                .term(FoTerm::Eigen(Eigen::new(k)));
+            if !self.scope.contains(&term) {
+                return Err(WitnessFault::OutOfScope { name: word.into() });
+            }
+            Ok(Name::Term(term))
+        } else if applied {
+            Ok(Name::Applied(word.to_owned()))
+        } else {
+            self.state.applied(word, &[]).map(Name::Term)
+        }
+    }
+
+    fn apply(&mut self, f: String, args: Vec<FoTermId>) -> Result<FoTermId, WitnessFault> {
+        self.state.applied(&f, &args)
+    }
+}
+
 /// Returns what a step by `rule` of `shape` needs given: a split of the
 /// context for a rule of two premises, a witness for `∀L` and `∃R`.
 fn needs_of(rule: Rule, shape: &Shape) -> Needs {
@@ -5537,6 +5525,55 @@ mod tests {
             }
         }
         assert!(bound > 20, "only {bound} fillings");
+    }
+
+    /// Each text that is no witness is refused for its first fault, a
+    /// bracket after a whole term as a missing comma.
+    #[test]
+    fn a_witness_text_is_refused_for_its_first_fault() {
+        let sequent: Sequent = "forall x. p(x) |- q(f(a, b))".parse().unwrap();
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        let name = |error: StepError| {
+            let StepError::Witness { fault } = error else {
+                panic!("not a witness's fault: {error}");
+            };
+            format!("{fault:?}")
+                .split([' ', '{'])
+                .next()
+                .unwrap_or_default()
+                .to_owned()
+        };
+        for (text, fault) in [
+            ("", "Empty"),
+            ("(", "Bracket"),
+            (")", "Missing"),
+            ("a b", "Comma"),
+            ("a)", "Unopened"),
+            ("f(a, b", "Unclosed"),
+            ("f(a, b)(a)", "Comma"),
+            ("g", "UnknownSymbol"),
+            ("p", "Predicate"),
+            ("f(a)", "Arity"),
+            ("f", "Arity"),
+            ("a(b)", "Arity"),
+        ] {
+            let error = state.witness(GoalId::new(0), text).unwrap_err();
+            assert_eq!(name(error), fault, "{text}");
+        }
+        // Several faults: an applied name is resolved at its closing
+        // bracket, so the bracket left open is the first.
+        for (text, fault) in [
+            ("g(a", "Unclosed"),
+            ("p(a", "Unclosed"),
+            ("g(h)", r#"UnknownSymbol { name: "h" }"#),
+        ] {
+            let error = state.witness(GoalId::new(0), text).unwrap_err();
+            let StepError::Witness { fault: found } = error else {
+                panic!("not a witness's fault: {error}");
+            };
+            assert!(format!("{found:?}").starts_with(fault), "{text}: {found:?}");
+        }
+        assert!(state.witness(GoalId::new(0), "f(a, f(b, a))").is_ok());
     }
 
     /// A typed witness and every instance are held to the bound on terms

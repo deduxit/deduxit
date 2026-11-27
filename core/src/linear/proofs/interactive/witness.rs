@@ -12,6 +12,7 @@ use crate::linear::proofs::Rule;
 use crate::linear::proofs::derivation::InfId;
 use crate::linear::proofs::multiset::Multiset;
 use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Symbol};
+use crate::witness::Name;
 
 impl Interactive {
     /// Reads a witness from text, such as `f(a, g(b))`, for a [`Step`]'s
@@ -39,99 +40,14 @@ impl Interactive {
             .as_ref()
             .map(|q| eigen_names(fo, &q.shown.eigenvariables()))
             .unwrap_or_default();
-        let predicates = super::predicates(fo);
-        // The tokens: names, brackets and commas.
-        let mut tokens = Vec::new();
-        let mut name = String::new();
-        for c in text.chars().chain([' ']) {
-            if c.is_whitespace() || matches!(c, '(' | ')' | ',') {
-                if !name.is_empty() {
-                    tokens.push(std::mem::take(&mut name));
-                }
-                if !c.is_whitespace() {
-                    tokens.push(c.to_string());
-                }
-            } else {
-                name.push(c);
-            }
-        }
-        // A name is a node, applied to the terms in the brackets after it.
-        // The open applications wait on a stack with their arguments.
-        let mut nodes: Vec<TermNode> = Vec::new();
-        let mut open: Vec<(Symbol, Vec<u32>)> = Vec::new();
-        let mut done: Option<u32> = None;
-        let mut tokens = tokens.into_iter().peekable();
-        while let Some(token) = tokens.next() {
-            match token.as_str() {
-                "(" | ")" | "," if done.is_none() && token != "(" => {
-                    return Err(fault(WitnessFault::Missing { before: token }));
-                }
-                "(" => return Err(fault(WitnessFault::Bracket)),
-                "," | ")" => {
-                    let (Some((_, args)), Some(arg)) = (open.last_mut(), done.take()) else {
-                        return Err(fault(WitnessFault::Unopened { token }));
-                    };
-                    args.push(arg);
-                    if token == ")"
-                        && let Some((f, args)) = open.pop()
-                    {
-                        let arity = fo.symbols[f.index()].1 as usize;
-                        if args.len() != arity {
-                            return Err(fault(WitnessFault::Arity {
-                                name: fo.symbols[f.index()].0.clone(),
-                                arity: fo.symbols[f.index()].1,
-                                given: Some(args.len()),
-                            }));
-                        }
-                        done = Some(push(&mut nodes, TermNode::App(f, args)));
-                    }
-                }
-                _ if done.is_some() => {
-                    return Err(fault(WitnessFault::Comma { token }));
-                }
-                name => {
-                    let applied = tokens.peek().is_some_and(|t| t == "(");
-                    if let Some((&a, _)) = eigens.iter().find(|(_, n)| n.as_str() == name) {
-                        if applied {
-                            return Err(fault(WitnessFault::Applied { name: name.into() }));
-                        }
-                        done = Some(push(&mut nodes, TermNode::Eigen(a)));
-                        continue;
-                    }
-                    let Some(f) = fo.symbols.iter().position(|(s, _)| s == name) else {
-                        return Err(fault(WitnessFault::UnknownSymbol { name: name.into() }));
-                    };
-                    // The cast is exact: a sequent has fewer symbols than a
-                    // `u32` counts.
-                    let f = Symbol::new(f as u32);
-                    if predicates.contains(&f) {
-                        return Err(fault(WitnessFault::Predicate { name: name.into() }));
-                    }
-                    let arity = fo.symbols[f.index()].1;
-                    match (applied, arity) {
-                        (true, _) => {
-                            tokens.next();
-                            open.push((f, Vec::new()));
-                        }
-                        (false, 0) => done = Some(push(&mut nodes, TermNode::App(f, Vec::new()))),
-                        (false, _) => {
-                            return Err(fault(WitnessFault::Arity {
-                                name: name.into(),
-                                arity,
-                                given: None,
-                            }));
-                        }
-                    }
-                }
-            }
-        }
-        if !open.is_empty() {
-            return Err(fault(WitnessFault::Unclosed));
-        }
-        if done.is_none() {
-            return Err(fault(WitnessFault::Empty));
-        }
-        Ok(Witness::Term(nodes))
+        let mut reading = Reading {
+            fo,
+            eigens: &eigens,
+            predicates: super::predicates(fo),
+            nodes: Vec::new(),
+        };
+        crate::witness::read(&mut reading, crate::witness::tokens(text)).map_err(fault)?;
+        Ok(Witness::Term(reading.nodes))
     }
 
     /// Builds a witness given flat into the table for a step on `goal`, and
@@ -316,6 +232,70 @@ impl Interactive {
             FoTerm::Eigen(a) => Some(a),
             FoTerm::Bound(_) | FoTerm::App(..) | FoTerm::Meta(_) => None,
         }
+    }
+}
+
+/// A witness of the linear session read from text: its names resolved
+/// in the sequent's symbols and the session's eigenvariables, its nodes
+/// made flat.
+struct Reading<'a> {
+    /// The sequent's first-order tables.
+    fo: &'a crate::linear::sequents::fo::FirstOrder,
+    /// Every eigenvariable of the session with the name it is written by.
+    eigens: &'a crate::hash::HashMap<Eigen, String>,
+    /// The predicates, which no witness names.
+    predicates: Vec<Symbol>,
+    /// The nodes made, each after those it applies to.
+    nodes: Vec<TermNode>,
+}
+
+impl crate::witness::Witnesses for Reading<'_> {
+    type Term = u32;
+    type Function = Symbol;
+
+    const BRACKET_AFTER_TERM: bool = true;
+
+    fn name(&mut self, name: &str, applied: bool) -> Result<Name<u32, Symbol>, WitnessFault> {
+        if let Some((&a, _)) = self.eigens.iter().find(|(_, n)| n.as_str() == name) {
+            if applied {
+                return Err(WitnessFault::Applied { name: name.into() });
+            }
+            return Ok(Name::Term(push(&mut self.nodes, TermNode::Eigen(a))));
+        }
+        let Some(f) = self.fo.symbols.iter().position(|(s, _)| s == name) else {
+            return Err(WitnessFault::UnknownSymbol { name: name.into() });
+        };
+        // The cast is exact: a sequent has fewer symbols than a `u32`
+        // counts.
+        let f = Symbol::new(f as u32);
+        if self.predicates.contains(&f) {
+            return Err(WitnessFault::Predicate { name: name.into() });
+        }
+        let arity = self.fo.symbols[f.index()].1;
+        match (applied, arity) {
+            (true, _) => Ok(Name::Applied(f)),
+            (false, 0) => Ok(Name::Term(push(
+                &mut self.nodes,
+                TermNode::App(f, Vec::new()),
+            ))),
+            (false, _) => Err(WitnessFault::Arity {
+                name: name.into(),
+                arity,
+                given: None,
+            }),
+        }
+    }
+
+    fn apply(&mut self, f: Symbol, args: Vec<u32>) -> Result<u32, WitnessFault> {
+        let (name, arity) = &self.fo.symbols[f.index()];
+        if args.len() != *arity as usize {
+            return Err(WitnessFault::Arity {
+                name: name.clone(),
+                arity: *arity,
+                given: Some(args.len()),
+            });
+        }
+        Ok(push(&mut self.nodes, TermNode::App(f, args)))
     }
 }
 

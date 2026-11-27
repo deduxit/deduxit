@@ -351,6 +351,9 @@ pub mod ordinary;
 pub mod protocol;
 #[cfg(feature = "serialize")]
 pub mod rules;
+/// Reading a witness term typed as text, for the interactive sessions.
+#[cfg(feature = "interactive")]
+mod witness;
 /// The supertraits that keep the crate's public traits to its own types.
 mod sealed {
     /// Seals [`Owner`](crate::Owner): only the crate's types own the

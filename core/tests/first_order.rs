@@ -1761,3 +1761,53 @@ fn a_session_refuses_what_no_step_could_make() {
     let error = serde_json::from_str::<Interactive>(&forged).unwrap_err();
     assert!(error.to_string().contains("mark"), "{error}");
 }
+
+/// Returns the name of the fault a witness's text was refused for.
+fn fault_name(error: &StepError) -> String {
+    match error {
+        StepError::Witness { fault, .. } => format!("{fault:?}")
+            .split([' ', '{'])
+            .next()
+            .unwrap_or_default()
+            .to_owned(),
+        other => panic!("not a witness's fault: {other}"),
+    }
+}
+
+/// Each text that is no witness is refused for its first fault, a
+/// bracket after a whole term as a stray bracket.
+#[test]
+fn a_witness_text_is_refused_for_its_first_fault() {
+    let sequent: Sequent = "|- exists x. p(x), q(f(a, b))".parse().unwrap();
+    let state = Interactive::new(&sequent, Mode::CLASSICAL).unwrap();
+    for (text, fault) in [
+        ("", "Empty"),
+        ("(", "Bracket"),
+        (")", "Missing"),
+        ("a b", "Comma"),
+        ("a)", "Unopened"),
+        ("f(a, b", "Unclosed"),
+        ("f(a, b)(a)", "Bracket"),
+        ("g", "UnknownSymbol"),
+        ("p", "Predicate"),
+        ("f(a)", "Arity"),
+        ("f", "Arity"),
+        ("a(b)", "Arity"),
+    ] {
+        let error = state.witness(text).unwrap_err();
+        assert_eq!(fault_name(&error), fault, "{text}");
+    }
+    // Several faults: an applied name is resolved at the name, so its
+    // fault comes before the bracket left open.
+    for (text, fault) in [
+        ("g(a", "UnknownSymbol"),
+        ("p(a", "Predicate"),
+        ("g(h)", r#"UnknownSymbol { name: "g" }"#),
+    ] {
+        let Err(StepError::Witness { fault: found, .. }) = state.witness(text) else {
+            panic!("{text} is read");
+        };
+        assert!(format!("{found:?}").starts_with(fault), "{text}: {found:?}");
+    }
+    assert!(state.witness("f(a, f(b, a))").is_ok());
+}
