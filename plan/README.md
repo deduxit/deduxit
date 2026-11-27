@@ -8752,3 +8752,15 @@ move (D26).
   refactor's base). **For the author:** 0.8.0's Kripke check accepted such a forged document, and its
   certificates with `=` did not compile; whether that warrants a 0.8.1 before 0.9.0 is theirs to
   say. 87a has its go (cores 4-9).
+- 2026-11-27, about 12:26: **Step 87's Rocq part 1 (87r1 to 87r4) reviewed and pushed.** (Opus, high, in
+  step 85's worker; the panel on 87r2, the reviewer on Fable for each.) rocq-deduxit `xrzlqylk` (87r1:
+  `tests/Interface/` pins every name the exporter's ten preludes use; README's Rocq blocks compiled;
+  Rocq's default warnings errors in the check; opam installs in CI on 9.0.1 to 9.3.0; the standard
+  library bounded; the release archive with its SHA-512), then `lswpxwzm` (87r2: what the checkers
+  share written once, the old and new checkers proved equal, no statement changed; 87r3: the
+  abbreviations written out, every proof under `-mangle-names`, now a check, one new lemma name;
+  87r4: the suites' order in the texts). deduxit's lock moved twice through CI (`rtyuqsvy`, then this
+  head). **A decision (decided unattended):** F-9-18, a `let` per shared subterm in the exporter's
+  certificates, measured 3.8 times faster to compile at `!A ⊢ A^256` (570 KB to 27 KB) but changes
+  every certificate's text, which 87c3 forbids; it becomes its own step after 87c3 in wave D (87d4),
+  a change of output with its snapshots, not of the API. F-9-10 measured: no change needed.

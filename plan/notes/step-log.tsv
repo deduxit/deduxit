@@ -157,5 +157,5 @@ fixup-30	text	opus-5-5	high	reviewer (fable)	local_323b92cf	2026-11-27 00:23	202
 86	audit	fable-5-2	high	workflow: finders (opus), architecture reader (fable), verifiers (the other model), inventories (sonnet)	local_138761aa	2026-11-27 00:40	2026-11-27 10:16	the audit for 0.9.0: criteria, baselines, a consumer test, findings and one API proposal (the author's session)
 fixup-31	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_444bd43f	2026-11-27 09:02	2026-11-27 11:13	the Kripke check refuses equality it cannot read (a soundness defect of 0.8.0); resolution's read-back within bounds
 86	step	-	-	-	-	-	2026-11-27 10:16	complete: the audit, 379 findings (371 standing), the API proposal for the author, the refactor planned in 49 steps
-87r	library	opus-5-5	high	panel on 87r2 (fable argument), reviewer (fable)	local_323b92cf	2026-11-27 10:16		the Rocq library's refactor, part 1 (87r1 to 87r4)
+87r	library	opus-5-5	high	panel on 87r2 (fable argument), reviewer (fable)	local_323b92cf	2026-11-27 10:16	2026-11-27 12:26	the Rocq library's refactor, part 1 (87r1 to 87r4)
 87a	small	opus-5-5	high	reviewer (fable)	local_f82f76ce	2026-11-27 10:16		journeys and pins for what nothing measures (starts when fixup-31 lands)

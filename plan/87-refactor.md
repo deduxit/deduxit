@@ -165,6 +165,14 @@ D3, D4, P25's steps 1 and 2 (they change no call); F-8-03, F-5a-07.
 `clippy.toml` with `disallowed-types`. Measured by `cargo llvm-lines`
 and the module's bytes at gzip. Beside 87d1.
 
+**87d4. Certificates with shared subterms.** F-9-18, measured by 87r4:
+a `let` per shared subterm in the exporter's Rocq certificates compiles
+3.8 times faster at `!A ⊢ A^256` (570 KB to 27 KB of text). *Changes
+output*: every certificate's text and its snapshots, not their
+statements; after 87c3 (which keeps the text byte for byte). The
+`rocq`, `rocq-deduxit` and `check-certificate` checks; panel
+(certificates). Added 2026-11-27 by the planning session.
+
 **87d3. The candidates.** D5, on 87a's journeys: each measured, kept if
 a count moves, recorded as tried in its unit's rules file if not.
 F-1c-13 and F-2a-08 would be search changes: only with the planning
