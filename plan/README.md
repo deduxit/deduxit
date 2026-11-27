@@ -8862,3 +8862,15 @@ move (D26).
   memory bound). (departs from the plan) each builder keeps its loop and rule order. Rebased onto
   87b1 and 87c3 with no conflict; in CI before `main`. 87c4 (the nets; the panel) in its worker on
   87c2's head, cores 10-12; 87c7 waits for 87c8 (both touch refusals across the suites).
+- 2026-11-27, about 22:33: **87c8 reviewed; 87c7 started.** 87c8 (Opus, high; the reviewer on
+  Fable): the library's repeated code shared, with no change of behaviour: the wire levels named in
+  their order, one rebuild of the workspace's record index, the rule files' lookups, defaults and
+  checks, lambda-terms' naming and the parsers' subscripts, the linear proofs' formula text and the
+  sessions' repeated steps, one derivation bound and one reader of a witness typed as text. Both
+  target sets equal to 86. The reviewer found no change of behaviour; its two findings answered (the
+  witness tests gained texts with several faults). (departs from the plan) F-5a-14 waits for after
+  87c3's exports; F-5a-08's two lambda readers stay two (the untyped one makes free names its
+  context as they appear; a merge would put an optional type through the typed rules; the subscripts
+  and the turnstile test are shared). Rebased onto `main` with no conflict; in CI before `main`. 87c7 (the linear
+  engines' repeats, one meter, the memory account at the root; the panel) in its worker on 87c8's
+  head, cores 7-9.
