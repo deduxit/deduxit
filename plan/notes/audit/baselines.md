@@ -31,6 +31,44 @@ compares against these numbers; the release compares the whole.
 | line counts per module | below; `inventories/lines.md`, `units.md` |
 | the engines' times | the fifth benchmark baseline, `bench/results/2026-11-27/` |
 
+## Again at the refactor's base (step 87a)
+
+fixup-31 changed sources after `vqwqlqkl` (the Kripke model's check of
+`=`, first-order resolution's bounded terms, ordinary logic's protocol),
+so step 87a took the measured baselines again at `kmxoxyxv`, main with
+fixup-31, on 2026-11-27. The sections below keep the numbers of
+`vqwqlqkl`; where a measurement was taken again, the inventory beside
+this file is the new one.
+
+| baseline | at `kmxoxyxv` | against `vqwqlqkl` |
+|---|---|---|
+| the target sets (`bench/targets/87a-base.csv`, `net-87a-base.csv`) | 145 rows decided alike, 0 counters apart; 64 and 0 | equal to `86.csv` and `net-86.csv` |
+| the ratchet, the first twenty journeys (`inventories/ratchet.out`, now with all 42 at the step's head) | `check-qbf-20-2` 138 825 952 (+0.52 %), `ordinary-pigeons` 32 133 670 (+0.04 %), every other count within 0.2 % | the shell's build; the sandbox's counts `render-latex` +2.10 % and `render-svg` +2.02 % over their ceilings, which fails the flake's `ratchet` check (87a raised both) |
+| the web module, raw (`inventories/wasm.md`) | 8 400 items, 11 220 210 bytes | +4 074 bytes, `ordinary` +3 800 |
+| LLVM lines (`inventories/llvm-lines.txt`) | 3 345 135 lines, 68 842 copies | +1 634 lines, +34 copies |
+| allocations (`inventories/dhat.md`) | all 42 journeys of step 87a's head, the first twenty as before | unchanged on the first twenty |
+| compile and test times (`inventories/timings.md`) | on cores 7 to 9 (below) | not comparable: other cores |
+
+Compile and test times on cores 7 to 9, three jobs, nothing else on
+them (`plan/audit/stage0.sh timings` with `AUDIT_CORES=7-9`, at the
+step's head, whose changes are in `bench/` alone); they compare with
+later runs on those cores only:
+
+| what | wall s | CPU s |
+|---|---:|---:|
+| the workspace, dev profile | 68 | 162 |
+| again after the core crate's root changed | 8 | 14 |
+| the tests built | 96 | 248 |
+| the tests run | 179 | 346 |
+| the command, release profile | 265 | 405 |
+| the core crate alone, dev profile, default features | 32 | 50 |
+| the core crate alone, dev profile, no default features | 13 | 20 |
+
+Each journey's heap blocks inside its measured part are now the
+ratchet's second count (`bench/ceilings.csv`, `journey,instructions,
+blocks`), which a refactor step compares instead of DHAT's totals:
+DHAT profiles the whole process, the input's generation included.
+
 ## Performance: the fifth benchmark baseline
 
 `bench/results/2026-11-27/` (finished 03:42 on 2026-11-27) is the timing

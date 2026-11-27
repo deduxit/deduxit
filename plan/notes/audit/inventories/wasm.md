@@ -1,17 +1,17 @@
 # The web module's bytes, by where they come from
 
-8398 items, 11216136 bytes raw (before wasm-bindgen and wasm-opt).
+8400 items, 11220210 bytes raw (before wasm-bindgen and wasm-opt).
 
 ## By module of the library
 
 | module | bytes | share |
 |---|---:|---:|
 | `deduxit::linear` | 2188457 | 19.5 % |
-| `deduxit::ordinary` | 1660209 | 14.8 % |
+| `deduxit::ordinary` | 1664009 | 14.8 % |
 | `deduxit::serialize` | 1242864 | 11.1 % |
 | `deduxit::export` | 787119 | 7.0 % |
 | `deduxit::lambda` | 671609 | 6.0 % |
-| `deduxit::protocol` | 500191 | 4.5 % |
+| `deduxit::protocol` | 500295 | 4.5 % |
 | `deduxit::rules` | 328757 | 2.9 % |
 | `deduxit::workspace` | 222482 | 2.0 % |
 | `deduxit::modal` | 128298 | 1.1 % |
@@ -24,7 +24,7 @@
 | `deduxit::unify` | 9696 | 0.1 % |
 | `deduxit::name` | 7235 | 0.1 % |
 | `deduxit::goal_tree` | 2598 | 0.0 % |
-| all of deduxit | 8056981 | 71.8 % |
+| all of deduxit | 8060885 | 71.8 % |
 
 ## Inside `deduxit::linear`
 
@@ -45,23 +45,23 @@
 | `deduxit::ordinary::connection` | 199018 | 1.8 % |
 | `deduxit::ordinary` | 194779 | 1.7 % |
 | `deduxit::ordinary::interactive` | 159358 | 1.4 % |
-| `deduxit::ordinary::resolution` | 145879 | 1.3 % |
+| `deduxit::ordinary::resolution` | 149043 | 1.3 % |
 | `deduxit::ordinary::sat` | 119229 | 1.1 % |
 | `deduxit::ordinary::normal` | 104775 | 0.9 % |
 | `deduxit::ordinary::herbrand` | 72166 | 0.6 % |
 | `deduxit::ordinary::interpolant` | 69177 | 0.6 % |
 | `deduxit::ordinary::derivation` | 65703 | 0.6 % |
-| `deduxit::ordinary::models` | 64757 | 0.6 % |
+| `deduxit::ordinary::models` | 64806 | 0.6 % |
 | `deduxit::ordinary::grounding` | 58523 | 0.5 % |
 | `deduxit::ordinary::written` | 57169 | 0.5 % |
 | `deduxit::ordinary::ljt` | 48945 | 0.4 % |
 | `deduxit::ordinary::rocq` | 40772 | 0.4 % |
-| `deduxit::ordinary::kripke_structure` | 38492 | 0.3 % |
+| `deduxit::ordinary::kripke_structure` | 38730 | 0.3 % |
 | `deduxit::ordinary::kripke_search` | 33245 | 0.3 % |
 | `deduxit::ordinary::translate` | 27132 | 0.2 % |
 | `deduxit::ordinary::decide` | 25951 | 0.2 % |
 | `deduxit::ordinary::structure` | 23787 | 0.2 % |
-| `deduxit::ordinary::rocq_models` | 21554 | 0.2 % |
+| `deduxit::ordinary::rocq_models` | 21903 | 0.2 % |
 | `deduxit::ordinary::parse` | 20384 | 0.2 % |
 | `deduxit::ordinary::equality` | 13643 | 0.1 % |
 | `deduxit::ordinary::negative` | 13607 | 0.1 % |
@@ -77,8 +77,8 @@
 
 | group | bytes | share |
 |---|---:|---:|
-| sections of names and producers | 1362214 | 12.1 % |
-| data segments | 541339 | 4.8 % |
+| sections of names and producers | 1362318 | 12.1 % |
+| data segments | 541403 | 4.8 % |
 | the bindings (deduxit_web) | 526892 | 4.7 % |
 | crate core | 243999 | 2.2 % |
 | crate serde_json | 193149 | 1.7 % |
@@ -88,7 +88,7 @@
 | the bindings (deduxit_web_tab) | 25229 | 0.2 % |
 | crate batsat | 20842 | 0.2 % |
 | crate serde | 19966 | 0.2 % |
-| tables, types, imports and exports | 16682 | 0.1 % |
+| tables, types, imports and exports | 16684 | 0.1 % |
 | crate dlmalloc | 7991 | 0.1 % |
 | crate serde_core | 7972 | 0.1 % |
 | crate std | 3986 | 0.0 % |
@@ -144,8 +144,8 @@
 
 | bytes | item |
 |---:|---|
-| 1333009 | `"function names" subsection` |
-| 540746 | `data segment ".rodata"` |
+| 1333113 | `"function names" subsection` |
+| 540810 | `data segment ".rodata"` |
 | 75429 | `deduxit::export::svg::mell::draw` |
 | 73806 | `<deduxit::lambda::Node as serde_core::de::Deserialize>::deserialize::<&mut serde_json::de::Deserializer<serde_json::read::StrRead>>` |
 | 73806 | `<deduxit::lambda::Node as serde_core::de::Deserialize>::deserialize::<&mut serde_json::de::Deserializer<serde_json::read::StrRead>>` |
