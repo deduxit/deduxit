@@ -59,7 +59,9 @@ def size(root, rel):
 
 def main():
     deduxit, rocq, out = sys.argv[1], sys.argv[2], sys.argv[3]
-    with open(os.path.join(os.path.dirname(__file__), "units.json"), encoding="utf-8") as f:
+    with open(
+        os.path.join(os.path.dirname(__file__), "units.json"), encoding="utf-8"
+    ) as f:
         units = json.load(f)
     held = set()
     print("| unit | area | what | files | lines | kB | rules files |")

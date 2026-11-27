@@ -210,7 +210,9 @@ def assumptions(library, work, files):
         while names:
             path = os.path.join(scratch, "_".join(parts) + ".v")
             with open(path, "w", encoding="utf-8") as f:
-                f.write(f"From {'.'.join(['Deduxit', *parts[:-1]])} Require {parts[-1]}.\n")
+                f.write(
+                    f"From {'.'.join(['Deduxit', *parts[:-1]])} Require {parts[-1]}.\n"
+                )
                 for name in names:
                     f.write(f"Print Assumptions {name}.\n")
             _, status, out, err = rocq(work, [*LIBRARY, path])
@@ -237,7 +239,9 @@ def assumptions(library, work, files):
         print(f"- `{name}`: {' '.join(answer)[:300]}")
     for name, why in unresolved:
         print(f"- not resolved: `{name}` ({why})")
-    print("\n| file | theorems and lemmas | in `tests/Assumptions.v` |\n|---|---:|---:|")
+    print(
+        "\n| file | theorems and lemmas | in `tests/Assumptions.v` |\n|---|---:|---:|"
+    )
     for file, count, covered in per_file:
         print(f"| `{file}` | {count} | {covered} |")
 
@@ -269,8 +273,14 @@ def habits(work, files):
                 for name, pattern in patterns.items():
                     if re.search(pattern, line):
                         counts[name] += 1
-                found = re.match(r"^\s*From (\S+) Require (?:Import |Export )?(.*)\.", line)
-                if found and found.group(1) != "Deduxit" and "Deduxit" not in found.group(1):
+                found = re.match(
+                    r"^\s*From (\S+) Require (?:Import |Export )?(.*)\.", line
+                )
+                if (
+                    found
+                    and found.group(1) != "Deduxit"
+                    and "Deduxit" not in found.group(1)
+                ):
                     for module in found.group(2).split():
                         requires[f"{found.group(1)}.{module}"] += 1
     print("\n## Habits of the sources (`theories/`)\n")
@@ -285,7 +295,9 @@ def habits(work, files):
 def interface(deduxit, files):
     """Prints the library's modules the exporter's certificates import."""
     imported = Counter()
-    pattern = re.compile(r"From (Deduxit[A-Za-z.]*) Require (?:Import |Export )?([A-Za-z. ]+?)\.")
+    pattern = re.compile(
+        r"From (Deduxit[A-Za-z.]*) Require (?:Import |Export )?([A-Za-z. ]+?)\."
+    )
     for d, dirs, names in os.walk(os.path.join(deduxit, "core", "src")):
         dirs[:] = [x for x in dirs if x != "target"]
         for name in names:

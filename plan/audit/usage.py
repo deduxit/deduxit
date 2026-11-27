@@ -37,7 +37,9 @@ def read(path):
                 record = json.loads(line)
             except ValueError:
                 continue
-            if record.get("isCompactSummary") or "compact" in str(record.get("type", "")):
+            if record.get("isCompactSummary") or "compact" in str(
+                record.get("type", "")
+            ):
                 compactions += 1
             message = record.get("message")
             if record.get("type") != "assistant" or not isinstance(message, dict):
@@ -59,7 +61,9 @@ def thousands(n):
 
 def main():
     total = defaultdict(lambda: [0, 0, 0, 0])
-    print("| run | agent | model | requests | new input | cache written | cache read | output | compactions |")
+    print(
+        "| run | agent | model | requests | new input | cache written | cache read | output | compactions |"
+    )
     print("|---|---|---|---:|---:|---:|---:|---:|---:|")
     for directory in sys.argv[1:]:
         run = os.path.basename(os.path.normpath(directory))

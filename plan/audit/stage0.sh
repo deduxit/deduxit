@@ -133,6 +133,7 @@ dhat() {
     capped -- valgrind --tool=dhat "--dhat-out-file=$out/dhat/$journey.json" \
       target/dhat/release/deduxit-bench journey "$journey" 2>"$out/dhat/$journey.txt" >/dev/null </dev/null
   done <bench/ceilings.csv
+  python3 "$tools/dhat.py" "$out/dhat" >"$out/dhat.md"
 }
 
 # The Rocq library's inventory, built in a copy under target/audit/rocq

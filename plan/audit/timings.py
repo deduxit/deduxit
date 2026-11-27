@@ -91,9 +91,7 @@ def main():
     finally:
         os.utime(lib, ns=(kept.st_atime_ns, kept.st_mtime_ns))
 
-    step(
-        "the tests built", ["cargo", "test", "--workspace", "--locked", "--no-run"]
-    )
+    step("the tests built", ["cargo", "test", "--workspace", "--locked", "--no-run"])
     step("the tests run", ["cargo", "test", "--workspace", "--locked"])
     step(
         "the command, release profile",

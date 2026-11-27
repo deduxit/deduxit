@@ -81,7 +81,11 @@ def main():
     for d, dirs, names in os.walk(root):
         dirs.sort()
         for name in sorted(names):
-            if not name.endswith(".rs") or name in TEST_NAMES or name.endswith("_tests.rs"):
+            if (
+                not name.endswith(".rs")
+                or name in TEST_NAMES
+                or name.endswith("_tests.rs")
+            ):
                 continue
             rel = os.path.relpath(os.path.join(d, name), root)
             here = rel[: -len(".rs")].split(os.sep)
@@ -94,7 +98,9 @@ def main():
                     if target == source:
                         continue
                     edges[(source, target)] += 1
-                    items[(source.split("::")[0], target.split("::")[0])]["::".join(path)] += 1
+                    items[(source.split("::")[0], target.split("::")[0])][
+                        "::".join(path)
+                    ] += 1
 
     modules = sorted({m for pair in edges for m in pair})
     top = sorted({m.split("::")[0] for m in modules})
@@ -142,7 +148,9 @@ def main():
     for suite in ("linear", "ordinary"):
         inner = sorted(m for m in modules if m.startswith(suite + "::"))
         print(f"\n### `{suite}`\n")
-        print("| names → | " + " | ".join(f"`{m.split('::')[1]}`" for m in inner) + " |")
+        print(
+            "| names → | " + " | ".join(f"`{m.split('::')[1]}`" for m in inner) + " |"
+        )
         print("|---|" + "---:|" * len(inner))
         for source in inner:
             row = [str(edges.get((source, target), "") or "") for target in inner]
