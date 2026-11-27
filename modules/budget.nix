@@ -20,7 +20,12 @@
 
       # The modules the web page loads, in bytes at `gzip -9', what a
       # browser downloads. The bindings' module, which every visitor's
-      # worker loads: 2 915 974 on 2026-11-27 with untyped lambda-terms
+      # worker loads: 2 954 598 on 2026-11-27 with natural deduction's
+      # search (the translation of sequent proofs into normal natural
+      # deduction proofs and the rules session's close and hint, the
+      # bindings' two calls), 2 925 319 before it with the ordinary session's
+      # first-order close beside untyped lambda-terms; 2 915 974 that day
+      # with untyped lambda-terms
       # (their reader, the β stepper with its copy and renaming, the
       # principal type's unification, the protocol's two operations and
       # the bindings' two calls); 2 885 650 on 2026-11-26 with every candidate rule
@@ -63,7 +68,7 @@
       # whose runs and checks link every suite's operations; 3 166 704
       # before that; 3 111 006 on 2026-11-15, with calculi given as data;
       # 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
-      mostModuleBytes = 2950000;
+      mostModuleBytes = 3020000;
       # The renderers' module, loaded on a visitor's first PNG or PDF
       # export: 1 639 598 on 2026-11-21 (resvg and krilla with their
       # fonts', images' and filters' code, and the reader of every key of

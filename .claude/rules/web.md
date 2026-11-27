@@ -610,7 +610,11 @@ for `THIRD-PARTY-NOTICES.txt`.
   of nixpkgs, and never alone (the client loads the module this CLI
   writes, so the client's flake update follows the push).
 - **The budget** (`modules/budget.nix`): each module at `gzip -9` under a
-  ceiling of its own (the bindings' 2 900 000 bytes since 2026-11-26,
+  ceiling of its own (the bindings' 3 020 000 bytes since 2026-11-27,
+  2 954 598 that day with natural deduction's search, 2 925 319 before
+  it with the ordinary session's first-order close and untyped
+  lambda-terms (2 915 974 with the latter alone, under 2 950 000);
+  2 900 000 since 2026-11-26,
   2 885 650 that day with every candidate rule and its status, 2 867 073
   before; 2 650 000 bytes, 2 590 533 on
   2026-11-21 with both connection provers,
