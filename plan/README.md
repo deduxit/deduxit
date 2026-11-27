@@ -8808,3 +8808,9 @@ move (D26).
   engines as possible, carapace and Nushell among them, with the man pages. Recorded at the head of
   `plan/notes/audit/api-proposal.md` and in `plan/87-refactor.md` ("The author's answer"). Part 2 may
   run once part 1 is done.
+- 2026-11-27, about 16:15: **The proposal's section 13 answered** (the author). The `Term` to `Node`
+  rename of the linear suite is carried out (87h5); exit statuses, trusted Rocq statements and what a
+  checker accepts may change where they serve users ("possible but not necessary; realistically
+  nobody is using the library yet"), never against soundness; the feature with the data model and
+  the checkers without the engines is added now (87j1); a crate per suite, a generic goal state, one
+  verdict type, a trait over the checkers, the nets merged and a public `Drawn` are not implemented.

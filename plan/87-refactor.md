@@ -38,6 +38,15 @@ every part as recommended, P1 as the suite under the verb, and:
   new dependency through the `new-tool` skill and `cargo deny`;
   `Cargo.lock`'s package ceiling raised in a commit of its own if
   needed.
+- **Section 13, answered the same day**: 87h5 renames the linear suite's
+  `Term` and `TermId` to `Node` and `NodeId`. **87j1 adds the feature
+  with the data model and the checkers without the engines** (P24's
+  "asked"; its name and what it implies decided there, measured: the
+  build without default features with and without it), with `cargo
+  hack`'s runs and the checks over it. An exit status, a trusted
+  statement of the Rocq library or what a checker accepts may change
+  where it serves users, never against soundness, each a line of the
+  changelog. Nothing else of section 13 is implemented.
 
 ## What holds for every step
 

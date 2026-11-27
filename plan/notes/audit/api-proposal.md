@@ -28,6 +28,16 @@ me, please implement", with these additions:
   be supported, carapace among them (the author uses it), with the man
   pages as recommended.
 - **P5, P24 and every other part**: as recommended.
+- **Section 13, answered the same day**: the linear suite's `Term` and
+  `TermId` are renamed to `Node` and `NodeId` (with P13's renames);
+  breaking changes of an exit status, a trusted statement of the Rocq
+  library or what a checker accepts are allowed where they serve users
+  ("possible, not necessary": nobody depends on the library yet), never
+  at the cost of soundness; the feature with the data model and the
+  checkers without the engines (P24's "asked") is added now, in 0.9.0;
+  the rest of section 13 (a crate per suite, a generic goal state, one
+  verdict type, a trait over the checkers, the nets merged, a public
+  `Drawn`) is not implemented.
 
 **Decided already** (`criteria.md`, D1 to D4): no logic is the default
 in 0.9.0; the API may break where users gain; the exit statuses 0, 1, 2,
