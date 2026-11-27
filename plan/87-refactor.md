@@ -152,7 +152,9 @@ F-7b-17, F-7b-21, and the command's half of C8 (F-7b-08); `grade` reads
 the answer value. *One search change*: the library's default replaces
 the command's own copy for first-order ordinary sequents (F-7b-05); the
 benchmark's verdicts on the ILTP first-order rows show whether anything
-moves, and the step says so. After 87b3.
+moves, and the step says so. The common flags are declared as one
+struct that a command flattens in, so that 87i1 can give each suite its
+own arguments without declaring them again. After 87b3.
 
 ### Wave D: performance, by measurement
 
@@ -299,14 +301,44 @@ lists each of the 82 items and what became of it.
 
 ### Wave I: the command (P1, P5, P16 to P19)
 
-**87i1. The selector of the logic.** *Changes the command.* P1, P16,
-P17, P5 (the settings' keys, with the bindings and the client's stored
-settings); F-7a-01, F-7a-04, F-7a-05, F-6a-09, F-arch-14, F-arch-15.
-Every console block of README, the manual and the guide; the behaviour
-lock; `hint.rs`; the Rocq library's README (its line 66). After 87c9.
+**87i1. The suite as a subcommand under the verb.** *Changes the
+command.* P1 (decided by the author on 2026-11-27), P16, P17, P5 (the
+settings' keys, with the bindings and the client's stored settings);
+F-7a-01, F-7a-04, F-7a-05, F-6a-09, F-arch-14, F-arch-15.
+- `prove` takes `ordinary`, `linear` or `modal`; `interact` takes
+  `ordinary`, `linear` or `calculus`; `seq print` and `seq json` take
+  `ordinary`, `linear` or `modal`. One clap `Subcommand` enum per verb,
+  one `Args` struct per suite (the common flags flattened in from the
+  one declaration 87c9 made), the suites in the page's order.
+- The verbs of one suite stay plain (`resolve`, `herbrand`,
+  `interpolate`, `seq normalize`, `seq translate`, `eliminate`, `seq
+  fragment`, `term`), and so do `check`, `grade`, `workspace` and the
+  batch, which read the logic from their documents and records.
+- Under `linear`, `--mode MODE` with the library's mode names replaces
+  `-i`, `-a`, `--mix`, `--cyclic`, `--lambek` and
+  `--empty-antecedents`; `prove`'s `--linear` becomes `--image` under
+  `prove ordinary`, and `seq print ordinary --image` prints the linear
+  image.
+- **The default inside a suite follows the author's answer to P1's
+  one open choice**: by the recommendation `--logic` defaults to
+  classical, `--mode` to classical and `--system` to K, and the command
+  sets them (the library has no default, P2); by the alternative each
+  is required. Do not start this step before that answer.
+- A missing suite: clap's error for a required subcommand, with the
+  command's tip of one example per suite; `hint.rs`'s tips rewritten.
+- Each suite's `--help` carries that suite's syntax and options alone
+  (it settles F-7a-10's syntax section and most of F-7a-06's length;
+  87k2 does the rest).
+- Every console block of README, the manual and the guide that proves,
+  interacts or prints a sequent; the behaviour lock; the guide's name
+  check in `cli/tests/readme.rs`, which must know the new subcommands;
+  the Rocq library's README (its line 66), in that repository.
+After 87c9.
 
 **87i2. Completions, the man page, the sessions at a terminal.** P18,
-P19; F-7a-11, F-7b-12, F-7b-18, F-7b-19. After 87i1.
+P19; F-7a-11, F-7b-12, F-7b-18, F-7b-19. The completions and the man
+pages are generated from the command as 87i1 leaves it, a page per
+subcommand, the suites' among them. After 87i1.
 
 ### Wave J: the build
 
@@ -324,7 +356,9 @@ client.
 **87k1.** The front pages in the page's order: the crate docs, each
 suite's module docs, the exports', the help's syntax section, the
 manual's chapter on proving step by step (F1), with the examples of P22.
-**87k2.** The help and the manual's commands (F4), after 87i1.
+**87k2.** The help and the manual's commands (F4), after 87i1: the
+manual's chapters on proving, the sessions and `seq` each show every
+suite's subcommand, in the page's order.
 
 ### The Rocq library, part 2
 

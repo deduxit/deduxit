@@ -185,7 +185,7 @@ What a user of the library or of the command meets. `api-proposal.md` turns thes
 
 **What.** Every command that reads a sequent falls back to classical linear logic by five mechanisms, the batch has a default mode of its own in the library, and `ordinary::Logic` defaults to intuitionistic, so the first call a user writes answers for a logic nobody named. The Rocq library's README and the bindings' `about` rest on the same defaults.
 
-**Change.** A required selector of the suite on every command that reads a sequent; in the library, no `Default` for a logic, a mode or a modal system (`api-proposal.md`, sections 1 and 6).
+**Change.** The suite as a subcommand under each verb that serves several (`prove ordinary`, `prove linear`, `prove modal`), as the author decided on 2026-11-27; in the library, no `Default` for a logic, a mode or a modal system (`api-proposal.md`, sections 1 and 6).
 
 **Net.** The examples of README, the manual and the guide, the behaviour lock, the settings tests. No checker or search is touched.
 

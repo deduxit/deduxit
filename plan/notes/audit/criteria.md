@@ -41,7 +41,11 @@ own identifier or section kept so that a finder can look the rule up.
   requires the logic to be named, where today `prove` without `--logic`
   or `--system` reads linear logic. The API proposal designs the flags
   in the most idiomatic current form (L6, L8); it is not a question to
-  put again.
+  put again. Its form, decided by the author later that day: the suite
+  is a subcommand under the verb (`prove ordinary`, `prove linear`,
+  `prove modal`; `api-proposal.md`, P1). Whether a suite then has a
+  default member (classical, classical, K) is the one choice P1 leaves
+  to the author's sign-off.
 - **D2. The API may change significantly**; the next release is 0.9.0.
   A break is no cost by itself. It needs a reason, a line in the
   changelog and a migration note (B3).

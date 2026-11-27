@@ -28,7 +28,7 @@ below answers each).
 
 | part | what | size | breaks |
 |---|---|---|---|
-| P1 | the command's selector of the logic **(choice)** | large | every example |
+| P1 | the suite as a subcommand under the verb (decided), and a default inside a suite **(choice)** | large | every example |
 | P2 | no default logic in the library | small | `Default` impls, two settings |
 | P3 | shared root modules | large | public paths; labels reach every suite's drawings |
 | P4 | one options value per front door | medium | ordinary logic's signatures |
@@ -56,61 +56,84 @@ below answers each).
 
 ## 1. No logic is the default (D1)
 
-### P1. The command's selector (choice)
+### P1. The suite as a subcommand under the verb (decided; one choice left)
 
 Today every command that reads a sequent falls back to classical linear
 logic, by five mechanisms (F-7a-01 has the table per command).
 
-**Recommended: one flag per suite, exactly one of them required**, as a
-required clap `ArgGroup`:
+**Decided by the author on 2026-11-27**: a verb that serves several
+suites takes the suite as its subcommand.
 
-| suite | flag | values |
-|---|---|---|
-| ordinary logic | `--ordinary LOGIC` | `classical`, `intuitionistic`, `minimal` |
-| linear logic | `--linear MODE` | the library's mode names: `classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`, `intuitionistic-affine`, `cyclic`, `lambek`, `lambek-star` |
-| modal logic | `--modal SYSTEM` | the fifteen systems: `K`, `D`, `T`, `S4`, `S5` and ten more |
-| a calculus given as data | `--calculus NAME-OR-FILE` | a built-in calculus or a rule file |
+```console
+deduxit prove ordinary --logic intuitionistic 'a -> b |- b'
+deduxit prove linear --mode affine 'A -o B, A |- B'
+deduxit prove modal --system S4 '[]p -> p'
+deduxit interact linear 'A -o B, A |- B'
+deduxit seq print ordinary 'a -> b |- b'
+```
 
-- Without one, clap answers with its error for a missing required
-  group, which names the four flags, and the command adds a tip with an
-  example per suite.
-- An input that states its own logic needs none and is never refused
-  for lacking one: a proof or outcome file, a saved session, a batch
-  whose records name a mode, a `.spec` file (always affine).
-- A command that serves one logic names it too, since D1 asks it of
-  every command that reads a sequent: `resolve`, `herbrand` and `seq
-  normalize` take `--ordinary classical`, the one value they accept.
-  `interpolate` loses its default.
-- The group differs per command (`prove` has no `--calculus`, `interact`
-  no `--modal`), so it is one argument struct per set.
-- The linear mode flags `-i`, `-a`, `--mix`, `--cyclic`, `--lambek`,
-  `--empty-antecedents` go: `--linear MODE` spells a mode as the batch,
-  the workspace and the JSON forms already do. `prove`'s present
-  `--linear` (show the image's proof) becomes `--image`.
-- The `term` commands read a term, not a sequent, and take no selector.
-  Their `--calculus` (one of the library's nine lambda calculi) stays:
-  the verifier of F-7a-05 judged that the flag names the calculus to
-  work in on every command that has it, and that a rename is not worth
-  a break.
+| verb | its suites |
+|---|---|
+| `prove` | `ordinary`, `linear`, `modal` |
+| `interact` | `ordinary`, `linear`, `calculus` (a built-in calculus or a rule file) |
+| `seq print`, `seq json` | `ordinary`, `linear`, `modal` (P16) |
 
-Why this form: each suite's values keep their own type and help; no
-value needs a prefix to be unambiguous (`classical` is a logic of two
-suites); and the flags carry the suites' names evenly (D4), where
-`--logic` for ordinary logic alone reads as "the" logic.
+- Each suite's arguments are a struct of their own, with a `--help` of
+  their own: `deduxit prove --help` lists the suites in the page's
+  order, `deduxit prove modal --help` shows the modal options and the
+  modal syntax and nothing of another suite. That also answers two
+  findings on the help: one command's help of 538 lines, and a syntax
+  section that is linear logic's with ordinary logic appended and modal
+  logic nowhere (F-7a-06, F-7a-10).
+- A missing suite is clap's error for a required subcommand, which
+  lists the suites; the command adds a tip with one example per suite.
+- **Verbs that belong to one suite stay plain verbs**, with no
+  subcommand: `resolve`, `herbrand`, `interpolate`, `seq normalize` and
+  `seq translate` (ordinary logic), `eliminate` and `seq fragment`
+  (linear logic), `term` (lambda-terms).
+- **Verbs that read what states its own logic take none**: `check` and
+  `grade` read documents, `workspace` and the batch read records that
+  name theirs; a saved session and a `.spec` file (always affine) carry
+  theirs too.
+- The suite's member is named inside the suite by the flags that exist:
+  `--logic LOGIC` under `ordinary`, `--system SYSTEM` under `modal`, and
+  under `linear` one flag `--mode MODE` with the library's nine mode
+  names (`classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`,
+  `intuitionistic-affine`, `cyclic`, `lambek`, `lambek-star`), as the
+  batch, the workspace and the JSON forms already spell them. The
+  linear shorthand flags `-i`, `-a`, `--mix`, `--cyclic`, `--lambek` and
+  `--empty-antecedents` go.
+- `prove`'s present flag `--linear` (show the proof of the linear
+  image) becomes `--image`, under `prove ordinary`.
+- The `term` commands' `--calculus` (one of the library's nine lambda
+  calculi) stays: the verifier of F-7a-05 judged a rename not worth a
+  break.
 
-**The alternative**: the same required group over the present flags,
-`--logic` (ordinary) and `--system` (modal) unchanged, `--linear MODE`
-new. It changes only the linear examples. It keeps the uneven names,
-and it keeps the letter of the decision of 2026-11-09, "`--logic`
-chooses the suite", which the recommendation departs from in the flag's
-name: four flags named for the suites in place of one.
+Why a subcommand and not a flag: the suite decides which other options
+apply at all, which is what clig.dev and clap's shape give to a
+subcommand, and each suite gets a help page a user of that suite can
+read. The decision of 2026-11-09 put verbs first and let `--logic`
+choose the suite; the author keeps "verbs first" and lifts the second.
+A suite is still never a top-level command, a binary or an alias.
 
-**Not recommended**: one flag `--logic` with every logic of every suite
-as a value (about 25 values, with prefixes such as `linear-affine`); a
-subcommand per suite (the decision of 2026-11-09 rules it out).
+**The choice left: a default inside a suite.**
 
-Breaks: every console block of README, the manual and the guide; the
-behaviour lock; `hint.rs`'s tips; the Rocq library's README (line 66).
+- **Recommended**: each suite has a default member, classical logic
+  under `ordinary`, the classical mode under `linear`, the system K
+  under `modal`. Naming the suite already keeps any suite from being
+  the main one, which is what D1 is for, and a default of this kind is
+  conventional: `deduxit prove linear 'A |- A'` reads as it should. The
+  default is the command's own; the library has none (P2). `interpolate`
+  keeps its default, classical logic, by the same rule, and a proof file
+  without a `mode` is read as classical, as today.
+- **The alternative**: require `--logic`, `--mode` and `--system` too.
+  It keeps the letter of D1 as first recorded ("requires the logic to
+  be named"), and costs every example one more flag.
+
+Breaks: every console block of README, the manual and the guide that
+proves, interacts or prints a sequent; the behaviour lock; `hint.rs`'s
+tips (`add --logic classical` becomes `use prove ordinary`); the Rocq
+library's README (its line 66).
 
 ### P2. No default logic in the library
 
@@ -418,15 +441,16 @@ protocol's copy is wrong (F-8-01). **Recommended**:
 `ProofStructure` and `MellStructure`, with the drawing and the
 criterion on it.
 
-## 6. The command, beside its selector
+## 6. The command, beside its suites
 
 ### P16. The `seq` commands and the batch for every suite
 
 `seq print --logic classical 'a -> b |- b'` prints the linear image, not
 the sequent, and `seq json` and `seq fragment` take linear logic alone
-(F-7a-04). **Recommended**: `seq print` and `seq json` take the selector
-of P1 and print the sequent of the logic named; the linear image is
-`seq print --image`, the flag `prove` gets for the same thing in P1.
+(F-7a-04). **Recommended**: `seq print` and `seq json` take the suite as
+their subcommand (P1) and print the sequent of the logic named; the
+linear image is `seq print ordinary --image`, the flag `prove ordinary`
+gets for the same thing in P1.
 `seq translate` stays the negative translation. `seq fragment` is
 linear logic's. The batch's records name their logic.
 
@@ -603,7 +627,7 @@ client's pinned module.
 |---|---|
 | one crate, a module per suite, no feature per suite (2026-11-09) | kept (P23); P24 asks about a feature that is not per suite, and recommends a measurement first |
 | linear logic is the command's default through 0.x (2026-11-09) | replaced by D1 (P1, P2) |
-| verbs come first and `--logic` chooses the suite; no subcommand per suite (2026-11-09) | verbs first and no subcommand kept; the recommendation of P1 names the selector per suite (`--ordinary`, `--linear`, `--modal`, `--calculus`) where the decision has one `--logic`, a departure in the flag's name that P1 puts as a choice |
+| verbs come first and `--logic` chooses the suite; no subcommand, binary or alias per suite (2026-11-09) | "verbs first" kept, and a suite is still no top-level command, binary or alias; the author lifted "`--logic` chooses the suite" on 2026-11-27: the suite is a subcommand under the verb (P1) |
 | the kernel crate ended at its gate (step 67) | kept; P3 makes the moves that note lists as due, and the public ones D2 and D4 now allow |
 | an item without a caller waits for one (`core.md`) | the caller is the manual's page (P10) and the consumer test |
 | the checked builder's recorded design, R59 | its substance kept, its shape changed to the one two suites have (P6); asked |
