@@ -75,7 +75,8 @@ resolution, the first parent's variables X1, …, the second's Y1, …:
 ```
 
 Each step renames the two clauses' variables apart, the first's `X1`, …
-and the second's `Y1`, …, and shows the unifier. Factoring unifies two
+and the second's `Y1`, …, and shows the unifier; a binding's term
+longer than 4 096 bytes is cut there and ends with `…`. Factoring unifies two
 literals of one clause, which binary resolution alone needs for `p(x) ∨
 p(y)` against `¬p(u) ∨ ¬p(v)`:
 
@@ -277,7 +278,7 @@ document is at level 29: `{"version", "deduxit", "method", "verdict",
 `from`, `from_literal`, `into`, `into_literal`, the subterm's `position`
 counted from 0 as the literal is written, each term before its
 arguments, and `reverse` where the equation is read right to left), its
-`unifier` and the
+`unifier` (each binding's term cut after 4 096 bytes with `…`) and the
 `clause` it made, numbered on after the given clauses; `verdict` is
 `unsatisfiable`, `saturated` or `unknown`.
 

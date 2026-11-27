@@ -1661,6 +1661,20 @@ struct FirstOrderStepKeys {
     clause: String,
 }
 
+#[cfg(feature = "sat")]
+/// Returns whether a document's unifier is the one made again: each
+/// binding equal, or, where the made one is cut (it ends with `…`, as
+/// `bindings_text` cuts a long term), the document's starting with what
+/// was kept, since a document of 0.8.0 holds every binding whole.
+pub(super) fn same_bindings(made: &[String], given: &[String]) -> bool {
+    made.len() == given.len()
+        && made.iter().zip(given).all(|(m, g)| {
+            m == g
+                || m.strip_suffix('…')
+                    .is_some_and(|kept| g.len() > kept.len() && g.starts_with(kept))
+        })
+}
+
 /// Checks first-order resolution's evidence: the clauses are the input's,
 /// each inference made again from them gives its unifier and clause, the
 /// last `□`, and a derivation read back derives the input and passes the
@@ -1697,7 +1711,7 @@ fn first_order_checked(
         match clauses.infer(step.step) {
             Ok(inference) => {
                 let same = clauses.text(inference.clause) == step.clause
-                    && clauses.bindings_text(&inference) == step.unifier;
+                    && same_bindings(&clauses.bindings_text(&inference), &step.unifier);
                 held &= same;
                 last_empty = clauses.clauses()[inference.clause].is_empty();
             }

@@ -2686,13 +2686,31 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
     verdict's evidence, said so (`not_read_back`).
   - **Terms are bounded on the DAG**: a unifier can double a term per
     variable (`x₁ := f(x₂, x₂)`, …), linear as a DAG and 2ⁿ as a tree,
-    and an atom's key is its text, which unfolds it. `applied_atom`
-    refuses an atom past `limits.terms` (`Refusal::Terms`) from the
-    memoised `size` before `predicate_atom` writes the key; `weight`
-    reads the same sizes; `metas_of` and `match_atom` walk a shared part
-    once. The stop is asked per inference, not per given clause (the
-    integers member of the panel drove a 1 KB input to 3.9 GB under
-    `--timeout 2s` before).
+    and an atom's key is its text, which unfolds it. `applied_atom` and
+    `mapped_atom` (the read-back's instances, `shifted`, `renumbered`)
+    refuse an atom past `limits.terms` (`Refusal::Terms`, `within_terms`)
+    from the memoised `size` before `predicate_atom` writes the key;
+    `weight` reads the same sizes; `metas_of` and `match_atom` walk a
+    shared part once. The stop is asked per inference, not per given
+    clause (the integers member of the panel drove a 1 KB input to 3.9 GB
+    under `--timeout 2s` before). The read-back asks the stop per
+    instance and per root copied (`Phase::ReadBack`) and charges the
+    instances' arena (`ArenaSize`, twice for the copy into the
+    derivation's) to `limits.memory_bytes`, each atom's key before it is
+    written (`mapped_atom_charged`: its symbols, a byte each at least,
+    held twice): `mapped_atom` had no bound, and the audit's family
+    (`y₂ := f(y₃, y₃)`, …, one step) made `resolve --timeout 1s` run 22 s
+    at n = 24 (`the_read_back_keeps_to_the_bounds_on_shared_terms`); a
+    charge after the write held 100 to 150 MB under `--memory-limit 1MiB`
+    at n = 23 (the fresh review), now 20 MB. One key of up to
+    `limits.terms` symbols is written between two polls: at n = 23,
+    `--timeout 1s` ends at 1.18 s in release, 2.3 s in debug.
+    `bindings_text` cuts a binding's term at `BINDING_TEXT` (4 096)
+    bytes with `…` (`Capped`, which ends `write_with` at the first write
+    past it): an idempotent unifier written out is exponential, and the
+    text and the level-29 document wrote every binding whole. The
+    protocol's check takes a document's whole binding for its cut text
+    (`same_bindings`), so a document of 0.8.0 still checks.
   - **A given `□`** is a refutation of no step: the checker accepts it
     where a given clause is empty, and the read-back starts there.
   - **The door**: a sequent whose formulas hold an open witness (`Meta`)

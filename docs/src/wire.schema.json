@@ -4376,6 +4376,7 @@
                         "$ref": "#/$defs/index"
                       },
                       "unifier": {
+                        "description": "Each binding as text, `X1 := f(Y1)`; a binding's term longer than 4 096 bytes is cut there and ends with `…`.",
                         "type": "array",
                         "items": {
                           "type": "string"
@@ -4411,6 +4412,7 @@
                         "$ref": "#/$defs/index"
                       },
                       "unifier": {
+                        "description": "Each binding as text, `X1 := f(Y1)`; a binding's term longer than 4 096 bytes is cut there and ends with `…`.",
                         "type": "array",
                         "items": {
                           "type": "string"
@@ -4458,6 +4460,7 @@
                         "type": "boolean"
                       },
                       "unifier": {
+                        "description": "Each binding as text, `X1 := f(Y1)`; a binding's term longer than 4 096 bytes is cut there and ends with `…`.",
                         "type": "array",
                         "items": {
                           "type": "string"

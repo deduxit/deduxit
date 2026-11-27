@@ -41,6 +41,7 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+use super::super::derivation::ArenaSize;
 use super::super::normal::{self, NormalForm};
 use super::super::{Derivation, Formulas, Node, NodeId, Sequent};
 use super::{Bound, Options};
@@ -51,7 +52,6 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::unify::Unifier;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use std::fmt::Write as _;
 
 /// A literal: an atom of the clauses' arena, whose metavariables are its
 /// clause's variables, or its negation.
@@ -212,7 +212,10 @@ impl Clauses {
     }
 
     /// Returns the unifier of an inference as text, the first parent's
-    /// variables `X1`, … and the second's `Y1`, …: `X1 := f(Y1)`.
+    /// variables `X1`, … and the second's `Y1`, …: `X1 := f(Y1)`. A
+    /// binding's term past 4 096 bytes is cut there and ends with `…`: a
+    /// term that shares its parts may be exponentially longer written out
+    /// than the arena that holds it.
     pub fn bindings_text(&self, inference: &Inference) -> Vec<String> {
         let first = match inference.step {
             Step::Resolution { first, .. } => self.items.get(first),
@@ -231,9 +234,14 @@ impl Clauses {
             .bindings
             .iter()
             .map(|&(k, t)| {
-                let mut text = String::new();
-                write_term(&self.formulas, t, &mut text, &|j| name(j));
-                format!("{} := {text}", name(k))
+                let mut text = Capped {
+                    text: String::new(),
+                    room: BINDING_TEXT,
+                };
+                if write_term_to(&self.formulas, t, &mut text, &|j| name(j)).is_err() {
+                    text.text.push('…');
+                }
+                format!("{} := {}", name(k), text.text)
             })
             .collect()
     }
@@ -704,6 +712,18 @@ impl Clauses {
         atom: NodeId,
         f: &mut dyn FnMut(&mut Formulas, u32) -> FoTermId,
     ) -> Result<NodeId, Error> {
+        self.mapped_atom_charged(atom, f, &mut |_| Ok(()))
+    }
+
+    /// [`mapped_atom`](Self::mapped_atom), handing `charge` the symbols the
+    /// atom unfolds to before its key is written, so that a caller can
+    /// refuse the key's memory before it is held.
+    fn mapped_atom_charged(
+        &mut self,
+        atom: NodeId,
+        f: &mut dyn FnMut(&mut Formulas, u32) -> FoTermId,
+        charge: &mut dyn FnMut(u64) -> Result<(), Error>,
+    ) -> Result<NodeId, Error> {
         let Node::Atom(a) = self.formulas.node(atom) else {
             return Ok(atom);
         };
@@ -716,8 +736,27 @@ impl Clauses {
         for t in args {
             mapped.push(map_term(&mut self.formulas, t, f, &mut memo));
         }
+        let size = self.within_terms(&mapped)?;
+        charge(size)?;
         let list = self.formulas.interner().list(&mapped);
         self.formulas.predicate_atom(p, list)
+    }
+
+    /// Returns the symbols an atom of these arguments unfolds to, counted
+    /// over shared parts once each, refusing past the bound on terms: the
+    /// atom's key is its text, which unfolds every term, and a term that
+    /// shares its parts may unfold past any bound.
+    fn within_terms(&mut self, items: &[FoTermId]) -> Result<u64, Error> {
+        let mut size = 1u64;
+        for &t in items {
+            size = size.saturating_add(self.size(t));
+        }
+        match self.most_terms {
+            Some(limit) if size > limit => {
+                Err(Error::Refused(Refusal::Terms { terms: size, limit }))
+            }
+            _ => Ok(size),
+        }
     }
 
     /// Returns `atom` with each metavariable `k` moved to `k + by`.
@@ -803,17 +842,7 @@ impl Clauses {
         for t in args {
             items.push(self.applied(unifier, t, memo));
         }
-        // The atom's key is its text, which unfolds every term: a term
-        // that shares its parts may unfold past any bound.
-        let mut size = 1u64;
-        for &t in &items {
-            size = size.saturating_add(self.size(t));
-        }
-        if let Some(limit) = self.most_terms
-            && size > limit
-        {
-            return Err(Error::Refused(Refusal::Terms { terms: size, limit }));
-        }
+        self.within_terms(&items)?;
         let list = self.formulas.interner().list(&items);
         self.formulas.predicate_atom(p, list)
     }
@@ -1029,32 +1058,65 @@ fn match_atom(
 
 /// Writes the term `t`, each metavariable `k` as `name(k)`.
 fn write_term(formulas: &Formulas, t: FoTermId, out: &mut String, name: &dyn Fn(u32) -> String) {
-    let written = formulas.first_order().write_with(
+    let written = write_term_to(formulas, t, out, name);
+    debug_assert!(written.is_ok(), "a string takes every write");
+}
+
+/// Writes the term `t` into `out`, each metavariable `k` as `name(k)`,
+/// ending at the first write `out` refuses.
+fn write_term_to<W: std::fmt::Write>(
+    formulas: &Formulas,
+    t: FoTermId,
+    out: &mut W,
+    name: &dyn Fn(u32) -> String,
+) -> std::fmt::Result {
+    formulas.first_order().write_with(
         out,
         t,
-        &mut |o: &mut String, symbol: &str| {
-            o.push_str(symbol);
-            Ok(())
-        },
-        &mut |o: &mut String, index| write!(o, "#{index}"),
-        &mut |o: &mut String, other| {
-            match other {
-                FoTerm::Meta(k) => o.push_str(&name(k)),
-                // A parameter of the arena, by the name a proof prints it
-                // with.
-                FoTerm::Eigen(e) => {
-                    let eigens = formulas.eigen_names();
-                    match eigens.binary_search_by_key(&e.get(), |&(k, _)| k) {
-                        Ok(at) => o.push_str(&eigens[at].1),
-                        Err(_) => o.push('?'),
-                    }
+        &mut |o: &mut W, symbol: &str| o.write_str(symbol),
+        &mut |o: &mut W, index| write!(o, "#{index}"),
+        &mut |o: &mut W, other| match other {
+            FoTerm::Meta(k) => o.write_str(&name(k)),
+            // A parameter of the arena, by the name a proof prints it
+            // with.
+            FoTerm::Eigen(e) => {
+                let eigens = formulas.eigen_names();
+                match eigens.binary_search_by_key(&e.get(), |&(k, _)| k) {
+                    Ok(at) => o.write_str(&eigens[at].1),
+                    Err(_) => o.write_char('?'),
                 }
-                FoTerm::Bound(_) | FoTerm::App(..) => {}
             }
-            Ok(())
+            FoTerm::Bound(_) | FoTerm::App(..) => Ok(()),
         },
-    );
-    debug_assert!(written.is_ok(), "a string takes every write");
+    )
+}
+
+/// The most bytes [`Clauses::bindings_text`] writes of a binding's term.
+const BINDING_TEXT: usize = 1 << 12;
+
+/// Text that takes at most `room` bytes and refuses the write that would
+/// pass them, keeping what of it fits.
+struct Capped {
+    /// The text so far.
+    text: String,
+    /// The most bytes it takes.
+    room: usize,
+}
+
+impl std::fmt::Write for Capped {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let left = self.room.saturating_sub(self.text.len());
+        if s.len() <= left {
+            self.text.push_str(s);
+            return Ok(());
+        }
+        let mut end = left;
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        self.text.push_str(&s[..end]);
+        Err(std::fmt::Error)
+    }
 }
 
 /// Returns `clause` as text, its variables `prefix` and their numbers.
@@ -1882,8 +1944,11 @@ impl<'l> Search<'l> {
 ///
 /// # Errors
 ///
-/// [`Refusal::Occurrences`] past [`MOST_INSTANCES`] instances; Herbrand's
-/// construction's errors.
+/// [`Refusal::Occurrences`] past [`MOST_INSTANCES`] instances;
+/// [`Refusal::Terms`] for an instance's atom past `limits.terms`;
+/// [`Refusal::Memory`] where the instances pass `limits.memory_bytes`;
+/// [`Refusal::Stopped`] when the stop fires; Herbrand's construction's
+/// errors.
 fn read_back(
     sequent: &Sequent,
     clausal: &NormalForm,
@@ -1945,10 +2010,22 @@ fn read_back(
     };
     needed[empty].push(Vec::new());
     let mut count = 0usize;
+    // The read-back's steps, each an instance of a clause, for the stop.
+    let mut steps = 0u64;
+    let mut poll = |steps: &mut u64| {
+        *steps += 1;
+        if stop(Progress::new(Phase::ReadBack, 1, *steps)) {
+            return Err(Error::Refused(Refusal::Stopped {
+                phase: Phase::ReadBack,
+            }));
+        }
+        Ok(())
+    };
     for k in (set.given..total).rev() {
         let m = &made[k - set.given];
         let wants = std::mem::take(&mut needed[k]);
         for theta in wants {
+            poll(&mut steps)?;
             // Each variable of the step ground: its term under the unifier
             // with the variables left free put as the clause's.
             let mut ground = Vec::with_capacity(m.terms.len());
@@ -1994,20 +2071,52 @@ fn read_back(
             }
         }
     }
-    // The given clauses' ground instances, as formulas.
+    // The given clauses' ground instances, as formulas. Each atom is held
+    // to the bound on terms before its key is written, and the arena they
+    // grow to the memory bound: a unifier that doubles a term per variable
+    // made keys of millions of symbols.
+    let memory = limits.memory_bytes.unwrap_or(u64::MAX);
+    let mut held = ArenaSize::of(&set.formulas, &ArenaSize::default());
+    let start = held.bytes;
+    // Refuses the instances past the bound where they have grown the
+    // arena by `grown` bytes: the copy into the derivation's arena below
+    // holds as much again.
+    let within = |grown: u64| {
+        let needed_bytes = grown.saturating_mul(2);
+        if needed_bytes > memory {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::ReadBack,
+                limit_bytes: memory,
+                needed_bytes: Some(needed_bytes),
+            }));
+        }
+        Ok(())
+    };
     let mut roots = Vec::new();
     for c in 0..set.given {
         for theta in &needed[c] {
+            poll(&mut steps)?;
             let clause = set.items[c].clone();
             let mut instance: Option<NodeId> = None;
             for l in &clause.literals {
-                let atom = set.mapped_atom(l.atom, &mut |formulas, j| {
-                    theta
-                        .get(j as usize)
-                        .copied()
-                        .or(default)
-                        .unwrap_or_else(|| formulas.interner().term(FoTerm::Meta(j)))
-                })?;
+                // What the instances hold once this atom's key is written
+                // (its text is at least a byte a symbol, held twice),
+                // charged before the key is written.
+                let grown = held.bytes.saturating_sub(start);
+                let mut charge = |size: u64| within(grown.saturating_add(size.saturating_mul(2)));
+                let atom = set.mapped_atom_charged(
+                    l.atom,
+                    &mut |formulas, j| {
+                        theta
+                            .get(j as usize)
+                            .copied()
+                            .or(default)
+                            .unwrap_or_else(|| formulas.interner().term(FoTerm::Meta(j)))
+                    },
+                    &mut charge,
+                )?;
+                held = ArenaSize::of(&set.formulas, &held);
+                within(held.bytes.saturating_sub(start))?;
                 let literal = if l.positive {
                     atom
                 } else {
@@ -2031,6 +2140,7 @@ fn read_back(
     let mut copied = Copied::default();
     let mut ground_roots = Vec::with_capacity(roots.len());
     for root in roots {
+        poll(&mut steps)?;
         ground_roots.push(copied.formula(&set.formulas, &mut clean, root)?);
     }
     let default = match default {
@@ -2477,6 +2587,71 @@ mod tests {
         };
         assert!(derivation.is_none());
         assert!(not_read_back.is_some());
+    }
+
+    /// Returns a sequent whose one resolution step binds `y2 := f(y3, y3)`,
+    /// …, `yn := a`, so that `y2` unfolds to `2^(n-1) - 1` symbols.
+    fn doubling(n: usize) -> Sequent {
+        let xs: Vec<String> = (1..=n).map(|i| format!("x{i}")).collect();
+        let ys: Vec<String> = (2..=n).map(|i| format!("y{i}")).collect();
+        let mut first = xs.clone();
+        first.extend(xs[1..].iter().cloned());
+        let mut second: Vec<String> = ys.iter().map(|y| format!("f({y}, {y})")).collect();
+        second.push("a".to_owned());
+        second.extend(ys.iter().cloned());
+        format!(
+            "forall {}. ~p({}), forall {}. p({}) |-",
+            xs.join(" "),
+            first.join(", "),
+            ys.join(" "),
+            second.join(", ")
+        )
+        .parse()
+        .unwrap()
+    }
+
+    /// The read-back holds every instance to the bound on terms before its
+    /// key is written, and to the memory bound; a binding's text is cut.
+    /// Without them a unifier that doubles a term per variable made the
+    /// read-back write keys of millions of symbols past every bound.
+    #[test]
+    fn the_read_back_keeps_to_the_bounds_on_shared_terms() {
+        let sequent = doubling(14);
+        let terms = Limits::default().with_terms(Some(1_000));
+        let found = resolve(&sequent, &Options::default(), &terms, |_| false).unwrap();
+        let Answer::Refuted {
+            refutation,
+            derivation,
+            not_read_back,
+        } = &found.answer
+        else {
+            panic!("{:?}", found.answer);
+        };
+        assert!(derivation.is_none());
+        assert!(
+            not_read_back
+                .as_deref()
+                .is_some_and(|why| why.contains("1000")),
+            "{not_read_back:?}"
+        );
+        let texts = refutation.clauses.bindings_text(&refutation.inferences[0]);
+        let longest = texts.iter().map(String::len).max().unwrap();
+        assert!(texts.iter().any(|t| t.ends_with('…')), "{texts:?}");
+        assert!(longest <= BINDING_TEXT + 16, "{longest}");
+        // The memory bound: an instance's key is charged before it is
+        // written (8 192 symbols, held twice and copied: 32 KiB), so the
+        // read-back refuses itself, before Herbrand's construction would.
+        let memory = Limits::default().with_memory_bytes(Some(1 << 14));
+        let found = resolve(&sequent, &Options::default(), &memory, |_| false).unwrap();
+        let Answer::Refuted { not_read_back, .. } = &found.answer else {
+            panic!("{:?}", found.answer);
+        };
+        assert!(
+            not_read_back
+                .as_deref()
+                .is_some_and(|why| why.contains("the read-back would take")),
+            "{not_read_back:?}"
+        );
     }
 
     /// A propositional sequent keeps an arena without first-order tables

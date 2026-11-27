@@ -1610,7 +1610,7 @@ for unknown.
 A first-order sequent's negation becomes its clausal form, each clause's
 variables `X1`, `X2`, …; resolution unifies two literals' atoms (the
 unifier shown on each step, the first parent's variables `X1`, … and the
-second's `Y1`, …), and factoring unifies two literals of one clause. The
+second's `Y1`, …, a binding's term cut after 4 096 bytes with `…`), and factoring unifies two literals of one clause. The
 refutation is checked step by step and read back as a checked derivation
 of LK where it reaches. No model is built there: a sequent that is not
 valid ends unknown, exit 3. `--method dpll` and `--clauses` other than

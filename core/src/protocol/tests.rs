@@ -280,6 +280,20 @@ fn a_kripke_model_is_checked_again() {
     );
 }
 
+/// A resolution document's unifier matches the one made again where the
+/// made one is cut and the document holds it whole, as 0.8.0 wrote it.
+#[cfg(feature = "sat")]
+#[test]
+fn a_whole_binding_matches_its_cut_text() {
+    let made = |text: &str| vec![text.to_owned()];
+    let same = super::ordinary::same_bindings;
+    assert!(same(&made("X1 := f(a)"), &made("X1 := f(a)")));
+    assert!(same(&made("X1 := f(a…"), &made("X1 := f(a, b)")));
+    assert!(!same(&made("X1 := f(b…"), &made("X1 := f(a, b)")));
+    assert!(!same(&made("X1 := f(a, b)"), &made("X1 := f(a, c)")));
+    assert!(!same(&made("X1 := f(a)"), &[]));
+}
+
 /// A Kripke model of one world with no facts does not refute `⊢ a = a`:
 /// every world reads `=` as identity.
 #[test]
