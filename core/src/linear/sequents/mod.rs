@@ -445,11 +445,14 @@ impl Sequent {
         &self.atoms[atom.index()]
     }
 
-    /// Returns the atom called `name`, if the sequent has one.
+    /// Returns the atom called `name`, if the sequent has one. The name is
+    /// composed first (Unicode's NFC), as every reader composes the names
+    /// it stores, so a decomposed `é` finds the atom.
     pub fn atom(&self, name: &str) -> Option<Atom> {
+        let name = crate::name::normalized(name);
         self.atoms
             .iter()
-            .position(|n| n == name)
+            .position(|n| *n == *name)
             .map(|i| Atom::new(i as u32))
     }
 
@@ -1032,6 +1035,16 @@ mod tests {
         assert_eq!(s.atoms, ["A", "B", "C"]);
         assert_eq!(s.terms, [dual_var(0), var(1), var(2), var(0), var(1)]);
         assert_eq!(s.roots.len(), 5);
+    }
+
+    /// An atom is found by its name composed or decomposed, as every
+    /// reader stores names composed.
+    #[test]
+    fn atom_finds_a_decomposed_name() {
+        let s = raw(vec![var(0)], &[0], &["\u{e9}"]);
+        assert_eq!(s.atom("\u{e9}"), Some(Atom::new(0)));
+        assert_eq!(s.atom("e\u{301}"), Some(Atom::new(0)));
+        assert_eq!(s.atom("e"), None);
     }
 
     /// Optimizing the empty sequent leaves it empty.
