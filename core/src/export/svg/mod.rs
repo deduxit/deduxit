@@ -1394,6 +1394,78 @@ pub(super) fn cut_bar(out: &mut String, ends: (u32, u32), a: (i64, i64), d: (i64
     .unwrap();
 }
 
+/// Writes an axiom link's arc, id `l<p>-<q>` (`ends`, the lower first):
+/// up from `a` to `level`, over to `b` with radii `rx` and `ry`, and down,
+/// each end reaching its literal's top (`down`, left and right). With
+/// `arrow` (leftwards or not, and its size), an arrowhead at the arc's top
+/// points from the input literal to the output one.
+pub(super) fn link_arc(
+    out: &mut String,
+    ends: (u32, u32),
+    (a, b, rx, ry): (i64, i64, i64, i64),
+    (down_left, down_right): (i64, i64),
+    level: i64,
+    arrow: Option<(bool, i64)>,
+) {
+    write!(
+        out,
+        r#"<path id="l{}-{}" d="M{a} {down_left}"#,
+        ends.0, ends.1
+    )
+    .unwrap();
+    if down_left != level {
+        write!(out, "V{level}").unwrap();
+    }
+    write!(out, "A{rx} {ry} 0 0 1 {b} {level}").unwrap();
+    if down_right != level {
+        write!(out, "V{down_right}").unwrap();
+    }
+    out.push_str("\"/>\n");
+    if let Some((leftwards, size)) = arrow {
+        let towards = (if leftwards { -1.0 } else { 1.0 }, 0.0);
+        let tip = net::towards_by((a + rx, level - ry), towards, size / 2);
+        net::arrowhead(out, tip, towards, size);
+    }
+}
+
+/// Writes the formula of `o` as a net's drawing writes it: one-sided, or
+/// as the reading reads it, which writes a literal as its atom.
+pub(super) fn net_text(
+    out: &mut String,
+    forest: &crate::linear::Forest,
+    reading: Option<&Reading<'_>>,
+    o: crate::linear::OccId,
+    brackets: bool,
+) {
+    match reading {
+        Some(r) => NOTATION.ill(out, r, o, brackets),
+        None => NOTATION.term(out, forest.sequent(), forest.term(o), brackets),
+    }
+    .unwrap();
+}
+
+/// Writes the sentences of a net's description for its links: the cut
+/// links in their order, then the axiom links by their lower end, each end
+/// by its number and occurrence (`end`).
+pub(super) fn net_links<V: Ord + Copy>(
+    out: &mut impl Write,
+    cuts: &[(V, V)],
+    links: &[(V, V)],
+    end: impl Fn(V) -> (u32, crate::linear::OccId),
+    forest: &crate::linear::Forest,
+    reading: Option<&Reading<'_>>,
+) -> std::fmt::Result {
+    for &(x, y) in cuts {
+        net_link(out, true, [end(x), end(y)], forest, reading)?;
+    }
+    let mut links: Vec<_> = links.iter().map(|&(x, y)| (x.min(y), x.max(y))).collect();
+    links.sort_unstable();
+    for (x, y) in links {
+        net_link(out, false, [end(x), end(y)], forest, reading)?;
+    }
+    Ok(())
+}
+
 /// Returns a document that shows one line of text, the notation's `content`,
 /// titled `title`.
 ///

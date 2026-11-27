@@ -36,7 +36,7 @@
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{
     Marks, NOTATION, NetDrawing, NetGroups, Premises, RAISED_BOT, Style, cut_bar, escaped, lay,
-    net_conclusion, net_document, net_link, net_verdict, run, text,
+    link_arc, net_conclusion, net_document, net_links, net_text, net_verdict, run, text,
 };
 use crate::linear::nets::{NetError, ProofStructure};
 use crate::linear::occurrences::{OccId, Reading, Side};
@@ -332,18 +332,7 @@ pub(super) fn describe(
     let forest = net.forest();
     let end = |v: crate::linear::nets::VertexId| (v.get(), v.occ());
     net_conclusion(out, forest, reading)?;
-    for &(x, y) in net.cuts() {
-        net_link(out, true, [end(x), end(y)], forest, reading)?;
-    }
-    let mut links: Vec<_> = net
-        .links()
-        .iter()
-        .map(|&(x, y)| (x.min(y), x.max(y)))
-        .collect();
-    links.sort_unstable();
-    for (x, y) in links {
-        net_link(out, false, [end(x), end(y)], forest, reading)?;
-    }
+    net_links(out, net.cuts(), net.links(), end, forest, reading)?;
     let mode = match reading {
         Some(reading) if reading.is_ordered() => Some(crate::linear::Mode::LAMBEK),
         Some(_) => Some(crate::linear::Mode::INTUITIONISTIC),
@@ -403,13 +392,8 @@ pub(super) fn draw(
     let written = |o: OccId| formulas || forest.is_literal(o) || root(o);
     // An occurrence's formula as the drawing writes it: one-sided, or as
     // the reading reads it, which writes a literal as its atom.
-    let write = |out: &mut String, o: OccId, brackets: bool| {
-        match reading {
-            Some(r) => NOTATION.ill(out, r, o, brackets),
-            None => NOTATION.term(out, forest.sequent(), forest.term(o), brackets),
-        }
-        .unwrap();
-    };
+    let write =
+        |out: &mut String, o: OccId, brackets: bool| net_text(out, forest, reading, o, brackets);
     // The symbol at a connective's joint or in its compact circle, and the
     // height of its middle above its baseline. An essential net shows the
     // reading's connectives: `A⊥ ⅋ B` in output position and `A ⊗ B⊥` in
@@ -728,29 +712,13 @@ pub(super) fn draw(
         } else {
             (q, p)
         };
-        let (down_left, down_right) = (text_y(left) - HEIGHT, text_y(right) - HEIGHT);
-        write!(
-            out,
-            r#"<path id="l{}-{}" d="M{a} {down_left}"#,
-            p.min(q).get(),
-            p.max(q).get()
-        )
-        .unwrap();
-        if down_left != top {
-            write!(out, "V{top}").unwrap();
-        }
-        write!(out, "A{rx} {ry} 0 0 1 {b} {top}").unwrap();
-        if down_right != top {
-            write!(out, "V{down_right}").unwrap();
-        }
-        out.push_str("\"/>\n");
+        let down = (text_y(left) - HEIGHT, text_y(right) - HEIGHT);
         // From the input literal to the output one, at the arc's top.
-        if reading.is_some() {
-            let leftwards = left == if input(p) { q } else { p };
-            let towards = (if leftwards { -1.0 } else { 1.0 }, 0.0);
-            let tip = towards_by((a + rx, top - ry), towards, arrow / 2);
-            arrowhead(out, tip, towards, arrow);
-        }
+        let head = reading
+            .is_some()
+            .then(|| (left == if input(p) { q } else { p }, arrow));
+        let ends = (p.min(q).get(), p.max(q).get());
+        link_arc(out, ends, (a, b, rx, ry), down, top, head);
     }
 
     // Each cut link as the literature draws one: a bar under its two

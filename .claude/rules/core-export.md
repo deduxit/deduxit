@@ -790,10 +790,16 @@ for NanoYalla. What the code relies on:
 - **The two net drawings share their document** (`svg::net_document`
   over `NetGroups`, the lines, the reading's input and dominator edges,
   the dashed premises, the links, the highlight and the texts, in that
-  order; `svg::cut_bar` a cut link's bar): the MLL drawing passes
-  `dashed` when it has no reading and the look dashes premises, as the
-  MELL drawing does; the room for cut bars and the description stay
-  each drawing's.
+  order), and their emitters in `svg/mod.rs`: `cut_bar` a cut link's
+  bar, `link_arc` an axiom link's arc and its arrowhead (the MELL
+  drawing passes its arc's level raised over boxes), `net_text` an
+  occurrence's formula, `net_links` the description's link sentences.
+  The MLL drawing passes `dashed` when it has no reading and the look
+  dashes premises, as the MELL drawing does; the room for cut bars and
+  the description's text stay each drawing's. So do the layout (a
+  formula's extent reads its drawing's own children and brackets) and
+  the size estimate (`estimate`, per occurrence or per vertex), which
+  move with the layout's struct.
 - **A net's drawing has a size bound like a derivation's**: `svg::net`
   estimates its bytes from the structure (`net::estimate`: every written
   formula's text, counted bottom-up from its subformulas' with a

@@ -48,11 +48,12 @@
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::net::{
     ARROW, BINARY, CONNECTIVE, Count, DOCUMENT, GROUP, LINK, PAR_MIDDLE, PIECE, ROOT, arrow_along,
-    arrowhead, height, towards, towards_by,
+    height, towards,
 };
 use super::{
     Conclusions, NOTATION, NetDrawing, NetGroups, Premises, RAISED_BOT, Style, WhyNot, cut_bar,
-    escaped, lay, net_conclusion, net_document, net_formula, net_link, net_verdict, run, text,
+    escaped, lay, link_arc, net_conclusion, net_document, net_formula, net_links, net_text,
+    net_verdict, run, text,
 };
 use crate::export::svg::Marks;
 use crate::hash::HashMap;
@@ -276,18 +277,7 @@ pub(super) fn describe(
     let formula =
         |out: &mut _, v: VertexId| net_formula(out, "formula", v.get(), forest, reading, occ(v));
     net_conclusion(out, forest, reading)?;
-    for &(x, y) in net.cuts() {
-        net_link(out, true, [end(x), end(y)], forest, reading)?;
-    }
-    let mut links: Vec<_> = net
-        .links()
-        .iter()
-        .map(|&(x, y)| (x.min(y), x.max(y)))
-        .collect();
-    links.sort_unstable();
-    for (x, y) in links {
-        net_link(out, false, [end(x), end(y)], forest, reading)?;
-    }
+    net_links(out, net.cuts(), net.links(), end, forest, reading)?;
     for b in net.boxes() {
         write!(out, "\nBox {} holds ", b.get())?;
         if let Some(premise) = net.premises(b).next() {
@@ -405,11 +395,7 @@ pub(super) fn draw(
     // A vertex's formula as the drawing writes it: one-sided, or as the
     // reading reads it, which writes a literal as its atom.
     let write = |out: &mut String, v: u32, brackets: bool| {
-        match reading {
-            Some(r) => NOTATION.ill(out, r, occ(v), brackets),
-            None => NOTATION.term(out, forest.sequent(), forest.term(occ(v)), brackets),
-        }
-        .unwrap();
+        net_text(out, forest, reading, occ(v), brackets);
     };
     let input = |v: u32| reading.is_some_and(|r| r.position(occ(v)) == Side::Input);
     let fill = |v: u32| match input(v) {
@@ -1642,30 +1628,19 @@ pub(super) fn draw(
         } else {
             (q, p)
         };
-        let (down_left, down_right) = (text_y(left) - HEIGHT, text_y(right) - HEIGHT);
-        let level = top - rise;
-        write!(
-            out,
-            r#"<path id="l{}-{}" d="M{a} {down_left}"#,
-            p.min(q),
-            p.max(q)
-        )
-        .unwrap();
-        if down_left != level {
-            write!(out, "V{level}").unwrap();
-        }
-        write!(out, "A{rx} {ry} 0 0 1 {b} {level}").unwrap();
-        if down_right != level {
-            write!(out, "V{down_right}").unwrap();
-        }
-        out.push_str("\"/>\n");
+        let down = (text_y(left) - HEIGHT, text_y(right) - HEIGHT);
         // From the input literal to the output one, at the arc's top.
-        if reading.is_some() {
-            let leftwards = left == if input(p) { q } else { p };
-            let towards = (if leftwards { -1.0 } else { 1.0 }, 0.0);
-            let tip = towards_by((a + rx, level - ry), towards, arrow / 2);
-            arrowhead(out, tip, towards, arrow);
-        }
+        let head = reading
+            .is_some()
+            .then(|| (left == if input(p) { q } else { p }, arrow));
+        link_arc(
+            out,
+            (p.min(q), p.max(q)),
+            (a, b, rx, ry),
+            down,
+            top - rise,
+            head,
+        );
     }
 
     // Each cut link as the literature draws one: a bar under its two
