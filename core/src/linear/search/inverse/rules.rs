@@ -350,6 +350,23 @@ struct Writer<'s, 'a, 'c> {
 const STEPS_PER_POLL: u64 = 1 << 12;
 
 impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
+    /// Returns a writer of no rule yet over `shape`, charging `charged`.
+    fn new(shape: &'s Shape<'a>, charged: &'s mut Charged<'c>) -> Self {
+        Self {
+            shape,
+            rules: Rules::default(),
+            reversed: Vec::new(),
+            holes: Vec::new(),
+            slots: Vec::new(),
+            charged,
+            held: 0,
+            unpolled: 0,
+            groups: 0,
+            pending: 0,
+            inner: 0,
+        }
+    }
+
     /// Charges the tables' growth. Fails with the memory limit when the
     /// account is over its bound.
     fn settle(&mut self) -> Result<(), Reason> {
@@ -765,19 +782,7 @@ pub(super) fn compile(
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Result<Rules, Reason> {
     let forest = shape.forest;
-    let mut writer = Writer {
-        shape,
-        rules: Rules::default(),
-        reversed: Vec::new(),
-        holes: Vec::new(),
-        slots: Vec::new(),
-        charged,
-        held: 0,
-        unpolled: 0,
-        groups: 0,
-        pending: 0,
-        inner: 0,
-    };
+    let mut writer = Writer::new(shape, charged);
     let mut previous = None;
     for &g in &shape.goal {
         if previous.replace(g) == Some(g) {
@@ -815,19 +820,7 @@ pub(super) fn goal(
     charged: &mut Charged<'_>,
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Result<Rules, Reason> {
-    let mut writer = Writer {
-        shape,
-        rules: Rules::default(),
-        reversed: Vec::new(),
-        holes: Vec::new(),
-        slots: Vec::new(),
-        charged,
-        held: 0,
-        unpolled: 0,
-        groups: 0,
-        pending: 0,
-        inner: 0,
-    };
+    let mut writer = Writer::new(shape, charged);
     let mut phase = writer.release();
     for &o in &shape.goal {
         phase.place(shape, o);
