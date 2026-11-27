@@ -8874,3 +8874,16 @@ move (D26).
   and the turnstile test are shared). Rebased onto `main` with no conflict; in CI before `main`. 87c7 (the linear
   engines' repeats, one meter, the memory account at the root; the panel) in its worker on 87c8's
   head, cores 7-9.
+- 2026-11-27, about 23:10: **87b3 reviewed; 87c9 started.** 87b3 (Opus, high; the reviewer on
+  Fable): the command's and the bindings' wrong answers fixed, each with a test that fails without
+  it. The workspace exits as each kind's command does; `eliminate --net` keeps its status when piped;
+  `-o -` writes to standard output; `--cyclic` and `--lambek` are honoured or refused everywhere;
+  `eliminate` offers only its own flags; the term commands take `--timeout` and the memory and work
+  limits; the page's view of a session builds one derivation within the tab's memory, and its
+  refutation check runs within the tab's limits. (departs from the plan) The view takes the interim
+  fix (one derivation, bounded by the tab's memory, since `derivation_within` charges no memory);
+  the library's lists without a derivation are part 2's. `refutation_checked`'s `null` now also
+  means a bound ended the check (decided unattended: the client reads it as a status light). The
+  reviewer's four findings fixed. The behaviour lock reblessed in a commit of its own. Rebased onto
+  `main` with no conflict; in CI before `main`. 87c9 (the command; F-7b-05 measured on the ILTP
+  first-order rows) in its worker on 87b3's head, cores 4-6.
