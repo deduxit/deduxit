@@ -135,6 +135,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   ask a stop once per step. The forms without them stay as they were.
 - **`Error::InstanceTable`** (code `instance_table`, kind malformed):
   an instance table built in Rust that `Proof::with_instances` refuses.
+- **`term check`, `term reduce` and `term infer` take `--timeout`,
+  `--memory-limit` and `--work-limit`**, as `term inhabit` and `term
+  enumerate` do. A reduction with `--steps none` ends at the time limit,
+  unknown (exit 3), where it ran until it was killed.
 
 ### Changed
 
@@ -272,6 +276,40 @@ second number (0.1.x to 0.2.0), anything else the third.
   panicked; every other input gives the same sequent.
 - **An outcome naming an engine this build does not know is written
   back with that name**, where it was written as `unknown`.
+- **A workspace node exits as its command does.** `workspace apply`
+  and `run` read each node's verdict by its kind: a resolution that
+  finds the clauses satisfiable and an interpolation of a sequent that
+  is not valid exit 1, as `resolve` and `interpolate` do, where they
+  exited 0; a Herbrand search that finds no instances is 3, an empty
+  type of `term inhabit` and a count of no term 1.
+- **`eliminate --net` keeps its exit status on a closed pipe**, where
+  writing the verdict panicked (exit 101).
+- **`--output -` writes to standard output**, as `--file -` reads
+  standard input, where it made a file named `-`.
+- **`--cyclic` and `--lambek` count as mode flags everywhere**: beside
+  `--logic` they are refused in `prove` and `interact` as `-i` is, where
+  they were dropped, and given with a settings file they set the
+  batch's mode, where the file's mode won. `interact --calculus`,
+  `interact --state` and `grade --calculus` refuse them too.
+- **`eliminate` takes only the flags it reads.** `check`'s document
+  selectors (`--tableau`, `--dimacs`, `--system`, `--world`,
+  `--proof-format`, `--layout`, `--table-atoms`) are unknown to it and
+  left out of its help, and `--lambda`, `--lambda-notation` and
+  `--lambda-types` are refused, where they ran and were ignored, exit 0.
+  `--logic`, `--sequent` and `--calculus`, which it refused, are now
+  unknown to it too.
+- **`term reduce`, `term check` and `term infer` answer unknown where a
+  bound or the time ends the call**, exit 3 with the flag that raises
+  it, where a reduction's refusal named a settings key and the check of
+  a term before the first step was an error (exit 2). A term past the
+  bounds on reading stays an error, as in `term inhabit`.
+- **The web bindings keep a session's view and a refutation's check to
+  the tab's limits.** The view's `invertible` and `cuts` are read off
+  one derivation bounded by the tab's memory, where two were built
+  under the library's defaults with no bound on their size;
+  `refutation_checked` is `Disproof::check_within` under the tab's
+  limits, `null` where a bound ended the check, where the check ran
+  unbounded.
 
 ## [0.8.0] - 2026-11-23
 
