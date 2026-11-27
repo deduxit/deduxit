@@ -30,10 +30,10 @@ below answers each).
 |---|---|---|---|
 | P1 | the command's selector of the logic **(choice)** | large | every example |
 | P2 | no default logic in the library | small | `Default` impls, two settings |
-| P3 | shared root modules | large | public paths |
+| P3 | shared root modules | large | public paths; labels reach every suite's drawings |
 | P4 | one options value per front door | medium | ordinary logic's signatures |
 | P5 | the suites as peers in settings, errors, the registry **(choice)** | large | settings keys, a wire level |
-| P6 | builders for sequents, formulas, derivations, terms | medium | additive |
+| P6 | builders for sequents, formulas, derivations, terms | medium | `linear::Sequent::new()`, the ids of a rule file's derivation and of a lambda-term's atoms |
 | P7 | refusals and a meter an engine can use | small | additive |
 | P8 | the engine interface | medium | `Outcome`'s fields, `Engine` |
 | P9 | drawing a derivation from outside | small | docs only |
@@ -44,7 +44,7 @@ below answers each).
 | P14 | one description of a suite: the protocol and the sessions | large | the bindings' calls |
 | P15 | one call for a proof's net | small | additive |
 | P16 | the `seq` commands and the batch for every suite | medium | `seq`'s output |
-| P17 | flag names and the common flags | small | four flags |
+| P17 | the common flags, and one name for a translation | small | one flag |
 | P18 | shell completions and a man page **(choice)** | small | two or three packages |
 | P19 | the sessions at a terminal | small | none |
 | P20 | one path per type, and the unused public items | medium | public paths |
@@ -77,20 +77,21 @@ required clap `ArgGroup`:
 - An input that states its own logic needs none and is never refused
   for lacking one: a proof or outcome file, a saved session, a batch
   whose records name a mode, a `.spec` file (always affine).
-- A command that serves one logic by its nature takes none (`resolve`,
-  `herbrand`, `seq normalize`: classical ordinary logic, said in their
-  help). A command that serves several requires it (`interpolate` loses
-  its default).
+- A command that serves one logic names it too, since D1 asks it of
+  every command that reads a sequent: `resolve`, `herbrand` and `seq
+  normalize` take `--ordinary classical`, the one value they accept.
+  `interpolate` loses its default.
 - The group differs per command (`prove` has no `--calculus`, `interact`
   no `--modal`), so it is one argument struct per set.
 - The linear mode flags `-i`, `-a`, `--mix`, `--cyclic`, `--lambek`,
   `--empty-antecedents` go: `--linear MODE` spells a mode as the batch,
   the workspace and the JSON forms already do. `prove`'s present
   `--linear` (show the image's proof) becomes `--image`.
-- The `term` commands' `--calculus` (a lambda calculus) becomes
-  `--lambda CALCULUS` (the library's eight: `simple`, `linear`,
-  `affine`, `untyped`, `system-f` and the others), so that `--calculus`
-  means one thing (F-7a-05).
+- The `term` commands read a term, not a sequent, and take no selector.
+  Their `--calculus` (one of the library's nine lambda calculi) stays:
+  the verifier of F-7a-05 judged that the flag names the calculus to
+  work in on every command that has it, and that a rename is not worth
+  a break.
 
 Why this form: each suite's values keep their own type and help; no
 value needs a prefix to be unambiguous (`classical` is a logic of two
@@ -99,7 +100,10 @@ suites); and the flags carry the suites' names evenly (D4), where
 
 **The alternative**: the same required group over the present flags,
 `--logic` (ordinary) and `--system` (modal) unchanged, `--linear MODE`
-new. It changes only the linear examples. It keeps the uneven names.
+new. It changes only the linear examples. It keeps the uneven names,
+and it keeps the letter of the decision of 2026-11-09, "`--logic`
+chooses the suite", which the recommendation departs from in the flag's
+name: four flags named for the suites in place of one.
 
 **Not recommended**: one flag `--logic` with every logic of every suite
 as a value (about 25 values, with prefixes such as `linear-affine`); a
@@ -132,9 +136,9 @@ the public half.
 
 | today | proposed | public? | findings |
 |---|---|---|---|
-| `linear::search::Reason` | `deduxit::limits::Reason`, re-exported as `deduxit::Reason` | yes | F-arch-01, F-4d-14 |
+| `linear::search::Reason` | `deduxit::Reason`, defined in `limits` beside `Refusal`, at the one path P20 gives the shared items | yes | F-arch-01, F-4d-14 |
 | `linear::search::memory::Account` | `deduxit::memory` | crate-private | F-arch-06 |
-| `linear::sequents::{Stop, Stops, Walk, Visit}`, `notation::{Notation, Atoms}` | `deduxit::notation` | `Walk`, `Stop`, `Visit` public as today; the rest crate-private | F-1a-03, F-arch-06 |
+| `linear::sequents::{Stop, Stops, Walk, Visit}`, `notation::{Notation, Atoms}` | `deduxit::notation` | `Walk` and `Visit` public as today; `Stop`, `Stops`, `Notation` and `Atoms` crate-private as today | F-1a-03, F-arch-06 |
 | `linear::sequents::fo::{FoTerm, FoTermId, Symbol, Args, Eigen}` (defined in the root's `first_order.rs`) | `deduxit::terms` | yes | F-1a-02, F-arch-07 |
 | `linear::proofs::{InfId, Labels, OpenGoal, TextOptions, Structural, ViewOptions, Layout}`, the trait `Drawn` | `deduxit::view` (`Drawn` crate-private in `export`) | yes | F-1b-01, F-1b-04, F-arch-07 |
 | `linear::proofs::GoalId`, `interactive::{Inverted, Options}` | `deduxit::session` | yes | F-4e-03, F-4f-09 |
@@ -146,8 +150,11 @@ The linear suite re-exports none of them: one path per type (P20).
 `Error` stays the one module that names every suite ("one error
 family").
 
-Breaks: public paths only; no behaviour (the target sets' counters and
-the ratchet are the proof). The changelog carries the table as the
+Breaks: public paths, and no behaviour of a search or a checker (the
+target sets' counters and the ratchet are the proof). One row changes
+output: with `Labels::Table` keyed by a rule's name, a user's labels
+apply in the drawings of ordinary logic, lambda-terms and rule files,
+which ignore them today. The changelog carries the table as the
 migration.
 
 ### P4. One options value per front door
@@ -164,8 +171,12 @@ holds the linear search's options for the embedding it runs
 (`embedding: linear::search::Options`). Every call of ordinary logic
 takes `&ordinary::Options` alone. `lambda::inhabit` follows.
 
-Breaks: the signatures of `ordinary::decide_within` and seven other
-calls; the settings keys of the four bounds (with P5).
+Breaks: the signatures of `ordinary::decide_within` and ten other
+public calls that take the linear options today (the model search, the
+negative translations' comparison, the connection prover, the clauses
+of resolution, the normal forms and their check, the session's `close`
+and `hint`, the interpolants); the settings keys of the four bounds
+(with P5).
 
 ### P5. The suites as peers in settings, errors and the registry (choice)
 
@@ -192,8 +203,8 @@ with one wire level for all of the proposal's JSON changes (section 11).
 
 | value | today | proposed | findings |
 |---|---|---|---|
-| a linear sequent | text or JSON only; the crate works around it in three places | `linear::Formulas` (`atom(name)`, `add(Term)`, `dual(id)`) and `Sequent::new(formulas, left, right)`, the shape ordinary and modal logic have | F-1a-01, F-arch-05, F-4a-16 |
-| a first-order ordinary formula | cannot be built or read | constructors and readers for terms, predicates and binders on `ordinary::Formulas` | F-4a-02 |
+| a linear sequent | text or JSON only; the crate works around it in two places (the embedding, the families) | `linear::Formulas` (`atom(name)`, `add(Term)`, `dual(id)`) and `Sequent::new(formulas, left, right)`, the shape ordinary and modal logic have | F-1a-01, F-arch-05, F-4a-16 |
+| a first-order ordinary formula | a binder can be built (`Formulas::add(Node::Forall(…))`); a term and an atom with arguments cannot be built or read | constructors and readers for terms and for predicates with arguments on `ordinary::Formulas` | F-4a-02 |
 | an ordinary derivation | `from_parts` is crate-private | `Inference::new(…)` with `with_principal`, `with_premises`, `with_term`; `Derivation::new(logic, formulas, left, right, inferences)`, unchecked until `check` | F-arch-05 |
 | a lambda-term | text or JSON only; no public walk; a type cannot be printed | a builder on `lambda::Term`, a public iterator over subterms, `Display` for a type | F-5a-02, F-5a-03, F-5a-04 |
 | a linear proof under a stop | `Proof::new` polls a stop that never fires | `Proof::build(…, limits, stop)` public | F-1b-09 |
@@ -207,6 +218,12 @@ is `Sequent::builder()` with `finish(&Limits)`. I recommend the
 third spelling of the same thing is what F-1a-05 finds too many of. It
 keeps R59's substance: indices checked, hash-consed as the parser does,
 so that a built sequent equals the parsed one.
+
+Breaks, for this part is not additive: `linear::Sequent::new()`, today
+the empty sequent, takes the formulas and the two sides as in the other
+suites, and the empty sequent stays `Sequent::default()`; a rule file's
+`Node` and `scope` take typed ids where they take `u32` today; a
+lambda-term's atoms get an id type.
 
 ### P7. Refusals and a meter
 
@@ -294,17 +311,31 @@ P6 to P8, and the acceptance test of this section.
 - `ordinary::Outcome` holds three optional countermodel fields beside
   its verdict, so it can say valid and hold a countermodel; the linear
   verdict carries its disproof in the variant (F-arch-13).
-  **Recommended**: `Verdict::NotValid(Evidence)` with one variant per
-  kind of countermodel, in ordinary and modal logic alike.
-- One rule, on the types' docs: a value inside a verdict has passed its
-  check unless the verdict says otherwise; a value built or read has not
-  until `check` is called. `Verdict`, `Refutation`, `Disproof::new` and
-  the countermodel types each say which of their values are
-  certificates (nine of the ten refutations of linear logic are) and
-  which are a search's word (F-arch-23, F-2a-09, F-1c-03, F-4d-13).
+  **Recommended**: `Verdict::NotValid` carries what refutes, an enum
+  with one variant per kind of countermodel, in ordinary and modal
+  logic alike. It needs a name of its own (`Counterexample`, say):
+  `Evidence` is what `Valid` carries today.
+- One rule, on the types' docs: a value built or read has passed no
+  check until `check` is called, and each type says what a value inside
+  a verdict has passed. Today that differs: a proof in `Proved` has
+  passed the checker when the outcome says `checked`; of the linear
+  refutations the front door checks the saturated set and the basis,
+  and computes the counts' and the classical one itself without
+  checking them again (F-2a-09). `Verdict`, `Refutation`,
+  `Disproof::new` and the countermodel types each say which of their
+  values are certificates (nine of the ten refutations of linear logic
+  are) and which are a search's word (F-arch-23, F-1c-03, F-4d-13).
+  Whether the front door should check every refutation it returns, so
+  that the rule has no exception, is a small change of behaviour I
+  recommend to decide with the engine interface (P8).
 - `NormalForm` and `Interpolant` keep their results private behind
-  accessors (F-4b-04); a first-order refutation says why it was not read
-  back as an enum (F-4c-05).
+  accessors (F-4b-04). That removes a use: setting a result by hand and
+  calling `check` on it. **Recommended**: a constructor that builds an
+  unchecked value from a result, so that a normal form or an interpolant
+  from elsewhere can still be checked; the alternative is to drop that
+  use.
+- A first-order refutation says why it was not read back as an enum
+  (F-4c-05).
 
 Breaks: the fields of the ordinary and modal outcomes and their JSON
 form (one wire level, section 11).
@@ -334,7 +365,7 @@ form (one wire level, section 11).
 | a session's open goals | an iterator, an iterator, a `Vec` | an iterator |
 | one goal of a session | `Result`, `Result`, a panic on a foreign id | `Result` |
 | undo | `Option<GoalId>`, `Option<GoalId>`, `Option<Undone>` | `Option<GoalId>` |
-| the short and the bounded form of a call | `prove` and `prove_within`; but `normal_default` and `normal`, and three more | `X` and `X_within` everywhere |
+| the short and the bounded form of a call | `prove` and `prove_within`; but `normalize_default` and `normalize`, and three more pairs of ordinary logic | `X` and `X_within` everywhere |
 | names of values in JSON and as flag values | snake case in `lambda::Calculus` and `Strategy`, kebab case in `Engine` and `Translation`; 18 mirror enums in the command | kebab case everywhere; each enum's `NAMES` public, and the command reads them |
 | an `Error` variant and its code | `Model` and `invalid_model`, `Reduction` and `reduction_rejected`, and others | the variant named for the code |
 
@@ -366,10 +397,15 @@ the name. The verbs above give most of the gain.
 - Library calls for what the front ends write by hand: read one
   document from text and refuse what follows it (45 sites, F-8-04);
   tell which document a text is (six places, F-8-16); the built-in
-  calculi by name (three tables with different contents, F-5b-02).
-- The protocol's lambda operations answer with the text and the
-  judgement its other terms carry (F-8-09); the workspace's states and
-  the id newtypes get serde forms (F-8-11, F-6a-07).
+  calculi by name (two tables, the command's and the bindings', with
+  different contents, F-5b-02).
+- A protocol operation that renders a lambda-term to the kind `term`,
+  with its text and judgement, as `linear.term` and `ordinary.term` do.
+  The stored forms of an inhabitation and a reduction stay as they are:
+  their verifier showed that adding to them would break the cache's
+  keys and the check of a reduction (F-8-09).
+- The workspace's states and the id newtypes get serde forms (F-8-11,
+  F-6a-07).
 
 Breaks: the names of the bindings' session calls, in one step with the
 client.
@@ -389,14 +425,21 @@ criterion on it.
 `seq print --logic classical 'a -> b |- b'` prints the linear image, not
 the sequent, and `seq json` and `seq fragment` take linear logic alone
 (F-7a-04). **Recommended**: `seq print` and `seq json` take the selector
-of P1 and print the sequent of the logic named; the image is `seq
-translate`. `seq fragment` is linear logic's. The batch's records name
-their logic.
+of P1 and print the sequent of the logic named; the linear image is
+`seq print --image`, the flag `prove` gets for the same thing in P1.
+`seq translate` stays the negative translation. `seq fragment` is
+linear logic's. The batch's records name their logic.
 
-### P17. Flag names and the common flags
+### P17. The common flags, and one name for a translation
 
-- `seq normalize --to FORM` becomes `--form FORM`; `--to` keeps its
-  other meaning, the target logic of `seq translate`.
+- A translation has two names for one thing and one name for two:
+  `prove --translation` is the embedding into linear logic, while the
+  negative translation is `seq translate --by` on the command and
+  `translation` in the workspace's settings. **Recommended**: `seq
+  translate --by` takes the workspace's name, and the help of `prove
+  --translation` says which translation it means. The other renames
+  F-7a-05 proposed (`--to`, `--calculus`) are not: its verifier found
+  that each names the same thing on every command that has it.
 - `--timeout`, `--memory-limit`, `--work-limit`, `--settings` and
   `--quiet` on every command that runs something, declared once
   (F-7a-13, F-7b-04, F-7b-18); a bound that has a flag on one command
@@ -429,7 +472,10 @@ the same answers alike (F-7b-19).
   the suite's root (`deduxit::linear::Proof`) or in one named submodule
   where the root would be crowded (`linear::nets`, `linear::search`);
   the leaf modules that only exist to be re-exported become private.
-  The crate's root re-exports the shared items alone.
+  The shared items have one path too: `deduxit::Error`, `Limits`,
+  `Progress`, `Refusal`, `Reason`, `Phase` and `Settings` at the root,
+  their modules public only for what the root does not hold (the
+  constants of `limits`, the tables of `settings`).
 - 82 items are named by nothing outside `core/src`
   (`inventories/surface.md`). Each becomes `pub(crate)` unless the
   manual or the guide documents a use for it; the refactor step lists
@@ -469,12 +515,16 @@ layering of P3 is what a later split would need anyway.
   and `svg`, with `png` and `pdf` on top (no consumer enables them
   apart; 258 `cfg` sites; the feature checks build 45 pairs in place of
   66). F-arch-22.
-- **Recommended**: the serde feature is named `serde` (C-FEATURE,
-  F-6a-17).
-- `serialize` also gates the rule files and modal logic's decision
-  procedure, for a recorded reason that holds (a calculus stores its
-  serde form). **Recommended**: keep it, and say so in the feature's
-  docs (F-arch-16).
+- The JSON feature, `serialize`, also gates the rule files' checker and
+  modal logic's decision procedure. The recorded reason (a calculus
+  stores its serde form) has lapsed but for the built-in rule files
+  that are read from JSON: the modal suite builds its calculus's form
+  with no deserializer (the verifiers of F-6a-04 and F-arch-16).
+  **Recommended**: take the rule forms out from behind the feature, so
+  that it adds the JSON forms and nothing else, and then name it
+  `serde` (C-FEATURE, F-6a-17). The rename alone, with the gating kept,
+  is not worth its break: if the first is declined, the name stays
+  `serialize` and its docs say what it gates.
 - **Asked**: a feature that gives the data model and the checkers
   without the engines (X7, F-arch-17, F-6a-04). It is not a feature per
   suite, which the decision of 2026-11-09 rules out, but it is the same
@@ -553,24 +603,28 @@ client's pinned module.
 |---|---|
 | one crate, a module per suite, no feature per suite (2026-11-09) | kept (P23); P24 asks about a feature that is not per suite, and recommends a measurement first |
 | linear logic is the command's default through 0.x (2026-11-09) | replaced by D1 (P1, P2) |
+| verbs come first and `--logic` chooses the suite; no subcommand per suite (2026-11-09) | verbs first and no subcommand kept; the recommendation of P1 names the selector per suite (`--ordinary`, `--linear`, `--modal`, `--calculus`) where the decision has one `--logic`, a departure in the flag's name that P1 puts as a choice |
 | the kernel crate ended at its gate (step 67) | kept; P3 makes the moves that note lists as due, and the public ones D2 and D4 now allow |
 | an item without a caller waits for one (`core.md`) | the caller is the manual's page (P10) and the consumer test |
 | the checked builder's recorded design, R59 | its substance kept, its shape changed to the one two suites have (P6); asked |
 | a front end never builds an error of the library | kept; the refusal constructors are for engines (P7) |
-| every long call takes `&Limits` and a stop closure, no `Stop` trait | kept; the engine's stop counts units and the front door makes the `Progress` (P8); eleven calls are brought under the rule (group A2) |
+| every long call takes `&Limits` and `stop: impl FnMut(Progress) -> bool`, no `Stop` trait | kept for every call a user makes, `prove_with` included, and eleven calls are brought under it (group A2). One departure, on the engine's side: `Decide::decide` is given a stop that takes work units, as the crate's private engine trait is today, because the front door owns the work count and makes the `Progress` (F-2a-02) |
 | the linear outcome's fields are public | changed to private with accessors, so that the checker stays the trust boundary beside an outside engine (P8) |
 | `Suite` is not sealed, on purpose | kept; the registry becomes a value (P14) |
-| `serialize` gates the rule files because a calculus stores its serde form | kept and documented (P24) |
+| `serialize` gates the rule files because a calculus stores its serde form | asked to change: the reason has lapsed but for the built-in rule files read from JSON (P24) |
 | a module per suite gains little (54x6); the registry built from the page's list was left to the author | P25 takes the registry as its third step and a module per suite last |
 | the Rocq library's first-order files leave the propositional ones untouched | asked to change for the checkers' shared code, outside the trusted statements (`findings.md`, H3); not part of the public interface |
+| the Rocq library keeps `Notation` for abbreviations because `Abbreviation` exists only from Rocq 9.2 | not part of the interface; `findings.md` (H2, F-9-04) proposes to write the applications out, which works on all four versions, or to silence the one warning by name; the author's choice in step 87r3 |
+| the Rocq library's installation from its opam file is not a flake check, because it needs the network | kept; section 10 asks for a job of the library's CI, which has the network |
 | the batch's record is assembled as text; `GlivenkoFirstOrder`'s message carries its countermodel | kept (both findings were rejected for it) |
 
 ## 13. What is not proposed
 
 - A crate per suite, or a kernel crate (P23).
 - A generic goal state for the three sessions, one `Verdict` type for
-  every suite, a trait over the checkers, one type for the two kinds of
-  net: the architecture reader judged each to cost more than it saves
+  every suite, a trait over the checkers, the two structures of nets
+  merged into one (P15's `Net` is a sum of the two, which stay): the
+  architecture reader judged each to cost more than it saves
   (`units/arch/architecture.md`, section 4).
 - Renaming the linear suite's `Term` to `Node` (P13).
 - A public `Drawn` (P9).

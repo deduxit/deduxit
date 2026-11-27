@@ -139,6 +139,30 @@ The architecture reader's verifier also found seven wrong statements of
 fact in the map, and the recorded decisions that stand against several
 of its proposals (`standing.md`).
 
+## The review of the synthesis
+
+`fresh-reviewer` (Opus 5.5 at `high`, 292 616 tokens by the harness's
+count) read the proposal and ten themes of the findings against the
+units' verdicts, the recorded decisions and the code, and found 23
+defects of the proposal as first written, all corrected before it went
+on:
+- eight where a verifier's correction or doubt was not carried (the
+  protocol's lambda operations, the reason behind the JSON feature, two
+  renames of flags a verifier had not found worth a break, three tables
+  that are two, the rule on what a verdict's value has passed);
+- seven wrong facts (the builders are not additive; `seq translate` is
+  the negative translation; nine lambda calculi, not eight; ten calls,
+  not seven; a function's name);
+- three on decisions (two recorded decisions unanswered; D1 asks the
+  selector of the commands of one logic too; the engine's stop departs
+  from the rule on stops and must say so);
+- four inconsistencies (a flag name already in use, a type name
+  already in use, two paths where the proposal asks for one);
+- one count in a theme.
+
+It found the head's table and the other nine themes it sampled true to
+their findings.
+
 ## Departures from the method
 
 - **Twenty-one units**, not twenty (above); stage 5 ran six.

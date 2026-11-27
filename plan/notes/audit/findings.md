@@ -243,11 +243,11 @@ What a user of the library or of the command meets. `api-proposal.md` turns thes
 
 18 findings (18 confirmed, 0 candidates); kinds: API break, refactor, text.
 
-**What.** The consumer test's findings, confirmed from inside: a linear sequent, a first-order ordinary formula, an ordinary derivation and a lambda-term can be made only from text or JSON; `Refusal` has no constructor and `Proof::build`, the stoppable form, is private; `Goal` hides its members; the engine interface is crate-private and an `Outcome` cannot be built; an outside engine can build three of the ten refutations; the exports draw a closed list of derivations; a rule file's positions and the ids of its derivation are not said. The crate itself works around the missing sequent builder in three places.
+**What.** The consumer test's findings, confirmed from inside: a linear sequent, an ordinary derivation and a lambda-term can be made only from text or JSON, and a term or an atom with arguments of ordinary logic not at all; `Refusal` has no constructor and `Proof::build`, the stoppable form, is private; `Goal` hides its members; the engine interface is crate-private and an `Outcome` cannot be built; an outside engine can build three of the ten refutations; the exports draw a closed list of derivations; a rule file's positions and the ids of its derivation are not said. The crate itself works around the missing sequent builder in two places.
 
 **Change.** Checked builders, constructors for refusals, a public `Decide` with `prove_with`, and the page of the manual that uses them (`api-proposal.md`, section 3).
 
-**Net.** Additive but for `Outcome`'s fields. The checkers stay the only way to a checked verdict; the manual's page is run by the readme test.
+**Net.** Additive but for `Outcome`'s fields, `linear::Sequent::new()`, and the ids of a rule file's derivation and of a lambda-term's atoms. The checkers stay the only way to a checked verdict; the manual's page is run by the readme test.
 
 - F-arch-03 (confirmed, refactor, small), `core/src/limits.rs:429; core/src/limits.rs:593`: An engine outside the crate can neither poll the stop it is given nor refuse as the crate's engines do, because `Progress` and `Refusal` have no public constructor.
 - F-arch-04 (confirmed, refactor, medium), `core/src/linear/search/mod.rs:1477; core/src/linear/search/mod.rs:3389`: No engine from another crate can answer in the crate's terms or be run by the front door: the engine interface is crate-private, and `Outcome` cannot be built.
@@ -363,7 +363,7 @@ What a user of the library or of the command meets. `api-proposal.md` turns thes
 
 15 findings (15 confirmed, 0 candidates); kinds: API break, refactor.
 
-**What.** The protocol's registry is written four times in one file and has drifted; the bindings hold a second protocol for the sessions, with every session call written three times; `describe` answers three hand-kept descriptions that already disagree; which document a text is gets probed in six places; reading one document from text is three lines written 45 times across the front ends; the table of built-in rule files by name is written three times with different contents; the protocol's lambda operations answer without the text its other terms carry; the workspace's states and the id newtypes have no serde form, which costs about 600 lines of mirror types.
+**What.** The protocol's registry is written four times in one file and has drifted; the bindings hold a second protocol for the sessions, with every session call written three times; `describe` answers three hand-kept descriptions that already disagree; which document a text is gets probed in six places; reading one document from text is three lines written 45 times across the front ends; the table of built-in rule files by name is written twice, in the command and in the bindings, with different contents; the protocol's lambda operations answer without the text its other terms carry; the workspace's states and the id newtypes have no serde form, which costs about 600 lines of mirror types.
 
 **Change.** The registry written once and read for everything else; the session as a trait over JSON in the protocol; `read_document`, a table of the built-in calculi and a document's kind as library calls (`api-proposal.md`, section 5).
 
@@ -688,7 +688,7 @@ Measured hot spots first, then what reading suggests. A candidate is not a findi
 
 32 findings (2 confirmed, 30 candidates); kinds: refactor, search change.
 
-**What.** Allocations in inner loops, clones of whole values to escape a borrow, quadratic scans, sorts whose key walks a term on every comparison, `#[inline(always)]` without a recorded measurement. Thirty-six places, most in code no journey runs.
+**What.** Allocations in inner loops, clones of whole values to escape a borrow, quadratic scans, sorts whose key walks a term on every comparison, `#[inline(always)]` without a recorded measurement. Thirty-two findings, most in code no journey runs.
 
 **Change.** After D1: measure each on its journey, keep the changes that move a count, record the others as tried in the unit's rules file so that they are not raised again.
 

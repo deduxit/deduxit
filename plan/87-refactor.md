@@ -258,8 +258,10 @@ type that names an outcome's engine; `Decide`, `Found`, `prove_with`;
 `Outcome::of_derivation` and `of_countermodel`; the page "Write your
 own engine", run by the readme test; `plan/notes/audit/consumer-test.md`
 run again as the acceptance test, its thirteen points answered in the
-report. After 87h1 and 87g1. Panel (the front door's `conclude` is the
-trust boundary).
+report. If the author's answer to P11 says so, the front door checks
+every refutation it returns (the counts' and the classical one are not
+checked again today, F-2a-09). After 87h1 and 87g1. Panel (the front
+door's `conclude` is the trust boundary).
 
 **87h4. Errors.** *Changes JSON forms.* P12; F-6a-15, F-5b-05, F-4e-06,
 F-6a-13, F-8-05. Beside 87h1 and 87h2.
@@ -300,9 +302,11 @@ P19; F-7a-11, F-7b-12, F-7b-18, F-7b-19. After 87i1.
 
 ### Wave J: the build
 
-**87j1. The features.** P24, theme I1: `export`, `serde`, the docs of
-what `serde` gates; the measurement the proposal asks for (the engines'
-share of a build without default features), reported to the author.
+**87j1. The features.** P24, theme I1: one feature `export`; the rule
+forms out from behind the JSON feature, which is then named `serde`
+(without the first, no rename); the measurement the proposal asks for
+(the engines' share of a build without default features), reported to
+the author.
 **87j2. The web module, the registry from the page's list.** P25's
 steps 3 and 4, by measurement after 87d2 and 87h6; a pair with the
 client.
