@@ -147,6 +147,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   on terms and the memory bound, and leaves the refutation as the
   evidence where one ends it; a binding's text is cut after 4 096 bytes
   with `…`.
+- **A PDF's date is checked.** `export::pdf::from_svg` refuses a
+  `pdf::Date` that is not one of the calendar (a month past 12,
+  30 February, an hour past 23) with `Error::InvalidOption`, key
+  `pdf.date`; the renderer clamped each field, so `"month": 13` in a
+  settings file wrote December.
 
 ## [0.8.0] - 2026-11-23
 

@@ -176,7 +176,8 @@ impl Date {
     /// Returns the moment `seconds` after the Unix epoch, in UTC.
     ///
     /// `SOURCE_DATE_EPOCH`, the date of reproducible builds, counts the
-    /// same way. A year past 65 535 is given as 65 535.
+    /// same way. A moment past the year 65 535 is given as its last second,
+    /// 65535-12-31 23:59:59.
     ///
     /// # Examples
     ///
@@ -199,13 +200,63 @@ impl Date {
         let day = doy - (153 * mp + 2) / 5 + 1;
         let month = if mp < 10 { mp + 3 } else { mp - 9 };
         let year = yoe + era * 400 + u64::from(month <= 2);
+        // Clamped whole, so that the date stays one of the calendar: the
+        // leap day of a later year is no day of 65 535.
+        let Ok(year) = u16::try_from(year) else {
+            return Self {
+                year: u16::MAX,
+                month: 12,
+                day: 31,
+                hour: 23,
+                minute: 59,
+                second: 59,
+            };
+        };
         Self {
-            year: u16::try_from(year).unwrap_or(u16::MAX),
+            year,
             month: month as u8,
             day: day as u8,
             hour: (rest / 3600) as u8,
             minute: (rest % 3600 / 60) as u8,
             second: (rest % 60) as u8,
+        }
+    }
+
+    /// Refuses a date that is not one of the calendar: a month past 12, a
+    /// day past its month's last (29 February only in a leap year), an hour,
+    /// minute or second out of range. The renderer would clamp each field
+    /// silently, so `"month": 13` in a settings file would write December.
+    fn checked(self) -> Result<Self, Error> {
+        let leap = self.year.is_multiple_of(4)
+            && (!self.year.is_multiple_of(100) || self.year.is_multiple_of(400));
+        let days = match self.month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 if leap => 29,
+            2 => 28,
+            _ => 0,
+        };
+        let fault = if days == 0 {
+            Some(format!("month {} is not 1 to 12", self.month))
+        } else if !(1..=days).contains(&self.day) {
+            Some(format!(
+                "day {} is not 1 to {days}, the days of month {} of {}",
+                self.day, self.month, self.year
+            ))
+        } else if self.hour > 23 || self.minute > 59 || self.second > 59 {
+            Some(format!(
+                "{:02}:{:02}:{:02} is no time of day",
+                self.hour, self.minute, self.second
+            ))
+        } else {
+            None
+        };
+        match fault {
+            Some(message) => Err(Error::InvalidOption {
+                key: "pdf.date",
+                message,
+            }),
+            None => Ok(self),
         }
     }
 }
@@ -223,7 +274,9 @@ impl Date {
 ///
 /// # Errors
 ///
-/// - [`Error::NoDate`] without [`Options::date`].
+/// - [`Error::NoDate`] without [`Options::date`], and
+///   [`Error::InvalidOption`] (key `pdf.date`) for a date that is not one
+///   of the calendar (a month past 12, 30 February, an hour past 23).
 /// - [`Refusal::Memory`](crate::Refusal::Memory) past the memory bound,
 ///   checked before the SVG is parsed.
 /// - [`Error::NotSvg`] for a text that is no document the renderer reads,
@@ -236,7 +289,7 @@ pub fn from_svg(
     options: &Options,
     limits: &crate::Limits,
 ) -> Result<Vec<u8>, Error> {
-    let date = options.date.ok_or(Error::NoDate)?;
+    let date = options.date.ok_or(Error::NoDate)?.checked()?;
     let costs = if options.embed_text {
         PDF
     } else {
@@ -340,5 +393,46 @@ mod tests {
         assert_eq!(date(951_782_400), (2000, 2, 29, 0, 0, 0));
         assert_eq!(date(1_791_158_399), (2026, 10, 4, 23, 59, 59));
         assert_eq!(date(4_107_542_400), (2100, 3, 1, 0, 0, 0));
+        // Past the year 65 535, its last second, which is a date: the leap
+        // day of the year 80 000 kept its month and day before.
+        assert_eq!(date(2_462_394_038_400), (65_535, 12, 31, 23, 59, 59));
+        Date::from_unix(u64::MAX).checked().unwrap();
+    }
+
+    /// A date that is not one of the calendar is refused before anything
+    /// is rendered, since the renderer would clamp it silently: month 13
+    /// would be December.
+    #[test]
+    fn a_date_off_the_calendar_is_refused() {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"/>";
+        let render = |change: fn(&mut Date)| {
+            let mut date = Date::from_unix(0);
+            change(&mut date);
+            from_svg(
+                svg,
+                &[],
+                &Options::default().with_date(Some(date)),
+                &crate::Limits::default(),
+            )
+        };
+        for change in [
+            |d: &mut Date| d.month = 13,
+            |d: &mut Date| d.month = 0,
+            |d: &mut Date| (d.month, d.day) = (2, 29),
+            |d: &mut Date| (d.month, d.day) = (4, 31),
+            |d: &mut Date| d.day = 0,
+            |d: &mut Date| d.hour = 24,
+            |d: &mut Date| d.second = 60,
+        ] {
+            assert!(matches!(
+                render(change),
+                Err(Error::InvalidOption {
+                    key: "pdf.date",
+                    ..
+                })
+            ));
+        }
+        // A leap day of a leap year is a date.
+        render(|d| (d.year, d.month, d.day) = (2000, 2, 29)).unwrap();
     }
 }
