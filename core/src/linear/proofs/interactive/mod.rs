@@ -245,8 +245,8 @@ pub enum StepError {
 pub enum SplitCause {
     /// The split names the position twice.
     Twice,
-    /// The position is the formula the rule acts on, which goes to no
-    /// premise as it is.
+    /// The position is the step's own formula, which the split does not
+    /// name: a `⊗` takes it apart, and a Mix sends it left by itself.
     Principal,
 }
 
@@ -295,12 +295,11 @@ impl Display for StepError {
             StepError::NotAlone { rule, position } if rule.rule == Rule::Ax => write!(
                 f,
                 "the axiom needs formula {position} with its dual literal and nothing else in \
-                 the goal; in affine mode, weaken the other formulas first"
+                 the goal"
             ),
             StepError::NotAlone { rule, position } => write!(
                 f,
-                "the rule {rule} needs formula {position} alone in the goal; in affine mode, \
-                 weaken the other formulas first"
+                "the rule {rule} needs formula {position} alone in the goal"
             ),
             StepError::NoDual { position } => write!(
                 f,
@@ -322,8 +321,8 @@ impl Display for StepError {
                 cause: SplitCause::Principal,
             } => write!(
                 f,
-                "formula {position} is the one the rule acts on, so the split cannot send it \
-                 left: name only the other formulas going left"
+                "formula {position} is the step's own formula, which the split does not name: \
+                 name only the other formulas going left"
             ),
             StepError::NoSplit { rule } => write!(f, "the rule {rule} takes no split"),
             StepError::Succedents { count: n } => write!(
@@ -1485,8 +1484,7 @@ mod tests {
         );
         assert_eq!(
             s.apply(g, &Step::new(0, Ax)).unwrap_err().to_string(),
-            "the axiom needs formula 0 with its dual literal and nothing else in the goal; in \
-             affine mode, weaken the other formulas first"
+            "the axiom needs formula 0 with its dual literal and nothing else in the goal"
         );
         let (mut s, g) = start("|- a, b", Mode::CLASSICAL);
         assert_eq!(

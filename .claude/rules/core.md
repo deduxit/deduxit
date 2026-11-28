@@ -432,12 +432,12 @@ the commit that lands it rewrites that bullet.
   0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
-  `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
+  `Criterion`, `EigenCause`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
   `InputOptions`, `Limits`, `Named`, `NetError`, `NotTaken`, `Options`,
   `Order`, `Outcome`, `ParseError`, `Parts`, `Phase`, `Placed`,
   `Placement`, `Progress`, `Reason`, `Refusal`, `Refutation`, `Settings`,
-  `ShapeError`, `Size`, `Statistics`, `Step`, `StepError`,
-  `ViewOptions`; `export::{Drawable, Form, Styles}`,
+  `ShapeError`, `Size`, `SplitCause`, `Statistics`, `Step`, `StepError`,
+  `ViewOptions` (`EigenCause` and `SplitCause` added at step 87f1); `export::{Drawable, Form, Styles}`,
   `export::latex::Options`, `export::pdf::{Date, Options}`,
   `export::png::Options`, `export::rocq::{Kernel, Options, Unsupported}`,
   `export::svg::{Advances, Conclusions, Font, MathFont, NetDrawing,
