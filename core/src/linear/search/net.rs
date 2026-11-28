@@ -417,125 +417,10 @@ impl Symmetry {
     /// inside it all stay below `NONE`.
     fn new(forest: &Forest, prunes: Prunes) -> Self {
         let n = forest.len();
-        // The anchor of an occurrence: the top of the maximal tree of its
-        // parent's connective that holds the parent, or `n` for a root.
-        let mut top = vec![NONE; n];
-        let mut anchor = vec![n as u32; n];
-        for o in forest.ids() {
-            if let Some(p) = forest.parent(o) {
-                anchor[o.index()] = top[p.index()];
-            }
-            if !forest.is_literal(o) {
-                top[o.index()] = match forest.parent(o) {
-                    Some(p) if forest.kind(p) == forest.kind(o) => top[p.index()],
-                    _ => o.get(),
-                };
-            }
-        }
-        // Literal classes: one atom, sign and anchor, chained in id order.
-        let chained = |l: &&OccId| {
-            if anchor[l.index()] == n as u32 {
-                prunes.conclusions
-            } else {
-                prunes.leaves
-            }
-        };
-        let (mut before, mut after) = (vec![NONE; n], vec![NONE; n]);
-        let mut last = vec![NONE; n + 1];
-        for a in atoms(forest) {
-            for sign in [Sign::Atom, Sign::Dual] {
-                let literals = forest.literals(a, sign);
-                for &l in literals.iter().filter(chained) {
-                    let previous = &mut last[anchor[l.index()] as usize];
-                    if *previous != NONE {
-                        after[*previous as usize] = l.get();
-                        before[l.index()] = *previous;
-                    }
-                    *previous = l.get();
-                }
-                for &l in literals.iter().filter(chained) {
-                    last[anchor[l.index()] as usize] = NONE;
-                }
-            }
-        }
-        // Compound classes: equal compound formulas with one anchor, each a
-        // conclusion or a leaf of its anchor's tree, whose connective
-        // differs from its parent's.
-        let mut shape = vec![0u32; n];
-        let mut shapes = HashMap::<(Kind, u32, u32), u32>::default();
-        let mut compounds = Vec::new();
-        for o in forest.ids().rev() {
-            let key = match (forest.left(o), forest.right(o)) {
-                (Some(l), Some(r)) => (forest.kind(o), shape[l.index()], shape[r.index()]),
-                _ => (forest.kind(o), forest.atom(o).map_or(0, Atom::get), 0),
-            };
-            let next = shapes.len() as u32;
-            shape[o.index()] = *shapes.entry(key).or_insert(next);
-            let leaf = forest
-                .parent(o)
-                .is_none_or(|p| forest.kind(p) != forest.kind(o));
-            if prunes.compounds && !forest.is_literal(o) && leaf {
-                compounds.push((anchor[o.index()], shape[o.index()], o));
-            }
-        }
-        compounds.sort_unstable();
-        let mut classes: Vec<&[(u32, u32, OccId)]> = compounds
-            .chunk_by(|x, y| (x.0, x.1) == (y.0, y.1))
-            .filter(|class| class.len() > 1)
-            .collect();
-        // Inner classes first, so that a key literal avoids their copies.
-        classes.sort_unstable_by_key(|class| std::cmp::Reverse(class[0].2));
-        let (mut key_before, mut key_after) = (vec![NONE; n], vec![NONE; n]);
-        let mut broken = vec![false; n];
-        let mut keyed = Vec::new();
-        for class in classes {
-            let first = class[0].2;
-            let Some(offset) = forest.subtree(first).position(|x| {
-                forest.is_literal(x)
-                    && before[x.index()] == NONE
-                    && after[x.index()] == NONE
-                    && !broken[x.index()]
-            }) else {
-                continue;
-            };
-            keyed.push((class, offset as u32));
-            for &(_, _, copy) in class {
-                for x in forest.subtree(copy) {
-                    broken[x.index()] = true;
-                }
-            }
-        }
-        let mut key = vec![NONE; n];
-        for o in forest.ids() {
-            if forest.is_literal(o) && !broken[o.index()] {
-                key[o.index()] = match before[o.index()] {
-                    NONE => o.get(),
-                    b => key[b as usize],
-                };
-            }
-        }
-        // A class whose key literals can only take partners keyed `NONE`
-        // gets no chain: its order would hold whatever the partners.
-        for (class, offset) in keyed {
-            let l = OccId::new(class[0].2.get() + offset);
-            let (atom, sign) = (forest.atom(l).unwrap(), forest.sign(l).unwrap());
-            if forest
-                .literals(atom, !sign)
-                .iter()
-                .all(|y| key[y.index()] == NONE)
-            {
-                continue;
-            }
-            let mut previous = NONE;
-            for &(_, _, copy) in class {
-                let l = copy.get() + offset;
-                if previous != NONE {
-                    key_after[previous as usize] = l;
-                    key_before[l as usize] = previous;
-                }
-                previous = l;
-            }
-        }
+        let anchor = anchors(forest);
+        let (before, after) = literal_classes(forest, prunes, &anchor);
+        let (key, key_before, key_after) =
+            compound_classes(forest, prunes, &anchor, &before, &after);
         let chains = (0..n)
             .map(|i| Chains {
                 before: before[i],
@@ -549,6 +434,150 @@ impl Symmetry {
             key: key.into_boxed_slice(),
         }
     }
+}
+
+/// Returns the anchor of every occurrence: the top of the maximal tree of
+/// its parent's connective that holds the parent, or `n` for a root.
+fn anchors(forest: &Forest) -> Vec<u32> {
+    let n = forest.len();
+    let mut top = vec![NONE; n];
+    let mut anchor = vec![n as u32; n];
+    for o in forest.ids() {
+        if let Some(p) = forest.parent(o) {
+            anchor[o.index()] = top[p.index()];
+        }
+        if !forest.is_literal(o) {
+            top[o.index()] = match forest.parent(o) {
+                Some(p) if forest.kind(p) == forest.kind(o) => top[p.index()],
+                _ => o.get(),
+            };
+        }
+    }
+    anchor
+}
+
+/// Returns the chains of the literal classes, each literal's previous and
+/// next: one atom, sign and anchor, chained in id order, for the
+/// conclusions under `prunes.conclusions` and the leaves under
+/// `prunes.leaves`.
+fn literal_classes(forest: &Forest, prunes: Prunes, anchor: &[u32]) -> (Vec<u32>, Vec<u32>) {
+    let n = forest.len();
+    let chained = |l: &&OccId| {
+        if anchor[l.index()] == n as u32 {
+            prunes.conclusions
+        } else {
+            prunes.leaves
+        }
+    };
+    let (mut before, mut after) = (vec![NONE; n], vec![NONE; n]);
+    let mut last = vec![NONE; n + 1];
+    for a in atoms(forest) {
+        for sign in [Sign::Atom, Sign::Dual] {
+            let literals = forest.literals(a, sign);
+            for &l in literals.iter().filter(chained) {
+                let previous = &mut last[anchor[l.index()] as usize];
+                if *previous != NONE {
+                    after[*previous as usize] = l.get();
+                    before[l.index()] = *previous;
+                }
+                *previous = l.get();
+            }
+            for &l in literals.iter().filter(chained) {
+                last[anchor[l.index()] as usize] = NONE;
+            }
+        }
+    }
+    (before, after)
+}
+
+/// Returns the keys of the literals and the chains of the key literals of
+/// the compound classes under `prunes.compounds`: equal compound formulas
+/// with one anchor, each a conclusion or a leaf of its anchor's tree, whose
+/// connective differs from its parent's.
+fn compound_classes(
+    forest: &Forest,
+    prunes: Prunes,
+    anchor: &[u32],
+    before: &[u32],
+    after: &[u32],
+) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
+    let n = forest.len();
+    let mut shape = vec![0u32; n];
+    let mut shapes = HashMap::<(Kind, u32, u32), u32>::default();
+    let mut compounds = Vec::new();
+    for o in forest.ids().rev() {
+        let key = match (forest.left(o), forest.right(o)) {
+            (Some(l), Some(r)) => (forest.kind(o), shape[l.index()], shape[r.index()]),
+            _ => (forest.kind(o), forest.atom(o).map_or(0, Atom::get), 0),
+        };
+        let next = shapes.len() as u32;
+        shape[o.index()] = *shapes.entry(key).or_insert(next);
+        let leaf = forest
+            .parent(o)
+            .is_none_or(|p| forest.kind(p) != forest.kind(o));
+        if prunes.compounds && !forest.is_literal(o) && leaf {
+            compounds.push((anchor[o.index()], shape[o.index()], o));
+        }
+    }
+    compounds.sort_unstable();
+    let mut classes: Vec<&[(u32, u32, OccId)]> = compounds
+        .chunk_by(|x, y| (x.0, x.1) == (y.0, y.1))
+        .filter(|class| class.len() > 1)
+        .collect();
+    // Inner classes first, so that a key literal avoids their copies.
+    classes.sort_unstable_by_key(|class| std::cmp::Reverse(class[0].2));
+    let (mut key_before, mut key_after) = (vec![NONE; n], vec![NONE; n]);
+    let mut broken = vec![false; n];
+    let mut keyed = Vec::new();
+    for class in classes {
+        let first = class[0].2;
+        let Some(offset) = forest.subtree(first).position(|x| {
+            forest.is_literal(x)
+                && before[x.index()] == NONE
+                && after[x.index()] == NONE
+                && !broken[x.index()]
+        }) else {
+            continue;
+        };
+        keyed.push((class, offset as u32));
+        for &(_, _, copy) in class {
+            for x in forest.subtree(copy) {
+                broken[x.index()] = true;
+            }
+        }
+    }
+    let mut key = vec![NONE; n];
+    for o in forest.ids() {
+        if forest.is_literal(o) && !broken[o.index()] {
+            key[o.index()] = match before[o.index()] {
+                NONE => o.get(),
+                b => key[b as usize],
+            };
+        }
+    }
+    // A class whose key literals can only take partners keyed `NONE`
+    // gets no chain: its order would hold whatever the partners.
+    for (class, offset) in keyed {
+        let l = OccId::new(class[0].2.get() + offset);
+        let (atom, sign) = (forest.atom(l).unwrap(), forest.sign(l).unwrap());
+        if forest
+            .literals(atom, !sign)
+            .iter()
+            .all(|y| key[y.index()] == NONE)
+        {
+            continue;
+        }
+        let mut previous = NONE;
+        for &(_, _, copy) in class {
+            let l = copy.get() + offset;
+            if previous != NONE {
+                key_after[previous as usize] = l;
+                key_before[l as usize] = previous;
+            }
+            previous = l;
+        }
+    }
+    (key, key_before, key_after)
 }
 
 /// A correctness criterion that the linking search keeps current as it
