@@ -380,9 +380,9 @@ impl MellStructure {
     ///
     /// # Errors
     ///
-    /// [`NetError::NotMell`] for a sequent outside unit-free MELL;
-    /// [`NetError::Mode`] for a criterion of the cyclic order, which keeps
-    /// no exponentials; [`NetError::Placement`] for a vertex out of place;
+    /// [`NetError::NotMell`] for a sequent outside unit-free MELL, and for
+    /// a criterion of the cyclic order, which keeps no exponentials;
+    /// [`NetError::Placement`] for a vertex out of place;
     /// [`NetError::NoVertex`], [`NetError::NotLiteral`],
     /// [`NetError::NotDual`] and [`NetError::LinkedTwice`] for a link that
     /// is none; [`Refusal::Index`] past the vertices a structure holds and
@@ -400,7 +400,11 @@ impl MellStructure {
         };
         Self::exist(forest.sequent().fragment(), mode)?;
         if criterion.order != Order::Commutative {
-            return Err(NetError::Mode { mode: Mode::CYCLIC }.into());
+            return Err(NetError::NotMell {
+                fragment: forest.sequent().fragment(),
+                mode: Mode::CYCLIC,
+            }
+            .into());
         }
         let roots = forest.roots().len();
         let n = roots as u64 + parts.vertices.len() as u64;

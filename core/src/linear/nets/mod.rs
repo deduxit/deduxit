@@ -366,7 +366,8 @@ pub enum NetError {
         /// The sequent's fragment.
         fragment: Fragment,
     },
-    /// Proof nets exist in linear mode only, and the mode is affine.
+    /// The mode has no proof nets of this kind: affine mode has none, an
+    /// ordered mode none with Mix, and the cyclic mode none with cut links.
     #[non_exhaustive]
     Mode {
         /// The mode asked for.
@@ -605,6 +606,13 @@ impl NetError {
             Fragment { fragment } => write!(
                 f,
                 "proof nets exist for MLL without units only, not for {fragment}"
+            ),
+            Mode { mode } if mode.is_ordered() && mode.has_mix() => {
+                f.write_str("proof nets of an ordered mode exist without Mix only: leave out Mix")
+            }
+            Mode { mode } if mode.is_ordered() => write!(
+                f,
+                "a proof net of {mode} mode has no cut link, since its calculus has no cut"
             ),
             Mode { mode } => write!(
                 f,
@@ -2039,6 +2047,51 @@ mod tests {
             sequents > 150 && nets > 100,
             "{sequents} sequents, {nets} planar nets"
         );
+    }
+
+    /// A mode without the nets asked for says why: affine mode has none, an
+    /// ordered mode none with Mix, the cyclic mode none with cut links, and
+    /// a structure with boxes none of the cyclic order.
+    #[test]
+    fn a_mode_s_refusal_names_its_reason() {
+        /// Returns the refusal's text.
+        fn text<T>(result: Result<T, Error>) -> String {
+            result.err().expect("refused").to_string()
+        }
+        let affine = Criterion::of(Mode::CLASSICAL.with_affine()).unwrap_err();
+        assert!(
+            affine
+                .to_string()
+                .starts_with("proof nets exist in linear mode only"),
+            "{affine}"
+        );
+        let mix = Criterion {
+            mix: true,
+            ..Criterion::CYCLIC
+        };
+        assert!(
+            text(ProofStructure::new(forest("|- a, ~a"), mix))
+                .ends_with("proof nets of an ordered mode exist without Mix only: leave out Mix")
+        );
+        let mut sequent: Sequent = "|- a, ~a".parse().unwrap();
+        sequent.add_cut("|- a par ~a".parse().unwrap()).unwrap();
+        let v = VertexId::new;
+        let cut = ProofStructure::with_cuts(
+            Forest::new(&sequent).unwrap(),
+            Criterion::CYCLIC,
+            &[(v(2), v(5))],
+            &[],
+        );
+        assert!(text(cut).ends_with(
+            "a proof net of cyclic mode has no cut link, since its calculus has no cut"
+        ));
+        let boxed = mell::MellStructure::from_parts(
+            forest("|- a, ~a"),
+            Criterion::CYCLIC,
+            &mell::Parts::default(),
+            &Limits::default(),
+        );
+        assert!(text(boxed).ends_with("not for MLL in cyclic mode"));
     }
 
     /// The text form lists the sequent, the links with their positions and

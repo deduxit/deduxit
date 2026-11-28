@@ -473,7 +473,9 @@ engine. What the code relies on:
   (`MellStructure::exist`, `NetError::NotMell`); the affine modes and the
   ordered modes have none (an affine proof weakens formulas that are no
   `?`, which no vertex kind holds; the ordered modes refuse
-  exponentials); with Mix the criterion is acyclicity at every
+  exponentials; `from_parts` under a cyclic criterion is `NotMell` with
+  the cyclic mode, not `NetError::Mode`, whose text names Mix or cut
+  links, the two reasons it keeps); with Mix the criterion is acyclicity at every
   depth, weakenings still hung (with Mix and no empty rule, `⊢ ?c ⊗ ?d,
   a, ~a` is acyclic and unprovable). `nets::exist` and the net engine
   are unchanged and MLL only; the command (`nets_exist`, `net_of`) and

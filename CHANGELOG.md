@@ -231,6 +231,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   the workspace's count of nodes, where it said there were 0.
 - **A `.spec` file's errors name their line**: "not a .spec problem:
   line 5: the counter `b` is not declared".
+- **A proof net refused for its mode says why**: an ordered mode has no
+  nets with Mix, the cyclic mode none with cut links, and a structure
+  with boxes under the cyclic order is `NetError::NotMell`, which names
+  the modes that have them. Each said that proof nets exist in linear
+  mode only, which the cyclic mode is.
 
 ### Deprecated
 
