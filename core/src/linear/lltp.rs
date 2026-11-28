@@ -297,21 +297,20 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error, cnf: bool) -> Resu
                 *slot = Some(value);
             }
         }
-        let chars: Vec<char> = before.chars().collect();
-        for (i, &c) in chars.iter().enumerate() {
-            let name = |j: usize| {
-                chars
-                    .get(j)
-                    .is_some_and(|&c| c.is_ascii_alphanumeric() || c == '_')
-            };
+        // The lookahead reads bytes: every character it tests is ASCII, and
+        // no byte of a longer character is an ASCII name character.
+        let bytes = before.as_bytes();
+        let name = |j: usize| bytes.get(j).is_some_and(|&b| is_name_byte(b));
+        for (i, c) in before.char_indices() {
             // A `-` or `.` between two characters of a name belongs to the
             // name, unless the `-` starts the operator `-o`. A `-o` with a
             // name character on both sides reads both ways and is refused.
             let inner = i > 0 && name(i - 1) && name(i + 1);
+            let o = bytes.get(i + 1) == Some(&b'o');
             code.push(match c {
-                '-' if inner && !(chars[i + 1] == 'o' && !name(i + 2)) => {
-                    if chars[i + 1] == 'o' {
-                        return Err(error(glued(&chars, i)));
+                '-' if inner && !(o && !name(i + 2)) => {
+                    if o {
+                        return Err(error(glued(before, i)));
                     }
                     HYPHEN
                 }
@@ -413,21 +412,29 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error, cnf: bool) -> Resu
     })
 }
 
-/// Returns the message for a `-o` at `at` of a line's `chars` with a name
+/// Returns whether a byte is an ASCII name character: a letter, a digit
+/// or `_`.
+const fn is_name_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Returns the message for a `-o` at byte `at` of a `line` with a name
 /// character on both sides, which reads both as one name and as two
 /// names joined by the connective.
 #[cold]
-fn glued(chars: &[char], at: usize) -> String {
-    let name = |c: &char| c.is_ascii_alphanumeric() || *c == '_';
-    let start = chars[..at]
+fn glued(line: &str, at: usize) -> String {
+    let bytes = line.as_bytes();
+    // Both ends sit next to ASCII name bytes, so both are character
+    // boundaries.
+    let start = bytes[..at]
         .iter()
-        .rposition(|c| !name(c))
+        .rposition(|&b| !is_name_byte(b))
         .map_or(0, |n| n + 1);
-    let end = chars[at + 2..]
+    let end = bytes[at + 2..]
         .iter()
-        .position(|c| !name(c))
-        .map_or(chars.len(), |n| at + 2 + n);
-    let word: String = chars[start..end].iter().collect();
+        .position(|&b| !is_name_byte(b))
+        .map_or(bytes.len(), |n| at + 2 + n);
+    let word = &line[start..end];
     format!(
         "`{word}` reads as one name and as two joined by `-o`: write a space before `-o` for \
          the connective"
