@@ -9180,3 +9180,13 @@ move (D26).
   text, so a renamed binder grades an honest answer incorrect (safe direction; a public comparison
   of sequents across arenas, part 2); `check` of an outcome whose refused countermodel and image
   disagree (**fixup-40**, started in the same worker, cores 7-9; the panel). In CI before `main`.
+- 2026-11-28, about 13:18: **fixup-40 reviewed; fixup-41 started.** fixup-40 (Opus, high; the panel
+  and the reviewer on Opus): `check` confirms a propositional `not_valid` by its image only when the
+  translation decides the logic, the refutation is of the whole image in the translation's mode, no
+  structure stands beside it and any countermodel translates to the image; otherwise unknown. Honest
+  outcomes unchanged (the reviewer: 4 758 and 2 600 checks against the base). Its follow-ups, both
+  on `main` before: an image of `false |- a` decided not valid in minimal logic and relabelled
+  intuitionistic is confirmed, a false claim; and the valid side checks the derivation and the
+  image's proof untied (**fixup-41**, started in the same worker, cores 7-9; the panel; unknown
+  where nothing ties, the ordinary sequent in the outcome as the part 2 change). In CI before
+  `main`.
