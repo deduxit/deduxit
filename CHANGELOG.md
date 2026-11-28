@@ -229,6 +229,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   called the index a root formula and the node message spoke of a
   proof's nodes. A workspace edit of a node that does not exist gives
   the workspace's count of nodes, where it said there were 0.
+- **A `.spec` file's errors name their line**: "not a .spec problem:
+  line 5: the counter `b` is not declared".
 
 ### Deprecated
 

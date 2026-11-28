@@ -122,7 +122,8 @@ pub enum Safety {
 ///
 /// # Errors
 ///
-/// - [`Error::Spec`] for text that is not such a problem: a character the
+/// - [`Error::Spec`], its message led by the line at fault where there is
+///   one, for text that is not such a problem: a character the
 ///   format does not use, a section missing or out of order, no target, a
 ///   counter not declared, a counter updated twice by one rule or from
 ///   another counter, a counter given twice in `init`, a count that is no
@@ -147,64 +148,15 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     });
     let tokens = tokens(text)?;
     let mut reader = Reader { tokens, at: 0 };
-    reader.keyword("vars")?;
-    let mut names = Vec::new();
-    while !reader.at_keyword("rules") {
-        let name = reader.name()?;
-        crate::name::check(name)?;
-        names.push(name);
-    }
-    let index: HashMap<&str, usize> = names.iter().enumerate().map(|(i, &n)| (n, i)).collect();
-    let counter = |name: &str| {
-        index
-            .get(name)
-            .copied()
-            .ok_or_else(|| error(format!("the counter `{name}` is not declared")))
-    };
-    reader.keyword("rules")?;
-    let mut clauses = Vec::new();
-    while !reader.at_keyword("init") {
-        clauses.push(reader.rule(&names, &counter)?);
-    }
-    reader.keyword("init")?;
-    let mut tokens = vec![0u32; names.len()];
-    let mut parameters = Vec::new();
-    let mut initial = vec![false; names.len()];
-    while !reader.at_keyword("target") {
-        let name = reader.name()?;
-        let x = counter(name)?;
-        // Read either way, `x >= 1, x = 3` would be neither constraint.
-        if std::mem::replace(&mut initial[x], true) {
-            return Err(error(format!(
-                "the counter `{name}` is given twice in `init`"
-            )));
-        }
-        let at_least = match reader.next()? {
-            Token::Word("=") => false,
-            Token::Word(">=") => true,
-            token => return Err(error(format!("expected `=` or `>=` at {token}"))),
-        };
-        tokens[x] = reader.number()?;
-        if at_least {
-            parameters.push(x);
-        }
-        reader.comma_or_line();
-    }
-    reader.keyword("target")?;
-    let mut targets = Vec::new();
-    let mut target = Vec::new();
-    while !reader.at_keyword("invariants") && reader.at < reader.tokens.len() {
-        let name = reader.name()?;
-        let x = counter(name)?;
-        reader.word(">=")?;
-        target.push((x, reader.number()?));
-        if !reader.comma_or_line() {
-            targets.push(merged(std::mem::take(&mut target)));
-        }
-    }
-    if !target.is_empty() {
-        targets.push(merged(target));
-    }
+    let sections = sections(&mut reader).map_err(|error| reader.placed(error))?;
+    let Sections {
+        names,
+        index,
+        clauses,
+        tokens,
+        parameters,
+        targets,
+    } = sections;
     if targets.is_empty() {
         return Err(error("no target".to_owned()));
     }
@@ -281,6 +233,97 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let mut sequent = Sequent::from_parts(arena.terms, roots, arena.atoms, antecedents);
     sequent.optimize();
     Ok(Problem { sequent, expected })
+}
+
+/// What a `.spec` file's sections hold, read but not yet built.
+struct Sections<'a> {
+    /// The counters' names, in the order `vars` declares them.
+    names: Vec<&'a str>,
+    /// Each counter's index by name.
+    index: HashMap<&'a str, usize>,
+    /// Each rule's tokens taken and given.
+    clauses: Vec<(Counts, Counts)>,
+    /// Each counter's initial tokens.
+    tokens: Vec<u32>,
+    /// The counters `init` gives at least their tokens.
+    parameters: Vec<usize>,
+    /// The target's lines, each the tokens it asks for.
+    targets: Vec<Counts>,
+}
+
+/// Reads a `.spec` file's sections, from `vars` to `target`.
+///
+/// # Errors
+///
+/// [`Error::Spec`] where the text breaks the format, without its line,
+/// and [`Error::AtomName`] for a counter named by a keyword.
+fn sections<'a>(reader: &mut Reader<'a>) -> Result<Sections<'a>, Error> {
+    reader.keyword("vars")?;
+    let mut names = Vec::new();
+    while !reader.at_keyword("rules") {
+        let name = reader.name()?;
+        crate::name::check(name)?;
+        names.push(name);
+    }
+    let index: HashMap<&str, usize> = names.iter().enumerate().map(|(i, &n)| (n, i)).collect();
+    let counter = |name: &str| {
+        index
+            .get(name)
+            .copied()
+            .ok_or_else(|| error(format!("the counter `{name}` is not declared")))
+    };
+    reader.keyword("rules")?;
+    let mut clauses = Vec::new();
+    while !reader.at_keyword("init") {
+        clauses.push(reader.rule(&names, &counter)?);
+    }
+    reader.keyword("init")?;
+    let mut tokens = vec![0u32; names.len()];
+    let mut parameters = Vec::new();
+    let mut initial = vec![false; names.len()];
+    while !reader.at_keyword("target") {
+        let name = reader.name()?;
+        let x = counter(name)?;
+        // Read either way, `x >= 1, x = 3` would be neither constraint.
+        if std::mem::replace(&mut initial[x], true) {
+            return Err(error(format!(
+                "the counter `{name}` is given twice in `init`"
+            )));
+        }
+        let at_least = match reader.next()? {
+            Token::Word("=") => false,
+            Token::Word(">=") => true,
+            token => return Err(error(format!("expected `=` or `>=` at {token}"))),
+        };
+        tokens[x] = reader.number()?;
+        if at_least {
+            parameters.push(x);
+        }
+        reader.comma_or_line();
+    }
+    reader.keyword("target")?;
+    let mut targets = Vec::new();
+    let mut target = Vec::new();
+    while !reader.at_keyword("invariants") && reader.at < reader.tokens.len() {
+        let name = reader.name()?;
+        let x = counter(name)?;
+        reader.word(">=")?;
+        target.push((x, reader.number()?));
+        if !reader.comma_or_line() {
+            targets.push(merged(std::mem::take(&mut target)));
+        }
+    }
+    if !target.is_empty() {
+        targets.push(merged(target));
+    }
+    Ok(Sections {
+        names,
+        index,
+        clauses,
+        tokens,
+        parameters,
+        targets,
+    })
 }
 
 /// Returns how many of a sequent's roots stand left of `⊢`: all but the
@@ -455,7 +498,7 @@ impl std::fmt::Display for Token<'_> {
 /// outside white space is an error.
 fn tokens(text: &str) -> Result<Vec<Token<'_>>, Error> {
     let mut tokens = Vec::new();
-    for line in text.lines() {
+    for (number, line) in (1..).zip(text.lines()) {
         let line = line.split_once('#').map_or(line, |(code, _)| code);
         let mut at = 0;
         while at < line.len() {
@@ -472,7 +515,7 @@ fn tokens(text: &str) -> Result<Vec<Token<'_>>, Error> {
             } else if "=+-,;'".contains(c) {
                 1
             } else {
-                return Err(error(format!("unexpected `{c}`")));
+                return Err(error(format!("line {number}: unexpected `{c}`")));
             };
             tokens.push(Token::Word(&rest[..length]));
             at += length;
@@ -491,6 +534,25 @@ struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
+    /// Returns a `.spec` error with the line of the last token read put in
+    /// front of its message; any other error as it is. Every error of the
+    /// sections is met at or right after the token it names.
+    fn placed(&self, error: Error) -> Error {
+        match error {
+            Error::Spec { message } => {
+                let last = self.at.saturating_sub(1).min(self.tokens.len());
+                let line = 1 + self.tokens[..last]
+                    .iter()
+                    .filter(|&&token| token == Token::Line)
+                    .count();
+                Error::Spec {
+                    message: format!("line {line}: {message}"),
+                }
+            }
+            error => error,
+        }
+    }
+
     /// Skips ends of lines.
     fn skip_lines(&mut self) {
         while self.tokens.get(self.at) == Some(&Token::Line) {
@@ -767,16 +829,25 @@ mod tests {
         for (text, message) in [
             (
                 "vars a rules a >= 1 -> a' - a + 1; init a = 1 target a >= 1",
-                "expected `=` at `-`",
+                "line 1: expected `=` at `-`",
             ),
             (
                 "vars 1x rules init target a >= 1",
-                "expected a name at `1x`",
+                "line 1: expected a name at `1x`",
             ),
             (
                 "vars a b rules a >= 1 -> a' = b + 1; init target a >= 1",
-                "`a'` is updated from another counter",
+                "line 1: `a'` is updated from another counter",
             ),
+            // The line is the one of the token at fault, comments and
+            // empty lines counted.
+            (
+                "vars a\n# rules next\n\nrules\na >= 1 -> b' = b + 1;\ninit target a >= 1",
+                "line 5: the counter `b` is not declared",
+            ),
+            ("vars a\nrules\ninit a = 1 $", "line 3: unexpected `$`"),
+            ("vars a\nrules\ninit a = 1\n", "line 3: the file ends early"),
+            ("vars a rules init a = 1 target", "no target"),
         ] {
             match read(text, &Limits::default()) {
                 Err(Error::Spec { message: m }) => assert_eq!(m, message, "{text}"),
