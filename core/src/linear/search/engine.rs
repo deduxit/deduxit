@@ -770,7 +770,7 @@ impl FromStr for Engine {
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::{DISPATCH, Feature, Modes};
+    use super::super::dispatch::{DISPATCH, Feature, Modes};
     use super::*;
 
     /// The table "Which engine decides a goal" of `Engine`'s
