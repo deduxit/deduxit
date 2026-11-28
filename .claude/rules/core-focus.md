@@ -1301,7 +1301,7 @@ code it was. What a later session must keep:
   fragment with quantifiers only). On one thread they are a function of
   the input, as `nodes` is: 42i's measurements can compare them.
 - **Every walk over terms has a stack of its own**, here and in the
-  proof's canonicalization (`occurrences/instances.rs`, `Canonical::term`,
+  proof's canonicalization (`proofs/canonical.rs`, `Canonical::term`,
   which the engine's closed proofs feed): a witness may be nested as
   deep as its bindings go, and a recursion per level overflowed the
   search's stack at 180 000 (`a_deep_witness_closes_without_recursion`).

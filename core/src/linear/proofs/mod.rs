@@ -18,6 +18,9 @@
 //! A node does not record the sequent it proves. The checker computes it
 //! from the premises, and the derivation shows it.
 
+/// The check of a proof's instance table, and the table in canonical
+/// form.
+mod canonical;
 pub mod check;
 pub mod cut;
 pub mod derivation;
@@ -476,7 +479,7 @@ impl Proof {
         let members = (forest.len() as u64).saturating_add(instances.len() as u64);
         let mut proof = Self::reach(forest, nodes, root, members, &mut || false)?;
         let mut nodes = std::mem::take(&mut proof.nodes).into_vec();
-        let table = instances::canonical(&proof.forest, &instances, &mut nodes)?;
+        let table = canonical::canonical(&proof.forest, &instances, &mut nodes)?;
         proof.nodes = nodes.into_boxed_slice();
         proof.instances = (proof.forest.has_binders() || table != Instances::new(&proof.forest))
             .then(|| Box::new(table));

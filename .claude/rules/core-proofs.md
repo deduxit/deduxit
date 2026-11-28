@@ -1,6 +1,7 @@
 ---
 paths:
   - "core/src/linear/proofs/mod.rs"
+  - "core/src/linear/proofs/canonical.rs"
   - "core/src/linear/proofs/check/**"
   - "core/src/linear/proofs/oracle.rs"
   - "core/src/linear/proofs/cut/**"
@@ -418,7 +419,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   written form, `serialize/errors.rs`), and the test-only
   first implementation (`oracle.rs`) reports the same faults.
 
-## First-order proofs (`occurrences/instances.rs`, `check/frames.rs`)
+## First-order proofs (`occurrences/instances.rs`, `proofs/canonical.rs`, `check/frames.rs`)
 
 - **A member past the forest is an instance**: an occurrence under `n`
   binders with a frame of `n` closed terms, the innermost binder's
@@ -438,7 +439,8 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   recursion per argument list overflowed the search's stack at 180 000
   levels (42d's panel; `a_deep_witness_closes_without_recursion`).
 - **`Proof::with_instances` makes the table canonical and closed**
-  (`instances::canonical`): equal terms, lists, frames and members one
+  (`canonical::canonical`, in `proofs/`, which the table's module
+  `occurrences` does not name): equal terms, lists, frames and members one
   entry each (the sequent's own terms keep their ids, a duplicate of
   the sequent's arena is mapped to its first), the nodes' members and
   witnesses renumbered, and every member a rule derives from a named
@@ -676,7 +678,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   a node, so `memory_bytes` is in practice met by a check first.
 - **A step's table is compacted** (`Rewrite::compact`): the made
   proof's table holds only what its reachable nodes name, since
-  `instances::canonical` keeps every member of the table it is given
+  `canonical::canonical` keeps every member of the table it is given
   and the copies would otherwise pile up across the steps.
 - **`Step::formula` is a member of the proof the step was taken on**
   (as `cut` is a node of it): at first order its number means nothing

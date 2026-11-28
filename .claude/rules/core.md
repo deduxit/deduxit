@@ -17,7 +17,7 @@ it; only what holds for the whole crate goes here.
 |---|---|---|
 | `core-sequents.md` | `sequents/`, the first-order tables `first_order.rs` and the names `name.rs` at the root, `parse/`, `fragment.rs`, `serialize/`, the parse, serialize, stability, first-order and lock tests | the arena and its order, negation normal form, terms, kinds, binders and predicates, fragments and modes, the parser, the JSON forms of every value |
 | `core-forest.md` | `occurrences/` | the occurrence forest (numbering, the bound on its size, literal lists), `OccSet`, the intuitionistic reading, the intuitionistic sequent as written (`IllSequent`) and how outputs are raised, the classical sequent as written (`ClassicalSequent`, `Written`) |
-| `core-proofs.md` | `proofs/mod.rs`, `check/`, `oracle.rs`, `cut/` | proof terms and their invariants, the checker: its one pass, its memory bound, its integers, the one-succedent condition; cut elimination on terms |
+| `core-proofs.md` | `proofs/mod.rs`, `canonical.rs`, `check/`, `oracle.rs`, `cut/` | proof terms and their invariants, the checker: its one pass, its memory bound, its integers, the one-succedent condition; cut elimination on terms |
 | `core-derivations.md` | `proofs/derivation/`, `size.rs`, `fmt.rs`, `multiset.rs`, `interactive/` | the derivation view, the size estimate, the bounds of `ViewOptions`, the compact view, the two-sided view of a classical derivation (`TwoSided`), the text tree, interactive proving |
 | `core-search.md` | `search/mod.rs` and the front door's `interface.rs`, `dispatch.rs`, `engine.rs`, `options.rs` and `outcome.rs`, the root's `memory.rs`, `work.rs`, `additive.rs`, `reference.rs`, `reference_fo.rs`, `refutation/` (the refutations and their checks) but its `saturated.rs` | the front door (`prove_goal`, the one engine interface `Decide`, the check of every proof, `Outcome`, `Options`, refutations and their check, the weighted count, the dispatch, where every engine polls its stop), the memory bound, the work count, the additive path, the test-only reference provers, propositional and first-order |
 | `core-focus.md` | `search/focus/`, `search/counts.rs`, `search/bias.rs`, `search/generate.rs` | the focused engine, one- and two-sided: the atom bias, dyadic sequents, the copy bound and the memo, the two searches of the default bias, the arena, counts, interchangeable occurrences, the split search, recursion, allocation |
@@ -97,7 +97,7 @@ parse error), `limits` (`Limits`, `Progress`, `Refusal`), `settings`
 (`Clock`, `Settings`, what a front end holds),
 `wire` (the wire level, `upgrade`, `Within`, behind `serialize`),
 `occurrences` (forest, sets, and the intuitionistic `reading`), `proofs`
-(terms in `mod.rs`, `check`, the checker's first implementation `oracle`
+(terms in `mod.rs`, the check of a proof's instance table and its canonical form `canonical`, `check`, the checker's first implementation `oracle`
 for tests only, cut elimination `cut`, `derivation`, `size`, the text tree `fmt`, the rule
 labels `style`, the crate-private `multiset`, and `interactive` behind
 the feature of that name), `search` (the front door in `mod.rs`, the
