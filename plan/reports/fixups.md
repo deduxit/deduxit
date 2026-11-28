@@ -3364,3 +3364,107 @@ Keying atoms by structure (the symbol and the argument list's id, which
 the interner hash-conses) would make the keys' size the document's and
 need neither bound. Every caller keys atoms by text (`atom_key` has
 nine), so it is a redesign, not a fixup.
+
+## Session fixup-37: the ordinary Rocq writers in a directory, not-valid certificates proved by evaluation
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-87c1-64a1a5` on `lozrkyxm`,
+cores 7 to 9, in the conversation of 87c1, 87c6, 87e4, 87e3 and
+fixup-33. Panel on part 2 (argument and counterexamples on Opus at
+`high`, integers on Sonnet at `high`), fresh-reviewer on Opus at `high`.
+Nothing pushed.
+
+### What landed
+
+- `zrnnszvs` "Move the ordinary Rocq writers into ordinary/rocq/"
+  (87e5's held move, moves only): `ordinary/rocq.rs` is
+  `ordinary/rocq/mod.rs` and `ordinary/rocq_models.rs` is
+  `ordinary/rocq/models.rs`, a `pub(crate)` child module; the export's
+  two paths and the rules' paths follow. Nothing public moves; the 47
+  export snapshots are byte for byte the same.
+- `qxssxsyl` "Prove a not-valid certificate over Prop by evaluation, not
+  tauto": `falsified` keeps its statement word for word (`intro H.` and
+  `specialize (H True False …).` too) and ends with the script of the new
+  `evaluated` in place of `tauto`. Each hypothesis is proved
+  (`pose proof (H ltac:(PROVE)) as xN`), then the right-nested
+  disjunction of the formulas right of `⊢` is refuted, a tactic per
+  subformula along the assignment, written from an explicit stack.
+  `falsified_bytes` adds 160 bytes per formula for the script (the
+  longest step, an equivalence refuted, is 151 with five 21-byte names).
+  With it: a test that the text stays within the estimate (it fails with
+  the step at 1 byte), the name counter as `u64`, the manual's example
+  and paragraph (`ordinary-logic.md`), the changelog (Fixed), and
+  `core-export.md`.
+- `kruqqnks` "Rebless the certificates over Prop: proved by evaluation":
+  the snapshots `not_valid_lk.v`, `not_valid_lj.v`,
+  `not_valid_kripke_lk.v` and the lock's `format-rocq-not-valid.txt`.
+  The bless also dropped a trailing blank line of the two
+  `ordinary_negation_*.v`; I restored those, since the change does not
+  touch them.
+
+### Compile time, before and after
+
+The three inputs fixup-33's counterexamples member found
+(`/tmp/claude-1000/panel-cx-f33/work/h3/results.jsonl`, records 1112,
+1600 and 1860; five atoms and about fifty connectives each):
+
+| record | before (`tauto`) | after |
+|---|---|---|
+| 1112 (classical, `--method sat`) | killed at 8 GB after 2 081 s | 0.17 s |
+| 1600 (minimal, `--linear`) | killed at 8 GB after 3 104 s | 0.13 s |
+| 1860 (classical, `--method sat`) | 1 040 s | 0.17 s |
+
+The reviewer measured 169 and 148 ms for the first two, the
+counterexamples member 0.11 to 0.13 s for all three.
+
+Rocq's time is still superlinear in the certificate's size on long or
+deep formulas (both panel members, independently). Times at n = 3000:
+- a right side of n atoms: about 18 s;
+- a conjunction of n atoms on the left: 13.7 s;
+- an n-deep nested implication on the left: more than 120 s (170 KB);
+- the same at n = 250: 0.77 s against `tauto`'s 42 s.
+
+`tauto` is faster only on flat chains of `/\` or `\/` at n = 500 (0.5 to
+0.8 s against 1.3 to 2.2 s). I tried two shapes (my own generator,
+`scratchpad/f37/exp/`):
+- `refine ((fun y => _) (v _))` with every used name cleared at once
+  takes the nested implication at n = 1000 from 4.94 s to 0.68 s;
+- every way of casing on a long disjunction (`destruct`, `elim`, a
+  `match`, `or_ind`) takes 6 s or far more at n = 2000, flat or nested.
+
+So part of the growth is Rocq retyping each suffix's type. A linear
+certificate would name each suffix by a local definition, so each type
+is checked once; that is a follow-up below.
+
+### Checks
+
+- 121 certificates of fixup-33's corpus compiled with `check-certificate`,
+  each in at most 0.17 s; a broken copy refused.
+- `gate` passed at the chain before the panel's fixes, and again at the
+  head. The `rocq`, `check-certificate` and `export` nix checks passed,
+  under the lock, before the fixes. The fixes change a test, the
+  counter's type and texts; no certificate changed, and the snapshots
+  are the same.
+- The panel:
+  - **Argument:** the invariant holds on every arm; the `unreachable!`
+    arms are unreachable; names cannot clash; the estimate bounds the
+    text. It found the manual's claim of linear time false.
+  - **Counterexamples:** about 500 certificates over every method,
+    edge case and family. All compiled; every statement was
+    byte-identical with the base's. No panic, and no text past its
+    limit.
+  - **Integers:** the `u32` name counter was unguarded, reachable only
+    past an estimate of 214 GiB (now `u64`). No test held the text to
+    the estimate (now one), and a test comment was stale (fixed).
+- The reviewer: part 1 is a pure move, and every certificate it checked
+  is accepted, with its statement unchanged. Three of my texts were
+  false, all fixed: the changelog and the rules gave the slow inputs "a
+  few hundred atoms" and "over an hour"; a rules line still called the
+  sixty-level estimate "just past `isize::MAX`".
+
+### Follow-up
+
+- **Not-valid certificates with local definitions** (fixup): a
+  certificate in linear time names each suffix of a long formula by a
+  local definition, so that Rocq types each once. Today a 3 000-deep
+  formula takes minutes, and the default 64 MiB limit admits far larger
+  certificates.
