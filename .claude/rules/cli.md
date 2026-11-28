@@ -609,7 +609,7 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   it as an answer); both write text only.
 - `term.rs`: `term check` (`TermCheckArgs`: the term as an argument,
   `--file` or standard input, `--calculus`, `--format`, `--output`,
-  `--settings` for `lambda`, `limits` and `clock`, and `TermLimitsArgs`'s
+  `--settings` for `lambda`, `limits` and `clock`, and `LimitArgs`'s
   `--timeout`, `--memory-limit` and `--work-limit`, which `term reduce`
   and `term infer` flatten in too: each starts a `Deadline` and asks
   `interrupted() || deadline.passed()`, and a refusal of the check, the
@@ -835,6 +835,17 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   linear after it, so they need no stop. There
   is no `net` subcommand: the CLI's nets are those of proofs, which
   `prove` and `check` draw.
+- **The limits are declared once** (`LimitArgs`: `--timeout`,
+  `--memory-limit`, `--work-limit`, one `apply`), flattened into the
+  search's flags (`prove`, `interact`), `ProofArgs` (`check`,
+  `eliminate`), `grade`'s, `TransformArgs`, the workspace's and the term
+  commands'; a command whose words for one differ keeps them by
+  `mut_args` on its variant (`search_helps`, `proof_helps`,
+  `workspace_helps` over the `Help` constants). Not `mut_arg`: it removes
+  the argument and pushes it last, which moves the heading, since clap
+  orders headings by their first argument. `--settings` stays declared
+  per command: its help names the keys each command reads, which is all
+  it has in common. A new command with these flags flattens `LimitArgs`.
 - **Shared small writers**: `show::counted` writes a count with its noun
   (`1 step`, `3 steps`) for every command; `check::Checked::new(word)`
   or `Checked::of(status)` (`valid`, `unknown`, else `invalid`) with

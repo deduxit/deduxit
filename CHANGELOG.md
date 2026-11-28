@@ -145,6 +145,9 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- **`--timeout`, `--memory-limit` and `--work-limit` stand together** in
+  the Limits heading of every command's help, being one group of flags
+  now; `grade --help` words them as the term commands do.
 - The crates' descriptions, `deduxit --help` and the front pages name
   the suites evenly: ordinary logic, linear logic, modal logic,
   lambda-terms and calculi given as rule files. The crate `deduxit`

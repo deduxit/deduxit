@@ -175,6 +175,7 @@ pub(crate) enum Command {
     /// with no sequent is an error. Ctrl-C ends a batch's input, and its
     /// status is then unknown at best.
     #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
+    #[command(mut_args(search_helps))]
     Prove(ProveArgs),
     /// Check a proof read from JSON, as `prove --format json` writes it, or
     /// the refutation of an unprovable outcome
@@ -202,6 +203,7 @@ pub(crate) enum Command {
     /// last two add the library's `error` object and its `message`, with
     /// formulas.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
+    #[command(mut_args(proof_helps))]
     Check(CheckArgs),
     /// Grade an answer to a problem: whether it proves or refutes the
     /// sequent given, checked as `check` and `interact` check
@@ -273,6 +275,7 @@ pub(crate) enum Command {
     /// "net", "steps", "end"}`, each step's `cut` being the two vertices of
     /// its cut link.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
+    #[command(mut_args(proof_helps))]
     Eliminate(EliminateArgs),
     /// Prove a sequent step by step, reading commands from standard input
     ///
@@ -313,6 +316,7 @@ pub(crate) enum Command {
     /// read its input. A command that fails prints `error: …` on standard
     /// output, and the session goes on.
     #[command(after_help = SYNTAX_SHORT, after_long_help = SYNTAX)]
+    #[command(mut_args(search_helps))]
     Interact(InteractArgs),
     /// Find a Craig interpolant of a valid sequent of ordinary logic, and
     /// check it
@@ -469,6 +473,7 @@ pub(crate) enum WorkspaceCommand {
     /// The nodes come first, by their numbers, then the operation, such as
     /// `ordinary.translate`; `operations` lists them. The node runs under
     /// the limits given here, which it keeps.
+    #[command(mut_args(workspace_helps))]
     Apply {
         /// The workspace file
         file: PathBuf,
@@ -487,6 +492,7 @@ pub(crate) enum WorkspaceCommand {
         common: WorkspaceArgs,
     },
     /// Change a given node's sequent, or a node's parameters or limits
+    #[command(mut_args(workspace_helps))]
     Set {
         /// The workspace file
         file: PathBuf,
@@ -591,19 +597,9 @@ pub(crate) struct StatementArgs {
 /// keeps and the time limit of the run.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct WorkspaceArgs {
-    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
-    /// (clock.time_limit_ms); a node the time limit stopped stays as it
-    /// was
-    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
-    pub(crate) timeout: Time,
-    /// The most memory a search may hold, which the node keeps; see `prove
-    /// --memory-limit` (limits.memory_bytes)
-    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
-    pub(crate) memory_limit: Bytes,
-    /// The most units of work each search may do, or `none`, which the
-    /// node keeps; see `prove --work-limit` (limits.work)
-    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
-    pub(crate) work_limit: Count<u64>,
+    /// The time limit, the memory bound and the work bound.
+    #[command(flatten)]
+    pub(crate) limits: LimitArgs,
     /// Read the settings from a JSON file; the flags override it
     ///
     /// The file is an object with any of the keys `clock`, `limits`,
@@ -935,18 +931,9 @@ pub(crate) struct SearchArgs {
     /// searches deepen while the time limit lasts.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_FORWARD_COPIES)]
     pub(crate) forward_copies: u32,
-    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
-    /// for no limit (clock.time_limit_ms)
-    ///
-    /// The verdict is then unknown (exit status 3). The time counts from
-    /// the start of the command, so it covers reading and parsing the
-    /// sequent as well as the search: a sequent that is not read in time
-    /// is given up on like one that is not decided. Without a limit, the
-    /// search runs until it decides or you press Ctrl-C; with exponentials
-    /// and no `--copies` bound, that can be forever. In a session the limit
-    /// is each `close`'s.
-    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
-    pub(crate) timeout: Time,
+    /// The time limit, the memory bound and the work bound.
+    #[command(flatten)]
+    pub(crate) limits: LimitArgs,
     /// The most decided sequents the search remembers at once
     /// (search.memo_limit)
     ///
@@ -1025,23 +1012,6 @@ pub(crate) struct SearchArgs {
     /// it finds no proof of is unknown (exit status 3), never not valid.
     #[arg(help_heading = SEARCH, hide_short_help = true, long)]
     pub(crate) restricted_backtracking: bool,
-    /// The most memory the search may hold: a number of bytes with a unit
-    /// such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
-    ///
-    /// The limit counts the sequent as the search holds it, about 25 bytes
-    /// for each subformula occurrence, and what grows with the search: what
-    /// it remembers, the proofs it keeps and what every level of its
-    /// recursion takes. A memo that no longer fits is emptied first, as at
-    /// `--memo-limit`; when that is not enough, the verdict is unknown
-    /// (exit status 3). The proof's check and the derivation built from it
-    /// are under the same limit: a derivation estimated above it is left
-    /// out even with `--derivation-limit none`. By default one thread and,
-    /// after `--pool-after`, a pool beside it search at once, both together
-    /// within the limit. A png or pdf render is estimated before it starts,
-    /// its time counted as the memory the renderer fills in it, and left
-    /// out above the limit; the default allows a few seconds of rendering.
-    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
-    pub(crate) memory_limit: Bytes,
     /// The deepest nesting of rules on one branch before the search gives
     /// up (limits.recursion_depth)
     ///
@@ -1049,16 +1019,6 @@ pub(crate) struct SearchArgs {
     /// on a thread whose stack grows with the limit.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Limits::DEFAULT_RECURSION_DEPTH)]
     pub(crate) recursion_limit: u32,
-    /// The most units of work the search may do, or `none` (limits.work)
-    ///
-    /// A unit is what each engine counts as it goes: a stable sequent or a
-    /// split for the focused engine, a literal or a failed test for the net
-    /// engines, a pair for the additive one, a marking for the Horn engine.
-    /// So this limit gives the same verdict on every machine, which a time
-    /// limit does not. Past it the verdict is unknown (exit status 3).
-    /// `--stats` prints the units a search did.
-    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
-    pub(crate) work_limit: Count<u64>,
     /// How many threads the search may use (search.jobs)
     ///
     /// By default one thread searches first, for the time `--pool-after`
@@ -1323,31 +1283,9 @@ pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(Clock::DEFAUL
 /// must hold in, the bounds, the output and the settings file.
 #[derive(Args, Debug)]
 pub(crate) struct ProofArgs {
-    /// The most memory the check may hold: a number of bytes with a unit
-    /// such as 512MiB or 4GiB, or `none` for no limit
-    ///
-    /// A check that would pass it stops, and the verdict is unknown (exit
-    /// status 3): the proof is neither valid nor invalid. A derivation, or a
-    /// png or pdf render, estimated above it is left out, as past
-    /// `--derivation-limit`. See `prove --memory-limit`
-    /// (limits.memory_bytes).
-    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
-    pub(crate) memory_limit: Bytes,
-    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
-    /// (clock.time_limit_ms)
-    ///
-    /// A proof file can make its check quadratic, with a large shared
-    /// subproof read by many nodes. When the time runs out, the verdict is
-    /// unknown (exit status 3). The time counts from the start of the
-    /// command, and covers the derivation drawn after the check.
-    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
-    pub(crate) timeout: Time,
-    /// The most units of work the check may do, or `none` (limits.work)
-    ///
-    /// A unit is a node of the proof, or an entry of a sequent handed to a
-    /// node. Past the limit the verdict is unknown (exit status 3).
-    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
-    pub(crate) work_limit: Count<u64>,
+    /// The time limit, the memory bound and the work bound.
+    #[command(flatten)]
+    pub(crate) limits: LimitArgs,
     /// The most subformula occurrences the proof's sequent may have, or
     /// `none` (limits.occurrences); see `prove --occurrence-limit`
     #[arg(help_heading = INPUT, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_OCCURRENCES)))]
@@ -1543,21 +1481,9 @@ pub(crate) struct GradeArgs {
     /// The output format: text, or json for the verdict as one object
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
     pub(crate) format: AnswerFormat,
-    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
-    /// (clock.time_limit_ms)
-    ///
-    /// The check counts against it, from the start of the command. When
-    /// the time runs out, the verdict is unknown (exit status 3).
-    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
-    pub(crate) timeout: Time,
-    /// The most memory the check may hold: a number of bytes with a unit
-    /// such as 512MiB or 4GiB, or `none` for no limit
-    /// (limits.memory_bytes)
-    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
-    pub(crate) memory_limit: Bytes,
-    /// The most units of work the check may do, or `none` (limits.work)
-    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
-    pub(crate) work_limit: Count<u64>,
+    /// The time limit, the memory bound and the work bound.
+    #[command(flatten)]
+    pub(crate) limits: LimitArgs,
     /// Read the settings from a JSON file; the flags override it
     ///
     /// The file is an object with any of the keys `clock`, `limits`,
@@ -1779,6 +1705,7 @@ pub(crate) enum SeqCommand {
 /// What `seq translate` and `interpolate` share: the sequent, the
 /// output and the limits.
 #[derive(Args, Clone, Debug)]
+#[command(mut_args(transform_helps))]
 pub(crate) struct TransformArgs {
     /// The sequent, of ordinary logic.
     #[command(flatten)]
@@ -1790,23 +1717,9 @@ pub(crate) struct TransformArgs {
     /// Write to this file instead of standard output, which `-` names
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
-    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
-    /// (clock.time_limit_ms)
-    ///
-    /// Every search the command runs counts against it, from the start of
-    /// the command. When the time runs out, the verdict is unknown (exit
-    /// status 3).
-    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
-    pub(crate) timeout: Time,
-    /// The most memory a search may hold: a number of bytes with a unit
-    /// such as 512MiB or 4GiB, or `none` for no limit; see `prove
-    /// --memory-limit` (limits.memory_bytes)
-    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
-    pub(crate) memory_limit: Bytes,
-    /// The most units of work each search may do, or `none`; see `prove
-    /// --work-limit` (limits.work)
-    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
-    pub(crate) work_limit: Count<u64>,
+    /// The time limit, the memory bound and the work bound.
+    #[command(flatten)]
+    pub(crate) limits: LimitArgs,
     /// Read the settings from a JSON file; the flags override it
     ///
     /// The file is an object with any of the keys `clock`, `limits`,
@@ -2095,9 +2008,142 @@ pub(crate) enum TermCommand {
     Enumerate(EnumerateArgs),
 }
 
-/// The limits of `term check`, `term reduce` and `term infer`.
+/// The help of a flag of [`LimitArgs`] in a command whose words for it
+/// differ from the shared ones: the summary `-h` shows and the text
+/// `--help` shows, `None` where the summary is all.
+type Help = (&'static str, Option<&'static str>);
+
+/// `--timeout`'s help in `prove` and `interact`.
+const SEARCH_TIMEOUT: Help = (
+    "Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` for no limit (clock.time_limit_ms)",
+    Some("Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` for no limit (clock.time_limit_ms)
+
+The verdict is then unknown (exit status 3). The time counts from the start of the command, so it covers reading and parsing the sequent as well as the search: a sequent that is not read in time is given up on like one that is not decided. Without a limit, the search runs until it decides or you press Ctrl-C; with exponentials and no `--copies` bound, that can be forever. In a session the limit is each `close`'s."),
+);
+
+/// `--memory-limit`'s help in `prove` and `interact`.
+const SEARCH_MEMORY: Help = (
+    "The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)",
+    Some("The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
+
+The limit counts the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough, the verdict is unknown (exit status 3). The proof's check and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit; the default allows a few seconds of rendering."),
+);
+
+/// `--work-limit`'s help in `prove` and `interact`.
+const SEARCH_WORK: Help = (
+    "The most units of work the search may do, or `none` (limits.work)",
+    Some("The most units of work the search may do, or `none` (limits.work)
+
+A unit is what each engine counts as it goes: a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine. So this limit gives the same verdict on every machine, which a time limit does not. Past it the verdict is unknown (exit status 3). `--stats` prints the units a search did."),
+);
+
+/// `--timeout`'s help in `check` and `eliminate`.
+const PROOF_TIMEOUT: Help = (
+    "Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)",
+    Some("Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)
+
+A proof file can make its check quadratic, with a large shared subproof read by many nodes. When the time runs out, the verdict is unknown (exit status 3). The time counts from the start of the command, and covers the derivation drawn after the check."),
+);
+
+/// `--memory-limit`'s help in `check` and `eliminate`.
+const PROOF_MEMORY: Help = (
+    "The most memory the check may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit",
+    Some("The most memory the check may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit
+
+A check that would pass it stops, and the verdict is unknown (exit status 3): the proof is neither valid nor invalid. A derivation, or a png or pdf render, estimated above it is left out, as past `--derivation-limit`. See `prove --memory-limit` (limits.memory_bytes)."),
+);
+
+/// `--work-limit`'s help in `check` and `eliminate`.
+const PROOF_WORK: Help = (
+    "The most units of work the check may do, or `none` (limits.work)",
+    Some("The most units of work the check may do, or `none` (limits.work)
+
+A unit is a node of the proof, or an entry of a sequent handed to a node. Past the limit the verdict is unknown (exit status 3)."),
+);
+
+/// `--timeout`'s help in `workspace apply` and `workspace set`.
+const WORKSPACE_TIMEOUT: Help = (
+    "Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms); a node the time limit stopped stays as it was",
+    None,
+);
+
+/// `--memory-limit`'s help in `workspace apply` and `workspace set`.
+const WORKSPACE_MEMORY: Help = (
+    "The most memory a search may hold, which the node keeps; see `prove --memory-limit` (limits.memory_bytes)",
+    None,
+);
+
+/// `--work-limit`'s help in `workspace apply` and `workspace set`.
+const WORKSPACE_WORK: Help = (
+    "The most units of work each search may do, or `none`, which the node keeps; see `prove --work-limit` (limits.work)",
+    None,
+);
+
+/// `--timeout`'s help in the commands of [`TransformArgs`].
+const TRANSFORM_TIMEOUT: Help = (
+    "Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)",
+    Some("Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)
+
+Every search the command runs counts against it, from the start of the command. When the time runs out, the verdict is unknown (exit status 3)."),
+);
+
+/// `--memory-limit`'s help in the commands of [`TransformArgs`].
+const TRANSFORM_MEMORY: Help = (
+    "The most memory a search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit` (limits.memory_bytes)",
+    None,
+);
+
+/// `--work-limit`'s help in the commands of [`TransformArgs`].
+const TRANSFORM_WORK: Help = (
+    "The most units of work each search may do, or `none`; see `prove --work-limit` (limits.work)",
+    None,
+);
+
+/// Returns a flag of [`LimitArgs`] with the help `helps` gives it (the time
+/// limit's, the memory bound's, the work bound's), and any other argument
+/// as it is. The argument keeps its place, which orders the headings.
+fn helped(arg: clap::Arg, helps: [Help; 3]) -> clap::Arg {
+    let help = match arg.get_id().as_str() {
+        "timeout" => helps[0],
+        "memory_limit" => helps[1],
+        "work_limit" => helps[2],
+        _ => return arg,
+    };
+    arg.help(help.0).long_help(help.1)
+}
+
+/// The limits' helps in `prove` and `interact`.
+fn search_helps(arg: clap::Arg) -> clap::Arg {
+    helped(arg, [SEARCH_TIMEOUT, SEARCH_MEMORY, SEARCH_WORK])
+}
+
+/// The limits' helps in `check` and `eliminate`.
+fn proof_helps(arg: clap::Arg) -> clap::Arg {
+    helped(arg, [PROOF_TIMEOUT, PROOF_MEMORY, PROOF_WORK])
+}
+
+/// The limits' helps in `workspace apply` and `workspace set`, where `-h`
+/// lists the work bound too.
+fn workspace_helps(arg: clap::Arg) -> clap::Arg {
+    let shown = arg.get_id() == "work_limit";
+    let arg = helped(arg, [WORKSPACE_TIMEOUT, WORKSPACE_MEMORY, WORKSPACE_WORK]);
+    if shown {
+        arg.hide_short_help(false)
+    } else {
+        arg
+    }
+}
+
+/// The limits' helps in the commands of [`TransformArgs`].
+fn transform_helps(arg: clap::Arg) -> clap::Arg {
+    helped(arg, [TRANSFORM_TIMEOUT, TRANSFORM_MEMORY, TRANSFORM_WORK])
+}
+
+/// The time limit, the memory bound and the work bound of a call: the
+/// flags most commands share, declared once and flattened in. A command
+/// whose words for one differ says them with `mut_args` on its variant.
 #[derive(Args, Clone, Debug)]
-pub(crate) struct TermLimitsArgs {
+pub(crate) struct LimitArgs {
     /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
     /// (clock.time_limit_ms)
     ///
@@ -2150,7 +2196,7 @@ pub(crate) struct TermCheckArgs {
     pub(crate) settings: Option<PathBuf>,
     /// The time, memory and work the check may take.
     #[command(flatten)]
-    pub(crate) limits: TermLimitsArgs,
+    pub(crate) limits: LimitArgs,
 }
 
 /// A lambda calculus.
@@ -2266,7 +2312,7 @@ pub(crate) struct TermReduceArgs {
     pub(crate) settings: Option<PathBuf>,
     /// The time, memory and work the reduction may take.
     #[command(flatten)]
-    pub(crate) limits: TermLimitsArgs,
+    pub(crate) limits: LimitArgs,
 }
 
 /// The arguments of `term infer`.
@@ -2302,7 +2348,7 @@ pub(crate) struct TermInferArgs {
     pub(crate) settings: Option<PathBuf>,
     /// The time, memory and work the inference may take.
     #[command(flatten)]
-    pub(crate) limits: TermLimitsArgs,
+    pub(crate) limits: LimitArgs,
 }
 
 /// The arguments of `term inhabit`.

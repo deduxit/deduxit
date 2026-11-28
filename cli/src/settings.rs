@@ -182,17 +182,9 @@ impl SearchArgs {
         if apply.set("schedule") {
             search.schedule = self.schedule.into();
         }
-        if apply.set("timeout") {
-            clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("memory_limit") {
-            limits.memory_bytes = self.memory_limit.0;
-        }
+        self.limits.apply(clock, limits, apply);
         if apply.set("recursion_limit") {
             limits.recursion_depth = self.recursion_limit;
-        }
-        if apply.set("work_limit") {
-            limits.work = self.work_limit.0;
         }
         // `--jobs N` searches with N threads from the start unless
         // `--pool-after` says otherwise, and `--deterministic` on one.
@@ -337,15 +329,8 @@ impl ProofArgs {
     /// Applies the flags `check` and `eliminate` share to `settings`: the
     /// bounds of the check and of its derivation, and how that is shown.
     fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
-        if apply.set("memory_limit") {
-            settings.limits.memory_bytes = self.memory_limit.0;
-        }
-        if apply.set("timeout") {
-            settings.clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("work_limit") {
-            settings.limits.work = self.work_limit.0;
-        }
+        self.limits
+            .apply(&mut settings.clock, &mut settings.limits, apply);
         if apply.set("occurrence_limit") {
             settings.limits.occurrences = self.occurrence_limit.0;
         }
@@ -389,7 +374,22 @@ impl CheckArgs {
     }
 }
 
-impl crate::argument_parsing::TermLimitsArgs {
+impl crate::argument_parsing::LimitArgs {
+    /// Applies the time limit, the memory bound and the work bound the
+    /// flags give to `clock` and `limits`, each where its flag is given or
+    /// no settings file is read.
+    fn apply(&self, clock: &mut deduxit::Clock, limits: &mut deduxit::Limits, apply: &Apply<'_>) {
+        if apply.set("timeout") {
+            clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        if apply.set("memory_limit") {
+            limits.memory_bytes = self.memory_limit.0;
+        }
+        if apply.set("work_limit") {
+            limits.work = self.work_limit.0;
+        }
+    }
+
     /// Returns the settings file's settings with these flags applied: the
     /// time limit, the memory bound and the work bound.
     ///
@@ -402,15 +402,7 @@ impl crate::argument_parsing::TermLimitsArgs {
             file: path.is_some(),
             given,
         };
-        if apply.set("timeout") {
-            settings.clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("memory_limit") {
-            settings.limits.memory_bytes = self.memory_limit.0;
-        }
-        if apply.set("work_limit") {
-            settings.limits.work = self.work_limit.0;
-        }
+        self.apply(&mut settings.clock, &mut settings.limits, &apply);
         Ok(settings)
     }
 }
@@ -464,15 +456,8 @@ impl TransformArgs {
             file: self.settings.is_some(),
             given,
         };
-        if apply.set("memory_limit") {
-            settings.limits.memory_bytes = self.memory_limit.0;
-        }
-        if apply.set("timeout") {
-            settings.clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("work_limit") {
-            settings.limits.work = self.work_limit.0;
-        }
+        self.limits
+            .apply(&mut settings.clock, &mut settings.limits, &apply);
         if apply.set("occurrence_limit") {
             settings.limits.occurrences = self.input.occurrence_limit.0;
         }
@@ -496,15 +481,8 @@ impl GradeArgs {
             file: self.settings.is_some(),
             given,
         };
-        if apply.set("memory_limit") {
-            settings.limits.memory_bytes = self.memory_limit.0;
-        }
-        if apply.set("timeout") {
-            settings.clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("work_limit") {
-            settings.limits.work = self.work_limit.0;
-        }
+        self.limits
+            .apply(&mut settings.clock, &mut settings.limits, &apply);
         if apply.set("occurrence_limit") {
             settings.limits.occurrences = self.input.occurrence_limit.0;
         }
@@ -548,15 +526,8 @@ impl WorkspaceArgs {
             file: self.settings.is_some(),
             given,
         };
-        if apply.set("memory_limit") {
-            settings.limits.memory_bytes = self.memory_limit.0;
-        }
-        if apply.set("timeout") {
-            settings.clock.time_limit_ms = self.timeout.0.map(millis);
-        }
-        if apply.set("work_limit") {
-            settings.limits.work = self.work_limit.0;
-        }
+        self.limits
+            .apply(&mut settings.clock, &mut settings.limits, &apply);
         Ok(settings)
     }
 }
