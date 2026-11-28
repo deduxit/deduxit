@@ -1083,18 +1083,11 @@ fn conclude(
                         let checked = match &last {
                             Refutation::Saturated(set) => {
                                 saturated::check(forest, goal.occurrences, mode, set, &mut polled)
-                                    .map_err(|failed| match failed {
-                                        saturated::Failed::Stopped => None,
-                                        saturated::Failed::Fault(fault) => Some(fault),
-                                    })
+                                    .map_err(refutation::Failed::fault)
                             }
                             Refutation::Basis(basis) => {
-                                basis::check(forest, goal.occurrences, basis, &mut polled).map_err(
-                                    |failed| match failed {
-                                        basis::Failed::Stopped => None,
-                                        basis::Failed::Fault(fault) => Some(fault),
-                                    },
-                                )
+                                basis::check(forest, goal.occurrences, basis, &mut polled)
+                                    .map_err(refutation::Failed::fault)
                             }
                             _ => unreachable!("only a set or a basis is kept for last"),
                         };

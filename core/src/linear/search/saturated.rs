@@ -69,28 +69,11 @@
 //!   set's sequents may leave them out, and a sequent derived is compared
 //!   with them left out.
 
-use super::refutation::{RefutationFault, Saturated, Stable};
+use super::refutation::{Failed, RefutationFault, Saturated, Stable};
 use crate::hash::HashMap;
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Forest, OccId, Reading, Side, Sign};
 use crate::linear::sequents::Kind;
-
-/// Why a check did not accept a certificate: it does not hold, or the
-/// stop fired before the check ended.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Failed {
-    /// The certificate does not hold.
-    Fault(RefutationFault),
-    /// The stop fired.
-    Stopped,
-}
-
-impl From<RefutationFault> for Failed {
-    /// The fault as a failure.
-    fn from(fault: RefutationFault) -> Self {
-        Failed::Fault(fault)
-    }
-}
 
 /// How many units of work the check does between two polls of its stop.
 const UNITS_PER_POLL: u64 = 1 << 16;

@@ -267,6 +267,64 @@ pub(crate) fn overweight(
     }
 }
 
+/// A member of a goal read as a Horn program, as [`horn_member`] reads
+/// it.
+pub(crate) enum HornMember {
+    /// A marking: a `⅋` and `⊥` tree of literals of the other sign than
+    /// the bodies'.
+    Marking,
+    /// A clause: a `⊗` tree of body literals, `1` and at most one head.
+    Clause {
+        /// Whether it is a member under `?`.
+        reusable: bool,
+        /// The atoms of its body literals, once per literal, in the order
+        /// the tree is walked.
+        inputs: Vec<usize>,
+        /// Its head, which has a marking's shape, where it has one.
+        head: Option<OccId>,
+    },
+}
+
+/// Returns whether `o` has a head's shape: a `⅋` and `⊥` tree of literals
+/// of the other sign than `body`.
+fn is_head(forest: &Forest, o: OccId, body: Sign) -> bool {
+    forest.subtree(o).all(|x| match forest.kind(x) {
+        Kind::Par | Kind::Bot => true,
+        _ => forest.sign(x) == Some(!body),
+    })
+}
+
+/// Reads `member` of a goal as a Horn program whose bodies' literals have
+/// the sign `body`, or returns `None` where it is no member of one. A
+/// member under `?` is a clause, its operand's tree; any other member is a
+/// marking where it has a head's shape, else a clause. Which clauses a
+/// program may have (with a head under `?`, one goal) is the caller's.
+pub(crate) fn horn_member(forest: &Forest, member: OccId, body: Sign) -> Option<HornMember> {
+    let (clause, reusable) = match forest.kind(member) {
+        Kind::Quest => (forest.left(member).expect("a `?` has an operand"), true),
+        _ if is_head(forest, member, body) => return Some(HornMember::Marking),
+        _ => (member, false),
+    };
+    let (mut inputs, mut head) = (Vec::new(), None);
+    let mut factors = vec![clause];
+    while let Some(x) = factors.pop() {
+        match forest.kind(x) {
+            Kind::Tensor => factors.extend(forest.left(x).into_iter().chain(forest.right(x))),
+            Kind::One => {}
+            _ if forest.sign(x) == Some(body) => {
+                inputs.push(forest.atom(x).expect("a literal has an atom").index());
+            }
+            _ if head.is_none() && is_head(forest, x, body) => head = Some(x),
+            _ => return None,
+        }
+    }
+    Some(HornMember::Clause {
+        reusable,
+        inputs,
+        head,
+    })
+}
+
 /// Returns the atoms of the goal that no firing reaches, as a value per
 /// atom of the sequent, when the goal is read as a Horn program whose
 /// bodies' literals have the sign `body`. Returns `None` where the goal is
@@ -281,12 +339,6 @@ pub(crate) fn overweight(
 /// this one makes a clause that can never fire contribute nothing.
 pub(crate) fn dead_atoms(forest: &Forest, goal: &[OccId], body: Sign) -> Option<Vec<bool>> {
     let atoms = forest.sequent().atom_names().len();
-    let head = |o: OccId| {
-        forest.subtree(o).all(|x| match forest.kind(x) {
-            Kind::Par | Kind::Bot => true,
-            _ => forest.sign(x) == Some(!body),
-        })
-    };
     let atom = |o: OccId| forest.atom(o).expect("a literal").index();
     let literals = |o: OccId| forest.subtree(o).filter(|&x| forest.sign(x).is_some());
     let mut named = vec![false; atoms];
@@ -300,33 +352,18 @@ pub(crate) fn dead_atoms(forest: &Forest, goal: &[OccId], body: Sign) -> Option<
         for x in literals(member) {
             named[atom(x)] = true;
         }
-        let clause = match forest.kind(member) {
-            Kind::Quest => forest.left(member).expect("a `?` has an operand"),
-            _ if head(member) => {
-                for x in literals(member) {
-                    live[atom(x)] = true;
-                }
-                continue;
+        let HornMember::Clause { inputs, head, .. } = horn_member(forest, member, body)? else {
+            for x in literals(member) {
+                live[atom(x)] = true;
             }
-            _ => member,
+            continue;
         };
         let c = heads.len();
-        let (mut inputs, mut found) = (Vec::new(), None);
-        let mut factors = vec![clause];
-        while let Some(x) = factors.pop() {
-            match forest.kind(x) {
-                Kind::Tensor => factors.extend(forest.left(x).into_iter().chain(forest.right(x))),
-                Kind::One => {}
-                _ if forest.sign(x) == Some(body) => inputs.push(atom(x)),
-                _ if found.is_none() && head(x) => found = Some(x),
-                _ => return None,
-            }
-        }
         for &a in &inputs {
             waiting[a].push(c);
         }
         missing.push(inputs.len());
-        heads.push(found);
+        heads.push(head);
     }
     // The markings' atoms are reached; a clause fires once its body's are.
     let mut ready: Vec<usize> = Vec::new();

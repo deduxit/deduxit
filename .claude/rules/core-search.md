@@ -309,10 +309,12 @@ copies they had are gone (F103, F104).
   rechecked on the check's own reading; ordered and intuitionistic
   proofs are classical ones, Mix is admissible with weakening, and
   classical, affine and Mix linear logic have cut elimination, so the
-  check does not read the mode. Its shape tests follow
-  `Program::read_with` arm for arm (the panel's note): a misreading of
-  the shape both share would pass; the independent part is the closure
-  test. Counts are `u64` (a marking's below
+  check does not read the mode. Its shape tests are one reader with
+  the weighted test's dead atoms (`weighted::horn_member`, each caller
+  adding its own conditions: a head under `?` and one goal here), and
+  they follow `Program::read_with` arm for arm (the panel's note): a
+  misreading of the shape both share would pass; the independent part
+  is the closure test. Counts are `u64` (a marking's below
   2³² plus a clause's weight below 2³²), sums saturate (a filter only),
   the places `atoms + classes` checked against `usize`. Quadratic in the
   basis times the clauses; the same stop and work bound as the set's,

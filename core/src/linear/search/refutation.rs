@@ -743,46 +743,26 @@ fn write_unbalanced(
     } else {
         ", whichever additive alternatives a proof takes"
     };
-    if let Words::Two(placed) = words {
-        // A positive literal counts as right of `⊢`.
-        let (more, fewer) = if least > 0 {
-            ("right", "left")
-        } else {
-            ("left", "right")
-        };
-        let crossed = if placed.crossed {
-            " (a negated formula or an implication's antecedent counts on the other side)"
-        } else {
-            ""
-        };
-        if copied.is_none() && placed.fewer_absent {
-            return write!(
-                f,
-                "{name} on the {more} has no {name} on the {fewer} to meet in an axiom{over}{crossed}"
-            );
-        }
-        let (place, copies) = match copied {
-            Some(sign) => (
-                " outside the exponentials",
-                format!(
-                    ", and every occurrence of it below one, which copies add, is on the {}",
-                    match sign {
-                        Sign::Atom => "right",
-                        Sign::Dual => "left",
-                    }
-                ),
-            ),
-            None => ("", String::new()),
-        };
-        return write!(
-            f,
-            "{name} occurs {excess} more {times} on the {more} than on the {fewer}{place}\
-             {alternatives}{copies}{over}, so they cannot all meet in axioms{crossed}",
-        );
-    }
-    if let Words::Intuitionistic { fewer_absent } = words {
-        // An atom in output position is the positive literal, which
-        // counts as right of `⊢`.
+    // Two-sided, whether the side with fewer of the literals has none, and
+    // the note that closes the phrase.
+    let sided = match words {
+        Words::One => None,
+        Words::Two(placed) => Some((
+            placed.fewer_absent,
+            if placed.crossed {
+                " (a negated formula or an implication's antecedent counts on the other side)"
+            } else {
+                ""
+            },
+        )),
+        Words::Intuitionistic { fewer_absent } => Some((
+            fewer_absent,
+            " (an implication's antecedent counts on the other side)",
+        )),
+    };
+    if let Some((fewer_absent, note)) = sided {
+        // A positive literal counts as right of `⊢`; under a reading it is
+        // the atom in output position.
         let (more, fewer) = if least > 0 {
             ("right", "left")
         } else {
@@ -791,8 +771,7 @@ fn write_unbalanced(
         if copied.is_none() && fewer_absent {
             return write!(
                 f,
-                "{name} on the {more} has no {name} on the {fewer} to meet in an axiom{over} (an \
-                 implication's antecedent counts on the other side)"
+                "{name} on the {more} has no {name} on the {fewer} to meet in an axiom{over}{note}"
             );
         }
         let (place, copies) = match copied {
@@ -811,8 +790,7 @@ fn write_unbalanced(
         return write!(
             f,
             "{name} occurs {excess} more {times} on the {more} than on the {fewer}{place}\
-             {alternatives}{copies}{over}, so they cannot all meet in axioms (an implication's \
-             antecedent counts on the other side)",
+             {alternatives}{copies}{over}, so they cannot all meet in axioms{note}",
         );
     }
     let (more, fewer) = if least > 0 {
@@ -1057,6 +1035,33 @@ impl RefutationFault {
     }
 }
 
+/// Why a check of a saturated set or a basis did not accept it: it does
+/// not hold, or the caller's stop ended the check.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Failed {
+    /// The refutation does not hold.
+    Fault(RefutationFault),
+    /// The caller's stop ended the check.
+    Stopped,
+}
+
+impl Failed {
+    /// Returns the fault, or `None` where the stop ended the check.
+    pub(crate) const fn fault(self) -> Option<RefutationFault> {
+        match self {
+            Self::Fault(fault) => Some(fault),
+            Self::Stopped => None,
+        }
+    }
+}
+
+impl From<RefutationFault> for Failed {
+    /// The fault as a failure.
+    fn from(fault: RefutationFault) -> Self {
+        Self::Fault(fault)
+    }
+}
+
 impl Disproof {
     /// Checks that the refutation proves the goal unprovable in the mode,
     /// and returns `Ok` when it does.
@@ -1254,8 +1259,8 @@ impl Disproof {
             Refutation::Saturated(saturated) => {
                 match super::saturated::check(&forest, &goal, self.mode, saturated, &mut polled) {
                     Ok(()) => Ok(()),
-                    Err(super::saturated::Failed::Fault(fault)) => Err(fault),
-                    Err(super::saturated::Failed::Stopped) => {
+                    Err(Failed::Fault(fault)) => Err(fault),
+                    Err(Failed::Stopped) => {
                         return Err(stopped(done, limits));
                     }
                 }
@@ -1272,8 +1277,8 @@ impl Disproof {
             Refutation::Basis(basis) => {
                 match super::basis::check(&forest, &goal, basis, &mut polled) {
                     Ok(()) => Ok(()),
-                    Err(super::basis::Failed::Fault(fault)) => Err(fault),
-                    Err(super::basis::Failed::Stopped) => return Err(stopped(done, limits)),
+                    Err(Failed::Fault(fault)) => Err(fault),
+                    Err(Failed::Stopped) => return Err(stopped(done, limits)),
                 }
             }
             refutation @ Refutation::Exhausted => Err(RefutationFault::Uncertified {
@@ -1355,12 +1360,7 @@ fn check_unbalanced(
     if atom.index() >= sequent.atom_names().len() {
         return Err(RefutationFault::Mismatch);
     }
-    if let Some((symbol, _)) = sequent.atom_predicate(atom)
-        && (0..sequent.atom_names().len()).any(|a| {
-            let a = Atom::new(a as u32);
-            sequent.atom_predicate(a).map(|(s, _)| s) == Some(symbol) && sequent.atom_is_open(a)
-        })
-    {
+    if predicate_open(sequent, atom) {
         return Err(RefutationFault::NotApplicable {
             invariant: "balance of the atom",
             why: "an atom of its predicate has a bound variable, whose instance may be it",
@@ -1402,6 +1402,53 @@ fn check_unbalanced_symbol(
     )
 }
 
+/// Returns whether an atom of `atom`'s predicate has a bound variable,
+/// whose instance may be `atom`: a count of `atom` alone is then no
+/// invariant. An atom of no predicate has none.
+fn predicate_open(sequent: &Sequent, atom: Atom) -> bool {
+    sequent.atom_predicate(atom).is_some_and(|(symbol, _)| {
+        (0..sequent.atom_names().len()).any(|a| {
+            let a = Atom::new(a as u32);
+            sequent.atom_predicate(a).map(|(s, _)| s) == Some(symbol) && sequent.atom_is_open(a)
+        })
+    })
+}
+
+/// Returns the least and the greatest excess of the literals `counted`
+/// picks in `member`: positive ones count one, negative ones minus one,
+/// `⊗` and `⅋` add their sides', `&` and `⊕` take the hull, a quantifier
+/// keeps its body's, and a `!` or `?` gives `exponential` of its operand's.
+/// `None` where a `⊤` absorbs. `span` holds an entry per occurrence of the
+/// forest, written for the member's subtree. The sums are of ±1 over a
+/// subtree of fewer than 2³² occurrences, within an `i64`.
+fn excess(
+    forest: &crate::linear::occurrences::Forest,
+    member: OccId,
+    counted: &impl Fn(OccId) -> bool,
+    span: &mut [Option<(i64, i64)>],
+    exponential: impl Fn(Option<(i64, i64)>) -> Option<(i64, i64)>,
+) -> Option<(i64, i64)> {
+    use crate::linear::sequents::Kind::*;
+    // The forest is in preorder: walked from the end, a subtree's
+    // operands come before their connective.
+    for o in forest.subtree(member).rev() {
+        let side = |side: Option<OccId>| side.and_then(|s| span[s.index()]);
+        let (l, r) = (side(forest.left(o)), side(forest.right(o)));
+        let literal = |e| Some(if counted(o) { (e, e) } else { (0, 0) });
+        span[o.index()] = match forest.kind(o) {
+            Atom => literal(1),
+            DualAtom => literal(-1),
+            One | Bot | Zero => Some((0, 0)),
+            Top => None,
+            Tensor | Par => l.zip(r).map(|((a, b), (c, d))| (a + c, b + d)),
+            With | Plus => l.zip(r).map(|((a, b), (c, d))| (a.min(c), b.max(d))),
+            Bang | Quest => exponential(l),
+            Forall | Exists => l,
+        };
+    }
+    span[member.index()]
+}
+
 /// Checks that the literals `counted` picks have the excess interval
 /// `stated` in the goal, and that it excludes zero, where the balance is
 /// an invariant. It is one because every axiom joins one positive and one
@@ -1415,7 +1462,6 @@ fn check_balance(
     counted: impl Fn(OccId) -> bool,
     stated: (i32, i32),
 ) -> Result<(), RefutationFault> {
-    use crate::linear::sequents::Kind::*;
     const INVARIANT: &str = "balance of the atom";
     if mode.affine {
         return Err(RefutationFault::NotApplicable {
@@ -1431,22 +1477,10 @@ fn check_balance(
     let mut span: Vec<Option<(i64, i64)>> = vec![None; forest.len()];
     let (mut least, mut most) = (0, 0);
     for &member in goal {
-        for o in forest.subtree(member).rev() {
-            let side = |side: Option<OccId>| side.and_then(|s| span[s.index()]);
-            let (l, r) = (side(forest.left(o)), side(forest.right(o)));
-            let literal = |e| Some(if counted(o) { (e, e) } else { (0, 0) });
-            span[o.index()] = match forest.kind(o) {
-                Atom => literal(1),
-                DualAtom => literal(-1),
-                One | Bot | Zero => Some((0, 0)),
-                Top => None,
-                Tensor | Par => l.zip(r).map(|((a, b), (c, d))| (a + c, b + d)),
-                With | Plus => l.zip(r).map(|((a, b), (c, d))| (a.min(c), b.max(d))),
-                Bang | Quest => l.filter(|&s| s == (0, 0)),
-                Forall | Exists => l,
-            };
-        }
-        let Some((lo, hi)) = span[member.index()] else {
+        let excess = excess(forest, member, &counted, &mut span, |l| {
+            l.filter(|&s| s == (0, 0))
+        });
+        let Some((lo, hi)) = excess else {
             return Err(RefutationFault::NotApplicable {
                 invariant: INVARIANT,
                 why: "a ⊤ absorbs, or copies of the atom's literals add any number",
@@ -1479,12 +1513,7 @@ fn check_one_sided(
     if atom.index() >= sequent.atom_names().len() {
         return Err(RefutationFault::Mismatch);
     }
-    if let Some((symbol, _)) = sequent.atom_predicate(atom)
-        && (0..sequent.atom_names().len()).any(|a| {
-            let a = Atom::new(a as u32);
-            sequent.atom_predicate(a).map(|(s, _)| s) == Some(symbol) && sequent.atom_is_open(a)
-        })
-    {
+    if predicate_open(sequent, atom) {
         return Err(RefutationFault::NotApplicable {
             invariant: "one-sided count of the atom",
             why: "an atom of its predicate has a bound variable, whose instance may be it",
@@ -1576,22 +1605,8 @@ fn check_copies(
                 inside = inside.max(o.index() + forest.size(o) as usize);
             }
         }
-        for o in forest.subtree(member).rev() {
-            let side = |side: Option<OccId>| side.and_then(|s| span[s.index()]);
-            let (l, r) = (side(forest.left(o)), side(forest.right(o)));
-            let literal = |e| Some(if counted(o) { (e, e) } else { (0, 0) });
-            span[o.index()] = match forest.kind(o) {
-                Atom => literal(1),
-                DualAtom => literal(-1),
-                One | Bot | Zero => Some((0, 0)),
-                Top => None,
-                Tensor | Par => l.zip(r).map(|((a, b), (c, d))| (a + c, b + d)),
-                With | Plus => l.zip(r).map(|((a, b), (c, d))| (a.min(c), b.max(d))),
-                Bang | Quest => l.map(|_| (0, 0)),
-                Forall | Exists => l,
-            };
-        }
-        let Some((a, b)) = span[member.index()] else {
+        let excess = excess(forest, member, &counted, &mut span, |l| l.map(|_| (0, 0)));
+        let Some((a, b)) = excess else {
             return Err(RefutationFault::NotApplicable {
                 invariant: INVARIANT,
                 why: "a ⊤ absorbs",

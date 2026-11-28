@@ -45,28 +45,13 @@
 //!
 //! [`Refutation::Basis`]: super::Refutation::Basis
 
-use super::refutation::{Basis, Marking, RefutationFault};
+use super::refutation::{Basis, Failed, Marking, RefutationFault};
+use super::weighted::{HornMember, horn_member};
 use crate::hash::HashMap;
 use crate::linear::occurrences::{Forest, OccId, Sign};
-use crate::linear::sequents::Kind;
 
 /// The invariant the faults of the check name.
 const INVARIANT: &str = "basis of the coverable markings";
-
-/// Why the check did not accept a basis.
-#[derive(Debug)]
-pub(crate) enum Failed {
-    /// The basis does not prove the goal unprovable.
-    Fault(RefutationFault),
-    /// The caller's stop ended the check.
-    Stopped,
-}
-
-impl From<RefutationFault> for Failed {
-    fn from(fault: RefutationFault) -> Self {
-        Self::Fault(fault)
-    }
-}
 
 /// A transition's arcs: the places it takes from and gives to, each with
 /// its weight, by increasing place. A weight counts literals of one
@@ -95,11 +80,18 @@ struct Net {
 /// Returns the atoms, with their counts, of the literals of the sign
 /// `sign` in the subtree of `o`, by increasing atom.
 fn counted(forest: &Forest, o: OccId, sign: Sign) -> Vec<(usize, u64)> {
-    let mut atoms: Vec<usize> = forest
-        .subtree(o)
-        .filter(|&x| forest.sign(x) == Some(sign))
-        .map(|x| forest.atom(x).expect("a literal has an atom").index())
-        .collect();
+    runs(
+        forest
+            .subtree(o)
+            .filter(|&x| forest.sign(x) == Some(sign))
+            .map(|x| forest.atom(x).expect("a literal has an atom").index())
+            .collect(),
+    )
+}
+
+/// Returns the atoms of `atoms`, with how often each occurs, by increasing
+/// atom.
+fn runs(mut atoms: Vec<usize>) -> Vec<(usize, u64)> {
     atoms.sort_unstable();
     let mut counts: Vec<(usize, u64)> = Vec::new();
     for a in atoms {
@@ -121,44 +113,6 @@ fn counted(forest: &Forest, o: OccId, sign: Sign) -> Vec<(usize, u64)> {
 /// without one, of which there is exactly one.
 fn read(forest: &Forest, goal: &[OccId], body: Sign) -> Option<Net> {
     let atoms = forest.sequent().atom_names().len();
-    let head = |o: OccId| {
-        forest.subtree(o).all(|x| match forest.kind(x) {
-            Kind::Par | Kind::Bot => true,
-            _ => forest.sign(x) == Some(!body),
-        })
-    };
-    // A clause's arcs, and whether it has a head.
-    let clause = |c: OccId| -> Option<(Arcs, bool)> {
-        let (mut inputs, mut found) = (Vec::new(), None);
-        let mut factors = vec![c];
-        while let Some(x) = factors.pop() {
-            match forest.kind(x) {
-                Kind::Tensor => factors.extend(forest.left(x).into_iter().chain(forest.right(x))),
-                Kind::One => {}
-                _ if forest.sign(x) == Some(body) => {
-                    inputs.push(forest.atom(x).expect("a literal has an atom").index());
-                }
-                _ if found.is_none() && head(x) => found = Some(x),
-                _ => return None,
-            }
-        }
-        inputs.sort_unstable();
-        let mut counts: Vec<(usize, u64)> = Vec::new();
-        for a in inputs {
-            match counts.last_mut() {
-                Some((last, n)) if *last == a => *n += 1,
-                _ => counts.push((a, 1)),
-            }
-        }
-        let outputs = found.map_or_else(Vec::new, |h| counted(forest, h, !body));
-        Some((
-            Arcs {
-                inputs: counts,
-                outputs,
-            },
-            found.is_some(),
-        ))
-    };
     let mut net = Net {
         reusable: Vec::new(),
         once: Vec::new(),
@@ -167,23 +121,27 @@ fn read(forest: &Forest, goal: &[OccId], body: Sign) -> Option<Net> {
     };
     let mut goal_found = false;
     for &member in goal {
-        if forest.kind(member) == Kind::Quest {
-            let (arcs, headed) = clause(forest.left(member)?)?;
-            if !headed {
-                return None;
-            }
-            net.reusable.push(arcs);
-        } else if head(member) {
+        let HornMember::Clause {
+            reusable,
+            inputs,
+            head,
+        } = horn_member(forest, member, body)?
+        else {
             for (a, n) in counted(forest, member, !body) {
                 net.initial[a] += n;
             }
-        } else {
-            let (arcs, headed) = clause(member)?;
-            if headed {
-                net.once.push((member, arcs));
-            } else if goal_found {
-                return None;
-            } else {
+            continue;
+        };
+        let arcs = Arcs {
+            inputs: runs(inputs),
+            outputs: head.map_or_else(Vec::new, |h| counted(forest, h, !body)),
+        };
+        match (reusable, head.is_some()) {
+            (true, true) => net.reusable.push(arcs),
+            (true, false) => return None,
+            (false, true) => net.once.push((member, arcs)),
+            (false, false) if goal_found => return None,
+            (false, false) => {
                 goal_found = true;
                 for &(a, n) in &arcs.inputs {
                     net.target[a] = n;
