@@ -49,7 +49,7 @@ pub use derivation::{
 };
 pub use fmt::TextOptions;
 #[cfg(feature = "interactive")]
-pub use interactive::{CutFormula, GoalId, Interactive, Step, StepError};
+pub use interactive::{CutFormula, EigenCause, GoalId, Interactive, SplitCause, Step, StepError};
 pub use rule::{Division, Named, Rule};
 pub use size::Size;
 pub use style::{Labels, OpenGoal};

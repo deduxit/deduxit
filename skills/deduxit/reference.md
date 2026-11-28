@@ -705,7 +705,9 @@ of the bound that refused the call, where a bound did. A refused step's
 witness that is no term, an axiom that cannot fill a witness
 (`binding`) and a step of a calculus given as data (`step_refused`),
 `fault` and the fault's own fields, such as `{"fault":
-"unknown_symbol", "name": "g"}`.
+"unknown_symbol", "name": "g"}`. A linear session's split and
+eigenvariable refusals add `cause`: `twice` or `principal` for a split,
+`out_of_scope` or `after_witness` for an eigenvariable.
 
 ## 9. Checking a proof: `check`
 

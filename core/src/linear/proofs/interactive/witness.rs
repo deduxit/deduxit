@@ -80,6 +80,7 @@ impl Interactive {
                                 .get(a)
                                 .cloned()
                                 .unwrap_or_else(|| format!("#{}", a.get())),
+                            cause: super::EigenCause::OutOfScope,
                         });
                     }
                     q.eigen_term(*a)

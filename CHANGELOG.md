@@ -52,6 +52,12 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **`linear::SplitCause` and `linear::EigenCause`**, the field `cause`
+  of `StepError::Split` and `StepError::Eigenvariable` (and `"cause"` in
+  the error's JSON details): which cause holds, a position named twice
+  or the formula the rule acts on, an eigenvariable out of the goal's
+  scope or made after the open witness it would fill. Each message now
+  names that cause alone.
 - **`check` renders a derivation in a calculus given as data to PNG and
   PDF**, as a tree or, with `--layout fitch`, a Fitch proof, as it draws
   one in its other formats; the verdict goes to standard error.

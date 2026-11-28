@@ -678,6 +678,11 @@ code relies on:
   `∀` steps on the path from the root, and the constants), which the
   checker's condition demands of a witness: an eigenvariable of a
   sibling branch is refused though it would be sound as a constant.
+  The refusal says which (`StepError::Eigenvariable`'s `cause`):
+  `EigenCause::OutOfScope` for a given witness or a cut formula's letter
+  out of scope, `AfterWitness` for a binding at or above a level; a
+  split's (`SplitCause`) tells a position named twice from the
+  principal's, and a position past the goal is `NoFormula`.
 - **`shown` is the table with bound metavariables replaced**, members
   and frames keeping their numbers, made again after every change
   (`Interactive::show`); the views, the size estimate and the proof

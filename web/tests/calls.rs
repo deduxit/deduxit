@@ -1223,11 +1223,12 @@ fn a_first_order_session_takes_the_quantifier_rules() {
     let error = calls::apply(&session(&answer), goal, &step(0, "ax", None), "").unwrap_err();
     let error = failure(&error);
     assert_eq!(error["details"]["kind"], "eigenvariable", "{error}");
+    assert_eq!(error["details"]["cause"], "after_witness", "{error}");
     assert!(
         error["message"]
             .as_str()
             .unwrap()
-            .contains("eigenvariable b cannot be used here"),
+            .contains("eigenvariable b cannot fill the open witness"),
         "{error}"
     );
 }

@@ -147,12 +147,14 @@ pub enum StepError {
         /// The position of a formula that is not a `?` formula.
         position: usize,
     },
-    /// A position of the split is named twice, or is the formula the rule
-    /// acts on. A position past the goal is [`StepError::NoFormula`].
+    /// A position of the split cannot go to the left premise. A position
+    /// past the goal is [`StepError::NoFormula`].
     #[non_exhaustive]
     Split {
         /// The position at fault.
         position: usize,
+        /// Why it cannot.
+        cause: SplitCause,
     },
     /// A split was given to a rule that takes none.
     #[non_exhaustive]
@@ -215,6 +217,8 @@ pub enum StepError {
     Eigenvariable {
         /// The eigenvariable, as the session writes it.
         name: String,
+        /// Which of the two places it would stand in.
+        cause: EigenCause,
     },
     /// A cut formula names a symbol that the sequent has with another
     /// arity or role. Or, in a session with quantifiers, it names a symbol
@@ -225,6 +229,44 @@ pub enum StepError {
         /// The name, as written.
         name: String,
     },
+}
+
+/// Why a position of a split cannot go to the left premise
+/// ([`StepError::Split`]).
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[non_exhaustive]
+pub enum SplitCause {
+    /// The split names the position twice.
+    Twice,
+    /// The position is the formula the rule acts on, which goes to no
+    /// premise as it is.
+    Principal,
+}
+
+/// Where a step would put an eigenvariable that may not stand there
+/// ([`StepError::Eigenvariable`]).
+///
+/// Needs the cargo feature `interactive` (on by default).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[non_exhaustive]
+pub enum EigenCause {
+    /// Into a witness or a cut formula of a goal with no step below it
+    /// that introduced the eigenvariable.
+    OutOfScope,
+    /// Into an open witness made before the eigenvariable.
+    AfterWitness,
 }
 
 impl Display for StepError {
@@ -268,10 +310,20 @@ impl Display for StepError {
                 f,
                 "promotion needs every other formula to be a ? formula, and formula {position} is not"
             ),
-            StepError::Split { position } => write!(
+            StepError::Split {
+                position,
+                cause: SplitCause::Twice,
+            } => write!(
                 f,
-                "formula {position} cannot go to the left premise: it is named twice, or it is \
-                 the formula the rule acts on; name each other formula of the goal at most once"
+                "the split names formula {position} twice: name each formula going left once"
+            ),
+            StepError::Split {
+                position,
+                cause: SplitCause::Principal,
+            } => write!(
+                f,
+                "formula {position} is the one the rule acts on, so the split cannot send it \
+                 left: name only the other formulas going left"
             ),
             StepError::NoSplit { rule } => write!(f, "the rule {rule} takes no split"),
             StepError::Succedents { count: n } => write!(
@@ -291,11 +343,21 @@ impl Display for StepError {
             ),
             StepError::NoWitness { rule } => write!(f, "the rule {rule} takes no witness"),
             StepError::Witness { fault } => write!(f, "the witness is not a term here: {fault}"),
-            StepError::Eigenvariable { name } => write!(
+            StepError::Eigenvariable {
+                name,
+                cause: EigenCause::OutOfScope,
+            } => write!(
                 f,
-                "the eigenvariable {name} cannot be used here: either no step below this goal \
-                 introduced it (a ∀ step, or ∀R or ∃L two-sided), or it was made after the \
-                 open witness it would fill"
+                "the eigenvariable {name} cannot be used here: no step below this goal \
+                 introduced it (a ∀ step, or ∀R or ∃L two-sided)"
+            ),
+            StepError::Eigenvariable {
+                name,
+                cause: EigenCause::AfterWitness,
+            } => write!(
+                f,
+                "the eigenvariable {name} cannot fill the open witness: it was made after the \
+                 witness, so it may not stand there; fill the witness with a term made before it"
             ),
             StepError::CutSymbol { name } => write!(
                 f,
@@ -721,7 +783,12 @@ fn chosen(len: usize, principal: Option<usize>, left: &[usize]) -> Result<Vec<bo
             return Err(StepError::NoFormula { position: p, len });
         }
         if std::mem::replace(&mut used[p], true) {
-            return Err(StepError::Split { position: p });
+            let cause = if principal == Some(p) {
+                SplitCause::Principal
+            } else {
+                SplitCause::Twice
+            };
+            return Err(StepError::Split { position: p, cause });
         }
     }
     Ok(used)
@@ -1353,7 +1420,10 @@ mod tests {
                 "a ⊗ b",
                 Named::from(Tensor),
                 vec![0, 0],
-                StepError::Split { position: 0 },
+                StepError::Split {
+                    position: 0,
+                    cause: SplitCause::Twice,
+                },
             ),
             (
                 "a ⊗ b",
@@ -1361,6 +1431,7 @@ mod tests {
                 vec![p(&s, "a ⊗ b")],
                 StepError::Split {
                     position: p(&s, "a ⊗ b"),
+                    cause: SplitCause::Principal,
                 },
             ),
             (
@@ -1924,7 +1995,10 @@ mod tests {
         );
         assert_eq!(
             s.split_passes(g, &Step::new(t, Rule::Tensor).left(&[t])),
-            Err(StepError::Split { position: t })
+            Err(StepError::Split {
+                position: t,
+                cause: SplitCause::Principal
+            })
         );
         let (s, g) = start("|- a, ~a, b, ~b", Mode::CLASSICAL.with_mix());
         assert!(

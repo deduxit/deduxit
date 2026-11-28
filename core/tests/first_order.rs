@@ -10,7 +10,9 @@
 #![cfg(all(feature = "parse", feature = "serialize", feature = "interactive"))]
 
 use deduxit::linear::proofs::Fault;
-use deduxit::linear::proofs::interactive::{GoalId, Needs, StepError, TermNode, Witness};
+use deduxit::linear::proofs::interactive::{
+    EigenCause, GoalId, Needs, StepError, TermNode, Witness,
+};
 use deduxit::linear::search::Engine;
 use deduxit::{
     Error, Limits,
@@ -1014,8 +1016,19 @@ fn a_session_keeps_the_eigenvariable_condition() {
     let goal = state.goals().next().unwrap();
     let error = state.apply(goal, &Step::new(0, Rule::Ax)).unwrap_err();
     assert!(
-        matches!(&error, StepError::Eigenvariable { name, .. } if name == "b"),
+        matches!(
+            &error,
+            StepError::Eigenvariable { name, cause: EigenCause::AfterWitness, .. } if name == "b"
+        ),
         "{error}"
+    );
+    assert!(
+        error.to_string().contains("made after the witness"),
+        "{error}"
+    );
+    assert_eq!(
+        serde_json::to_value(&error).unwrap()["cause"],
+        "after_witness"
     );
     let sequent: Sequent = "forall x. p(x), forall x. q(x) |- (forall x. p(x)) * (forall x. q(x))"
         .parse()
@@ -1042,7 +1055,16 @@ fn a_session_keeps_the_eigenvariable_condition() {
         )
         .unwrap_err();
     assert!(
-        matches!(&error, StepError::Eigenvariable { name, .. } if name == "a"),
+        matches!(
+            &error,
+            StepError::Eigenvariable { name, cause: EigenCause::OutOfScope, .. } if name == "a"
+        ),
+        "{error}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("no step below this goal introduced it"),
         "{error}"
     );
 }
@@ -1588,7 +1610,11 @@ fn a_cut_formula_names_the_goals_eigenvariables() {
         )
         .unwrap_err();
     assert!(
-        matches!(&error, Error::Step(StepError::Eigenvariable { name, .. }) if name == "a"),
+        matches!(
+            &error,
+            Error::Step(StepError::Eigenvariable { name, cause: EigenCause::OutOfScope, .. })
+                if name == "a"
+        ),
         "{error}"
     );
     assert!(error.to_string().contains("eigenvariable a"), "{error}");

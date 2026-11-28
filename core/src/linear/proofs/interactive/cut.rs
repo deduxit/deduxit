@@ -505,6 +505,7 @@ impl Interactive {
                 if !scope.contains(&e) {
                     return Err(StepError::Eigenvariable {
                         name: name.to_owned(),
+                        cause: super::EigenCause::OutOfScope,
                     });
                 }
                 named.push((name.to_owned(), e));
@@ -900,7 +901,10 @@ mod tests {
         );
         assert_eq!(
             step(session.cut(root, &ill, &[0, 0], &limits)),
-            StepError::Split { position: 0 }
+            StepError::Split {
+                position: 0,
+                cause: crate::linear::SplitCause::Twice
+            }
         );
         assert!(!session.forest().has_cuts());
         let [first, _] = session.cut(root, &ill, &[0], &limits).unwrap();

@@ -389,6 +389,7 @@ impl Interactive {
                                 eigen_names(&forest.sequent().fo, &q.shown.eigenvariables());
                             return Err(StepError::Eigenvariable {
                                 name: names[&a].clone(),
+                                cause: super::EigenCause::AfterWitness,
                             });
                         }
                     }
