@@ -25,7 +25,7 @@ impl<Z: Zone> Run<'_, Z> {
         let mut cuts = choice.cuts;
         let mut rest = None;
         let mut found = None;
-        if choice.start != u32::MAX {
+        if !choice.tries_none() {
             for (i, alternative) in alternatives.enumerate() {
                 // An alternative past the log's numbers is cut, never
                 // refuted.

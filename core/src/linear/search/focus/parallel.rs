@@ -29,7 +29,8 @@
 
 use super::arena::{Arena, Kept, PENDING};
 use super::memo::{Key, Shared, Table};
-use super::schedule::{Plan, closed, merged};
+use super::schedule::threaded::merged;
+use super::schedule::{Plan, closed};
 use super::split::Join;
 use super::zone::Zone;
 use super::{Alternative, Cuts, Found, Problem, Run, SetUp, Step, Unrestricted};

@@ -603,7 +603,10 @@ impl<Z: Zone> Run<'_, Z> {
     /// `left` and `right` are the sides and `split` their counts. The
     /// members before `start` are assigned as the bits of `prefix` say
     /// (one for the left), and the others are on the right and open.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the split search's state, passed through to its first-order form and to the premises; this is the recursion cycle, where a struct of it would be one more value built on every level"
+    )]
     pub(super) fn search_splits(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -657,7 +660,10 @@ impl<Z: Zone> Run<'_, Z> {
     /// [`Self::search_splits`] in a first-order zone. The splits are the
     /// alternatives of a choice point that logs which one it tries, so
     /// that a premise's search can be resumed at it (`choices.rs`).
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the arguments of `search_splits`, which it takes over in a first-order zone"
+    )]
     fn search_splits_framed(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -669,7 +675,7 @@ impl<Z: Zone> Run<'_, Z> {
         budget: u32,
     ) -> Step {
         let choice = self.zone.choices().enter(Site::Splits);
-        if choice.start == u32::MAX {
+        if choice.tries_none() {
             self.zone.choices().fail(&choice, choice.cuts);
             return Ok(Found::failed(choice.cuts));
         }
@@ -727,13 +733,13 @@ impl<Z: Zone> Run<'_, Z> {
     ) -> Result<bool, Reason> {
         let choice = self.zone.choices().enter(Site::Parts);
         if let Some(fail) = choice.settled {
-            return Ok(fail == 1);
+            return Ok(fail);
         }
-        if choice.start == u32::MAX {
+        if choice.tries_none() {
             return Ok(false);
         }
         let fail = self.parts_fail(theta, gamma, members, budget)?;
-        self.zone.choices().settle(&choice, u32::from(fail));
+        self.zone.choices().settle(&choice, fail);
         Ok(fail)
     }
 

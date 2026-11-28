@@ -56,7 +56,7 @@ impl<Z: Zone> Run<'_, Z> {
         // Every pair tried is an alternative of a choice point that logs
         // which one it tries (`choices.rs`).
         let choice = self.zone.choices().enter(Site::Initial);
-        if choice.start == u32::MAX {
+        if choice.tries_none() {
             self.zone.choices().fail(&choice, choice.cuts);
             return Ok(Found::failed(choice.cuts));
         }
@@ -276,7 +276,7 @@ impl<Z: Zone> Run<'_, Z> {
     ) -> Step {
         let forest = self.problem.forest;
         let choice = self.zone.choices().enter(Site::Answers);
-        if choice.start == u32::MAX || choice.resumed {
+        if choice.tries_none() || choice.resumed {
             // The rule failed before, or is resumed here. Its premises took
             // no alternative after its last round, so no answer is left.
             self.zone.choices().fail(&choice, choice.cuts);

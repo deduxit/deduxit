@@ -203,7 +203,10 @@ pub(super) struct Pools<Z: Zone> {
     /// holds a pointer on the stack, not the counts: with the counts in
     /// the frame, a level of recursion through a searched split takes
     /// 1.5 KiB.
-    #[allow(clippy::vec_box)]
+    #[expect(
+        clippy::vec_box,
+        reason = "a split search holds the counts it takes from here by their box, which keeps its frame a pointer wide on every level of the recursion"
+    )]
     splits: Vec<Box<Split>>,
     /// Spare trails of split searches.
     trails: Vec<Pooled<Branch>>,

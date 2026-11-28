@@ -2036,7 +2036,7 @@ fn nested_tensors_of_literals_force_their_splits() {
 #[cfg(feature = "parallel")]
 #[test]
 fn the_pair_answers_by_the_backward_search() {
-    use super::schedule::merged;
+    use super::schedule::threaded::merged;
     use crate::linear::occurrences::Member;
     use crate::linear::search::{Finished, Reason, Statistics};
     let options = Options::default().with_copies(Some(3));

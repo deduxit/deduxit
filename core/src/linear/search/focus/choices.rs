@@ -73,9 +73,13 @@ enum Taken {
     Open(u32),
     /// It failed: every alternative did.
     Failed,
-    /// It answered this value, with no alternative to resume.
-    Settled(u32),
+    /// It answered yes or no, with no alternative to resume.
+    Settled(bool),
 }
+
+/// The first alternative of a choice point that tries none: past every
+/// alternative, since none is numbered `u32::MAX`.
+const PAST: u32 = u32::MAX;
 
 /// An entry of the log.
 #[derive(Clone, Copy, Debug)]
@@ -95,12 +99,12 @@ pub(super) struct Choice {
     /// Its entry's place in the log.
     slot: Option<usize>,
     /// The first alternative to try. It is past every alternative where
-    /// the choice point fails at once.
+    /// the choice point tries none ([`Choice::tries_none`]).
     pub(super) start: u32,
     /// The cuts of the alternatives before it.
     pub(super) cuts: Cuts,
-    /// The value a settled choice point answered in a replay.
-    pub(super) settled: Option<u32>,
+    /// The answer a settled choice point gave, read in a replay.
+    pub(super) settled: Option<bool>,
     /// Whether the replay resumes the search here.
     pub(super) resumed: bool,
 }
@@ -110,11 +114,17 @@ impl Choice {
     /// diverged replay does.
     const FAILED: Self = Self {
         slot: None,
-        start: u32::MAX,
+        start: PAST,
         cuts: Cuts::BUDGET,
         settled: None,
         resumed: false,
     };
+
+    /// Whether the choice point tries no alternative: it fails at once,
+    /// or, in a replay, gives its settled answer.
+    pub(super) const fn tries_none(&self) -> bool {
+        self.start == PAST
+    }
 }
 
 /// The log, the replay under way, and how many rules keep the log.
@@ -157,8 +167,8 @@ impl Choices {
             let (start, settled) = match entry.taken {
                 Taken::Open(i) if resumed => (i + 1, None),
                 Taken::Open(i) => (i, None),
-                Taken::Failed => (u32::MAX, None),
-                Taken::Settled(value) => (u32::MAX, Some(value)),
+                Taken::Failed => (PAST, None),
+                Taken::Settled(value) => (PAST, Some(value)),
             };
             return Choice {
                 slot,
@@ -238,7 +248,7 @@ impl Choices {
 
     /// Logs that the choice point answered `value` and has nothing to
     /// resume.
-    pub(super) fn settle(&mut self, choice: &Choice, value: u32) {
+    pub(super) fn settle(&mut self, choice: &Choice, value: bool) {
         let Some(slot) = choice.slot else {
             return;
         };
@@ -386,7 +396,7 @@ mod tests {
         let end = choices.len();
         choices.resume(0, end).unwrap();
         let other = choices.enter(Site::Initial);
-        assert_eq!((other.start, other.cuts), (u32::MAX, Cuts::BUDGET));
+        assert_eq!((other.tries_none(), other.cuts), (true, Cuts::BUDGET));
         assert!(choices.end_replay());
         let mut choices = Choices::default();
         choices.open();
@@ -410,7 +420,7 @@ mod tests {
         let pair = choices.enter(Site::Initial);
         choices.fail(&pair, Cuts::BUDGET);
         let parts = choices.enter(Site::Parts);
-        choices.settle(&parts, 1);
+        choices.settle(&parts, true);
         assert_eq!(choices.resume(0, choices.len()), Err(Cuts::BUDGET));
         assert!(!choices.replaying());
     }

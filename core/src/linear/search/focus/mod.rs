@@ -278,7 +278,7 @@ fn search_goal<Z: Zone>(
     let _ = work;
     #[cfg(feature = "parallel")]
     if options.schedule == super::Schedule::Auto
-        && let Some(result) = schedule::alternate::<Z>(set_up, searches, work, stop)
+        && let Some(result) = schedule::threaded::alternate::<Z>(set_up, searches, work, stop)
     {
         return result;
     }
@@ -1636,7 +1636,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
     }
 
     /// The body of `decide`, with its scratch buffers.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "`decide`'s arguments and the three scratch buffers it takes from the pools and gives back after this body"
+    )]
     fn decide_with(
         &mut self,
         theta: &Unrestricted<Z>,

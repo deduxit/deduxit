@@ -21,8 +21,9 @@ rules, account and limits every engine of a search shares), its phases
 and the interface the front door calls (`Focused`, `ONE_SIDED`,
 `TWO_SIDED`); `split.rs` the `⊗` rule and Mix (forced chains, the split
 search); `arena.rs` the proof arena; `scratch.rs` the pools of buffers
-(`Pools`); `schedule.rs` the two searches of the default bias (`plan`,
-`chains`, `Plan`, `turns`, and the threaded `alternate` with its baton);
+(`Pools`); `schedule/` the two searches of the default bias (`plan`,
+`chains`, `Plan`, `turns` in `mod.rs`, and in `threaded.rs`, one module
+behind the feature `parallel`, `alternate` with its baton and `merged`);
 `parallel.rs` the engine on a pool; `zone.rs` what the engine is generic
 over (`Zone`, `Linear`, `Unrestricted`, `Ground`, `Cursors`, below);
 `framed/` the first-order zone (`Framed`: its variables, unification
@@ -513,7 +514,7 @@ relies on:
     backward search's share a hundred times too long on Petri nets (a
     poll in a split search is 4 096 steps), and a flat cost per stable
     sequent starved a net's backward proof.
-  - **On one core with threads** (`focus::schedule::alternate`, feature
+  - **On one core with threads** (`focus::schedule::threaded::alternate`, feature
     `parallel`, whatever `Options::jobs` says below two): the forward
     search runs on the calling thread and the backward one on a scoped
     thread of `Limits::stack_bytes()`, and a `Baton` lets one of them

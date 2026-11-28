@@ -784,10 +784,10 @@ pub(super) struct Shared {
 }
 
 impl Shared {
-    #[cfg(feature = "parallel")]
     /// Returns an empty shared memo holding at most `limit` entries in all,
     /// with a table of at most `zones` unrestricted zones (zero keeps
     /// none and gives each zone a new id).
+    #[cfg(feature = "parallel")]
     pub(super) fn new(limit: usize, zones: usize) -> Self {
         let per_shard = limit.div_ceil(SHARDS);
         Self {

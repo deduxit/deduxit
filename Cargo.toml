@@ -76,6 +76,8 @@ missing_docs_in_private_items = "warn"
 # Picked from the nursery and restriction groups, which are not taken
 # whole: the nursery's lints are unfinished, the restriction group's
 # contradict each other by design.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
 dbg_macro = "warn"
 empty_structs_with_brackets = "warn"
 get_unwrap = "warn"
@@ -105,8 +107,6 @@ if_not_else = "allow"
 items_after_statements = "allow"
 naive_bytecount = "allow"
 # Picked, and firing today: each goes to "warn" once its sites are fixed.
-allow_attributes = "allow"
-allow_attributes_without_reason = "allow"
 branches_sharing_code = "allow"
 debug_assert_with_mut_call = "allow"
 derive_partial_eq_without_eq = "allow"
