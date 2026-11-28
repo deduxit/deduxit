@@ -4,9 +4,8 @@
 //! Witnesses: the open witnesses an axiom fills by unification, the
 //! eigenvariables, and the quantifier steps that take them.
 
-use super::{
-    BindingFault, Context, Interactive, Step, StepError, axiom, formula_at, premise, shown,
-};
+use super::expand::{axiom, premise};
+use super::{BindingFault, Context, Interactive, Step, StepError, formula_at, shown};
 use crate::first_order::{Eigen, FoTerm, FoTermId};
 use crate::limits::Refusal;
 use crate::linear::proofs::{GoalId, InfId};
