@@ -9120,3 +9120,12 @@ move (D26).
   names `--timeout 10s` (a debug build's first attempt takes 6.6 s, a release build's 0.3 s).
   Stacked on fixup-33 for one CI run. 87e2 (the last of wave E, moves only) in its worker, cores
   13-15.
+- 2026-11-28, about 10:40: **fixup-36 reviewed; 87d3b started.** fixup-36 (Opus, high; the reviewer
+  on Opus): the slowness was not after the work refusal but in the JSON reader, which writes every
+  atom's key as its full text; the keys' bytes are now held to `limits.memory_bytes` whatever the
+  term bound (the reviewer showed a 21 KB file of long names taking 3.9 GB within the defaults by
+  a count of terms alone), refused before any key is written; the command's JSON readers now take
+  `--term-limit` and `--memory-limit`, which they ignored. (departs from the plan) Both widen
+  option A, decided unattended at 09:50; keying atoms by structure is recorded as a later
+  candidate. On the 87d2/87e5 stack, landing with it. 87d3b (the other suites' candidates) in its
+  worker, cores 10-12.
