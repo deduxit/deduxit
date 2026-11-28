@@ -2931,3 +2931,107 @@ witness). The files' intended meaning needs the quantifier's scope moved,
 an edit of the problem, not a reading. My recommendation: keep refusing
 (TPTP's rule, and no reading gives the intended statement), and leave the
 four out of the ILTP counts with this reason.
+
+## Session fixup-33: an unknown first-order sequent gets no Rocq certificate
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-87c1-64a1a5` on `nvwqyuvr`
+(87e3), cores 7 to 9, in the conversation of steps 87c1, 87c8, 87c7,
+87c6, 87e4 and 87e3. Panel (argument and counterexamples, as the brief
+asks) and the reviewer. Nothing pushed.
+
+### What the defect is
+
+`prove --logic classical --method embedding --format rocq 'p(a) |-
+q(b)'` (87d4's witness, the smallest there is) answers unknown, exit 3:
+the image is unprovable, and at first order the translation may lose
+proofs (`ordinary::incomplete`). It still wrote the image's classical
+assignment as a certificate over `Prop`, `Lemma certificate : ~ (forall
+p_28_a_29_ q_28_b_29_ : Prop, p(a) -> q(b))`: `falsified` binds the
+atoms by their identifiers and the formula printer writes a first-order
+atom by its predicate and terms, so Rocq refused the file. In
+intuitionistic and minimal logic the same unknown printed `no
+certificate: only a classical assignment …`, the library's refusal of a
+refutation that is no assignment.
+
+### What landed
+
+- `ovskpxkq` "Write no Rocq certificate for an unknown first-order
+  sequent": `prove.rs` writes nothing for `--format rocq` where the
+  command's line says unknown for that reason (`Shown::Nothing`, as for
+  every other unknown; under `--linear` too, whose line says unknown as
+  well, though its exit status is the image's). The manual's Rocq
+  chapter and `status.md` give a certificate to a decided verdict only,
+  and the honest certificate of such a sequent's non-validity is the
+  first-order one from a checked structure, which the default path
+  (grounding, the model search) writes. A test,
+  `an_unknown_first_order_embedding_has_no_certificate` (classical and
+  intuitionistic), fails before the fix. The changelog's `Fixed` and
+  `cli.md` say so; no example of the manual or the guide shows this
+  case.
+
+### The net
+
+- The gate at `ovskpxkq`, on cores 7 to 9: "gate: passed" (Clippy,
+  all 39 test suites, both `cargo hack` runs, the ratchet).
+- `nix build .#checks.x86_64-linux.rocq .#checks.x86_64-linux.check-certificate`
+  under the machine lock: both built. `rocq-deduxit` was not run: no
+  certificate's text changed, only whether one is written.
+- No local `nix flake check` (the planning session's rule).
+
+### The panel
+
+- **Argument** (`panel-argument`, Opus 5.5 at `high`): no break. Every
+  path to a certificate over `Prop` (`prove`, the batch, `check`,
+  `interact`, the workspace, the protocol, the web bindings) either
+  goes through the guarded arm or never meets a first-order arena (the
+  classical countermodel path is refused at first order by its check,
+  `check` writes the image's linear certificate); a certificate now goes
+  with a decided verdict wherever the command writes one; writing
+  nothing is right against a statement Rocq would accept, which would
+  state only the propositional abstraction under a line that says
+  unknown. Two notes, both outside the change (below).
+- **Counterexamples** (`panel-counterexamples`, Opus 5.5 at `high`): no
+  certificate written for an unknown in about 16 100 inputs (every
+  logic and method, `--linear`, the batch, `check` of the outcomes,
+  linear sequents in every mode and kernel, atom names that are Rocq's
+  words); 6 998 certificates written, each compiled by the flake's
+  `check-certificate`, 6 996 accepted. The head and the base agree on
+  9 940 deterministic inputs but for the 101 certificates of an unknown
+  the head no longer writes (Rocq refused all 101 of the base's) and 256
+  `no certificate: …` lines it no longer prints. Its own reference
+  (a truth table, Dyckhoff's G4ip) agreed on 2 249 propositional
+  verdicts. The two certificates Rocq did not accept are below.
+
+### The reviewer
+
+`fresh-reviewer` (Opus 5.5 at `high`): no finding. It ran the new test
+on the old `prove.rs` (it fails, with the refused certificate as the
+witness) and on the new (it passes); checked that the guard's condition
+is the verdict line's (`decide.rs::finish`, the one place `Searched` is
+built) and placed before the old arm, so every other case writes what it
+wrote, and ran the neighbouring inputs (propositional not valid in each
+logic and under `--linear`, the default path's first-order certificate)
+to see them unchanged; and found the records true and the manual, the
+guide and the behaviour lock without an example of this output.
+
+### Follow-ups (for the planning session)
+
+- **A certificate over `Prop` can run Rocq out of memory**: two the base
+  writes alike (classical by the SAT method, and minimal under
+  `--linear`, both propositional and not valid, 607 bytes and less)
+  took over 8 GB in `tauto` after the `specialize` and were killed after
+  35 and 52 minutes; a third compiled after 17 minutes. The statements
+  are true. A proof that rewrites the formula by the assignment
+  (`cbv`, or a reflected evaluation) in place of `tauto` would end
+  quickly; the inputs are in the counterexamples member's scratch
+  (`/tmp/claude-1000/panel-cx-f33/work/slow1112.seq`, `slow1600.seq`).
+- **The library's `rocq::write_not_valid` still writes the refused text
+  when handed a ground first-order image** (the command no longer does):
+  refusing it needs an `Unsupported` variant or a statement over the
+  first-order calculus, part 2's matter.
+- **`check` confirms a hand-edited `not_valid` outcome of a first-order
+  sequent** by the image's linear refutation (exit 0, a true lemma about
+  the image), though deduxit writes such an outcome as unknown
+  (`serialize/ordinary.rs` takes "not valid" over an unprovable image at
+  any order). The argument member could not turn it into a wrong
+  answer.
