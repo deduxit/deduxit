@@ -220,129 +220,36 @@ impl crate::sealed::Net for MellStructure {
             .position(|&cut| cut == (x.get(), y.get()))
             .expect("a cut link of the net");
         let (x, y) = (x.get(), y.get());
-        let kind = |work: &Work, v: u32| forest.kind(work.occurrence[v as usize]);
-        // A vertex's premises in the net the step is taken on.
-        let premises =
-            |v: u32| -> Vec<u32> { self.premises(VertexId::new(v)).map(VertexId::get).collect() };
         let mut above = None;
-        let case = match kind(&work, x) {
-            Kind::Atom | Kind::DualAtom => {
-                // A proof net links every literal, and never a cut's two
-                // ends to each other.
-                let partner = |v: u32| {
-                    self.partner(VertexId::new(v))
-                        .expect("a proof net links every literal")
-                        .get()
-                };
-                let (px, py) = (partner(x), partner(y));
-                super::relink(&mut work.links, (x, y), (px, py));
-                // A weakening hung on either literal hangs on the link made.
-                for hang in &mut work.hangs {
-                    if hang.1 == x || hang.1 == y {
-                        hang.1 = px;
-                    }
-                }
-                work.erased[x as usize] = true;
-                work.erased[y as usize] = true;
-                work.cuts.remove(at);
-                Case::Axiom
-            }
-            Kind::Tensor | Kind::Par => {
-                let (px, py) = (premises(x), premises(y));
-                // The left premise first, as the structure keeps them.
-                let left = |v: u32, list: &[u32]| {
-                    let l = forest.left(work.occurrence[v as usize]).unwrap();
-                    if work.occurrence[list[0] as usize] == l {
-                        (list[0], list[1])
-                    } else {
-                        (list[1], list[0])
-                    }
-                };
-                let ((xl, xr), (yl, yr)) = (left(x, &px), left(y, &py));
-                for v in [xl, xr, yl, yr] {
-                    work.parent[v as usize] = NONE;
-                }
-                work.erased[x as usize] = true;
-                work.erased[y as usize] = true;
-                work.cuts.splice(at..=at, [(xl, yl), (xr, yr)]);
-                Case::TensorPar
-            }
+        let case = match work.kind(self, x) {
+            Kind::Atom | Kind::DualAtom => work.axiom(self, at, (x, y)),
+            Kind::Tensor | Kind::Par => work.tensor_par(self, at, (x, y)),
             Kind::Bang | Kind::Quest => {
-                let (b, q) = if kind(&work, x) == Kind::Bang {
+                let (bang, quest) = if work.kind(self, x) == Kind::Bang {
                     (x, y)
                 } else {
                     (y, x)
                 };
-                let copies = premises(q);
-                let depth = work.inside[q as usize];
-                match copies[..] {
-                    [] => {
-                        let hung = self
-                            .hangs_on(VertexId::new(q))
-                            .expect("a proof net hangs every weakening")
-                            .get();
-                        work.cuts.remove(at);
-                        work.erase(b);
-                        debug_assert!(
-                            !work.erased[hung as usize],
-                            "a weakening cut against a box hangs outside it in a proof net"
-                        );
-                        work.erased[q as usize] = true;
-                        work.hangs.retain(|&(w, _)| w != q);
-                        // What lost its copies, or its literal, in the box
-                        // hangs where the erased weakening hung.
-                        for hang in &mut work.hangs {
-                            if work.erased[hang.1 as usize] {
-                                hang.1 = hung;
-                            }
-                        }
-                        let bare: Vec<u32> = (0..work.parent.len() as u32)
-                            .filter(|&r| {
-                                !work.erased[r as usize] && kind(&work, r) == Kind::Quest && {
-                                    let mut copies = self.premises(VertexId::new(r)).peekable();
-                                    copies.peek().is_some()
-                                        && copies.all(|c| work.erased[c.index()])
-                                }
-                            })
-                            .collect();
-                        work.hangs.extend(bare.into_iter().map(|r| (r, hung)));
-                        Case::Weakening
-                    }
-                    [c] if work.inside[c as usize] == depth => {
-                        let premise = premises(b)[0];
-                        for v in 0..work.inside.len() {
-                            if work.inside[v] == b {
-                                work.inside[v] = depth;
-                            }
-                        }
-                        work.parent[premise as usize] = NONE;
-                        work.parent[c as usize] = NONE;
-                        work.erased[b as usize] = true;
-                        work.erased[q as usize] = true;
-                        work.cuts[at] = if b == x { (premise, c) } else { (c, premise) };
+                let cut = Exponential {
+                    at,
+                    ends: (x, y),
+                    bang,
+                    quest,
+                    depth: work.inside[quest as usize],
+                };
+                match premises(self, quest)[..] {
+                    [] => work.weakening(self, &cut),
+                    [c] if work.inside[c as usize] == cut.depth => {
                         above = Some(c);
-                        Case::Dereliction
+                        work.dereliction(self, &cut, c)
                     }
                     [c] => {
-                        // The box at the cut's depth around the copy.
-                        let mut e = work.inside[c as usize];
-                        while work.inside[e as usize] != depth {
-                            e = work.inside[e as usize];
-                        }
-                        work.inside[b as usize] = e;
-                        work.inside[q as usize] = e;
+                        let e = work.box_into_box(&cut, c);
                         above = Some(e);
                         Case::BoxIntoBox
                     }
                     [c, ..] => {
-                        // The bound on vertices before the box is copied.
-                        let inner = work.contents(b);
-                        within(work.vertices() + inner.len() + 1, options)?;
-                        let twin = work.duplicate(b, &inner);
-                        let own = work.push(work.occurrence[q as usize], NONE, depth);
-                        work.parent[c as usize] = own;
-                        let cut = if b == x { (twin, own) } else { (own, twin) };
-                        work.cuts.insert(at, cut);
+                        work.contraction(&cut, c, options)?;
                         above = Some(c);
                         Case::Contraction
                     }
@@ -368,5 +275,171 @@ impl crate::sealed::Net for MellStructure {
             above: above.map(VertexId::new),
         };
         Ok((made, step))
+    }
+}
+
+/// Returns a vertex's premises in the net the step is taken on.
+fn premises(net: &MellStructure, v: u32) -> Vec<u32> {
+    net.premises(VertexId::new(v)).map(VertexId::get).collect()
+}
+
+/// A cut link between a `!` vertex and a `?` vertex, as the exponential
+/// cases read it.
+struct Exponential {
+    /// The cut link's place in the list.
+    at: usize,
+    /// Its two ends, the one in a cut formula's tree first.
+    ends: (u32, u32),
+    /// The `!` end.
+    bang: u32,
+    /// The `?` end.
+    quest: u32,
+    /// The box the cut link stands in, or `NONE`.
+    depth: u32,
+}
+
+impl Work {
+    /// Returns the kind of a vertex's occurrence.
+    fn kind(&self, net: &MellStructure, v: u32) -> Kind {
+        net.forest().kind(self.occurrence[v as usize])
+    }
+
+    /// The axiom case: the two literals' partners are linked, and the
+    /// weakenings hung on either literal hang on that link.
+    fn axiom(&mut self, net: &MellStructure, at: usize, (x, y): (u32, u32)) -> Case {
+        // A proof net links every literal, and never a cut's two ends to
+        // each other.
+        let partner = |v: u32| {
+            net.partner(VertexId::new(v))
+                .expect("a proof net links every literal")
+                .get()
+        };
+        let (px, py) = (partner(x), partner(y));
+        super::relink(&mut self.links, (x, y), (px, py));
+        // A weakening hung on either literal hangs on the link made.
+        for hang in &mut self.hangs {
+            if hang.1 == x || hang.1 == y {
+                hang.1 = px;
+            }
+        }
+        self.erased[x as usize] = true;
+        self.erased[y as usize] = true;
+        self.cuts.remove(at);
+        Case::Axiom
+    }
+
+    /// The `⊗`/`⅋` case: the cut link becomes two, between the left
+    /// premises and between the right ones.
+    fn tensor_par(&mut self, net: &MellStructure, at: usize, (x, y): (u32, u32)) -> Case {
+        let forest = net.forest();
+        let (px, py) = (premises(net, x), premises(net, y));
+        // The left premise first, as the structure keeps them.
+        let left = |v: u32, list: &[u32]| {
+            let l = forest.left(self.occurrence[v as usize]).unwrap();
+            if self.occurrence[list[0] as usize] == l {
+                (list[0], list[1])
+            } else {
+                (list[1], list[0])
+            }
+        };
+        let ((xl, xr), (yl, yr)) = (left(x, &px), left(y, &py));
+        for v in [xl, xr, yl, yr] {
+            self.parent[v as usize] = NONE;
+        }
+        self.erased[x as usize] = true;
+        self.erased[y as usize] = true;
+        self.cuts.splice(at..=at, [(xl, yl), (xr, yr)]);
+        Case::TensorPar
+    }
+
+    /// The weakening case: the box is erased, and what lost its copies or
+    /// its literal in it hangs where the weakening hung.
+    fn weakening(&mut self, net: &MellStructure, cut: &Exponential) -> Case {
+        let (b, q) = (cut.bang, cut.quest);
+        let hung = net
+            .hangs_on(VertexId::new(q))
+            .expect("a proof net hangs every weakening")
+            .get();
+        self.cuts.remove(cut.at);
+        self.erase(b);
+        debug_assert!(
+            !self.erased[hung as usize],
+            "a weakening cut against a box hangs outside it in a proof net"
+        );
+        self.erased[q as usize] = true;
+        self.hangs.retain(|&(w, _)| w != q);
+        // What lost its copies, or its literal, in the box hangs where the
+        // erased weakening hung.
+        for hang in &mut self.hangs {
+            if self.erased[hang.1 as usize] {
+                hang.1 = hung;
+            }
+        }
+        let bare: Vec<u32> = (0..self.parent.len() as u32)
+            .filter(|&r| {
+                !self.erased[r as usize] && self.kind(net, r) == Kind::Quest && {
+                    let mut copies = net.premises(VertexId::new(r)).peekable();
+                    copies.peek().is_some() && copies.all(|c| self.erased[c.index()])
+                }
+            })
+            .collect();
+        self.hangs.extend(bare.into_iter().map(|r| (r, hung)));
+        Case::Weakening
+    }
+
+    /// The dereliction case, the one copy `c` at the cut's depth: the box
+    /// opens, and its premise is cut against the copy.
+    fn dereliction(&mut self, net: &MellStructure, cut: &Exponential, c: u32) -> Case {
+        let (b, q, depth) = (cut.bang, cut.quest, cut.depth);
+        let premise = premises(net, b)[0];
+        for v in 0..self.inside.len() {
+            if self.inside[v] == b {
+                self.inside[v] = depth;
+            }
+        }
+        self.parent[premise as usize] = NONE;
+        self.parent[c as usize] = NONE;
+        self.erased[b as usize] = true;
+        self.erased[q as usize] = true;
+        self.cuts[cut.at] = if b == cut.ends.0 {
+            (premise, c)
+        } else {
+            (c, premise)
+        };
+        Case::Dereliction
+    }
+
+    /// The box-into-box case, the one copy `c` inside a box: the cut link
+    /// moves into the box at the cut's depth around the copy, which it
+    /// returns.
+    fn box_into_box(&mut self, cut: &Exponential, c: u32) -> u32 {
+        // The box at the cut's depth around the copy.
+        let mut e = self.inside[c as usize];
+        while self.inside[e as usize] != cut.depth {
+            e = self.inside[e as usize];
+        }
+        self.inside[cut.bang as usize] = e;
+        self.inside[cut.quest as usize] = e;
+        e
+    }
+
+    /// The contraction case, the first of several copies `c`: the box is
+    /// copied, the copy cut against a `?` vertex of `c`'s own, within
+    /// `options`' bound on vertices.
+    fn contraction(&mut self, cut: &Exponential, c: u32, options: &Options) -> Result<(), Error> {
+        let (b, q) = (cut.bang, cut.quest);
+        // The bound on vertices before the box is copied.
+        let inner = self.contents(b);
+        within(self.vertices() + inner.len() + 1, options)?;
+        let twin = self.duplicate(b, &inner);
+        let own = self.push(self.occurrence[q as usize], NONE, cut.depth);
+        self.parent[c as usize] = own;
+        let made = if b == cut.ends.0 {
+            (twin, own)
+        } else {
+            (own, twin)
+        };
+        self.cuts.insert(cut.at, made);
+        Ok(())
     }
 }
