@@ -218,9 +218,9 @@ pub(crate) fn write_drawable<F: Target>(
     drawable: Drawable<'_>,
     options: &F::Options,
     out: &mut impl std::fmt::Write,
-    mut stop: impl FnMut(crate::Progress) -> bool,
+    stop: &mut dyn FnMut(crate::Progress) -> bool,
 ) -> Result<(), crate::Error> {
-    let judgement = judgement(drawable, F::lambda(options), F::SPELLING, &mut stop)?;
+    let judgement = judgement(drawable, F::lambda(options), F::SPELLING, &mut *stop)?;
     let judgement = judgement.as_deref();
     let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
     match drawable {

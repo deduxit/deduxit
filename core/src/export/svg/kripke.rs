@@ -135,8 +135,9 @@ pub(super) fn draw(
     last: &str,
     style: &Style,
     limits: &Limits,
-    mut stop: impl FnMut() -> bool,
+    stop: &mut dyn FnMut(crate::limits::Progress) -> bool,
 ) -> Result<String, Error> {
+    let mut stop = crate::limits::counting(stop, Phase::Write);
     style.check()?;
     let worlds = &model.worlds;
     within(limits, || {

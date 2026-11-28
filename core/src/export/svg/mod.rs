@@ -2044,7 +2044,6 @@ pub fn countermodel(
     })?;
     let title = format!("A countermodel of {sequent}");
     let last = super::models::last(sequent, logic, countermodel.model.world);
-    let mut polls = 0u64;
     kripke::draw(
         &countermodel.model,
         None,
@@ -2053,14 +2052,7 @@ pub fn countermodel(
         &last,
         style,
         limits,
-        || {
-            polls += 1;
-            stop(crate::limits::Progress::new(
-                crate::limits::Phase::Write,
-                1,
-                polls,
-            ))
-        },
+        &mut stop,
     )
 }
 
@@ -2223,7 +2215,6 @@ fn first_order_model(
     } else {
         "A finite structure, drawn as one world.".to_owned()
     };
-    let mut polls = 0u64;
     kripke::draw(
         &model,
         Some((&header, &contents)),
@@ -2232,14 +2223,7 @@ fn first_order_model(
         &laid.last,
         style,
         limits,
-        || {
-            polls += 1;
-            stop(crate::limits::Progress::new(
-                crate::limits::Phase::Write,
-                1,
-                polls,
-            ))
-        },
+        stop,
     )
 }
 
@@ -2321,7 +2305,6 @@ pub fn modal_countermodel(
         "At world {w} every formula left of ⊢ is true and every formula right of it false, \
          so {sequent} is not valid in {system}."
     );
-    let mut polls = 0u64;
     kripke::draw(
         &countermodel.model,
         None,
@@ -2330,14 +2313,7 @@ pub fn modal_countermodel(
         &last,
         style,
         limits,
-        || {
-            polls += 1;
-            stop(crate::limits::Progress::new(
-                crate::limits::Phase::Write,
-                1,
-                polls,
-            ))
-        },
+        &mut stop,
     )
 }
 

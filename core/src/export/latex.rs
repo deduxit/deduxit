@@ -649,9 +649,9 @@ pub fn write<'a>(
     derivation: impl Into<Drawable<'a>>,
     options: &Options,
     out: &mut impl Write,
-    stop: impl FnMut(crate::limits::Progress) -> bool,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
-    super::write_drawable::<Latex>(derivation.into(), options, out, stop)
+    super::write_drawable::<Latex>(derivation.into(), options, out, &mut stop)
 }
 
 /// The target Latex for the writers every format shares.
