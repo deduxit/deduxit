@@ -42,7 +42,7 @@ batches=(
   "mist|core/src/linear/mist.rs|test(/^linear::(mist|search::horn)::/) | package(deduxit-bench)"
   "ordinary-parse|core/src/ordinary/parse.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli)"
   "ordinary-derivation|core/src/ordinary/derivation.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli) | binary_id(deduxit-cli::readme)"
-  "search|core/src/linear/search/mod.rs|test(/^linear::search::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
+  "search|core/src/linear/search/mod.rs core/src/linear/search/outcome.rs core/src/linear/search/options.rs core/src/linear/search/engine.rs core/src/linear/search/dispatch.rs core/src/linear/search/interface.rs|test(/^linear::search::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
   "horn-mod|core/src/linear/search/horn/mod.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
   "horn-equation|core/src/linear/search/horn/equation.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
   "horn-cover|core/src/linear/search/horn/cover.rs|test(/^linear::(search::(horn|reference)|mist)::/)"

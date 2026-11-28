@@ -17,7 +17,10 @@ browser or a stranger's file would.
 - The scope is the code soundness rests on: the checker
   (`proofs/check/`, `proofs/mod.rs`), the readers (`parse/`,
   `serialize/`, `lltp.rs`, `mist.rs`, `ordinary/parse.rs`), the search's
-  front door (`search/mod.rs`), the Horn engine's refutations
+  front door (`search/mod.rs` and the five files split from it in 87e1:
+  `outcome.rs`, `options.rs`, `engine.rs`, `dispatch.rs`, `interface.rs`;
+  the baseline's `search` list predates the split, so its paths name
+  `mod.rs` alone), the Horn engine's refutations
   (`search/horn/{mod,equation,cover,reach}.rs`) and the ordinary layer's
   checker (`ordinary/derivation.rs`). A batch is one group of files; the
   table at the top of the script is the scope, and a change of it is a
@@ -64,7 +67,7 @@ browser or a stranger's file would.
   lines; a test that fails there, and passes unmutated, catches it.
 - **`--re` and `exclude_re` do not filter cargo-mutants' field
   deletions** (27.1.0: `cargo mutants --list --file
-  core/src/linear/search/mod.rs --re 'zzzz'` still lists the eleven `delete
+  core/src/linear/search/options.rs --re 'zzzz'` (`mod.rs` before 87e1) still lists the eleven `delete
   field … in Options::with_*`), so a rerun of a few mutants by `--re`
   also runs every "delete field" mutant of the file; count only the
   mutants the regex names. A test helper's field deletions are not
