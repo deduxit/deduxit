@@ -147,8 +147,8 @@ pub enum StepError {
         /// The position of a formula that is not a `?` formula.
         position: usize,
     },
-    /// A position of the split is out of range, repeated, or the formula the
-    /// rule acts on.
+    /// A position of the split is named twice, or is the formula the rule
+    /// acts on. A position past the goal is [`StepError::NoFormula`].
     #[non_exhaustive]
     Split {
         /// The position at fault.
@@ -270,7 +270,8 @@ impl Display for StepError {
             ),
             StepError::Split { position } => write!(
                 f,
-                "position {position} cannot go to the left premise: it is out of range, repeated, or the formula the rule acts on"
+                "formula {position} cannot go to the left premise: it is named twice, or it is \
+                 the formula the rule acts on; name each other formula of the goal at most once"
             ),
             StepError::NoSplit { rule } => write!(f, "the rule {rule} takes no split"),
             StepError::Succedents { count: n } => write!(
@@ -433,7 +434,9 @@ impl Step {
         match &self.split {
             Split::None => Ok(Vec::new()),
             Split::Left { positions } => Ok(positions.clone()),
-            &Split::At { position } if position >= len => Err(StepError::Split { position }),
+            &Split::At { position } if position >= len => {
+                Err(StepError::NoFormula { position, len })
+            }
             // From the cut point round to the step's formula.
             &Split::At { position } => Ok((position..len)
                 .chain(0..position)
@@ -706,15 +709,18 @@ fn predicates(fo: &crate::linear::sequents::fo::FirstOrder) -> Vec<Symbol> {
 ///
 /// # Errors
 ///
-/// [`StepError::Split`] for a position past the sequent, the principal's
-/// or one given twice.
+/// [`StepError::NoFormula`] for a position past the sequent, and
+/// [`StepError::Split`] for the principal's or one given twice.
 fn chosen(len: usize, principal: Option<usize>, left: &[usize]) -> Result<Vec<bool>, StepError> {
     let mut used = vec![false; len];
     if let Some(position) = principal {
         used[position] = true;
     }
     for &p in left {
-        if p >= len || std::mem::replace(&mut used[p], true) {
+        if p >= len {
+            return Err(StepError::NoFormula { position: p, len });
+        }
+        if std::mem::replace(&mut used[p], true) {
             return Err(StepError::Split { position: p });
         }
     }
@@ -1338,7 +1344,10 @@ mod tests {
                 "a ⊗ b",
                 Named::from(Tensor),
                 vec![9],
-                StepError::Split { position: 9 },
+                StepError::NoFormula {
+                    position: 9,
+                    len: 6,
+                },
             ),
             (
                 "a ⊗ b",

@@ -239,6 +239,10 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **A session's `proof` past the derivation limit names `proof
   --json`**, the session's word for the whole proof, where it named
   `--format json`.
+- **A linear session's split names a position past the goal as such**:
+  `StepError::NoFormula` ("the goal has no formula 9: it has 6
+  formulas"), where `StepError::Split` listed it beside a position named
+  twice and the formula the rule acts on, which `Split` keeps.
 - **The three sessions give one answer each** to a goal that is no
   number, a formula no rule applies to ("no rule applies there"), an
   unknown command ("`help` lists the commands") and a saved session of

@@ -228,7 +228,8 @@ impl Interactive {
     /// Nothing changes on an error. [`Error::Step`] with:
     /// - [`StepError::NoGoal`] for a goal that is not open;
     /// - [`StepError::Mode`] in an ordered mode;
-    /// - [`StepError::Split`] for a position past the goal or named twice;
+    /// - [`StepError::NoFormula`] for a position past the goal, and
+    ///   [`StepError::Split`] for one named twice;
     /// - [`StepError::Succedents`] in intuitionistic mode where a premise
     ///   would not have exactly one succedent (the formulas going left must
     ///   all be hypotheses);
@@ -892,7 +893,10 @@ mod tests {
         );
         assert_eq!(
             step(session.cut(root, &ill, &[2], &limits)),
-            StepError::Split { position: 2 }
+            StepError::NoFormula {
+                position: 2,
+                len: 2
+            }
         );
         assert_eq!(
             step(session.cut(root, &ill, &[0, 0], &limits)),
