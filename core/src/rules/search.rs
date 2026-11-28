@@ -88,6 +88,18 @@ impl Interactive {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Closed, Error> {
+        self.closed(goal, search, limits, &mut stop)
+    }
+
+    /// [`close`](Self::close) with the stop as a trait object, so that it
+    /// is compiled once, not once per caller's closure.
+    fn closed(
+        &mut self,
+        goal: GoalId,
+        search: &search::Options,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<Closed, Error> {
         let (outcome, derivation) = self.found(goal, search, limits, &mut stop)?;
         let grafted = match &derivation {
             Some(derivation) => match self.take(goal, derivation) {
@@ -129,6 +141,18 @@ impl Interactive {
         search: &search::Options,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Hint, Error> {
+        self.hinted(goal, search, limits, &mut stop)
+    }
+
+    /// [`hint`](Self::hint) with the stop as a trait object, so that it
+    /// is compiled once, not once per caller's closure.
+    fn hinted(
+        &self,
+        goal: GoalId,
+        search: &search::Options,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Hint, Error> {
         self.open(goal)?;
         let search = search.clone().with_jobs(1);
