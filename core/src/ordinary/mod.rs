@@ -640,11 +640,10 @@ impl Options {
     /// in the Bernays–Schönfinkel or the monadic class (with the feature
     /// `sat`), else the connection prover in classical logic and the
     /// embedding in the others, the methods that take quantifiers.
-    /// [`decide()`] decides by it; where the method gives way (a bound, or
-    /// a sequent grounding finds valid only classically), the embedding
-    /// decides in its place, and where that leaves a first-order sequent
-    /// unknown, the finite model search (with the feature `sat`) may
-    /// refute it.
+    /// [`decide()`] decides by it; with no method given, a first-order
+    /// sequent is decided in the order [`decide_within`] gives: a first
+    /// attempt by each method that applies, the finite model search (with
+    /// the feature `sat`), then the attempts that ran out of work again.
     pub fn method_for(&self, sequent: &Sequent) -> Method {
         match (self.method, self.translation) {
             #[cfg(feature = "sat")]

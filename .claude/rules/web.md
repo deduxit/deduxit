@@ -590,8 +590,8 @@ for `THIRD-PARTY-NOTICES.txt`.
   in Node, which only finds
   `#[wasm_bindgen_test]` functions; `web-core-wasm32` runs the library's
   whole unit suite on `wasm32-wasip1` under wasmtime, since plain
-  `#[test]` functions have no runner on the web target, but the ten
-  `core32Skipped` names: eight start a thread, which WASI cannot, and
+  `#[test]` functions have no runner on the web target, but the eleven
+  `core32Skipped` names: nine start a thread, which WASI cannot, and
   two pin byte counts of 64-bit layouts (the Horn engine's least memory
   for a search; the bound where a proof's check, not its search, runs
   out, which on 32 bits the check fits). A new test that starts a

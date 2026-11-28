@@ -1019,11 +1019,11 @@ mod tests {
         }
     }
 
-    /// The default of a first-order sequent the provers and the embedding
-    /// leave open asks the model search last, in every logic, and the
-    /// method named runs alone.
+    /// The default of a first-order sequent the first attempts of the
+    /// provers and the embedding leave open asks the model search, in every
+    /// logic, and the method named runs alone.
     #[test]
-    fn the_default_asks_the_model_search_last() {
+    fn the_default_asks_the_model_search() {
         use crate::ordinary::{Method, Options, Search};
         let sequent: Sequent = "forall x. (p(x) -> p(f(x))), p(a) |- p(b)".parse().unwrap();
         for &logic in Logic::ALL {

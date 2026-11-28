@@ -358,7 +358,7 @@ and Python with matplotlib; no check builds it.
   `web-features` and `web-bindgen` (the CLI's version against the
   lock's); and the devshell's CLI, `wasm-opt`, Node and wasmtime, added
   from this module. `web-core-wasm32` runs the whole unit suite but the
-  ten tests `core32Skipped` names (each with why), preopening the
+  eleven tests `core32Skipped` names (each with why), preopening the
   source tree for the tests that read files by the path cargo compiled
   in; `web-clippy-wasm32` is Clippy on the bindings and their tests for
   the browser's target; `web-features` validates the package's module

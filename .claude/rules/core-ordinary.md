@@ -308,8 +308,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   solver's, LJT's among them where it gave the derivation) says which
   decided, and its JSON tags `search` by `method` (`ljt` and `sat` with
   `statistics`, no `translation`). The
-  command still runs the steps itself (its race and its output, the
-  dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
+  command runs the steps of a propositional sequent itself (its output,
+  the dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
   (no copy bound, the time limit), affine classical mode for `Affine`,
   intuitionistic mode otherwise. **A bound or the stop that ends the
   read-back or a check after the search decided is an unknown with that
@@ -983,17 +983,18 @@ the search, `read_back.rs` the derivation of LK.
   first-order classical sequent with no method and no translation
   given; where it gives way (`gives_way`: unknown at a bound other than
   the stop, `Incomplete` included) the embedding decides. The default's
-  prover searches within `CONNECTION_WORK` (2²⁶ steps, or the caller's
-  lower bound; `connected_by_default`, `connection_limits`, in `within`
-  and `by_grounding`'s fallback): its deepening to path length 8 did not
+  long attempt of the prover searches within `CONNECTION_WORK` (2²⁶
+  steps, or the caller's lower bound; `connected_by_default`,
+  `connection_limits`): its deepening to path length 8 did not
   end on a sequent with no proof and no finite model. The bound is 1.57
   times the most a theorem the default proves on ILTP at 2 s needs, the
   equality problems with their axioms included (SET108+1, 42.7 M; 2²⁵
   lost it and SET024+1); a step's cost varies tenfold between sequents,
-  so the bound is minutes on the serial relation. The command calls the
-  prover directly under its time share and is not bounded so. `decide`'s door
+  so the bound is minutes on the serial relation. `decide`'s door
   (`takes_first_order`) lets `Embedding`, `Connection` and `Grounding`
-  through at first order. The command asks `method_for` in `natively`,
+  through at first order. The command hands a first-order sequent with
+  no method and no translation (and no `--net`) to `decide_within` whole
+  (`ordinary::by_library`), and asks `method_for` in `natively`,
   `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`). An
   intuitionistic first-order sequent outside grounding's classes goes to
   the embedding, not the intuitionistic connection prover: at 2 s on
@@ -1297,8 +1298,8 @@ the clausal proof's checker is the trust for "valid".
   classical logic a valid sequent takes the connection prover's
   derivation of LK where it gives one within `EVIDENCE_WORK`, and a
   sequent grounding gives way on (a bound, outside the classes) goes to
-  the connection prover, before the embedding. The command does the same
-  in `decide_natively`; `--method grounding` keeps the general limits.
+  the rest of the first-order default (`first_order`). The command takes
+  that default; `--method grounding` keeps the general limits.
 - **What a later change must keep**: `FiniteCountermodel::check` is the
   one trust for a finite "not valid"; `Structure`'s JSON (`{"size",
   "constants", "functions"?, "predicates"}`, `deny_unknown_fields`) and
@@ -1394,18 +1395,42 @@ MACE's and Paradox's method (the design is
   `size^arity` entries took fifty times the charged bytes and no stop
   (`SHOWN`, 64 entries); `Signature::of` was quadratic in the function
   symbols (a set now).
-- **The dispatch**: the library's default runs it last, in every logic,
-  on a first-order sequent the embedding left unknown (not stopped), and
-  takes its outcome only where it refutes (`within` in `decide.rs`):
-  before the embedding it cost SYJ018+1, which the embedding proves in
-  50 ms, since the model search ran to the harness's stop (departs from
-  the design, which put it before the embedding). The command, with a
-  clock, races the classical prover and the model search on two threads
-  within `FIRST_ORDER_SHARE`, the embedding taking what is left or
-  taking over where the prover gives way (on one thread the prover gets
-  `CONNECTION_SHARE` first, `cli.md`); its intuitionistic default is the embedding
-  alone until 76b's Kripke search. The
-  outcome is `Search::Models(Statistics)` (the largest size tried, the
+- **The dispatch** (`first_order` in `decide.rs`, the library's default
+  of a first-order sequent, which the command takes too): a first
+  attempt within a budget each (grounding in its classes,
+  `FIRST_GROUNDING_WORK`, and the model search, `MODEL_WORK`, counted by
+  `within_budget`: the units their stop is told of, summed, since
+  grounding's preparation and the model search's encoding count no
+  `limits.work`; the connection prover in classical logic,
+  `FIRST_CONNECTION_WORK`; the embedding, `first_embedding_work`, smaller
+  in classical logic, whose affine image costs six times the time per
+  unit), then the model search within `MODEL_WORK` (`model_turn`), then
+  each attempt that ended at its budget again in the same order
+  (`Attempt::Budget`, a prover or the embedding only where the caller's
+  `limits.work` is above the budget), then the model search again where
+  its budget ran out and the embedding ends unknown, unstopped. It takes
+  the model search's outcome only where it refutes. Grounding's own
+  budget matters: unbounded, it ran until a 2 s limit on SYN514+1 and
+  SYJ036+1, which the old order cut at 90% of the limit.
+  - Why that order: a caller with a clock stops the provers, which run
+    until the stop on most sequents they do not prove; run last, the
+    model search never ran under a clock (474 ILTP refutations lost,
+    fixup-34). Run first, every theorem waits for its budget, and before
+    the embedding it once cost SYJ018+1, which the embedding proves in
+    50 ms (departs from the design, which put it before the embedding).
+  - Why these budgets: `MODEL_WORK` (2²⁵) covers every structure and
+    Kripke model the command's old order found at 2 s (at most
+    26.7 M, NLP240+1); the first attempts' budgets are the largest that
+    leave it time for all of them. The model search's units count the
+    solver's decisions, not its propagations, so on a large theory the
+    budget is seconds where on the problems it refutes it is at most
+    0.33 s: a theorem the first attempts miss waits for it, which is what
+    the order costs (fixup-34's report has the rows). batsat tells its
+    stop hook nothing of its propagations; a fairer unit needs that.
+  - No clock, no thread: every budget is counted, so the order is a
+    function of the input.
+
+  The outcome is `Search::Models(Statistics)` (the largest size tried, the
   last size's atoms and formulas, the solver's statistics), written at
   level 26.
 
@@ -1491,10 +1516,10 @@ The countermodels of intuitionistic and minimal logic at first order
   significant, growth, agreement along the order on the smaller
   domain's tuples, `⊥` only in minimal logic. A change of either check
   changes the library's in the same step.
-- **The dispatch**: the library's default after the embedding runs
-  `models::decide`, which in intuitionistic and minimal logic includes
-  this search; the command races it beside the embedding
-  (`races_the_embedding`, `prove.rs`). The protocol's check of `decides`
+- **The dispatch**: the library's default runs `models::decide` in its
+  turn (the finite model search's dispatch, above), which in
+  intuitionistic and minimal logic includes this search; the command
+  takes the same default. The protocol's check of `decides`
   and `deduxit check` check the model again.
 - **What the panel found** (answered): `--model-size 0` reached a pair
   with no element and panicked (now unknown at once); the protocol's

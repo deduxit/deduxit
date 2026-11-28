@@ -46,7 +46,9 @@
       # under wasmtime, which the web target has no runner for, and the two
       # share wasm32's data layout. Left out: the tests that start a thread
       # (a search on a thread of its own stack, a batch's workers), which
-      # WASI cannot, and two that pin byte counts of 64-bit layouts: the
+      # WASI cannot (the first-order default under a stop runs on a thread
+      # sized for the embedding's recursion too), and two that pin byte
+      # counts of 64-bit layouts: the
       # Horn engine's least memory for a search, and the bound at which a
       # proof's check, not its search, runs out of memory (on 32 bits the
       # check fits).
@@ -61,6 +63,7 @@
         "linear::search::focus::tests::stops_inside_a_forced_chain"
         "linear::search::horn::tests::charges_what_it_grows"
         "linear::search::tests::a_check_past_the_memory_bound_is_unknown"
+        "ordinary::decide::tests::the_model_search_has_its_turn_before_the_long_attempts"
       ];
 
       args = workspace.argsOf [

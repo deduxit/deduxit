@@ -222,10 +222,10 @@ impl From<ljt::Outcome> for Outcome {
 /// [`grounding::DEFAULT_NODES`](super::grounding::DEFAULT_NODES) nodes of
 /// the ground formula. Where the default chose it in classical
 /// logic, a valid sequent takes the connection prover's derivation of LK
-/// where it gives one within [`EVIDENCE_WORK`], and a sequent grounding
-/// gives way on (a bound other than the stop, or outside its classes) goes
-/// to the connection prover, as the default of a first-order classical
-/// sequent outside the classes does.
+/// where it gives one within [`EVIDENCE_WORK`]. A sequent grounding gives
+/// way on (a bound other than the stop, or outside its classes) is the
+/// caller's to pass on. With a `budget`, grounding itself stops once the
+/// work its polls report passes it, and the second value says so.
 #[cfg(feature = "sat")]
 fn by_grounding(
     sequent: &Sequent,
@@ -233,8 +233,9 @@ fn by_grounding(
     default: bool,
     search: &search::Options,
     limits: &Limits,
+    budget: Option<u64>,
     stop: &mut dyn FnMut(Progress) -> bool,
-) -> Result<Outcome, Error> {
+) -> (Result<Outcome, Error>, bool) {
     let classical = default && logic == Logic::Classical;
     // The default grounds within a bound of its own and gives way past it.
     let bounded_grounding;
@@ -246,7 +247,16 @@ fn by_grounding(
     } else {
         limits
     };
-    let grounded = match super::grounding::decide(sequent, logic, grounding_limits, &mut *stop) {
+    let (decided, spent) = within_budget(budget, stop, |stop| {
+        super::grounding::decide(sequent, logic, grounding_limits, stop)
+    });
+    if spent {
+        return (
+            Err(Refusal::stopped(crate::limits::Phase::Search).into()),
+            true,
+        );
+    }
+    let grounded = match decided {
         Ok(Some(grounded)) => Ok(Outcome::from(grounded)),
         Ok(None) => Ok(Outcome {
             verdict: Verdict::Unknown(Reason::Incomplete),
@@ -258,9 +268,6 @@ fn by_grounding(
         }),
         Err(error) => Err(error),
     };
-    if classical && gives_way(&grounded) {
-        return connected_by_default(sequent, logic, search, limits, &mut *stop);
-    }
     if classical
         && let Ok(Outcome {
             verdict: Verdict::Valid(_),
@@ -274,10 +281,10 @@ fn by_grounding(
             super::connection::decide(sequent, logic, search, &bounded, &mut *stop)
             && matches!(connected.verdict, Verdict::Valid(Evidence::Derivation(_)))
         {
-            return Ok(Outcome::from(connected));
+            return (Ok(Outcome::from(connected)), false);
         }
     }
-    grounded
+    (grounded, false)
 }
 
 /// Whether an ordinary sequent is valid in its logic.
@@ -428,6 +435,97 @@ fn connection_limits(limits: &Limits) -> Limits {
             .work
             .map_or(CONNECTION_WORK, |w| w.min(CONNECTION_WORK)),
     ))
+}
+
+/// The units of work the default's finite model search does on a
+/// first-order sequent between the first attempts and the long ones (see
+/// [`decide_within`]): the units its stop is told of
+/// ([`Progress::work`]), summed over the whole search. Needs the cargo
+/// feature `sat`.
+///
+/// On ILTP's 2 670 first-order problems, the model search refutes 474 at
+/// 2 s with at most 26 736 166 units (NLP240+1, classical logic); 2²⁴
+/// would lose two of them. The units
+/// count the solver's decisions, not its propagations, so they track the
+/// search's time on the problems it refutes far better than on theorems:
+/// the budget is a few hundred milliseconds on the first, and seconds on a
+/// large theory, which only a theorem the first attempts do not prove
+/// waits for.
+#[cfg(feature = "sat")]
+const MODEL_WORK: u64 = 1 << 25;
+
+/// What the default's model search gave in its turn before the provers.
+#[cfg(feature = "sat")]
+enum Turn {
+    /// The answer: a checked refutation, or the unknown the caller's stop
+    /// left, after which no step runs.
+    Answer(Box<Outcome>),
+    /// It spent [`MODEL_WORK`] without one, and may go on after the
+    /// embedding.
+    Spent,
+    /// It ended without one within its budget, at its bounds or at another
+    /// refusal.
+    Ended,
+}
+
+/// Runs `run` under `stop` and, with a `budget`, a stop that also fires
+/// once the units of work its polls report ([`Progress::work`]) pass the
+/// budget; returns its result and whether the budget ran out.
+#[cfg(feature = "sat")]
+fn within_budget<T>(
+    budget: Option<u64>,
+    stop: &mut dyn FnMut(Progress) -> bool,
+    run: impl FnOnce(&mut dyn FnMut(Progress) -> bool) -> T,
+) -> (T, bool) {
+    let Some(budget) = budget else {
+        return (run(stop), false);
+    };
+    let (mut spent, mut over) = (0_u64, false);
+    let result = run(&mut |p: Progress| {
+        spent = spent.saturating_add(p.work);
+        over = over || spent > budget;
+        over || stop(p)
+    });
+    (result, over)
+}
+
+/// Runs the default's model search within [`MODEL_WORK`] units of work
+/// and the caller's limits, until `stop` fires.
+///
+/// # Errors
+///
+/// [`Error::Countermodel`], a model that fails its check, a defect; the
+/// refusal of the caller's stop where the model search answers it so.
+#[cfg(feature = "sat")]
+fn model_turn(
+    sequent: &Sequent,
+    logic: Logic,
+    search: &search::Options,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Turn, Error> {
+    let (modelled, over) = within_budget(Some(MODEL_WORK), stop, |stop| {
+        super::models::decide(sequent, logic, search, limits, stop)
+    });
+    match modelled {
+        Ok(
+            refuted @ super::models::Outcome {
+                verdict: Verdict::NotValid,
+                ..
+            },
+        ) => Ok(Turn::Answer(Box::new(Outcome::from(refuted)))),
+        Err(error @ Error::Countermodel { .. }) => Err(error),
+        Ok(_) | Err(_) if over => Ok(Turn::Spent),
+        // The caller's stop: nothing runs after it.
+        Ok(
+            stopped @ super::models::Outcome {
+                verdict: Verdict::Unknown(Reason::Stopped),
+                ..
+            },
+        ) => Ok(Turn::Answer(Box::new(Outcome::from(stopped)))),
+        Err(error @ Error::Refused(Refusal::Stopped { .. })) => Err(error),
+        Ok(_) | Err(_) => Ok(Turn::Ended),
+    }
 }
 
 /// The most units of work the embedding's search may do for the evidence
@@ -704,9 +802,32 @@ impl super::Image {
 /// ([`Error::FirstOrder`]). Through the embedding a valid sequent gets a
 /// checked derivation with the quantifier rules, and one whose image is
 /// unprovable is unknown ([`Reason::Incomplete`]), since the translation
-/// may lose first-order proofs; with no method given, the finite model
-/// search ([`Method::Models`], feature `sat`) then looks for a structure
-/// that refutes it, within `search.model_size` elements.
+/// may lose first-order proofs.
+///
+/// With no method given, a first-order sequent is decided in this order:
+///
+/// 1. a first attempt by each method that applies: grounding where the
+///    sequent lies in its classes, within 2²² units of the work its stop
+///    is told of; the connection prover in classical logic, within 2²¹ of
+///    its steps; the embedding, within 2²⁰ units of work in classical
+///    logic and 2²³ in the others;
+/// 2. the finite model search ([`Method::Models`]) within 2²⁵ units of
+///    the work its stop is told of;
+/// 3. each attempt that ended at its budget again, in that order, the
+///    prover within its own bound of 2²⁶ steps;
+/// 4. the model search again, where its budget ran out and the embedding
+///    ends unknown at a bound, within `search.model_size` elements.
+///
+/// Each step runs where those before it gave no verdict at a bound other
+/// than `stop`, and a bound of the caller's in `limits.work` below a budget
+/// is the bound. The first attempts prove what is quick to prove; the
+/// model search comes before the long attempts because a caller with a
+/// clock stops those first, since they search until the stop on most
+/// sequents they do not prove. The budgets are counted, not timed, so the
+/// order is the same on any machine; a theorem the first attempts miss
+/// waits for the model search's budget. Without the feature `sat` there is
+/// neither grounding nor the model search, and the connection prover gives
+/// way to the embedding.
 ///
 /// With no method and no translation given, the method is the logic's
 /// default, [`Method::default_for`]: the SAT solver with the feature
@@ -822,6 +943,10 @@ fn dispatch(
     if !takes_first_order(method) {
         sequent.formulas().propositional(method.title())?;
     }
+    #[cfg(feature = "sat")]
+    if options.method.is_none() && sequent.formulas().is_first_order() {
+        return first_order(sequent, options, search, limits, stop);
+    }
     let (logic, translation) = (options.logic, options.translation());
     let decided = match method {
         Method::Embedding => None,
@@ -867,22 +992,41 @@ fn dispatch(
             super::models::decide(sequent, logic, search, limits, &mut stop).map(Outcome::from),
         ),
         #[cfg(feature = "sat")]
-        Method::Grounding => Some(by_grounding(
-            sequent,
-            logic,
-            options.method.is_none(),
-            search,
-            limits,
-            &mut stop,
-        )),
+        Method::Grounding => Some(
+            by_grounding(
+                sequent,
+                logic,
+                options.method.is_none(),
+                search,
+                limits,
+                None,
+                stop,
+            )
+            .0,
+        ),
     };
     if let Some(decided) = decided
         && (options.method.is_some() || !gives_way(&decided))
     {
         return decided;
     }
+    embedded(sequent, logic, translation, search, (limits, limits), stop)
+}
+
+/// Decides `sequent` through the embedding: translates it, searches the
+/// image in its mode within `searched` (a budget's lower work, or
+/// `limits`), and for a proof reads the derivation of LK or LJ back and
+/// checks it within `limits`, so that a budget bounds the search alone.
+fn embedded(
+    sequent: &Sequent,
+    logic: Logic,
+    translation: Translation,
+    search: &search::Options,
+    (limits, searched): (&Limits, &Limits),
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
     let image = translate(sequent, logic, translation, limits)?;
-    let linear = search::prove_within(image.sequent(), image.mode(), search, limits, &mut stop)?;
+    let linear = search::prove_within(image.sequent(), image.mode(), search, searched, &mut stop)?;
     let verdict = match &linear.verdict {
         search::Verdict::Proved(proof) => match image.read_back(proof, limits, &mut stop) {
             // A proof that takes an open witness as a quantifier's term,
@@ -906,27 +1050,6 @@ fn dispatch(
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
     };
     let countermodel = image.countermodel(&linear, limits, &mut stop)?;
-    // The default of a first-order sequent the embedding leaves open, at a
-    // bound or because its image is unprovable, asks the model search for
-    // a structure that refutes it: last, so that no theorem the embedding
-    // proves waits for it.
-    #[cfg(feature = "sat")]
-    if options.method.is_none()
-        && sequent.formulas().is_first_order()
-        && matches!(verdict, Verdict::Unknown(reason) if reason != Reason::Stopped)
-    {
-        match super::models::decide(sequent, logic, search, limits, &mut stop) {
-            Ok(
-                modelled @ super::models::Outcome {
-                    verdict: Verdict::NotValid,
-                    ..
-                },
-            ) => return Ok(Outcome::from(modelled)),
-            // Anything else leaves the embedding's answer, but a defect.
-            Err(error @ Error::Countermodel { .. }) => return Err(error),
-            Ok(_) | Err(_) => {}
-        }
-    }
     Ok(Outcome {
         verdict,
         logic,
@@ -938,6 +1061,196 @@ fn dispatch(
         structure: None,
         kripke: None,
     })
+}
+
+/// The units of work of the default's first attempt by grounding at a
+/// first-order sequent in its classes, before the other first attempts:
+/// the units its stop is told of, summed, as for [`MODEL_WORK`]. On ILTP's
+/// first-order problems it decides 456 of the 467 classical sequents and
+/// 82 of the 90 intuitionistic ones grounding decides at 2 s (two
+/// theorems it proved in 0.6 s, KRS162+1 and SYN723+1, need more); past
+/// it, grounding ran until a 2 s limit on sequents the model search
+/// refutes in milliseconds (SYN514+1) or the embedding proves
+/// (SYJ036+1).
+#[cfg(feature = "sat")]
+const FIRST_GROUNDING_WORK: u64 = 1 << 22;
+
+/// The units of work (the prover's steps) of the default's first attempt
+/// by the connection prover at a first-order classical sequent, before
+/// the model search's turn. It spends a median of 84 ms on ILTP's
+/// first-order problems where it proves nothing. At 2 s the default proves
+/// 812 of them by the prover, which proves 848 when it runs alone for 1.4
+/// s: the rest need more steps and then wait for the model search.
+/// 2²² would leave the model search too little of a 2 s limit for
+/// SYN324+1's structure, where 2²¹ of the prover's steps take 1.7 s.
+#[cfg(feature = "sat")]
+const FIRST_CONNECTION_WORK: u64 = 1 << 21;
+
+/// The units of work of the default's first attempt through the
+/// embedding at a first-order sequent, before the model search's turn:
+/// the linear search's units ([`limits.work`](Limits::work)), by logic.
+/// In classical logic every one of the 60 ILTP theorems the embedding
+/// proved at 2 s takes at most 2²⁰, a median of 239 ms where it proves
+/// nothing (the affine image's search costs more time per unit). In the
+/// others, about 155 ms of search where it proves nothing, the default
+/// proves 395 intuitionistic theorems through the embedding at 2 s, of the
+/// 435 it proves running alone for 1.9 s; 2²⁴ would leave the model
+/// search too little time for two of its Kripke models.
+#[cfg(feature = "sat")]
+const fn first_embedding_work(logic: Logic) -> u64 {
+    match logic {
+        Logic::Classical => 1 << 20,
+        Logic::Intuitionistic | Logic::Minimal => 1 << 23,
+    }
+}
+
+/// How an attempt within a work budget of the default's ended: decided
+/// (or stopped), so that its outcome is the answer; given way at the
+/// budget, so that a longer attempt follows the model search's turn; or
+/// given way otherwise, for good.
+#[cfg(feature = "sat")]
+enum Attempt {
+    /// The answer: a verdict, the caller's stop, or an error.
+    Answer(Result<Outcome, Error>),
+    /// It ended at the budget, which a longer attempt lifts.
+    Budget(Outcome),
+    /// It gave way at another bound, and runs no more.
+    Done(Result<Outcome, Error>),
+}
+
+/// Sorts an attempt's `decided` outcome, searched within a budget of
+/// `budget` units of work where the caller's bound was `caller`.
+#[cfg(feature = "sat")]
+fn attempt(decided: Result<Outcome, Error>, budget: u64, caller: Option<u64>) -> Attempt {
+    if !gives_way(&decided) {
+        return Attempt::Answer(decided);
+    }
+    let at_budget = caller.is_none_or(|w| w > budget);
+    match decided {
+        Ok(
+            outcome @ Outcome {
+                verdict: Verdict::Unknown(Reason::WorkLimit { limit }),
+                ..
+            },
+        ) if at_budget && limit == budget => Attempt::Budget(outcome),
+        decided => Attempt::Done(decided),
+    }
+}
+
+/// Decides a first-order sequent by the default, with no method given:
+/// a first attempt within a budget each, by grounding where the sequent
+/// lies in its classes ([`FIRST_GROUNDING_WORK`]), by the connection
+/// prover in classical logic ([`FIRST_CONNECTION_WORK`]) and through the
+/// embedding ([`first_embedding_work`]); then the model search within
+/// [`MODEL_WORK`]; then each attempt that ended at its budget again,
+/// within the prover's own bound ([`CONNECTION_WORK`]) and the caller's
+/// limits; and last the model search again, where its budget ran out and
+/// the embedding ends unknown at a bound. A step runs where those before
+/// it gave no verdict at a bound other than `stop`.
+///
+/// The first attempts prove what is quick to prove, and the model search
+/// comes before the long attempts because a caller with a clock stops
+/// those first: they search until the stop on most sequents they do not
+/// prove. The budgets are counted, not timed, so the order is the same on
+/// any machine.
+#[cfg(feature = "sat")]
+fn first_order(
+    sequent: &Sequent,
+    options: &Options,
+    search: &search::Options,
+    limits: &Limits,
+    stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    let (logic, translation) = (options.logic, options.translation());
+    let method = options.method_for(sequent);
+    let mut long_grounding = false;
+    if method == Method::Grounding {
+        let budget = Some(FIRST_GROUNDING_WORK);
+        match by_grounding(sequent, logic, true, search, limits, budget, &mut *stop) {
+            (_, true) => long_grounding = true,
+            (grounded, false) if !gives_way(&grounded) => return grounded,
+            (_, false) => {}
+        }
+    }
+    let within =
+        |budget: u64| limits.with_work(Some(limits.work.map_or(budget, |w| w.min(budget))));
+    // The first attempts.
+    let prover =
+        matches!(method, Method::Connection | Method::Grounding) && logic == Logic::Classical;
+    let mut long_prover = false;
+    if prover {
+        let first = FIRST_CONNECTION_WORK;
+        let decided = super::connection::decide(sequent, logic, search, &within(first), &mut *stop)
+            .map(Outcome::from);
+        match attempt(decided, first, limits.work) {
+            Attempt::Answer(answer) => return answer,
+            Attempt::Budget(_) => long_prover = true,
+            Attempt::Done(_) => {}
+        }
+    }
+    let first = first_embedding_work(logic);
+    let decided = embedded(
+        sequent,
+        logic,
+        translation,
+        search,
+        (limits, &within(first)),
+        &mut *stop,
+    );
+    let (mut last, long_embedding) = match attempt(decided, first, limits.work) {
+        Attempt::Answer(answer) => return answer,
+        Attempt::Budget(outcome) => (Ok(outcome), true),
+        Attempt::Done(decided) => (decided, false),
+    };
+    // The model search's turn.
+    let turn = model_turn(sequent, logic, search, limits, &mut *stop)?;
+    if let Turn::Answer(outcome) = turn {
+        return Ok(*outcome);
+    }
+    // The long attempts.
+    if long_grounding {
+        let (grounded, _) = by_grounding(sequent, logic, true, search, limits, None, &mut *stop);
+        if !gives_way(&grounded) {
+            return grounded;
+        }
+    }
+    if long_prover {
+        let decided = connected_by_default(sequent, logic, search, limits, &mut *stop);
+        if !gives_way(&decided) {
+            return decided;
+        }
+    }
+    if long_embedding {
+        last = embedded(
+            sequent,
+            logic,
+            translation,
+            search,
+            (limits, limits),
+            &mut *stop,
+        );
+        if !gives_way(&last) {
+            return last;
+        }
+    }
+    // The model search goes on where its turn spent its budget and the
+    // embedding ends unknown at a bound, unstopped.
+    if matches!(turn, Turn::Spent)
+        && matches!(&last, Ok(Outcome { verdict: Verdict::Unknown(reason), .. }) if *reason != Reason::Stopped)
+    {
+        match super::models::decide(sequent, logic, search, limits, &mut *stop) {
+            Ok(
+                modelled @ super::models::Outcome {
+                    verdict: Verdict::NotValid,
+                    ..
+                },
+            ) => return Ok(Outcome::from(modelled)),
+            // Anything else leaves the embedding's answer, but a defect.
+            Err(error @ Error::Countermodel { .. }) => return Err(error),
+            Ok(_) | Err(_) => {}
+        }
+    }
+    last
 }
 
 #[cfg(all(test, feature = "parse"))]
@@ -1273,6 +1586,109 @@ mod tests {
         let connected = decide(text, Logic::Classical);
         assert!(matches!(connected.verdict, Verdict::Valid(_)));
         assert_eq!(connected.method(), Method::Connection);
+    }
+
+    /// The default gives the model search its turn before the long
+    /// attempts. Under a stop that stands for a caller's clock, firing long
+    /// before the provers' own bounds, a sequent with a finite countermodel
+    /// and no proof is refuted: in classical logic after the connection
+    /// prover's first attempt, in intuitionistic logic (the manual's Kripke
+    /// example, in grounding's classes and valid classically) after the
+    /// embedding's.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn the_model_search_has_its_turn_before_the_long_attempts() {
+        let search = search::Options::default()
+            .with_path_length(None)
+            .with_copies(None);
+        let limits = Limits::default();
+        let clock = 4 * super::FIRST_CONNECTION_WORK
+            .max(super::first_embedding_work(Logic::Intuitionistic));
+        for (text, logic, worlds) in [
+            (
+                "forall x y z. (r(x, y) /\\ r(y, z) -> r(x, z)), forall x. exists y. r(x, y) |- exists x. r(x, x) /\\ q",
+                Logic::Classical,
+                0,
+            ),
+            (
+                "~(forall x. p(x)) |- exists x. ~p(x)",
+                Logic::Intuitionistic,
+                2,
+            ),
+        ] {
+            let sequent: Sequent = text.parse().unwrap();
+            let options = Options::default().with_logic(logic);
+            // The embedding's search recurses as deep as the limits let it.
+            let outcome = std::thread::scope(|scope| {
+                std::thread::Builder::new()
+                    .stack_size(limits.stack_bytes())
+                    .spawn_scoped(scope, || {
+                        let mut done = 0_u64;
+                        decide_within(&sequent, &options, &search, &limits, |p| {
+                            done = done.saturating_add(p.work);
+                            done > clock
+                        })
+                    })
+                    .unwrap()
+                    .join()
+                    .unwrap()
+            })
+            .unwrap();
+            assert!(
+                matches!(outcome.verdict, Verdict::NotValid),
+                "{text}: {:?}",
+                outcome.verdict
+            );
+            assert_eq!(outcome.method(), Method::Models, "{text}");
+            let found = outcome.kripke.as_ref().map_or(0, |k| k.model.worlds.len());
+            assert_eq!(found, worlds, "{text}");
+        }
+    }
+
+    /// A budget of the embedding's bounds its search alone: each classical
+    /// negation is an inference of LK and nothing in the affine image, so
+    /// the derivation read back has far more inferences than the image's
+    /// search does units of work, and a check held to the search's budget
+    /// refused a proof the search had found.
+    #[test]
+    fn a_budget_bounds_the_embedding_s_search_alone() {
+        use crate::{Error, Refusal};
+        let text = format!("a |- {}a", "~".repeat(400));
+        let sequent: Sequent = text.parse().unwrap();
+        let (search, limits) = (search::Options::default(), Limits::default());
+        let mut stop = |_| false;
+        let both = |limits: &Limits, searched: &Limits, stop: &mut dyn FnMut(_) -> bool| {
+            let translation = Translation::Affine;
+            super::embedded(
+                &sequent,
+                Logic::Classical,
+                translation,
+                &search,
+                (limits, searched),
+                stop,
+            )
+        };
+        let whole = both(&limits, &limits, &mut stop).unwrap();
+        let Search::Embedding { linear, .. } = &whole.search else {
+            panic!("the embedding's outcome");
+        };
+        let Verdict::Valid(super::Evidence::Derivation(derivation)) = &whole.verdict else {
+            panic!("valid: {:?}", whole.verdict);
+        };
+        let (work, inferences) = (linear.statistics.work, derivation.inferences().len() as u64);
+        assert!(work < inferences, "{work} units, {inferences} inferences");
+        let budget = limits.with_work(Some(work));
+        let alone = both(&limits, &budget, &mut stop).unwrap();
+        assert!(
+            matches!(alone.verdict, Verdict::Valid(_)),
+            "{:?}",
+            alone.verdict
+        );
+        let held = both(&budget, &budget, &mut stop);
+        assert!(
+            matches!(held, Err(Error::Refused(Refusal::Work { .. }))),
+            "{held:?}"
+        );
     }
 
     /// The default's connection prover searches within its bound, the
