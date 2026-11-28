@@ -94,7 +94,7 @@ mod zone;
 
 use self::arena::Arena;
 use self::classes::Classes;
-use self::counts::{Counts, Split, Tally, intervals_run};
+use self::counts::{Counts, Prunes, Split, Tally};
 use self::framed::Framed;
 use self::memo::{Entry, Failure, Inserted, Key, Table, Zones};
 use self::schedule::{Plan, plan, turns};
@@ -350,17 +350,16 @@ impl Switches {
     /// unless weakening or a `⊤` under an exponential defeats it, and Mix
     /// only without weakening.
     fn new(fragment: Fragment, mode: Mode, counts: &Counts) -> Self {
+        let Prunes {
+            mix,
+            equation,
+            intervals,
+        } = Prunes::new(fragment, mode, counts);
         let exponentials = fragment.has_exponentials();
         Self {
-            // With weakening Mix proves nothing new: the proof of one part
-            // proves the whole with the other part weakened at its leaves,
-            // with the same copies on every branch.
-            mix: mode.mix && !mode.affine,
-            equation: !mode.affine
-                && !fragment.has_additives()
-                && !fragment.has_additive_units()
-                && !exponentials,
-            intervals: intervals_run(mode, counts.absorbs_from_copies()),
+            mix,
+            equation,
+            intervals,
             exponentials,
             affine: mode.affine,
             stack: exponentials,

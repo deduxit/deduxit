@@ -7,7 +7,6 @@
 //! conditions on a provable sequent, computed once per forest and summed
 //! per sequent.
 
-use super::Switches;
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId, Sign};
 use crate::linear::proofs::Branch;
@@ -170,6 +169,41 @@ pub(crate) struct RowEntry {
     pub(crate) lo: i32,
     /// The greatest balance.
     pub(crate) hi: i32,
+}
+
+/// The count tests a search makes, and Mix, which the equation reads,
+/// for a fragment and a mode: the count equation only in the
+/// multiplicative fragments without weakening, the interval check unless
+/// weakening or a `⊤` under an exponential defeats it, and Mix only
+/// without weakening.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Prunes {
+    /// The Mix rule; off under weakening, which makes it admissible.
+    pub(crate) mix: bool,
+    /// The `MLL` count equation as a prune: only without additives and
+    /// exponentials anywhere in the problem, and never with weakening.
+    pub(crate) equation: bool,
+    /// The interval check as a prune: never with weakening, which can
+    /// discard any imbalance.
+    pub(crate) intervals: bool,
+}
+
+impl Prunes {
+    /// The tests for a fragment and a mode, with the counts of its forest.
+    pub(crate) fn new(fragment: Fragment, mode: Mode, counts: &Counts) -> Self {
+        let exponentials = fragment.has_exponentials();
+        Self {
+            // With weakening Mix proves nothing new: the proof of one part
+            // proves the whole with the other part weakened at its leaves,
+            // with the same copies on every branch.
+            mix: mode.mix && !mode.affine,
+            equation: !mode.affine
+                && !fragment.has_additives()
+                && !fragment.has_additive_units()
+                && !exponentials,
+            intervals: intervals_run(mode, counts.absorbs_from_copies()),
+        }
+    }
 }
 
 /// What a factor of a `⊗` forces on its side of the split.
@@ -1306,7 +1340,7 @@ pub(crate) fn refutation(
     let Ok(counts) = Counts::new_until(forest, Bias::Rarer, mode, account, stop) else {
         return Refutation::Exhausted;
     };
-    let rules = Switches::new(fragment, mode, &counts);
+    let rules = Prunes::new(fragment, mode, &counts);
     let mut tally = counts.tally();
     for &o in goal {
         tally.add(&counts, o);
@@ -1391,7 +1425,7 @@ pub(crate) fn split_passes(
     let counts = Counts::new_polled(forest, Bias::Auto, Mode::CLASSICAL, account, &mut || {
         stop(0)
     })?;
-    let rules = Switches::new(fragment, mode, &counts);
+    let rules = Prunes::new(fragment, mode, &counts);
     let mut split = counts.split();
     for (members, side) in [(left, Branch::Left), (right, Branch::Right)] {
         for &m in members {

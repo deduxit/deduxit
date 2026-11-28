@@ -221,18 +221,19 @@ copies they had are gone (F103, F104).
   `focus::counts::refutation`, called by `prove_goal` on every `Unprovable` of
   every engine that gives none of its own, which construct
   `Refutation::Exhausted`). It builds the
-  focused engine's `Counts` (fresh account, the caller's stop: a pass
+  `Counts` the focused engine prunes with (fresh account, the caller's stop: a pass
   given up is `Exhausted`, which is always true of the verdict), tallies
   the goal's members, and reports the first atom by the sequent's order
   whose summed interval excludes zero (`Tally::unbalanced`, through
   `Counts::ranked`, the atoms that have rows by rank), else the count
-  equation when `Switches` applies it, with the goal's `⊗`, `⅋`, `1` and
+  equation when `Prunes` applies it, with the goal's `⊗`, `⅋`, `1` and
   `⊥` counted. Why the goal's sums are a refutation although the engine
   tests stable sequents only: the asynchronous phase keeps them (a `⅋`
   adds a member and a `−1` of weight, a `⊥` takes a member and a `+1`,
   a premise of `&` lies in its hull, a `?` moves a formula whose atoms
   have no rows), so every stable sequent the goal reaches fails the same
-  test, under the same `Switches` the engine searched with. It runs only on
+  test, under the same `Prunes` the engine searched with (its
+  `Switches` take them from there). It runs only on
   a refutation, after the search, so no counter of a run moves; its
   time is one more `Counts` pass on a refuted sequent. Without a
   refutation from the counts (a `⊤` absorbs, weakening, exponential
@@ -297,7 +298,7 @@ copies they had are gone (F103, F104).
   (Mix keeps it); `Equation` needs the multiplicative fragment with
   units in the goal and outside affine mode, `mix` equal to the mode's,
   and every count equal. Those are the conditions under which the search
-  states them (`Switches`, `intervals_run`), and the ones the Rocq
+  states them (`Prunes`, `intervals_run`), and the ones the Rocq
   lemmas prove. `Saturated` is checked by `search/saturated.rs`, the
   rules re-read and applied to every choice of the set's sequents
   (`core-inverse.md`, faults `Unshaped`, `NotClosed`, `Filled`, and
