@@ -1290,6 +1290,53 @@ fn the_syntax_reads_as_documented() {
     }
 }
 
+/// A node or a type is read field by field: a name no kind has is
+/// ignored, so that a later wire level can add fields, and a field of
+/// another kind is read too, so one of the wrong type is refused.
+#[cfg(feature = "serialize")]
+#[test]
+fn a_node_s_fields_are_read_where_they_stand() {
+    let limits = Limits::default();
+    let read = |nodes: &str| {
+        let json = format!(
+            r#"{{"version":23,"calculus":"simple","atoms":["a"],"types":[{{"kind":"atom","atom":0,"note":"kept out"}},{{"kind":"lollipop","from":0,"to":0}}],"variables":[{{"type":0,"name":"x"}}],"context":[],"goal":1,"nodes":{nodes},"root":1}}"#
+        );
+        let mut document = serde_json::Deserializer::from_str(&json);
+        crate::wire::upgrade::<Term, _>(&mut document, &limits)
+    };
+    // `λx:a. x`, with names no kind has.
+    let term =
+        read(r#"[{"kind":"var","variable":0,"note":1},{"kind":"lambda","variable":0,"body":0}]"#)
+            .unwrap();
+    assert_eq!(text(&term, true), "⊢ λx. x : a → a");
+    // A `body` on a variable is a field of a λ, read and refused.
+    let refused =
+        read(r#"[{"kind":"var","variable":0,"body":"x"},{"kind":"lambda","variable":0,"body":0}]"#);
+    assert!(refused.is_err(), "{refused:?}");
+    // A field the kind needs is missing.
+    let Err(error) = read(r#"[{"kind":"var"},{"kind":"lambda","variable":0,"body":0}]"#) else {
+        panic!("a variable without its index");
+    };
+    assert!(
+        error
+            .to_string()
+            .contains("missing field `variable` at line 1"),
+        "{error}"
+    );
+    // A kind is a name, as serde reads an enum's tag: a map is refused.
+    let Err(error) =
+        read(r#"[{"kind":{"var":null},"variable":0},{"kind":"lambda","variable":0,"body":0}]"#)
+    else {
+        panic!("a kind written as a map");
+    };
+    assert!(
+        error.to_string().contains("expected variant identifier"),
+        "{error}"
+    );
+    // A node is an object: the tagged reader's array form is refused.
+    assert!(read(r#"[["var",0],{"kind":"lambda","variable":0,"body":0}]"#).is_err());
+}
+
 /// A document whose parts are no term is refused as it is read, and a
 /// term whose names would print as another term when it is checked.
 #[cfg(feature = "serialize")]

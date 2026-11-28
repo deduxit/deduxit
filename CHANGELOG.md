@@ -145,6 +145,13 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- A lambda-term's JSON reads each node and type field by field. Three
+  things it took are now refused: a field of another kind with the wrong
+  type (`{"kind": "var", "variable": 0, "body": "x"}`), that field given
+  twice, and a node or type written as a JSON array (`["var", 0]`), which
+  no version of deduxit writes. A name no kind has is still ignored, the
+  documents deduxit writes read as before, and what is written is
+  unchanged.
 - Drawing a derivation as SVG (and so as PNG and PDF), checking a
   proof, and reading LLTP, TPTP and `.spec` files allocate far less
   often and run faster: an SVG drawing takes 20 % fewer instructions, a

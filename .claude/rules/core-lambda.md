@@ -43,6 +43,23 @@ design, with its sources and the alternatives weighed, is
   `untyped_tests.rs`: untyped terms, the stepper against a de Bruijn
   reducer of the tests' own, and the principal type against every
   typing the checker accepts.
+- **A document's nodes and types are read through flat forms**
+  (`serialize/lambda.rs`, `NodeForm`, `TypeForm`: the kind and every
+  field any kind has, read where it stands, then one `match`), not
+  through `Node`'s and `Type`'s derived readers, which are tagged by
+  `kind` and so hold the whole object in serde's `Content` and read it
+  twice: those two functions were a third of the lambda suite's bytes in
+  the web module. `NodeKind` and `TypeKind` list the variants in the
+  enums' order (an unknown kind is refused with the same list); a name
+  no kind has is ignored, a field of another kind of the wrong type (or
+  given twice) is refused, and so is a node written as an array, which
+  serde's tagged reader took (the planning session's decision). Two
+  things keep the tagged reader's words: `kind` is read as an identifier
+  (`kind_index`, "expected variant identifier", a map refused), and a
+  missing field is raised where its object ends (`ReadType`, `ReadNode`:
+  `try_from`, so serde_json gives its line and column)
+  (`a_node_s_fields_are_read_where_they_stand`). The enums keep their
+  derived `Serialize` and public `Deserialize`.
 - **A node's variables and a type's operands are walked by one function
   each** (crate-private, in `mod.rs`): `Node::variables` and
   `map_variables` (the reader's shape check, the stepper's copy),

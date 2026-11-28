@@ -209,7 +209,7 @@ use crate::limits::Refusal;
     derive(serde::Serialize, serde::Deserialize),
     serde(transparent)
 )]
-pub struct TermId(u32);
+pub struct TermId(pub(crate) u32);
 
 impl TermId {
     /// Returns the index as a `usize`, for indexing the nodes.
@@ -225,7 +225,7 @@ impl TermId {
     derive(serde::Serialize, serde::Deserialize),
     serde(transparent)
 )]
-pub struct VarId(u32);
+pub struct VarId(pub(crate) u32);
 
 impl VarId {
     /// Returns the index as a `usize`, for indexing the variables.
@@ -241,7 +241,7 @@ impl VarId {
     derive(serde::Serialize, serde::Deserialize),
     serde(transparent)
 )]
-pub struct TypeId(u32);
+pub struct TypeId(pub(crate) u32);
 
 impl TypeId {
     /// Returns the index as a `usize`, for indexing the types.
@@ -258,7 +258,7 @@ impl TypeId {
     derive(serde::Serialize, serde::Deserialize),
     serde(transparent)
 )]
-pub struct TypeVarId(u32);
+pub struct TypeVarId(pub(crate) u32);
 
 impl TypeVarId {
     /// Returns the index as a `usize`, for indexing the type variables.
