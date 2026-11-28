@@ -798,6 +798,18 @@ for NanoYalla. What the code relies on:
   four-times bound of the textbook look, whose default estimate is
   already 3.75 times its drawing (`essential_nets`, five snapshots
   `essential-boxes*`).
+- **The MELL drawing is a `Layout` built pass by pass**
+  (`svg/mell.rs`): `View` reads the vertices (occurrence, kind, the
+  formula as the look writes it, the id), `Layout::of` runs the layout
+  passes in order (`build_tree`, `count_levels`, `place_rows`,
+  `measure_extents`, `place_anchors`, `raise_links`,
+  `raise_line_height`, `fix_heights`, `place_doors`, `find_cycle`),
+  each filling its own fields, and `draw` calls the emitting passes
+  (`vertices`, `rule_nodes`, `wires`, `legs`, `door_wires`, `boxes`,
+  `links`, `cut_bars`) into `Groups`, the seven strings, in the order
+  the bytes come in. A table is empty until its pass runs and nothing
+  but `of`'s order checks it, so a new pass goes where its inputs are
+  made; the snapshots of nets with boxes pin the bytes.
 - **The two net drawings share their document** (`svg::net_document`
   over `NetGroups`, the lines, the reading's input and dominator edges,
   the dashed premises, the links, the highlight and the texts, in that

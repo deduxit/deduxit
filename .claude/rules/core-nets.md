@@ -267,6 +267,11 @@ code relies on:
   An erased box's `?` vertices that lose every copy, and the weakenings
   hung in it, hang on the literal the erased `?` hung on, which a proof
   net never has inside the box (a 2-cycle through the cut).
+- **Each case of a MELL step is a method of `Work`** (`axiom`,
+  `tensor_par`, `weakening`, `dereliction`, `box_into_box`,
+  `contraction`), the exponential cases reading the cut link as an
+  `Exponential` (its place, ends, `!` and `?` ends and depth); `reduce`
+  picks the case by the end's kind and the copies, as `Case` names them.
 - **A step is linear in the net**, so that the bounds hold inside it
   (only `eliminate`'s checks and the step between them ask the stop):
   premises are read off the net the step is taken on, `Work::contents`
@@ -781,8 +786,10 @@ What the code relies on:
   only (`with_prunes`); a commutative search applies all four
   (`Prunes::ALL`), the planar search the balance alone
   (`Prunes::PLANAR`, below). The conclusions' break was always on before
-  the field existed: `Symmetry::new`'s `chained` reads it for a literal
-  whose anchor is the root, the leaf break for the others.
+  the field existed: `literal_classes`' `chained` (one of the three
+  parts of `Symmetry::new`, beside `anchors` and `compound_classes`)
+  reads it for a literal whose anchor is the root, the leaf break for
+  the others.
 - **Choice order** (`choose`): the unlinked literal with the fewest
   admissible partners, ties to the first in atom order, `a` before `~a`,
   then id; every unlinked literal is inspected, so a literal without an
