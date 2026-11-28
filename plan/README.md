@@ -9129,3 +9129,9 @@ move (D26).
   option A, decided unattended at 09:50; keying atoms by structure is recorded as a later
   candidate. On the 87d2/87e5 stack, landing with it. 87d3b (the other suites' candidates) in its
   worker, cores 10-12.
+- 2026-11-28, about 11:10: **87d2, 87e5, fixup-36 and their logs on `main`.** 87d2's sandbox
+  failure fixed here: `core/clippy.toml` was missing from the `core` part of `modules/workspace.nix`
+  (`vylsrwmw`), and five files its hasher change edited from the shell were formatted (`mwomosrq`).
+  The stack rebased onto fixup-33 and fixup-34 with two conflicts resolved here (fixup-34's test
+  rename carried into 87e5's moved `ordinary/models/mod.rs`; the fixups report kept every section).
+  CI run 46130530681 passed.
