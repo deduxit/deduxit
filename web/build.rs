@@ -5,7 +5,8 @@
 //! rustc links one of 1 MiB for `wasm32-unknown-unknown`.
 
 /// The stack of the module, in bytes, which the crate reads back as
-/// `STACK_BYTES`.
+/// `STACK_BYTES`; the renderers' module (`web-render/build.rs`) links the
+/// same.
 const STACK_BYTES: usize = 8 << 20;
 
 /// Links a wasm32 build with the stack, and passes its size to the crate.
