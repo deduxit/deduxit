@@ -8952,3 +8952,14 @@ move (D26).
   gives the model search a turn under a clock (the panel), then the command takes the library's
   default, measured against 87c9's baseline (after 87c5); **fixup-35** the TPTP reader refuses
   four ILTP problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`).
+- 2026-11-28, about 03:50: **87c4 reviewed; fixup-35 started.** 87c4 (Opus, high; the panel and the
+  reviewer on Fable): one graph kernel of the correctness criterion for the structures with and
+  without boxes (the bridges, the deletion rounds, the switching cycle), one proof assembly and Mix
+  partition for both sequentializations, and the nets' small repeats; nothing public changes. The
+  net target set equal to net-86 on all 64 rows and counters; `search-wide-m2-256` 0.75 % below
+  its base after three measured choices (the rounds' search out of line, `discover` taking the
+  graph, MLL's stage inlined into the shared loop), each commented at its site. No panel member
+  found a difference (136 464 structures and 38 745 sequents compared with the base, a brute-force
+  switching enumeration agreeing on 182 097). Rebased onto `main` with no conflict; in CI before
+  `main`. fixup-35 (the TPTP reader) in its worker on 87c4's head, cores 10-12; fixup-33 waits for
+  87c5 (both near `ordinary`'s Rocq writers), fixup-34 for 87c5 too.
