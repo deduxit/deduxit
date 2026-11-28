@@ -128,7 +128,125 @@ struct Builder<'a> {
     limits: &'a Limits,
 }
 
-impl Builder<'_> {
+impl<'a> Builder<'a> {
+    /// Gathers the edges of a structure whose vertices, links and
+    /// weakenings are in place: the parent edges of the `⊗`/`⅋` premises,
+    /// the wires with their doors, the links, and a cut vertex per cut link
+    /// below its two ends, each parent edge also in `extra`.
+    fn gather(s: &'a MellStructure, boxes: &Nesting, limits: &'a Limits) -> Result<Self, Error> {
+        let n = s.len();
+        let mut b = Self {
+            s,
+            parent: vec![NONE; n],
+            extra: Vec::new(),
+            doors: Vec::new(),
+            stamp: vec![(NONE, NONE); n],
+            limits,
+        };
+        for v in 0..n as u32 {
+            let p = s.parent[v as usize];
+            if p == NONE {
+                continue;
+            }
+            match s.kind(p) {
+                Kind::Tensor | Kind::Par => b.parent[v as usize] = p,
+                Kind::Bang | Kind::Quest => {}
+                Kind::Atom
+                | Kind::DualAtom
+                | Kind::One
+                | Kind::Bot
+                | Kind::Top
+                | Kind::Zero
+                | Kind::With
+                | Kind::Plus
+                | Kind::Forall
+                | Kind::Exists => unreachable!("only the structure's connectives have premises"),
+            }
+        }
+        for q in 0..n as u32 {
+            if s.kind(q) != Kind::Quest {
+                continue;
+            }
+            for c in s.premises(VertexId::new(q)) {
+                b.wire(q, c.get(), true, boxes)?;
+            }
+            if let Some(l) = s.hangs_on(VertexId::new(q)) {
+                b.wire(q, l.get(), false, boxes)?;
+            }
+        }
+        for &(x, y) in s.links() {
+            b.extra.push((x.get(), y.get()));
+        }
+        // A vertex per cut link after the doors, below its two ends.
+        let first_cut = n as u64 + b.doors.len() as u64;
+        if first_cut + s.cuts.len() as u64 > MOST {
+            return Err(Error::Refused(Refusal::Index {
+                what: Space::Vertex,
+                count: first_cut + s.cuts.len() as u64,
+                most: MOST,
+            }));
+        }
+        for (i, &(x, y)) in s.cuts.iter().enumerate() {
+            let c = (first_cut + i as u64) as u32;
+            b.parent.push(NONE);
+            b.parent[x.index()] = c;
+            b.parent[y.index()] = c;
+        }
+        let total = n + b.doors.len() + s.cuts.len();
+        for v in 0..total {
+            if b.parent[v] != NONE {
+                b.extra.push((b.parent[v], v as u32));
+            }
+        }
+        Ok(b)
+    }
+
+    /// Lays the slots out for `total` vertices: per vertex its parent slot,
+    /// then a slot per other edge at it. Returns where each vertex's slots
+    /// start, with the total, and each slot's other end; refused past
+    /// `u32::MAX` slots or the memory bound.
+    fn layout(&self, total: usize) -> Result<(Vec<u32>, Vec<u32>), Error> {
+        // Slots: one parent slot per vertex and two per other edge.
+        let slots = total as u64 + 2 * self.extra.len() as u64
+            - (self.parent.iter().filter(|&&p| p != NONE).count() as u64);
+        if slots >= u64::from(u32::MAX) {
+            return Err(Error::Refused(Refusal::Index {
+                what: Space::Vertex,
+                count: slots,
+                most: u64::from(u32::MAX) - 1,
+            }));
+        }
+        afford(slots * 4 + total as u64 * super::VERTEX_BYTES, self.limits)?;
+        let mut degree = vec![1u32; total];
+        for &(x, y) in &self.extra {
+            // A parent edge takes its upper end's parent slot.
+            if self.parent[y as usize] != x {
+                degree[y as usize] += 1;
+            }
+            degree[x as usize] += 1;
+        }
+        let mut start = Vec::with_capacity(total + 1);
+        let mut sum = 0u32;
+        for &d in &degree {
+            start.push(sum);
+            sum += d;
+        }
+        start.push(sum);
+        let mut to = vec![NONE; sum as usize];
+        let mut fill: Vec<u32> = start[..total].iter().map(|&s| s + 1).collect();
+        for &(x, y) in &self.extra {
+            if self.parent[y as usize] == x {
+                to[start[y as usize] as usize] = x;
+            } else {
+                to[fill[y as usize] as usize] = x;
+                fill[y as usize] += 1;
+            }
+            to[fill[x as usize] as usize] = y;
+            fill[x as usize] += 1;
+        }
+        Ok((start, to))
+    }
+
     /// Returns the door vertex of the `?` vertex `q` inside box `b`, and
     /// whether it is new. Wires are added a `?` vertex at a time, so the
     /// box's stamp says whether its door for `q` exists.
@@ -210,107 +328,9 @@ impl Graph {
     /// weakenings are in place, within `limits.memory_bytes`.
     pub(super) fn new(s: &MellStructure, boxes: &Nesting, limits: &Limits) -> Result<Self, Error> {
         let n = s.len();
-        let mut b = Builder {
-            s,
-            parent: vec![NONE; n],
-            extra: Vec::new(),
-            doors: Vec::new(),
-            stamp: vec![(NONE, NONE); n],
-            limits,
-        };
-        for v in 0..n as u32 {
-            let p = s.parent[v as usize];
-            if p == NONE {
-                continue;
-            }
-            match s.kind(p) {
-                Kind::Tensor | Kind::Par => b.parent[v as usize] = p,
-                Kind::Bang | Kind::Quest => {}
-                Kind::Atom
-                | Kind::DualAtom
-                | Kind::One
-                | Kind::Bot
-                | Kind::Top
-                | Kind::Zero
-                | Kind::With
-                | Kind::Plus
-                | Kind::Forall
-                | Kind::Exists => unreachable!("only the structure's connectives have premises"),
-            }
-        }
-        for q in 0..n as u32 {
-            if s.kind(q) != Kind::Quest {
-                continue;
-            }
-            for c in s.premises(VertexId::new(q)) {
-                b.wire(q, c.get(), true, boxes)?;
-            }
-            if let Some(l) = s.hangs_on(VertexId::new(q)) {
-                b.wire(q, l.get(), false, boxes)?;
-            }
-        }
-        for &(x, y) in s.links() {
-            b.extra.push((x.get(), y.get()));
-        }
-        // A vertex per cut link after the doors, below its two ends.
-        let first_cut = n as u64 + b.doors.len() as u64;
-        if first_cut + s.cuts.len() as u64 > MOST {
-            return Err(Error::Refused(Refusal::Index {
-                what: Space::Vertex,
-                count: first_cut + s.cuts.len() as u64,
-                most: MOST,
-            }));
-        }
-        for (i, &(x, y)) in s.cuts.iter().enumerate() {
-            let c = (first_cut + i as u64) as u32;
-            b.parent.push(NONE);
-            b.parent[x.index()] = c;
-            b.parent[y.index()] = c;
-        }
+        let b = Builder::gather(s, boxes, limits)?;
         let total = n + b.doors.len() + s.cuts.len();
-        for v in 0..total {
-            if b.parent[v] != NONE {
-                b.extra.push((b.parent[v], v as u32));
-            }
-        }
-        // Slots: one parent slot per vertex and two per other edge.
-        let slots = total as u64 + 2 * b.extra.len() as u64
-            - (b.parent.iter().filter(|&&p| p != NONE).count() as u64);
-        if slots >= u64::from(u32::MAX) {
-            return Err(Error::Refused(Refusal::Index {
-                what: Space::Vertex,
-                count: slots,
-                most: u64::from(u32::MAX) - 1,
-            }));
-        }
-        afford(slots * 4 + total as u64 * super::VERTEX_BYTES, limits)?;
-        let mut degree = vec![1u32; total];
-        for &(x, y) in &b.extra {
-            // A parent edge takes its upper end's parent slot.
-            if b.parent[y as usize] != x {
-                degree[y as usize] += 1;
-            }
-            degree[x as usize] += 1;
-        }
-        let mut start = Vec::with_capacity(total + 1);
-        let mut sum = 0u32;
-        for &d in &degree {
-            start.push(sum);
-            sum += d;
-        }
-        start.push(sum);
-        let mut to = vec![NONE; sum as usize];
-        let mut fill: Vec<u32> = start[..total].iter().map(|&s| s + 1).collect();
-        for &(x, y) in &b.extra {
-            if b.parent[y as usize] == x {
-                to[start[y as usize] as usize] = x;
-            } else {
-                to[fill[y as usize] as usize] = x;
-                fill[y as usize] += 1;
-            }
-            to[fill[x as usize] as usize] = y;
-            fill[x as usize] += 1;
-        }
+        let (start, to) = b.layout(total)?;
         let mut switched = Vec::with_capacity(total);
         let mut level = Vec::with_capacity(total);
         for v in 0..n as u32 {
