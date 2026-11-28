@@ -205,6 +205,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   prover, 42 through the embedding in intuitionistic logic, 2 by
   grounding): they need more than their first attempt and then wait for
   the model search's turn. No verdict changed.
+- **A session of LK or LJ names the logic it is in.** A rule refused in
+  minimal logic because its premise would have no formula or two right of
+  `⊢` says "every goal there has exactly one", where it said "every goal
+  of LJ"; the refusal of a split premise says "in intuitionistic and
+  minimal logic"; a saved session with such a goal is refused naming the
+  logic.
 
 ### Deprecated
 

@@ -339,8 +339,8 @@ fn a_rule_that_does_not_fit_is_refused_with_why() {
     assert_eq!(
         error.to_string(),
         "the rule ∨R is not available in intuitionistic logic: its premise would have both \
-             disjuncts right of ⊢, and every goal of LJ has exactly one formula there: use ∨R₁ \
-             or ∨R₂ to keep one disjunct"
+             disjuncts right of ⊢, and every goal there has exactly one formula: use ∨R₁ or ∨R₂ \
+             to keep one disjunct"
     );
     // →L sending c ∨ a to the first premise leaves it beside a there.
     let error = refused(

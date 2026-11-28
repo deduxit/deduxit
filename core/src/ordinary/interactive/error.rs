@@ -208,17 +208,23 @@ impl Display for StepError {
             ),
             StepError::Logic { rule, logic } => {
                 let why = match (rule, logic) {
-                    (Rule::FalseLeft, Logic::Minimal) => "minimal logic has no ex falso",
+                    (Rule::FalseLeft, Logic::Minimal) => {
+                        return write!(
+                            f,
+                            "the rule {rule} is not available in {logic} logic: minimal logic has \
+                             no ex falso"
+                        );
+                    }
                     (Rule::OrRight, _) => {
-                        "its premise would have both disjuncts right of ⊢, and every goal of LJ \
-                         has exactly one formula there: use ∨R₁ or ∨R₂ to keep one disjunct"
+                        "its premise would have both disjuncts right of ⊢, and every goal there \
+                         has exactly one formula: use ∨R₁ or ∨R₂ to keep one disjunct"
                     }
                     (Rule::ContractRight, _) => {
-                        "its premise would have two formulas right of ⊢, and every goal of LJ \
+                        "its premise would have two formulas right of ⊢, and every goal there \
                          has exactly one"
                     }
                     _ => {
-                        "its premise would have no formula right of ⊢, and every goal of LJ has \
+                        "its premise would have no formula right of ⊢, and every goal there has \
                          exactly one"
                     }
                 };
@@ -235,9 +241,9 @@ impl Display for StepError {
             ),
             StepError::Succedents { count } => write!(
                 f,
-                "a premise would have {} right of ⊢, and every goal of LJ has exactly one: \
-                 share the context, or split it so that each premise keeps one formula right \
-                 of ⊢",
+                "a premise would have {} right of ⊢, and in intuitionistic and minimal logic \
+                 every goal has exactly one: share the context, or split it so that each \
+                 premise keeps one formula right of ⊢",
                 crate::errors::counted(*count, "formula", "formulas")
             ),
             StepError::Split { side, position } => write!(

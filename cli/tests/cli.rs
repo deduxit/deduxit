@@ -1124,7 +1124,7 @@ fn ordinary_session() {
              opened goal 1: L0: a ⊢ R0: a\n\
              opened goal 2: L0: b ⊢ R0: b\n\
              error: the rule WR is not available in intuitionistic logic: its premise would \
-             have no formula right of ⊢, and every goal of LJ has exactly one\n\
+             have no formula right of ⊢, and every goal there has exactly one\n\
              closed\n\
              reopened goal 1: L0: a ⊢ R0: a\n\
              session written to {}\n",

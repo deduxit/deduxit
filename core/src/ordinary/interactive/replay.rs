@@ -151,9 +151,7 @@ impl Interactive {
                     ));
                 }
                 if logic != Logic::Classical && right != 1 {
-                    return Err(inconsistent(
-                        "an open goal of LJ must have exactly one formula right of ⊢",
-                    ));
+                    return Err(inconsistent(open_goal_succedents(logic)));
                 }
                 continue;
             }
@@ -187,16 +185,14 @@ impl Interactive {
                 crate::goal_tree::Fault::NotSuffix => "a step did not add the suffix of the arena",
             })
         })?;
-        // Its undo reopens each step's inference as a goal, which in LJ has
-        // one formula right of `⊢`.
+        // Its undo reopens each step's inference as a goal, which outside
+        // classical logic has one formula right of `⊢`.
         if logic != Logic::Classical
             && history
                 .iter()
                 .any(|g| inferences[g.index()].right.len() != 1)
         {
-            return Err(inconsistent(
-                "a step of LJ closed a goal that has no formula or several right of ⊢",
-            ));
+            return Err(inconsistent(closed_goal_succedents(logic)));
         }
         let witnesses = if open {
             let read = Replay {
@@ -601,5 +597,37 @@ impl Tree {
             by.iter()
                 .any(|&b| self.enter[b] < self.enter[g] && self.exit[g] < self.exit[b])
         })
+    }
+}
+
+/// Returns the reader's refusal of an open goal with no formula or several
+/// right of `⊢` in intuitionistic or minimal logic, where every goal has
+/// exactly one.
+const fn open_goal_succedents(logic: Logic) -> &'static str {
+    match logic {
+        Logic::Minimal => {
+            "an open goal has no formula or several right of ⊢, where every goal in minimal \
+             logic has exactly one"
+        }
+        Logic::Classical | Logic::Intuitionistic => {
+            "an open goal has no formula or several right of ⊢, where every goal in \
+             intuitionistic logic has exactly one"
+        }
+    }
+}
+
+/// Returns the reader's refusal of a step that closed a goal with no
+/// formula or several right of `⊢` in intuitionistic or minimal logic,
+/// where every goal has exactly one.
+const fn closed_goal_succedents(logic: Logic) -> &'static str {
+    match logic {
+        Logic::Minimal => {
+            "a step closed a goal with no formula or several right of ⊢, where every goal in \
+             minimal logic has exactly one"
+        }
+        Logic::Classical | Logic::Intuitionistic => {
+            "a step closed a goal with no formula or several right of ⊢, where every goal in \
+             intuitionistic logic has exactly one"
+        }
     }
 }
