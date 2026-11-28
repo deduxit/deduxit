@@ -72,8 +72,24 @@ pub(crate) trait Instancing {
     fn frame_len(&self, m: Member) -> u64;
 }
 
+/// An [`Instancing`] made afresh from the proof it is for, as each pass
+/// of the checker needs one of its own: a failure runs the pass twice, and
+/// [`Instancing::dual_literals`] keeps a memo. An observer that chose its
+/// instancing hands the pass its type, so that the pass is compiled for
+/// the pairs that run together alone.
+pub(crate) trait Fresh<'p>: Instancing + Sized {
+    /// Returns one for `proof`, the proof the caller's own was made for.
+    fn fresh(proof: &'p Proof) -> Self;
+}
+
 /// The members of a proof without binders: its occurrences.
 pub(crate) struct Ground;
+
+impl Fresh<'_> for Ground {
+    fn fresh(_: &Proof) -> Self {
+        Self
+    }
+}
 
 impl Instancing for Ground {
     const FRAMED: bool = false;
@@ -273,6 +289,15 @@ impl<'a> Framed<'a> {
     fn pushed(&self, m: Member, o: OccId, term: FoTermId) -> Member {
         let frame = self.frames[&(self.frame(m), term)];
         self.members[&(OccId::new(o.get() + 1), frame)]
+    }
+}
+
+impl<'p> Fresh<'p> for Framed<'p> {
+    fn fresh(proof: &'p Proof) -> Self {
+        let table = proof
+            .instances()
+            .expect("a framed proof has an instance table");
+        Self::new(proof, table)
     }
 }
 

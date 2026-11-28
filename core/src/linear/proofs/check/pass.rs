@@ -5,7 +5,7 @@
 //! that read every node's sequent from it.
 
 use super::error::{CheckError, Fault, Refused};
-use super::frames::{Framed, Ground, Instancing};
+use super::frames::{Framed, Fresh, Ground, Instancing};
 use super::zones::{Bag, Eigens, State, Zone};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
@@ -215,6 +215,23 @@ pub(crate) fn examine<O: Observer>(
             Framed::new(proof, table)
         }),
     }
+}
+
+/// Checks a proof as [`examine`] does, with the instancing `I` an
+/// observer chose for it: the pass is compiled for that pair alone, where
+/// [`examine`] chooses again at run time and so compiles every observer
+/// with both.
+pub(crate) fn examine_as<'p, O: Observer, I: Fresh<'p>>(
+    proof: &'p Proof,
+    goal: &[OccId],
+    mode: Mode,
+    reading: Option<&Reading>,
+    allowance: Allowance<'_>,
+    observer: &mut O,
+) -> Result<(), CheckError> {
+    examine_with(proof, goal, mode, reading, allowance, observer, || {
+        I::fresh(proof)
+    })
 }
 
 /// Checks a proof as [`examine`] does, asking `instancing` about its
