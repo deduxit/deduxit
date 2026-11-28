@@ -9170,3 +9170,13 @@ move (D26).
   fixup-37's moves resolved in place by its worker. In CI before `main`. 87f1 (wave F: the messages
   of theme F2; the behaviour lock reblessed, the page's changed hints listed) in its worker, cores
   13-15.
+- 2026-11-28, about 12:20: **fixup-39 reviewed; fixup-40 started.** fixup-39 (Opus, high; the panel
+  and the reviewer on Opus): `grade` judges a "not valid" answer by its countermodel of the problem
+  (the witness grades unknown, honest answers unchanged), and the protocol's `decides` is held to
+  its input for ordinary logic (ids across arenas, the derivation's logic), linear and modal logic;
+  the panel's two holes and the reviewer's linear and modal gap closed (the last fix after the one
+  review). `workspace-run`'s ceiling raised 5.0 % in a commit of its own (its one `decides` check now
+  reads the input and copies its arena). Follow-ups: `grade` compares an ordinary answer's sides by
+  text, so a renamed binder grades an honest answer incorrect (safe direction; a public comparison
+  of sequents across arenas, part 2); `check` of an outcome whose refused countermodel and image
+  disagree (**fixup-40**, started in the same worker, cores 7-9; the panel). In CI before `main`.
