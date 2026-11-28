@@ -2785,8 +2785,12 @@ of a refutation or (`--dimacs`) of an outside proof, the protocol's
 - **Wire level 22** (`serialize/resolution.rs`): a refutation is read
   and written (`check` reads one), a clause set decided is written only;
   literals as DIMACS writes them, clauses numbered from 0, atoms from 1.
-- **First-order resolution** (`resolution/first_order.rs`, feature
-  `sat`: it reads back through `herbrand::deskolemized`) is its own path;
+- **First-order resolution** (`resolution/first_order/`, feature
+  `sat`: it reads back through `herbrand::deskolemized`; `mod.rs` the
+  public types and entry points, `clauses.rs` the inference function,
+  `check.rs` the refutation's check, which trusts `clauses.rs` too,
+  `search.rs` the given-clause search, `read_back.rs` the derivation,
+  `text.rs` the printers) is its own path;
   the propositional types and searches above are unchanged (D17).
   - **Clauses** come from `normal::rewrite` to the clausal form, each
     hypothesis `∀x̄. C` its literals over the arena with `x̄` the
