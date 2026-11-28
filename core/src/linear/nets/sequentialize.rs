@@ -294,18 +294,15 @@ mod tests {
     use crate::limits::Limits;
     use crate::linear::fragment::Mode;
     use crate::linear::occurrences::{Forest, Member, OccId};
-    #[cfg(feature = "parse")]
     use crate::linear::proofs::{Node, NodeId};
     use crate::linear::sequents::Sequent;
 
     /// Wraps a raw id.
-    #[cfg(feature = "parse")]
     const fn o(id: u32) -> OccId {
         OccId::new(id)
     }
 
     /// Builds the structure of `input` with the links, or panics.
-    #[cfg(feature = "parse")]
     fn net(input: &str, mix: bool, links: &[(u32, u32)]) -> ProofStructure {
         let s: Sequent = input.parse().unwrap_or_else(|e| panic!("{input:?}: {e}"));
         let links: Vec<(VertexId, VertexId)> = links
@@ -374,7 +371,6 @@ mod tests {
     /// The classic nets sequentialize into the expected terms: the ⅋ below
     /// the ⊗ that is not splitting until it is opened, a Mix for a
     /// disconnected net, and an error for a structure that is no net.
-    #[cfg(feature = "parse")]
     #[test]
     fn classic_nets() {
         use Node::*;

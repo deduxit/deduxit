@@ -1616,6 +1616,14 @@ impl Display for In<'_, ProofStructure> {
     }
 }
 
+impl Display for In<'_, crate::linear::MellStructure> {
+    /// Writes the structure under its reading in an intuitionistic mode,
+    /// else as its own [`Display`] does.
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        self.structure.write(f, Some(self.mode))
+    }
+}
+
 /// A proof's net: a structure without boxes, or one with boxes.
 #[cfg(feature = "protocol")]
 pub(crate) enum Net {
@@ -1701,11 +1709,8 @@ fn cut_partner_in(cuts: &[(VertexId, VertexId)], v: VertexId) -> Option<VertexId
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
-    #[cfg(feature = "parse")]
     use crate::linear::fragment::Mode;
-    #[cfg(feature = "parse")]
     use crate::linear::occurrences::Member;
-    #[cfg(feature = "parse")]
     use crate::linear::proofs::NodeId;
 
     /// Wraps a raw occurrence id.
@@ -1745,7 +1750,6 @@ mod tests {
     }
 
     /// Builds the forest of `input`, or panics with the parse error.
-    #[cfg(feature = "parse")]
     fn forest(input: &str) -> Forest {
         let s: Sequent = input.parse().unwrap_or_else(|e| panic!("{input:?}: {e}"));
         Forest::new(&s).unwrap()
@@ -1753,7 +1757,6 @@ mod tests {
 
     /// Links are made and taken back in stack order, the partners and the
     /// skeleton follow, and completeness is every literal linked.
-    #[cfg(feature = "parse")]
     #[test]
     fn link_and_unlink() {
         // ⊢ ~A, A ⊗ ~B, B: 0 ~A, 1 ⊗, 2 A, 3 ~B, 4 B.
@@ -1782,7 +1785,6 @@ mod tests {
 
     /// Two derivations that differ only in the order of their rules give
     /// the same net, and a proof that is not one of MLL is refused.
-    #[cfg(feature = "parse")]
     #[test]
     fn desequentialize() {
         use Node::*;
@@ -1887,7 +1889,6 @@ mod tests {
     /// Random derivations of MLL, with and without Mix, round-trip through
     /// their net: the net is correct, the sequentialized proof passes the
     /// checker, and it has the same net as the derivation it came from.
-    #[cfg(feature = "parse")]
     #[test]
     fn round_trip_random_derivations() {
         use crate::linear::search::generate::{self, Rng, Rules};
@@ -2042,7 +2043,6 @@ mod tests {
 
     /// The text form lists the sequent, the links with their positions and
     /// the verdict, with formulas in the reason when there is one.
-    #[cfg(feature = "parse")]
     #[test]
     fn text_form() {
         let net = ProofStructure::from_links(
@@ -2100,7 +2100,6 @@ mod tests {
     /// A list of links is validated: literals only, dual, each at most
     /// once, inside the forest; and only unit-free MLL has structures. A
     /// single link is validated alike, and one refused changes nothing.
-    #[cfg(feature = "parse")]
     #[test]
     fn validation() {
         // ⊢ ~A, A ⊗ ~B, B, A: 0 ~A, 1 ⊗, 2 A, 3 ~B, 4 B, 5 A.
@@ -2159,7 +2158,6 @@ mod tests {
     /// An id the structure does not hold is answered, never a panic: no
     /// partner, joined to nothing, no occurrence; and a scratch sized for
     /// another structure is replaced, so the test answers as with its own.
-    #[cfg(feature = "parse")]
     #[test]
     fn foreign_ids_and_scratches() {
         let small = ProofStructure::from_links(forest("a |- a"), criterion(false), &[(v(0), v(1))])
@@ -2199,7 +2197,6 @@ mod tests {
 
     /// The bound and the stop refuse building a net from a proof, judging
     /// it and sequentializing it, with no verdict.
-    #[cfg(feature = "parse")]
     #[test]
     #[expect(
         clippy::wildcard_enum_match_arm,
@@ -2268,13 +2265,5 @@ mod tests {
         ));
         let back = net.sequentialize(&Limits::default(), |_| false).unwrap();
         assert_eq!(back.mode(), Some(Mode::CLASSICAL));
-    }
-}
-
-impl Display for In<'_, crate::linear::MellStructure> {
-    /// Writes the structure under its reading in an intuitionistic mode,
-    /// else as its own [`Display`] does.
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.structure.write(f, Some(self.mode))
     }
 }
