@@ -1352,6 +1352,17 @@ MACE's and Paradox's method (the design is
   size without a model proves nothing), the solver given the memory
   bound less the expansion's estimate. Past the bound: `Reason::ModelSize { size }`
   (`search.model_size`); `None` deepens until the stop.
+- **One writer core for the two model searches** (`encode.rs`, behind
+  `sat`): `Core` (the arena, the bytes held, `limits.occurrences` and
+  the memory bound, the steps; `tick_by`, the numbered atom `m_N` or
+  `k_N`, `junction`), `over_tuples` and `Denotes` over a `Writes`
+  (`models::Writer`, `kripke_search::Writer`), and `lookup` of a
+  variable's element by name, which grounding shares (the Kripke search
+  binds by de Bruijn index and keeps its own). The operations and their
+  order are the copies' they replaced, so the statistics (`atoms`,
+  `nodes`, `size`) are what they were; a bound or a poll is changed
+  there once. `holds`, `values` and the memoised walks stay per search
+  (the Kripke writer makes an atom per world with growth axioms).
 - **Bounds**: `Writer::tick` on every step and every tuple of
   `over_tuples` (the stop every `grounding::POLL`, `limits.occurrences`
   formulas, `limits.memory_bytes` by `NODE_BYTES` a formula, `ATOM_BYTES`

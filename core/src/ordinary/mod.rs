@@ -73,6 +73,9 @@ pub mod connection;
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
+/// What the SAT encodings of first-order models share.
+#[cfg(feature = "sat")]
+mod encode;
 pub mod equality;
 #[cfg(feature = "sat")]
 pub mod grounding;

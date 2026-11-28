@@ -1276,16 +1276,7 @@ fn ground(
     };
     // Each binding: a variable, its element and the bindings before it.
     let mut bindings: Vec<(u32, u32, u32)> = Vec::new();
-    let lookup = |bindings: &[(u32, u32, u32)], mut at: u32, x: u32| -> u32 {
-        while at != NONE {
-            let (y, e, before) = bindings[at as usize];
-            if y == x {
-                return e;
-            }
-            at = before;
-        }
-        unreachable!("every variable is bound in a closed formula")
-    };
+    let lookup = super::encode::lookup;
     enum Task {
         /// Ground the node under the bindings, from the memo where it was
         /// made before.

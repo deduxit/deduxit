@@ -36,12 +36,13 @@
 //! without a model proves anything: past the bound the answer is unknown
 //! ([`Reason::ModelSize`]).
 
+use super::encode::{Core, Denotes, Writes, lookup, over_tuples};
 use super::grounding::{self, G, Nnf, Term};
 use super::kripke_search;
 use super::kripke_structure::KripkeCountermodel;
 use super::sat;
 use super::structure::{FiniteCountermodel, Structure};
-use super::{Formulas, Logic, Node, NodeId, Sequent, Verdict};
+use super::{Logic, Node, NodeId, Sequent, Verdict};
 use crate::Error;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
@@ -53,10 +54,6 @@ const NONE: u32 = u32::MAX;
 /// The bytes a formula of the expansion's arena holds, with its share of
 /// the arena's index: grounding's figure.
 const NODE_BYTES: u64 = grounding::NODE_BYTES;
-
-/// The bytes an atom of the expansion holds beside 4 bytes an element of
-/// its tuple: its entry, its key in the index, and its name.
-const ATOM_BYTES: u64 = grounding::ATOM_BYTES;
 
 /// The bytes an entry of a memo holds beside 4 bytes a value: its key's
 /// vector and its slot in the table.
@@ -453,14 +450,6 @@ enum Entry {
     Value(u32, u32),
 }
 
-/// A term's value as the expansion writes it.
-enum Denotes {
-    /// An element, fixed by the bindings.
-    Element(u32),
-    /// For each element, the formula that says the term denotes it.
-    Table(Vec<NodeId>),
-}
-
 /// The formula that a structure of `size` elements refutes the sequent,
 /// with what reads a structure off its model.
 struct Expansion {
@@ -485,8 +474,8 @@ struct Writer<'n> {
     nnf: &'n Nnf,
     /// The domain's size.
     size: u32,
-    /// The arena written.
-    formulas: Formulas,
+    /// The arena written, with its bounds.
+    core: Core,
     /// Each atom made, by its number.
     entries: Vec<Entry>,
     /// The predicates' atoms, by predicate and tuple.
@@ -498,14 +487,6 @@ struct Writer<'n> {
     /// Each application's formulas, by its index and the values of its
     /// free variables.
     denotes: HashMap<(u32, Vec<u32>), Vec<NodeId>>,
-    /// The bytes the atoms and memos hold beside the arena.
-    held: u64,
-    /// The most formulas, `limits.occurrences`.
-    most: u64,
-    /// The memory bound.
-    memory: u64,
-    /// The steps taken, for the stop.
-    steps: u64,
 }
 
 impl Writer<'_> {
@@ -520,38 +501,16 @@ impl Writer<'_> {
         weight: usize,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        grounding::poll_by(&mut self.steps, weight, stop)?;
-        if self.formulas.len() as u64 > self.most {
-            return Err(Error::Refused(Refusal::Occurrences {
-                occurrences: self.most.saturating_add(1),
-                limit: self.most,
-            }));
-        }
-        let held = (self.formulas.len() as u64)
-            .saturating_mul(NODE_BYTES)
-            .saturating_add(self.held);
-        if held > self.memory {
-            return Err(Error::Refused(Refusal::Memory {
-                phase: Phase::Search,
-                limit_bytes: self.memory,
-                needed_bytes: None,
-            }));
-        }
-        Ok(())
+        self.core.tick_by(weight, stop)
     }
 
     /// Makes an atom of the entry and returns it.
     fn atom(&mut self, entry: Entry) -> Result<NodeId, Error> {
-        let number = self.entries.len();
-        let id = self.formulas.atom(&format!("m_{number}"))?;
-        let tuple = match &entry {
+        let key = match &entry {
             Entry::Holds(_, tuple) => tuple.len() as u64,
             Entry::Value(..) => 1,
         };
-        self.held = self
-            .held
-            .saturating_add(ATOM_BYTES)
-            .saturating_add(4 * tuple);
+        let id = self.core.atom("m", self.entries.len(), key)?;
         self.entries.push(entry);
         Ok(id)
     }
@@ -577,83 +536,14 @@ impl Writer<'_> {
         for e in 0..self.size {
             atoms.push(self.atom(Entry::Value(p, e))?);
         }
-        self.held = self
+        self.core.held = self
+            .core
             .held
             .saturating_add(MEMO_BYTES)
             .saturating_add(4 * args.len() as u64);
         self.principal_of.insert((symbol, args.to_vec()), p);
         self.principals.push((symbol, args.to_vec(), atoms.clone()));
         Ok(atoms)
-    }
-
-    /// Returns the conjunction (`and`) or the disjunction of the formulas.
-    fn junction(&mut self, and: bool, parts: &[NodeId]) -> Result<NodeId, Error> {
-        let Some((&first, rest)) = parts.split_first() else {
-            return self
-                .formulas
-                .add(if and { Node::True } else { Node::False });
-        };
-        let mut acc = first;
-        for &p in rest {
-            acc = self.formulas.add(if and {
-                Node::And(acc, p)
-            } else {
-                Node::Or(acc, p)
-            })?;
-        }
-        Ok(acc)
-    }
-
-    /// Returns, for the tuples the arguments may denote, the disjunction
-    /// over them of "the arguments denote the tuple and `make(tuple)`":
-    /// each fixed argument's element, each other's choice of element.
-    fn over_tuples(
-        &mut self,
-        args: &[Denotes],
-        stop: &mut dyn FnMut(Progress) -> bool,
-        mut make: impl FnMut(&mut Self, &[u32]) -> Result<NodeId, Error>,
-    ) -> Result<NodeId, Error> {
-        let open: Vec<usize> = (0..args.len())
-            .filter(|&i| matches!(args[i], Denotes::Table(_)))
-            .collect();
-        let mut tuple: Vec<u32> = args
-            .iter()
-            .map(|a| match a {
-                Denotes::Element(e) => *e,
-                Denotes::Table(_) => 0,
-            })
-            .collect();
-        if open.is_empty() {
-            return make(self, &tuple);
-        }
-        // An odometer over the open arguments' elements.
-        let mut choice = vec![0u32; open.len()];
-        let mut disjuncts = Vec::new();
-        loop {
-            self.tick(stop)?;
-            let mut conjuncts = Vec::with_capacity(open.len() + 1);
-            for (k, &i) in open.iter().enumerate() {
-                tuple[i] = choice[k];
-                if let Denotes::Table(table) = &args[i] {
-                    conjuncts.push(table[choice[k] as usize]);
-                }
-            }
-            conjuncts.push(make(self, &tuple)?);
-            disjuncts.push(self.junction(true, &conjuncts)?);
-            self.held = self.held.saturating_add(4);
-            let mut k = 0;
-            loop {
-                if k == choice.len() {
-                    return self.junction(false, &disjuncts);
-                }
-                choice[k] += 1;
-                if choice[k] < self.size {
-                    break;
-                }
-                choice[k] = 0;
-                k += 1;
-            }
-        }
     }
 
     /// Returns what the term denotes under the bindings `at`.
@@ -711,13 +601,14 @@ impl Writer<'_> {
             let symbol = app.symbol;
             let mut table = Vec::with_capacity(self.size as usize);
             for e in 0..self.size {
-                let formula = self.over_tuples(&args, stop, |w, tuple| {
+                let formula = over_tuples(self, &args, stop, |w, tuple| {
                     Ok(w.values(symbol, tuple)?[e as usize])
                 })?;
                 table.push(formula);
             }
             let k = key(b);
-            self.held = self
+            self.core.held = self
+                .core
                 .held
                 .saturating_add(MEMO_BYTES)
                 .saturating_add(4 * (k.1.len() as u64 + u64::from(self.size)));
@@ -727,16 +618,14 @@ impl Writer<'_> {
     }
 }
 
-/// Returns the element bound to `x` in the bindings from `at` back.
-fn lookup(bindings: &[(u32, u32, u32)], mut at: u32, x: u32) -> u32 {
-    while at != NONE {
-        let (y, e, before) = bindings[at as usize];
-        if y == x {
-            return e;
-        }
-        at = before;
+impl Writes for Writer<'_> {
+    fn core(&mut self) -> &mut Core {
+        &mut self.core
     }
-    unreachable!("every variable is bound in a closed formula")
+
+    fn size(&self) -> u32 {
+        self.size
+    }
 }
 
 impl Expansion {
@@ -753,16 +642,12 @@ impl Expansion {
         let mut w = Writer {
             nnf,
             size,
-            formulas: Formulas::default(),
+            core: Core::new(limits),
             entries: Vec::new(),
             holds: HashMap::default(),
             principals: Vec::new(),
             principal_of: HashMap::default(),
             denotes: HashMap::default(),
-            held: 0,
-            most: limits.occurrences.unwrap_or(u64::MAX),
-            memory: limits.memory_bytes.unwrap_or(u64::MAX),
-            steps: 0,
         };
         // Every constant's value atoms first, in the signature's order,
         // which the symmetry formulas read.
@@ -776,13 +661,13 @@ impl Expansion {
         // value.
         for p in 0..w.principals.len() {
             let atoms = w.principals[p].2.clone();
-            left.push(w.junction(false, &atoms)?);
+            left.push(w.core.junction(false, &atoms)?);
             for (i, &a) in atoms.iter().enumerate() {
                 for &b in &atoms[i + 1..] {
                     w.tick(stop)?;
-                    let not_a = w.formulas.add(Node::Not(a))?;
-                    let not_b = w.formulas.add(Node::Not(b))?;
-                    left.push(w.formulas.add(Node::Or(not_a, not_b))?);
+                    let not_a = w.core.formulas.add(Node::Not(a))?;
+                    let not_b = w.core.formulas.add(Node::Not(b))?;
+                    left.push(w.core.formulas.add(Node::Or(not_a, not_b))?);
                 }
             }
         }
@@ -793,20 +678,20 @@ impl Expansion {
             for (m, &value) in values.iter().enumerate() {
                 w.tick(stop)?;
                 if m > i {
-                    left.push(w.formulas.add(Node::Not(value))?);
+                    left.push(w.core.formulas.add(Node::Not(value))?);
                 } else if m > 0 {
-                    let mut parts = vec![w.formulas.add(Node::Not(value))?];
+                    let mut parts = vec![w.core.formulas.add(Node::Not(value))?];
                     parts.extend(constant_values[..i].iter().map(|v| v[m - 1]));
-                    left.push(w.junction(false, &parts)?);
+                    left.push(w.core.junction(false, &parts)?);
                 }
             }
         }
         w.tick(stop)?;
-        let bytes = (w.formulas.len() as u64)
+        let bytes = (w.core.formulas.len() as u64)
             .saturating_mul(NODE_BYTES)
-            .saturating_add(w.held);
+            .saturating_add(w.core.held);
         Ok(Self {
-            sequent: Sequent::new(w.formulas, left, vec![formula])?,
+            sequent: Sequent::new(w.core.formulas, left, vec![formula])?,
             entries: w.entries,
             principals: w.principals,
             bytes,
@@ -947,27 +832,28 @@ fn expand(
             Task::Store(_, values) => values.len(),
         };
         w.tick_by(weight, stop)?;
-        if tasks.len() as u64 > w.most {
+        if tasks.len() as u64 > w.core.most {
             return Err(Error::Refused(Refusal::Occurrences {
-                occurrences: w.most.saturating_add(1),
-                limit: w.most,
+                occurrences: w.core.most.saturating_add(1),
+                limit: w.core.most,
             }));
         }
         let beside = (tasks.capacity() as u64)
             .saturating_mul(40)
             .saturating_add((bindings.capacity() as u64).saturating_mul(12))
             .saturating_add((results.capacity() as u64).saturating_mul(4));
-        if beside.saturating_add(w.held) > w.memory {
+        if beside.saturating_add(w.core.held) > w.core.memory {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Search,
-                limit_bytes: w.memory,
+                limit_bytes: w.core.memory,
                 needed_bytes: None,
             }));
         }
         match task {
             Task::Store(n, values) => {
                 let made = *results.last().expect("the node's formula");
-                w.held = w
+                w.core.held = w
+                    .core
                     .held
                     .saturating_add(MEMO_BYTES)
                     .saturating_add(4 * values.len() as u64);
@@ -996,15 +882,15 @@ fn expand(
                     }
                     let predicate = *predicate;
                     let formula =
-                        w.over_tuples(&denotes, stop, |w, tuple| w.holds(predicate, tuple))?;
+                        over_tuples(w, &denotes, stop, |w, tuple| w.holds(predicate, tuple))?;
                     results.push(if *positive {
                         formula
                     } else {
-                        w.formulas.add(Node::Not(formula))?
+                        w.core.formulas.add(Node::Not(formula))?
                     });
                 }
-                G::True => results.push(w.formulas.add(Node::True)?),
-                G::False => results.push(w.formulas.add(Node::False)?),
+                G::True => results.push(w.core.formulas.add(Node::True)?),
+                G::False => results.push(w.core.formulas.add(Node::False)?),
                 G::And(k) | G::Or(k) => {
                     let and = matches!(nnf.nodes[n as usize], G::And(_));
                     tasks.push(Task::Join(and, k.len()));
@@ -1024,7 +910,7 @@ fn expand(
             Task::Join(and, count) => {
                 let start = results.len() - count;
                 let parts = results.split_off(start);
-                let joined = w.junction(and, &parts)?;
+                let joined = w.core.junction(and, &parts)?;
                 results.push(joined);
             }
         }
