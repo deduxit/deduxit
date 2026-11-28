@@ -337,6 +337,19 @@ pub fn step(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Reduction, Error> {
+    stepped(proof, mode, at, options, limits, &mut stop)
+}
+
+/// [`step`] with the stop as a trait object, so that the step is
+/// compiled once, not once per caller's closure.
+fn stepped(
+    proof: &Proof,
+    mode: Mode,
+    at: Option<NodeId>,
+    options: &Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Reduction, Error> {
     let record = Record::of(proof, mode, limits, &mut stop).map_err(Error::Check)?;
     let cut = chosen(proof, at, options)?.ok_or(Error::NoCut { node: None })?;
     let (made, step) =
@@ -420,6 +433,20 @@ pub fn eliminate(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
     mut each: impl FnMut(&Proof, &Step),
+) -> Result<Elimination, Error> {
+    eliminated(proof, mode, at, options, limits, &mut stop, &mut each)
+}
+
+/// [`eliminate`] with the stop and `each` as trait objects, so that the
+/// elimination is compiled once, not once per caller's closures.
+fn eliminated(
+    proof: &Proof,
+    mode: Mode,
+    at: Option<NodeId>,
+    options: &Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+    each: &mut dyn FnMut(&Proof, &Step),
 ) -> Result<Elimination, Error> {
     let mut steps: Vec<Step> = Vec::new();
     // The proof reached last, and the one before it: while the latest
