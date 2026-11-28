@@ -11,7 +11,7 @@ use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
 use crate::linear::proofs::check::{
-    self, Allowance, Facts, Framed, Ground, Instancing, Observer, State,
+    self, Allowance, Facts, Framed, Fresh, Ground, Instancing, Observer, State,
 };
 use crate::linear::proofs::multiset::Multiset;
 use crate::linear::proofs::size::{self, Size};
@@ -125,9 +125,9 @@ struct Made<'g> {
 
 impl Made<'_> {
     /// Unfolds the proof, whose members `inst` knows.
-    fn unfold<I: Instancing>(
+    fn unfold<'p, I: Fresh<'p>>(
         self,
-        proof: &Proof,
+        proof: &'p Proof,
         inst: &I,
         stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Vec<Inference>, Error> {
@@ -141,7 +141,7 @@ impl Made<'_> {
         } = self;
         let mut record = Record::new(proof, inst);
         let allowance = Allowance::new(limits, Phase::View, stop);
-        check::examine(proof, goal, mode, reading, allowance, &mut record)?;
+        check::examine_as::<_, I>(proof, goal, mode, reading, allowance, &mut record)?;
         let mut build = Build {
             proof,
             inst,

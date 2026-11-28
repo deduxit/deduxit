@@ -46,8 +46,10 @@ mod pass;
 mod zones;
 
 pub use error::{CheckError, Dyadic, Fault, Invalid, Refused};
-pub(crate) use frames::{Framed, Ground, Instancing};
-pub(crate) use pass::{Allowance, Facts, Observer, afford, check, check_within, examine, reading};
+pub(crate) use frames::{Framed, Fresh, Ground, Instancing};
+pub(crate) use pass::{
+    Allowance, Facts, Observer, afford, check, check_within, examine, examine_as, reading,
+};
 pub(crate) use zones::State;
 
 #[cfg(all(test, feature = "parse"))]

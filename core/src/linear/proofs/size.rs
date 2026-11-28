@@ -19,7 +19,7 @@
 //! bound.
 
 use super::check::{
-    self, Allowance, CheckError, Facts, Framed, Ground, Instancing, Observer, State,
+    self, Allowance, CheckError, Facts, Framed, Fresh, Ground, Instancing, Observer, State,
 };
 use super::{Branch, Derivation, Node, NodeId, Proof, ViewOptions};
 use crate::limits::{Limits, Phase, Progress};
@@ -1011,8 +1011,8 @@ pub(crate) fn measured(
 
 /// Returns the size as [`measured`] does, of a proof whose members `inst`
 /// knows.
-fn measured_with<I: Instancing>(
-    proof: &Proof,
+fn measured_with<'p, I: Fresh<'p>>(
+    proof: &'p Proof,
     inst: &I,
     goal: &[OccId],
     mode: Mode,
@@ -1037,7 +1037,7 @@ fn measured_with<I: Instancing>(
             .instances()
             .is_none_or(crate::linear::Instances::is_empty),
     };
-    check::examine(proof, goal, mode, reading, allowance, &mut measure)?;
+    check::examine_as::<_, I>(proof, goal, mode, reading, allowance, &mut measure)?;
     let root = measure.subs[proof.root().index()];
     // What the conclusion holds beyond what the root derives, a `⊤`
     // absorbs. A goal is a list of any length, so its sums saturate.
