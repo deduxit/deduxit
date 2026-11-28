@@ -100,27 +100,29 @@ pub(super) fn copy_first_order(
     roots: Option<&[NodeId]>,
     parameters: &Parameters<'_>,
 ) -> Result<Copied, Error> {
-    copy_as(target, source, roots, parameters, source.is_first_order())
+    copy_as(target, source, roots, parameters, true)
 }
 
-/// [`copy`], the target first-order where `first_order` is set or what is
-/// copied holds a binder or a term.
+/// [`copy`], or with `keep` the target first-order wherever the source is,
+/// entering it at the first atom, after the terms, as a normal form's
+/// claims always made their arena (so the target's symbols are numbered
+/// as before: the function symbols first).
 fn copy_as(
     target: &mut Formulas,
     source: &Formulas,
     roots: Option<&[NodeId]>,
     parameters: &Parameters<'_>,
-    first_order: bool,
+    keep: bool,
 ) -> Result<Copied, Error> {
     let tables = source.first_order();
     let (nodes, terms) = reached(source, roots);
-    let first_order = first_order
+    let first_order = (keep && source.is_first_order())
         || terms.iter().any(|&t| t)
         || nodes
             .iter()
             .enumerate()
             .any(|(n, &r)| r && matches!(source.nodes()[n], Node::Forall(_) | Node::Exists(_)));
-    if first_order {
+    if first_order && !keep {
         target.enter_first_order()?;
     }
     let mut copied = Copied {
@@ -199,6 +201,9 @@ fn copy_as(
         let at = |k: NodeId| copied.nodes[k.index()].expect("an operand precedes its formula");
         let made = match node {
             Node::Atom(a) if first_order => {
+                if keep {
+                    target.enter_first_order()?;
+                }
                 let (symbol, args) = tables.atoms[a as usize];
                 let (name, arity) = &tables.symbols[symbol.index()];
                 let args: Vec<FoTermId> = tables

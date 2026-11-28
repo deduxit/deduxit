@@ -1308,7 +1308,8 @@ the clausal proof's checker is the trust for "valid".
   exactly `size^arity` values (`checked_pow`) and a value past the domain
   (`Error::Structure`), the tables charged to `limits.memory_bytes`
   beside the rest (`ENTRY_BYTES` and 4 bytes a value); the evaluator
-  reads a term by its own stack (`Evaluator::term`, no recursion over a
+  reads a term by its own stack (`semantics::Interpretation::term`, which
+  the Kripke check shares, no recursion over a
   term), each application a `tick` (a term of a JSON sequent may share
   its subterms and is read as its tree). `Display` prints `f: always v`
   where every value is one, else each tuple (the arity read from the

@@ -28,9 +28,9 @@ impl Formulas {
     /// the terms `extra`, and every term inside one, each once. It walks on
     /// stacks of its own, each shared node and term once: the nodes when it
     /// is made, the terms as it is iterated, so a search that ends at the
-    /// first hit visits no more terms. The order is the walks' it replaced
-    /// (the last argument list met first), which Herbrand's universe keeps
-    /// as the order of its constants and function symbols.
+    /// first hit visits no more terms. The last argument list met comes
+    /// first: Herbrand's universe keeps that order for its constants and
+    /// function symbols, which numbers its instances and atoms.
     pub(crate) fn terms_in(
         &self,
         roots: impl IntoIterator<Item = NodeId>,
