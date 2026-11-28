@@ -8963,3 +8963,16 @@ move (D26).
   switching enumeration agreeing on 182 097). Rebased onto `main` with no conflict; in CI before
   `main`. fixup-35 (the TPTP reader) in its worker on 87c4's head, cores 10-12; fixup-33 waits for
   87c5 (both near `ordinary`'s Rocq writers), fixup-34 for 87c5 too.
+- 2026-11-28, about 04:30: **87c9b reviewed; 87e1 started.** 87c9b (Opus, high; the reviewer on
+  Opus): one decision of a sequent for `prove` and the batch (`cli/src/decide.rs`), one driver of
+  the linear and the ordinary session's shared commands, one maker of a rules derivation (`check`
+  now renders PNG and PDF), the time, memory and work limits declared once (`LimitArgs`, which
+  87i1 flattens into each suite's subcommand), and one table from a refusal's setting to its flag.
+  The behaviour lock reblessed in its own commit (the limits stand together in their heading). The
+  reviewer's six findings fixed (a Ctrl-C the linear session cleared, `prove --system`'s layout,
+  hidden and reworded limit flags among them). (departs from the plan) A session's `close` keeps
+  its own call (its goal is no sequent read); `grade` reads no answer value, since it grades by
+  check writers, a candidate for 87i; F-7b-05 held for fixup-34. 87e1 (moves only) in its worker on
+  87c9b's head, cores 4-6 (decided unattended: wave E waits for wave C, but 87c5 and 87c6 touch
+  neither `linear/search/mod.rs` nor its rules file). Rebased onto `main` with no conflict; in CI
+  before `main`.
