@@ -8976,3 +8976,9 @@ move (D26).
   87c9b's head, cores 4-6 (decided unattended: wave E waits for wave C, but 87c5 and 87c6 touch
   neither `linear/search/mod.rs` nor its rules file). Rebased onto `main` with no conflict; in CI
   before `main`.
+- 2026-11-28, about 05:30: **No local full check in step sessions** (decided unattended). Four
+  sessions' `nix flake check` queued on the machine lock, each about an hour with two jobs, while
+  `plan/push-ci.sh` runs every flake check on GitHub's runners before a chain lands. The sessions
+  now pass the gate and the nix checks their area needs (`rocq`, `web-wasm-tests`, `doc-private`
+  and the like); the planning session's CI run is the full check. CLAUDE.md's table already lets
+  `plan/push-ci.sh` be the full check; a failure there goes back to the session.
