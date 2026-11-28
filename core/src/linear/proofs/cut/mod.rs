@@ -338,18 +338,7 @@ pub fn step(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Reduction, Error> {
     let record = Record::of(proof, mode, limits, &mut stop).map_err(Error::Check)?;
-    let cut = match at {
-        Some(at) if matches!(proof.nodes().get(at.index()), Some(Node::Cut(..))) => at,
-        Some(at) => {
-            return Err(Error::NoCut {
-                node: Some(at.get()),
-            });
-        }
-        None => options
-            .strategy
-            .pick(proof)
-            .ok_or(Error::NoCut { node: None })?,
-    };
+    let cut = chosen(proof, at, options)?.ok_or(Error::NoCut { node: None })?;
     let (made, step) =
         reduce(proof, &record, mode, cut, options, limits, &mut stop).map_err(Error::Refused)?;
     let reading = check::reading(&made, mode).map_err(Error::Check)?;
@@ -461,16 +450,7 @@ pub fn eliminate(
         if let (Some(before), Some(last)) = (&checked, steps.last()) {
             each(before, last);
         }
-        let cut = match at.filter(|_| steps.is_empty()) {
-            Some(at) if matches!(current.nodes().get(at.index()), Some(Node::Cut(..))) => Some(at),
-            Some(at) => {
-                return Err(Error::NoCut {
-                    node: Some(at.get()),
-                });
-            }
-            None => options.strategy.pick(&current),
-        };
-        let Some(cut) = cut else {
+        let Some(cut) = chosen(&current, at.filter(|_| steps.is_empty()), options)? else {
             return Ok(Elimination {
                 proof: current,
                 steps,
@@ -497,6 +477,19 @@ pub fn eliminate(
             }
             Err(refusal) => return Ok(ended(current, steps, refusal)),
         }
+    }
+}
+
+/// Returns the cut a step reduces in `proof`: the node `at` where it is
+/// given, else the one the strategy of `options` picks, or `None` where
+/// the proof has none. An `at` that is no cut is [`Error::NoCut`].
+fn chosen(proof: &Proof, at: Option<NodeId>, options: &Options) -> Result<Option<NodeId>, Error> {
+    match at {
+        Some(at) if matches!(proof.nodes().get(at.index()), Some(Node::Cut(..))) => Ok(Some(at)),
+        Some(at) => Err(Error::NoCut {
+            node: Some(at.get()),
+        }),
+        None => Ok(options.strategy.pick(proof)),
     }
 }
 
