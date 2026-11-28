@@ -20,7 +20,6 @@ use deduxit::{
     linear::{Forest, Proof, ViewOptions},
 };
 use std::fmt::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// Returns the ordinary sequent `text` holds in `format`: text in the
@@ -163,161 +162,6 @@ pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Res
     Ok(())
 }
 
-/// The part of the time limit, in percent, that the default's first-order
-/// method (grounding or the connection prover) gets before the embedding
-/// takes over with the rest. On ILTP's first-order problems at 2 s the
-/// connection prover proves all but three of its theorems within 0.6 s,
-/// and five of the seven the embedding alone proves take it under 6 ms.
-pub(crate) const FIRST_ORDER_SHARE: u32 = 90;
-
-/// Returns the deadline of the default's first-order method:
-/// [`FIRST_ORDER_SHARE`] of the time limit where no method is given and the
-/// sequent's method is grounding or the connection prover, else one that
-/// never passes.
-///
-/// # Errors
-///
-/// A thread for the deadline that cannot be started.
-pub(crate) fn first_order_share(
-    options: &ordinary::Options,
-    sequent: &ordinary::Sequent,
-    deadline: &Deadline,
-) -> Result<Deadline> {
-    let first_order = matches!(
-        options.method_for(sequent),
-        Method::Connection | Method::Grounding
-    );
-    if options.method.is_none() && first_order {
-        deadline.share(FIRST_ORDER_SHARE)
-    } else {
-        Deadline::start(None, Instant::now())
-    }
-}
-
-/// The part of the time limit, in percent, that the default's connection
-/// prover gets of a first-order classical sequent before the model search
-/// takes the rest of [`FIRST_ORDER_SHARE`]. On ILTP's first-order problems
-/// the model search finds each of its 210 structures within 0.4 s, a fifth
-/// of a 2 s limit; at 70% the prover loses two of its 604 theorems at 2 s
-/// and none at 5 s.
-pub(crate) const CONNECTION_SHARE: u32 = 70;
-
-/// The part of the time limit, in percent, the model search goes on for
-/// after the connection prover gives way, before the embedding takes over:
-/// on ILTP's first-order problems at 2 s, of the 30 structures it found
-/// where the prover gave way first, it found every one within 2% of the
-/// limit after, and the one theorem the embedding proves there took it
-/// 2 ms.
-pub(crate) const MODEL_GRACE: u32 = 5;
-
-/// Returns how long the model search goes on after the connection prover
-/// gives way: [`MODEL_GRACE`] of the time limit, or a tenth of a second
-/// without one.
-pub(crate) fn model_grace(deadline: &Deadline) -> Duration {
-    deadline
-        .limit()
-        .map_or(Duration::from_millis(100), |limit| {
-            limit * MODEL_GRACE / 100
-        })
-}
-
-/// Returns the deadline of the default's connection prover on a
-/// first-order classical sequent: [`CONNECTION_SHARE`] of the time limit
-/// where no method is given and the sequent's method is grounding or the
-/// connection prover in classical logic, else one that never passes.
-///
-/// # Errors
-///
-/// A thread for the deadline that cannot be started.
-pub(crate) fn connection_share(
-    options: &ordinary::Options,
-    sequent: &ordinary::Sequent,
-    deadline: &Deadline,
-) -> Result<Deadline> {
-    let first_order = matches!(
-        options.method_for(sequent),
-        Method::Connection | Method::Grounding
-    );
-    if options.method.is_none() && first_order && options.logic == Logic::Classical {
-        deadline.share(CONNECTION_SHARE)
-    } else {
-        Deadline::start(None, Instant::now())
-    }
-}
-
-/// Returns whether the command races the model search beside the
-/// embedding: a first-order sequent in intuitionistic or minimal logic with
-/// no method and no translation given (the embedding decides it, or takes
-/// over from grounding), on more than one thread (`--jobs 1` and
-/// `--deterministic` leave the embedding alone).
-pub(crate) fn races_the_embedding(
-    options: &ordinary::Options,
-    sequent: &ordinary::Sequent,
-    search: &deduxit::linear::search::Options,
-) -> bool {
-    models_beside(options, sequent) && search.jobs.count() > 1
-}
-
-/// Returns whether the default asks the model search beside the embedding:
-/// a first-order sequent in intuitionistic or minimal logic with no method
-/// and no translation given.
-pub(crate) fn models_beside(options: &ordinary::Options, sequent: &ordinary::Sequent) -> bool {
-    options.method.is_none()
-        && options.translation.is_none()
-        && options.logic != Logic::Classical
-        && sequent.formulas().is_first_order()
-}
-
-/// Returns the model search's refutation of a sequent [`models_beside`]
-/// names, searched first on one thread within its grace ([`model_grace`]),
-/// with how long it took; `None` where it found none, and the embedding
-/// takes the rest of the time. The command's race needs a second thread;
-/// on one, a structure found in the grace is the answer the race would
-/// give, at the cost of that grace to the embedding (`--jobs 1`,
-/// `--deterministic` and a batch's entry).
-pub(crate) fn model_first(
-    options: &ordinary::Options,
-    sequent: &ordinary::Sequent,
-    search: &deduxit::linear::search::Options,
-    limits: &deduxit::Limits,
-    deadline: &Deadline,
-    halt: &dyn Fn() -> bool,
-) -> Option<(ordinary::Outcome, Duration)> {
-    let start = Instant::now();
-    let grace = model_grace(deadline);
-    let modelled = ordinary::models::decide(sequent, options.logic, search, limits, |_| {
-        halt() || start.elapsed() >= grace
-    });
-    match modelled {
-        Ok(
-            refuted @ ordinary::models::Outcome {
-                verdict: ordinary::Verdict::NotValid,
-                ..
-            },
-        ) => Some((ordinary::Outcome::from(refuted), start.elapsed())),
-        Ok(_) | Err(_) => None,
-    }
-}
-
-/// Returns whether the default's first-order method stopped at its share of
-/// the time limit, not at the limit or Ctrl-C: the embedding then decides
-/// with the time left.
-pub(crate) fn stopped_at_share(
-    decided: &Result<ordinary::Outcome, Error>,
-    share: &Deadline,
-    deadline: &Deadline,
-) -> bool {
-    let stopped = match decided {
-        Ok(outcome) => matches!(
-            outcome.verdict,
-            ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Stopped)
-        ),
-        Err(Error::Refused(Refusal::Stopped { .. })) => true,
-        Err(_) => false,
-    };
-    stopped && share.passed() && !deadline.passed() && !interrupted()
-}
-
 /// Returns how the verdict line names a method that decides without the
 /// embedding: `LJT` or `the SAT solver`.
 pub(crate) const fn by(method: Method) -> &'static str {
@@ -328,68 +172,32 @@ pub(crate) const fn by(method: Method) -> &'static str {
         Method::Connection => "the connection prover",
         Method::Grounding => "grounding",
         Method::Models => "the model search",
+        Method::Embedding => "the embedding",
         _ => "LJT",
     }
 }
 
 /// Decides an ordinary sequent by a method other than the embedding, as
-/// the options' method for it says, until `halt` says to stop. With no
+/// the options' method for it says, until `stop` says to stop. With no
 /// method given, the SAT solver takes LJT's derivation where LJT gives one,
-/// as the library's default does, and a first-order classical sequent the
-/// connection prover decides is searched for a finite structure beside it
-/// ([`by_connection`]). `stop` is asked on the calling thread, the race's
-/// `halt` on the model search's.
+/// as the library's default does; a first-order sequent with no method
+/// given is the library's default's ([`by_library`]) and never reaches it.
 pub(crate) fn decide_natively(
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
     search: &deduxit::linear::search::Options,
     limits: &deduxit::Limits,
-    race: &Race<'_>,
-    mut stop: impl FnMut(deduxit::Progress) -> bool,
+    stop: impl FnMut(deduxit::Progress) -> bool,
 ) -> Result<ordinary::Outcome, Error> {
     let logic = options.logic;
     match options.method_for(sequent) {
-        // The default keeps the connection prover's derivation of LK of a
-        // valid classical sequent where it gives one within the bound of
-        // the evidence, and where grounding gives way at a bound the
-        // connection prover decides, as the library's default does.
-        Method::Grounding => {
-            let named = options.with_method(Some(Method::Grounding));
-            // The default grounds within the library default's bound.
-            let most = ordinary::grounding::DEFAULT_NODES;
-            let grounding_limits = if options.method.is_none() {
-                limits.with_occurrences(Some(limits.occurrences.map_or(most, |o| o.min(most))))
-            } else {
-                *limits
-            };
-            let grounded =
-                ordinary::decide_within(sequent, &named, search, &grounding_limits, &mut stop);
-            let classical = options.method.is_none() && logic == Logic::Classical;
-            if classical && ordinary::gives_way(&grounded) {
-                return by_connection(sequent, logic, search, limits, race, &mut stop);
-            }
-            let grounded = grounded?;
-            if classical
-                && matches!(grounded.verdict, ordinary::Verdict::Valid(_))
-                && let Ok(connected) = ordinary::connection::decide(
-                    sequent,
-                    logic,
-                    search,
-                    &bounded(limits),
-                    &mut stop,
-                )
-                && matches!(
-                    connected.verdict,
-                    ordinary::Verdict::Valid(ordinary::Evidence::Derivation(_))
-                )
-            {
-                return Ok(ordinary::Outcome::from(connected));
-            }
-            Ok(grounded)
-        }
-        Method::Connection if options.method.is_none() && logic == Logic::Classical => {
-            by_connection(sequent, logic, search, limits, race, &mut stop)
-        }
+        Method::Grounding => ordinary::decide_within(
+            sequent,
+            &options.with_method(Some(Method::Grounding)),
+            search,
+            limits,
+            stop,
+        ),
         Method::Connection => ordinary::connection::decide(sequent, logic, search, limits, stop)
             .map(ordinary::Outcome::from),
         Method::Models => ordinary::models::decide(sequent, logic, search, limits, stop)
@@ -404,172 +212,6 @@ pub(crate) fn decide_natively(
         }
         _ => ljt::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
     }
-}
-
-/// What the default's race of a first-order classical sequent reads beside
-/// the caller's stop: the connection prover's deadline on one thread, the
-/// model search's grace after the prover gives way, and the stop of the
-/// model search's thread.
-#[derive(Clone, Copy)]
-pub(crate) struct Race<'a> {
-    /// The connection prover's deadline on one thread
-    /// ([`connection_share`]).
-    pub(crate) connection: &'a Deadline,
-    /// How long the model search goes on after the prover gives way
-    /// ([`model_grace`]).
-    pub(crate) grace: Duration,
-    /// Whether to stop, asked on the model search's thread.
-    pub(crate) halt: &'a (dyn Fn() -> bool + Sync),
-}
-
-/// Decides a first-order classical sequent as the default does: the
-/// connection prover, and beside it on a thread of its own the model
-/// search, either verdict from the prover), each with half the memory
-/// bound. Where the prover gives way (a bound other than the stop) the
-/// model search goes on for `grace` at most, so that the embedding, which
-/// the caller runs next, gets the time left: a theorem the embedding
-/// proves at once is not kept waiting. Which of the two answers a sequent
-/// both refute depends on which finds it first, as in the linear search's
-/// race. On one thread (`--jobs 1`, `--deterministic`, or where no thread
-/// starts) the prover searches until `connection` passes, and the model
-/// search takes the rest of the time where the prover stopped there, or
-/// `grace` where it gave way. The calling thread asks `stop`, the model
-/// search's thread the race's `halt`.
-///
-/// On ILTP's first-order problems at 2 s, the model search found each of
-/// its 210 structures within 0.4 s, while the prover proves two theorems
-/// only after 1.4 s: run one after the other within the first-order share,
-/// one of them would lose the other's answers.
-fn by_connection(
-    sequent: &ordinary::Sequent,
-    logic: Logic,
-    search: &deduxit::linear::search::Options,
-    limits: &deduxit::Limits,
-    race: &Race<'_>,
-    stop: &mut dyn FnMut(deduxit::Progress) -> bool,
-) -> Result<ordinary::Outcome, Error> {
-    let Race {
-        connection,
-        grace,
-        halt,
-    } = *race;
-    let stopped = |decided: &Result<ordinary::Outcome, Error>| {
-        matches!(
-            decided,
-            Ok(ordinary::Outcome {
-                verdict: ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Stopped),
-                ..
-            }) | Err(Error::Refused(Refusal::Stopped { .. }))
-        )
-    };
-    if search.jobs.count() > 1 {
-        let half = limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 2));
-        let done = AtomicBool::new(false);
-        // When the prover gave way: the model search ends `grace` after.
-        let gave_way: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
-        let raced = std::thread::scope(|scope| {
-            let modelled = std::thread::Builder::new()
-                .name("model search".into())
-                .spawn_scoped(scope, || {
-                    let modelled = ordinary::models::decide(sequent, logic, search, &half, |_| {
-                        halt()
-                            || done.load(Ordering::Relaxed)
-                            || gave_way.get().is_some_and(|at| at.elapsed() >= grace)
-                    });
-                    if matches!(
-                        &modelled,
-                        Ok(ordinary::models::Outcome {
-                            verdict: ordinary::Verdict::NotValid,
-                            ..
-                        })
-                    ) {
-                        done.store(true, Ordering::Relaxed);
-                    }
-                    modelled
-                })
-                .ok()?;
-            let connected = ordinary::connection::decide(sequent, logic, search, &half, |p| {
-                stop(p) || done.load(Ordering::Relaxed)
-            });
-            // The prover's verdict ends the model search, its giving way
-            // leaves it `grace`, and its stop at the share leaves it to the
-            // caller's stop.
-            let at_stop = matches!(
-                &connected,
-                Ok(ordinary::connection::Outcome {
-                    verdict: ordinary::Verdict::Unknown(deduxit::linear::search::Reason::Stopped),
-                    ..
-                }) | Err(Error::Refused(Refusal::Stopped { .. }))
-            );
-            let decided = matches!(
-                &connected,
-                Ok(ordinary::connection::Outcome {
-                    verdict: ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid,
-                    ..
-                })
-            );
-            if decided {
-                done.store(true, Ordering::Relaxed);
-            } else if !at_stop {
-                let _ = gave_way.set(Instant::now());
-            }
-            let modelled = match modelled.join() {
-                Ok(modelled) => modelled,
-                Err(panic) => std::panic::resume_unwind(panic),
-            };
-            Some((connected, modelled))
-        });
-        if let Some((connected, modelled)) = raced {
-            let connected = connected.map(ordinary::Outcome::from);
-            return match (connected, modelled) {
-                (
-                    connected @ Ok(ordinary::Outcome {
-                        verdict: ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid,
-                        ..
-                    }),
-                    _,
-                ) => connected,
-                (
-                    _,
-                    Ok(
-                        modelled @ ordinary::models::Outcome {
-                            verdict: ordinary::Verdict::NotValid,
-                            ..
-                        },
-                    ),
-                ) => Ok(ordinary::Outcome::from(modelled)),
-                // A defect of either is the answer.
-                (Err(error @ Error::Countermodel { .. }), _)
-                | (_, Err(error @ Error::Countermodel { .. })) => Err(error),
-                // The prover's unknown, which the embedding takes over from.
-                (connected, _) => connected,
-            };
-        }
-    }
-    let connected = ordinary::connection::decide(sequent, logic, search, limits, |p| {
-        stop(p) || connection.passed()
-    })
-    .map(ordinary::Outcome::from);
-    if stopped(&connected) && connection.passed() && !halt() {
-        return ordinary::models::decide(sequent, logic, search, limits, stop)
-            .map(ordinary::Outcome::from);
-    }
-    if ordinary::gives_way(&connected) {
-        let after = Instant::now();
-        let modelled = ordinary::models::decide(sequent, logic, search, limits, |p| {
-            stop(p) || after.elapsed() >= grace
-        });
-        if matches!(
-            &modelled,
-            Ok(ordinary::models::Outcome {
-                verdict: ordinary::Verdict::NotValid,
-                ..
-            })
-        ) {
-            return modelled.map(ordinary::Outcome::from);
-        }
-    }
-    connected
 }
 
 /// What deciding an ordinary sequent by its own method leaves to its
@@ -695,6 +337,62 @@ fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveW
     Some(format!("{} gave no verdict: {why}", by(method)))
 }
 
+/// Returns whether the library's default decides a sequent whole: a
+/// first-order one with no method and no translation given (a translation
+/// names the embedding), where `--net` does not ask for the image's
+/// linear proof. Its order of methods is the library's (a first attempt
+/// each by grounding, the connection prover and the embedding, then the
+/// model search, then the long attempts), so the command, the page and a
+/// program take one path.
+pub(crate) fn by_library(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    run: &crate::decide::Run<'_>,
+) -> bool {
+    options.method.is_none()
+        && options.translation.is_none()
+        && sequent.formulas().is_first_order()
+        && !run.net
+}
+
+/// Decides a sequent [`by_library`] names by the library's default, until
+/// Ctrl-C, the time limit or the batch's limit. A refusal is an unknown
+/// verdict said by its line, with the flag that raises the bound; in a
+/// batch it stays the library's error, which the entry's record holds.
+///
+/// # Errors
+///
+/// The library's errors other than a refusal, and in a batch a refusal.
+fn by_default(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    run: &crate::decide::Run<'_>,
+) -> Result<Native> {
+    if run.own {
+        catch_interrupt();
+    }
+    let start = Instant::now();
+    let notice = run.notice(false);
+    let decided =
+        ordinary::decide_within(sequent, options, run.search, &run.limits, |_| run.halted());
+    drop(notice);
+    let refusal = match decided {
+        Ok(outcome) => return Ok(Native::Decided(Box::new(outcome), start, false)),
+        Err(Error::Refused(Refusal::Stopped { .. })) => Stop::why((run.stopped)()),
+        Err(error) if !run.own => return Err(error.into()),
+        Err(Error::Refused(refusal)) => {
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
+            format!("{refusal}{flag}")
+        }
+        Err(error) => return Err(error.into()),
+    };
+    Ok(Native::Stopped(format!(
+        "unknown ({} logic by {}): {refusal}",
+        options.logic,
+        by(options.method_for(sequent))
+    )))
+}
+
 /// Decides an ordinary sequent by its own method, as the options' method
 /// says, for [`crate::decide::decide`]. Gives way where the logic's default
 /// ends at a bound other than the time limit or Ctrl-C, or a bound refused
@@ -713,6 +411,9 @@ pub(crate) fn natively(
     sequent: &ordinary::Sequent,
     run: &crate::decide::Run<'_>,
 ) -> Result<Native> {
+    if by_library(options, sequent, run) {
+        return by_default(options, sequent, run);
+    }
     let method = options.method_for(sequent);
     let keeps = keeps_evidence(options, sequent);
     if run.net {
@@ -729,7 +430,6 @@ pub(crate) fn natively(
             by(method)
         );
     }
-    let deadline = run.deadline;
     // The logic's default, which the embedding takes over from.
     let gives_way = options.method.is_none();
     if run.own {
@@ -737,41 +437,18 @@ pub(crate) fn natively(
     }
     let start = Instant::now();
     let notice = run.notice(false);
-    let share = first_order_share(options, sequent, deadline)?;
-    let connection = connection_share(options, sequent, deadline)?;
-    let halt = || run.halted() || share.passed();
     // Whether the read-back or a check began, which the verdict line of a
     // stop says (LJT's and the SAT solver's follow their search).
     let after_search = std::cell::Cell::new(false);
-    let decided = decide_natively(
-        options,
-        sequent,
-        run.search,
-        &run.limits,
-        &Race {
-            connection: &connection,
-            grace: model_grace(deadline),
-            halt: &halt,
-        },
-        |p| {
-            if p.phase != Phase::Search {
-                after_search.set(true);
-            }
-            halt()
-        },
-    );
+    let decided = decide_natively(options, sequent, run.search, &run.limits, |p| {
+        if p.phase != Phase::Search {
+            after_search.set(true);
+        }
+        run.halted()
+    });
     drop(notice);
-    // The method that ran last: the model search after the connection
-    // prover, where it took over.
-    let last = decided.as_ref().map_or(method, ordinary::Outcome::method);
-    if gives_way && stopped_at_share(&decided, &share, deadline) && !(run.beyond)() {
-        return Ok(Native::GivesWay(Some(format!(
-            "{} gave no verdict within {FIRST_ORDER_SHARE}% of the time limit",
-            by(last)
-        ))));
-    }
     if gives_way && ordinary::gives_way(&decided) {
-        return Ok(Native::GivesWay(gave_way(last, &decided)));
+        return Ok(Native::GivesWay(gave_way(method, &decided)));
     }
     if keeps
         && let Ok(solved) = &decided
@@ -1013,6 +690,26 @@ pub(crate) fn write_json(
 /// SAT solver: the verdict, the logic and the method, for a sequent valid
 /// by a clausal proof that proof, and for an undecided sequent why.
 pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> String {
+    // The library's default decides some first-order sequents through the
+    // embedding: their line is the embedding's.
+    if let ordinary::Search::Embedding {
+        translation,
+        linear,
+    } = &outcome.search
+    {
+        let incomplete = matches!(
+            outcome.verdict,
+            ordinary::Verdict::Unknown(Reason::Incomplete)
+        ) && matches!(linear.verdict, Verdict::Unprovable(_));
+        return verdict_line(
+            linear,
+            outcome.logic,
+            *translation,
+            incomplete,
+            outcome_axioms(outcome),
+            ended,
+        );
+    }
     let method = outcome.method();
     let context = format!("{} logic by {}", outcome.logic, by(method));
     match &outcome.verdict {
@@ -1128,6 +825,10 @@ fn not_valid(outcome: &ordinary::Outcome, method: Method, context: &str) -> Stri
 /// Returns the lines `--stats` prints for LJT or the SAT solver: its
 /// counters, a line each, and the time.
 pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) -> String {
+    // The embedding's are the linear search's.
+    if let ordinary::Search::Embedding { linear, .. } = &outcome.search {
+        return crate::prove::statistics(linear, elapsed);
+    }
     let mut lines = String::new();
     let counters: &[(&str, u64)] = match &outcome.search {
         ordinary::Search::Ljt(s) => &[

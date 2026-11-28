@@ -181,6 +181,23 @@ second number (0.1.x to 0.2.0), anything else the third.
   `!A ⊢ A ⊗ … ⊗ A` with 256 copies is 29 KB, where it was 570 KB, and
   Rocq checks it 3.8 times as fast. The statement still writes every
   formula out.
+- **A first-order sequent with no method given is decided in one order
+  by the library, the command and the page.** Grounding (where it
+  applies), the connection prover (in classical logic) and the embedding
+  each get a first attempt within a fixed amount of work; then the search
+  for finite structures and Kripke models has its turn; then the attempts
+  that ran out of work go on. The amounts are counted, not
+  timed. `ordinary::decide_within` ran the model search last, only where
+  the embedding ended unknown without being stopped, so under a time
+  limit it almost never ran; the command kept an order of its own for
+  that (time shares, the model search on a thread beside the provers),
+  which is gone. At 2 s on ILTP's first-order problems `prove --jobs 1`
+  keeps every refutation the model search gave and finds 57 more (15 in
+  classical logic, 42 in intuitionistic logic), and proves 2 theorems
+  more. It misses 76 theorems it proved before (32 by the connection
+  prover, 42 through the embedding in intuitionistic logic, 2 by
+  grounding): they need more than their first attempt and then wait for
+  the model search's turn. No verdict changed.
 
 ### Deprecated
 

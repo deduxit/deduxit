@@ -224,16 +224,15 @@ in use.
   ones through the embedding: valid with a checked derivation; not
   valid from the connection prover where no quantifier needs a witness
   term (every `∀` one to prove and every `∃` one to assume, negations
-  and implications taken into account); otherwise unknown. Under the
-  command's time limit the first-order method gets 90% and the
-  embedding the rest. A search for finite structures (`--method
-  models`, MACE's method through the SAT solver) refutes a first-order
-  sequent with function symbols in every logic, with a checked
-  structure; in classical logic it runs beside the connection prover,
-  and it refutes 210 of ILTP's first-order problems at 2 seconds. In
+  and implications taken into account); otherwise unknown. Each method
+  gets a first attempt within a fixed amount of work, then a search for
+  finite structures (`--method models`, MACE's method through the SAT
+  solver) has its turn, then the attempts go on: the order is counted,
+  not timed. The search refutes a first-order sequent with function
+  symbols in every logic, with a checked structure, and it refutes 210
+  of ILTP's first-order problems in classical logic at 2 seconds. In
   intuitionistic and minimal logic it also finds Kripke models with
-  growing domains, checked by the forcing relation, beside the
-  embedding. Both kinds of model are drawn (SVG, PNG and PDF as boxes,
+  growing domains, checked by the forcing relation. Both kinds of model are drawn (SVG, PNG and PDF as boxes,
   LaTeX and Typst as tables) and certified in Rocq. The other methods
   refuse them by name. A
   [comparison](https://github.com/deduxit/deduxit/blob/main/bench/COMPARISON.md)

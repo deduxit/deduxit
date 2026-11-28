@@ -737,13 +737,12 @@ pub(crate) struct ProveArgs {
     /// and minimal logic with LJT's derivation where LJT gives one, and
     /// classical logic with the embedding's output (its derivation of LK,
     /// refutation and certificate) where the embedding decides within a
-    /// short bound of work. A first-order sequent is decided by grounding
-    /// where it lies in the classes grounding decides, else by the
-    /// connection prover in classical logic and through the embedding in
-    /// the others, the methods that take one; in classical logic the
-    /// model search runs beside the connection prover, on a thread of its
-    /// own, the first to answer winning; where they give up, the embedding
-    /// decides in its place.
+    /// short bound of work. A first-order sequent is decided by the
+    /// methods that take one: grounding where it lies in the classes
+    /// grounding decides, the connection prover in classical logic and the
+    /// embedding each get a first attempt within a fixed amount of work,
+    /// then the model search has its turn, then the attempts that ran out
+    /// of work go on.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear

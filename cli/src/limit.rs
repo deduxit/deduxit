@@ -83,19 +83,6 @@ impl Deadline {
         self.limit.map(|(limit, _)| limit)
     }
 
-    /// Starts the deadline of the first `percent` of this one's limit,
-    /// counted from the same start; without a limit, one that never
-    /// passes.
-    pub(crate) fn share(&self, percent: u32) -> Result<Self> {
-        match self.limit {
-            Some((limit, end)) => Self::start(
-                Some(limit * percent.min(100) / 100),
-                end.checked_sub(limit).unwrap_or(end),
-            ),
-            None => Self::start(None, Instant::now()),
-        }
-    }
-
     /// Runs `load` and returns its result, or `None` when the limit passed
     /// first. Under a limit `load` runs on a thread of its own, which is
     /// left behind when the limit passes: reading a file and parsing it

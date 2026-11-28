@@ -233,9 +233,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   default is the SAT solver keeping the embedding's evidence,
   `keeps_evidence`, below): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
-  `Options::method_for(&sequent)` is not the embedding (a first-order
-  sequent with no method given goes to the embedding) `natively`
-  decides it by
+  `Options::method_for(&sequent)` is not the embedding, or the sequent
+  is first-order with no method given (the library's default, below),
+  `natively` decides it by
   `decide_natively` (LJT, the SAT solver, or with no method given the
   library's `sat::decide_preferring_ljt`, as `ordinary::decide`'s
   default) on the large stack
@@ -306,8 +306,7 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   - the batch's own limit (`beyond`, `stopped`);
   - the search on the calling thread for an entry on one thread
     (`threads: None`);
-  - `own` for `prove` alone: the race of the model search beside the
-    embedding, the notices, Ctrl-C caught, the translation within the
+  - `own` for `prove` alone: the notices, Ctrl-C caught, the translation within the
     deadline (so only `prove` has `Untranslated`), and a native
     refusal said with its flag (the batch keeps the library's error,
     which its JSON record's `error` field needs);
@@ -316,8 +315,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
 
   `prove` runs the native step and the search on the large stack
   (`Run::stacked`), and writes what they found there too
-  (`Answer::Native::on_stack`); the model search first, the
-  translation and their answers stay on the calling thread, so a stack
+  (`Answer::Native::on_stack`); the translation and its answers stay
+  on the calling thread, so a stack
   that cannot be made fails only what needed it, as before.
   The session's `close` shares the linear search's call (`searched`),
   not the decision: a goal of a session is no sequent read (departs from
@@ -1493,15 +1492,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--restricted-backtracking` (`SearchArgs`, keys `search.path_length`
   and `search.restricted_backtracking`), `native_statistics` prints its
   five counters, and an unknown at its bound names `--path-length`
-  (`advice`). Where it gives way at a bound the embedding answers, as
-  for the other defaults.
+  (`advice`). As the default it is the library's (below).
 - **Grounding** (`--method grounding`, the default of a first-order
   sequent of the Bernays–Schönfinkel or the monadic class in every
   logic): `decide_natively` runs it through `ordinary::decide_within`
-  with the method named, then, as the classical default, the connection
-  prover where grounding gives way and the connection prover's
-  derivation of LK of a valid sequent within `bounded`, as the library's
-  `by_grounding` does. Its "not valid" prints `a checked finite
+  with the method named; as the default it is the library's (below).
+  Its "not valid" prints `a checked finite
   structure of N elements refutes it` and the structure after the line
   (`Structure`'s `Display`, not under `-q` or `--tree never`), or `…,
   too large to check` where the check was refused at a bound; its
@@ -1540,52 +1536,31 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   still written to standard error. Refused beside a batch and a format
   other than text. `CONJECTURE` is a process-wide `OnceLock`: one
   `prove` per process, which is the binary's use.
-- **The first-order share** (`FIRST_ORDER_SHARE`, 90): where no method
-  is given and the sequent's method is grounding or the connection
-  prover, `first_order_share` starts a second deadline at 90% of the
-  time limit (`Deadline::share`), the native method's stop polls both,
-  and `stopped_at_share` (stopped at the share, not the limit or Ctrl-C)
-  returns `Native::GivesWay`, so the embedding runs with the time left;
-  `prove` and the batch alike. Measured on ILTP's first-order problems
-  at 2 s (from 75b's per-problem times): 604 proved with 90%, 599 by the
-  prover alone; the prover proves all but three of its theorems within
-  0.6 s, and five of the seven the embedding alone proves take it under
-  6 ms. Without a time limit there is no share.
+- **The library's default of a first-order sequent** (`by_library`,
+  `by_default` in `ordinary.rs`): with no method and no translation
+  given (`--translation` names the embedding, as `--help` says) and no
+  `--net`,
+  `natively` hands the sequent to `ordinary::decide_within` whole, in
+  `prove` and the batch alike, with the settings' search and limits and
+  the stop `run.halted()`; its order is the library's (grounding, a
+  first attempt by the connection prover and the embedding, the model
+  search, the long attempts; core-ordinary.md), so the command, the page
+  and a program take one path; the command's own order under the clock
+  (time shares, the model search raced beside the provers) went when the
+  library's budgets gave the model search a turn under any stop. What the
+  library decided through the embedding (`Search::Embedding`) is written
+  by `write_native` with the embedding's verdict line
+  (`native_verdict_line` calls `verdict_line`) and the linear search's
+  statistics (`native_statistics` calls `prove::statistics`). Its search
+  runs with the settings' jobs from the start: the race of one thread
+  against a pool after `--pool-after` is the command's own linear search
+  and does not reach the library (departs from the race the command ran
+  before; `--jobs 1` and `--deterministic` are one thread as before). A
+  refusal (a read-back past the memory bound, say) is `prove`'s unknown
+  line naming the flag (`Native::Stopped`), and the batch's error.
 - **The model search** (`--method models`, `--model-size N|none`, key
   `search.model_size`, none by default: it deepens while the time limit
-  lasts): `decide_natively` runs `ordinary::models::decide`. As the
-  classical default of a first-order sequent (after grounding gives way,
-  or where the method is the connection prover), `by_connection` races
-  the prover on the calling thread (its `stop`) and the model search on
-  a scoped thread of its own (`halt`, which must be `Sync`), each with
-  half the memory bound: the prover's verdict or the model search's
-  "not valid" stops the other (`done`), and so does the prover's giving
-  way, so that the embedding runs next with the time left (the
-  reviewer's witness: a theorem the embedding proves in 0.3 s waited 18 s
-  for the model search before). Which of the two answers a sequent both
-  refute depends on timing, as in the linear race; `--jobs 1` and
-  `--deterministic` take the sequential path: the prover until
-  `connection_share`'s deadline (`CONNECTION_SHARE` percent of the time
-  limit), then the model search only where the prover stopped there,
-  under the caller's stop, which the first-order share ends.
-  `decide_natively` takes that deadline, the `Sync` halt and the stop
-  from `prove` and the batch.
-- **The race beside the embedding** (`races_the_embedding`, `prove.rs`):
-  a first-order sequent in intuitionistic or minimal logic with no
-  method or translation given (the embedding decides it, or takes over
-  from grounding), more than one thread: the model search
-  (`models::decide`, finite structures and Kripke models, a quarter of
-  the memory bound) on a scoped thread beside the embedding's search
-  (three quarters, and one thread fewer: the reviewer measured a long
-  theorem 12 to 17 % slower with the model thread on top of `--jobs`), a refutation stopping the search (`found` in its
-  `passed`), a proof stopping the model search; the model search's "not
-  valid" is written by `write_native`. On one thread there is no race:
-  `model_first` (`ordinary.rs`) runs the model search first within
-  `model_grace` (5% of the time limit), its refutation the answer, else
-  the embedding takes the rest; `prove` calls it where
-  `races_the_embedding` says no and `models_beside` yes (`--jobs 1`,
-  `--deterministic`), and the batch for every such entry (a `Run` not
-  `own`), so an entry answers as `prove --deterministic` does.
+  lasts): `decide_natively` runs `ordinary::models::decide`.
   `--model-worlds N|none` (key `search.model_worlds`); an unknown at
   `kripke_size` names both flags (`advice`); `check` of an outcome with
   a Kripke model is `check_kripke_structure` (`write_refuted`, shared

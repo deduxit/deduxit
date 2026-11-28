@@ -1297,8 +1297,7 @@ while the time limit lasts).
   world forces it in minimal logic); JSON `"kripke_structure":
   {"sequent": …, "model": {"worlds": [{"size", "functions",
   "predicates", "falsity", "arrows"}], "constants", "world"}}`, which
-  `check` checks again. By default `prove` runs it beside the embedding
-  there.
+  `check` checks again.
 - It never answers `valid`: past the bound the sequent is `unknown` with
   the reason `model_size` (classical) or `kripke_size` (the others), at
   the time limit `stopped`. In intuitionistic logic a finite model never
@@ -1735,10 +1734,11 @@ embedding: valid with a checked derivation (or grounding's clausal
 proof); not valid from grounding with a checked finite structure, or
 from the connection prover where no quantifier needs a witness term
 (every `forall` one to prove, every `exists` one to assume); otherwise
-unknown (exit 3). Under the time limit grounding or the connection
-prover gets 90% of it and the embedding the rest, and in classical logic
-the model search (`models`, above) runs beside the prover, the first to
-answer winning; where they give up at a bound the embedding decides; an unprovable image is unknown (reason
+unknown (exit 3). Grounding (where it applies), the connection prover
+(classical logic) and the embedding each get a first attempt within a
+fixed amount of work, then the model search (`models`, above) its turn,
+then the attempts that ran out of work go on; the amounts are counted,
+not timed. An unprovable image is unknown (reason
 `incomplete`), since the translation may lose first-order proofs. The
 other methods refuse a first-order sequent, naming themselves (exit
 2). A session proves one with the quantifier rules:

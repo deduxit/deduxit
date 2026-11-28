@@ -584,10 +584,11 @@ equal, and `s != t` (or `s ≠ t`) that they are not
 class grounding decides ([Decidable classes](#decidable-classes)), in
 every logic. Otherwise it decides it by the connection prover in
 classical logic, and through the embedding in intuitionistic and minimal
-logic. Under a time limit, grounding or the connection prover gets 90%
-of it and the embedding the rest: on ILTP's first-order problems that
-proves five theorems more at 2 seconds. In classical logic a search for
-a finite structure runs beside the prover ([Finite models](#finite-models)). A valid sequent gets a checked
+logic. Each gets a first attempt within a fixed amount of work; then a
+search for a finite countermodel has its turn
+([Finite models](#finite-models)), and then the attempts that ran out
+of work go on. The amounts are counted, not timed, so the order is the
+same on any machine and with any time limit. A valid sequent gets a checked
 derivation with the quantifier rules:
 
 ```console
@@ -771,16 +772,15 @@ unknown (classical logic by the model search): no structure of up to 2 elements 
 exit 3
 ```
 
-In classical logic `prove` runs the search by default beside the
-connection prover, on a thread of its own, the first to answer winning;
-where the prover gives up at a bound, the search goes on for 5% of the
-time limit and the embedding then takes over. On one thread (`--jobs 1`) the prover gets 70% of
-the time limit and the search the rest of the first-order share. Without the time limit, the
-library runs it last, on a first-order sequent the embedding leaves
-unknown, in every logic. On ILTP's first-order problems it refutes 210
-in classical logic at 2 seconds, each within 0.4 seconds: 176 of the 178
-the library marks CounterSatisfiable that have no equality, among them
-every one of the 77 grounding refutes and the 84 nanoCoP refutes.
+With no method given, `prove` runs the search after the first attempts
+of the connection prover and the embedding, within its own amount of
+work, before they go on: a sequent the provers cannot settle quickly is
+searched for a countermodel before they take the rest of the time
+limit. A theorem the first attempts miss waits for the search. On
+ILTP's first-order problems it refutes 210 in classical logic at 2
+seconds, each within 0.4 seconds: 176 of the 178 the library marks
+CounterSatisfiable that have no equality, among them every one of the
+77 grounding refutes and the 84 nanoCoP refutes.
 
 ```console
 $ deduxit prove --logic classical 'forall x. (p(x) -> p(f(x))), p(a) |- p(b)'; echo "exit $?"
@@ -811,11 +811,9 @@ world 1: domain {0, 1}; p: {0}
 exit 1
 ```
 
-By default `prove` runs this search beside the embedding in
-intuitionistic and minimal logic, on a thread of its own, the first to
-answer winning. On one thread (`--jobs 1`, `--deterministic` and each
-sequent of a batch) the search goes first, for 5% of the time limit, and
-the embedding takes the rest. In intuitionistic logic a finite model never refutes
+With no method given, `prove` runs this search in intuitionistic and
+minimal logic after the embedding's first attempt, as in classical
+logic. In intuitionistic logic a finite model never refutes
 `¬¬A` where `A` is valid classically, since every world of a finite
 model sees a world with none above it, where intuitionistic and
 classical forcing agree. So the failure of Glivenko's theorem at first
@@ -840,7 +838,7 @@ Typst write it as a table, a row per world (one for a structure), the
 model's world in bold:
 
 ```console
-$ deduxit prove --logic intuitionistic --format latex '~(forall x. p(x)) |- exists x. ~p(x)'
+$ deduxit prove --logic intuitionistic --format latex --timeout 10s '~(forall x. p(x)) |- exists x. ~p(x)'
 % not valid (intuitionistic logic by the model search): a checked Kripke model of 2 worlds with growing domains refutes it
 \begin{tabular}{lllll}
 world & above & domain & functions & facts \\

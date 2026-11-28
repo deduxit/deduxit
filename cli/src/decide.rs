@@ -15,10 +15,9 @@ use crate::settings::Threads;
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::Result;
 use deduxit::Limits;
-use deduxit::linear::search::{Goal, Options, Outcome, Verdict, prove_goal};
+use deduxit::linear::search::{Goal, Options, Outcome, prove_goal};
 use deduxit::linear::{Forest, Mode, Written};
 use deduxit::ordinary::{self as ordinary_logic, Image, Method};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// A sequent read, ready to be decided.
@@ -54,8 +53,7 @@ pub(crate) struct Run<'a> {
     pub(crate) net: bool,
     /// Whether this is a call of its own, `prove`, and not a batch's
     /// entry, which answers as `prove --deterministic` does. A call of its
-    /// own races the model search beside the embedding on a thread of its
-    /// own, says a wait on a terminal, catches Ctrl-C, translates within
+    /// own says a wait on a terminal, catches Ctrl-C, translates within
     /// the time limit, and advises the flag a refusal's bound needs.
     pub(crate) own: bool,
     /// Asked before each step whose answer goes to the output, so that an
@@ -66,10 +64,9 @@ pub(crate) struct Run<'a> {
 /// The step [`Run::ready`] is asked before.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Before {
-    /// Ordinary logic's own method.
+    /// Ordinary logic's own method, or the library's default of a
+    /// first-order sequent.
     Native,
-    /// The model search's refutation, found before the embedding ran.
-    Model,
     /// The linear search.
     Search,
 }
@@ -113,9 +110,10 @@ impl Run<'_> {
 
 /// The answer of one sequent, which the caller writes.
 pub(crate) enum Answer {
-    /// An outcome of ordinary logic that the embedding did not give:
-    /// its own method's, the model search's refutation, or the classical
-    /// default's where the embedding gave no evidence.
+    /// An outcome of ordinary logic that the command's own linear search
+    /// did not give: its own method's, the library's default of a
+    /// first-order sequent, or the classical default's where the embedding
+    /// gave no evidence.
     Native {
         /// The outcome.
         outcome: Box<ordinary_logic::Outcome>,
@@ -175,18 +173,10 @@ fn native(outcome: Box<ordinary_logic::Outcome>, start: Instant, on_stack: bool)
     }
 }
 
-/// Returns the instant `elapsed` ago, or now where the clock cannot go
-/// back that far.
-fn ago(elapsed: Duration) -> Instant {
-    Instant::now()
-        .checked_sub(elapsed)
-        .unwrap_or_else(Instant::now)
-}
-
 /// Decides a sequent read: ordinary logic by its own method first where
-/// it has one, the model search first or beside the embedding where the
-/// default asks it, then the linear search on the image or on the linear
-/// sequent; returns the answer for the caller to write.
+/// it has one, or a first-order sequent with no method given by the
+/// library's default, then the linear search on the image or on the
+/// linear sequent; returns the answer for the caller to write.
 ///
 /// # Errors
 ///
@@ -195,10 +185,12 @@ fn ago(elapsed: Duration) -> Instant {
 /// is no reason of an unknown, and a defect of a read-back.
 pub(crate) fn decide(read: Read, run: &Run<'_>) -> Result<Answer> {
     let (mut gave_way, mut solved) = (None, None);
-    let (forest, image, writing, mode, race) = match read {
-        Read::Linear(forest, writing, mode) => (*forest, None, writing, mode, None),
+    let (forest, image, writing, mode) = match read {
+        Read::Linear(forest, writing, mode) => (*forest, None, writing, mode),
         Read::Ordinary(options, sequent) => {
-            if options.method_for(&sequent) != Method::Embedding {
+            if options.method_for(&sequent) != Method::Embedding
+                || ordinary::by_library(&options, &sequent, run)
+            {
                 (run.ready)(Before::Native)?;
                 match run.stacked(|| ordinary::natively(&options, &sequent, run))?? {
                     Native::Decided(outcome, start, after_search) => {
@@ -212,34 +204,6 @@ pub(crate) fn decide(read: Read, run: &Run<'_>) -> Result<Answer> {
                     Native::Stopped(line) => return Ok(Answer::Stopped(line)),
                     Native::GivesWay(why) => gave_way = why,
                     Native::Solved(outcome, start) => solved = Some((outcome, start)),
-                }
-            }
-            // The default of a first-order sequent in intuitionistic or
-            // minimal logic races the model search beside the embedding.
-            let race = (run.own
-                && solved.is_none()
-                && ordinary::races_the_embedding(&options, &sequent, run.search))
-            .then(|| (options, sequent.clone()));
-            // On one thread there is no race: the model search goes first,
-            // within its grace, and the embedding takes the rest of the time.
-            if race.is_none() && solved.is_none() && ordinary::models_beside(&options, &sequent) {
-                if run.own {
-                    catch_interrupt();
-                }
-                let notice = run.notice(false);
-                let halt = || run.halted();
-                let first = ordinary::model_first(
-                    &options,
-                    &sequent,
-                    run.search,
-                    &run.limits,
-                    run.deadline,
-                    &halt,
-                );
-                drop(notice);
-                if let Some((refuted, elapsed)) = first {
-                    (run.ready)(Before::Model)?;
-                    return Ok(native(Box::new(refuted), ago(elapsed), false));
                 }
             }
             // The classical default's evidence is translated within a
@@ -271,7 +235,7 @@ pub(crate) fn decide(read: Read, run: &Run<'_>) -> Result<Answer> {
                 (Ok((forest, image)), kept) => {
                     solved = kept;
                     let mode = image.mode();
-                    (forest, Some(image), None, mode, race)
+                    (forest, Some(image), None, mode)
                 }
                 (Err(_), Some((outcome, start))) => return Ok(native(outcome, start, false)),
                 (Err(error), None) => return Err(error),
@@ -297,93 +261,19 @@ pub(crate) fn decide(read: Read, run: &Run<'_>) -> Result<Answer> {
             .map_or_else(Instant::now, |(_, start)| *start);
         let deepens = options.copies.is_none() && sequent.fragment().has_exponentials();
         let notice = run.notice(deepens);
-        // Every poll asks each condition, all flags; a model the race's
-        // search found ends the embedding's search too.
-        let found = AtomicBool::new(false);
-        let passed = || run.deadline.passed() || (run.beyond)() || found.load(Ordering::Relaxed);
-        // The classical default's evidence is searched for within a bound; a
-        // race leaves the model search a quarter of the memory bound.
-        let within = match (&solved, &race) {
-            (Some(_), _) => ordinary::bounded(&limits),
-            (None, Some(_)) => limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4 * 3)),
-            (None, None) => limits,
+        // Every poll asks each condition, all flags.
+        let passed = || run.deadline.passed() || (run.beyond)();
+        // The classical default's evidence is searched for within a bound.
+        let within = match &solved {
+            Some(_) => ordinary::bounded(&limits),
+            None => limits,
         };
-        let (outcome, modelled) = std::thread::scope(|scope| {
-            let model = race.as_ref().and_then(|(options, sequent)| {
-                let quarter = limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4));
-                let (found, deadline, search) = (&found, run.deadline, run.search);
-                std::thread::Builder::new()
-                    .name("model search".into())
-                    .spawn_scoped(scope, move || {
-                        let start = Instant::now();
-                        let modelled = ordinary_logic::models::decide(
-                            sequent,
-                            options.logic,
-                            search,
-                            &quarter,
-                            |_| interrupted() || deadline.passed() || found.load(Ordering::Relaxed),
-                        );
-                        let refuted = matches!(
-                            &modelled,
-                            Ok(ordinary_logic::models::Outcome {
-                                verdict: ordinary_logic::Verdict::NotValid,
-                                ..
-                            })
-                        );
-                        if refuted {
-                            found.store(true, Ordering::Relaxed);
-                        }
-                        (modelled, start.elapsed())
-                    })
-                    .ok()
-            });
-            let goal = Goal::conclusion(&forest);
-            let outcome = match run.threads {
-                // A race's model search takes one of the threads, so that it
-                // slows the embedding's search no more than a thread fewer does.
-                Some(threads) => {
-                    let threads = match &race {
-                        Some(_) => Threads {
-                            jobs: threads.jobs.saturating_sub(1).max(1),
-                            ..threads
-                        },
-                        None => threads,
-                    };
-                    searched(goal, mode, options, &within, threads, (run.limit, &passed))
-                }
-                None => prove_goal(goal, mode, options, &within, halting(run.limit, &passed)),
-            };
-            // A proof ends the model search; anything else waits for it.
-            let proved = matches!(
-                &outcome,
-                Ok(Outcome {
-                    verdict: Verdict::Proved(_),
-                    ..
-                })
-            );
-            let modelled = model.and_then(|model| {
-                if proved {
-                    found.store(true, Ordering::Relaxed);
-                }
-                match model.join() {
-                    Ok((Ok(m), elapsed)) if !proved => Some((m, elapsed)),
-                    Ok(_) => None,
-                    Err(panic) => std::panic::resume_unwind(panic),
-                }
-            });
-            (outcome, modelled)
-        });
+        let goal = Goal::conclusion(&forest);
+        let outcome = match run.threads {
+            Some(threads) => searched(goal, mode, options, &within, threads, (run.limit, &passed)),
+            None => prove_goal(goal, mode, options, &within, halting(run.limit, &passed)),
+        };
         drop(notice);
-        // The model search refuted the sequent first: its answer is the call's.
-        if let Some((m, elapsed)) = modelled
-            && matches!(m.verdict, ordinary_logic::Verdict::NotValid)
-        {
-            return Ok(native(
-                Box::new(ordinary_logic::Outcome::from(m)),
-                ago(elapsed),
-                run.own,
-            ));
-        }
         match (outcome, solved) {
             (Ok(outcome), solved) => {
                 finish(outcome, image, writing, mode, solved, gave_way, start, run)
