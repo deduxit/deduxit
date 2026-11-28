@@ -279,14 +279,14 @@ fn list_past_limit(derivation: &Derivation, show: &Show) -> Option<u64> {
 
 /// Returns a checked derivation made for `format`: in Rocq the
 /// certificate of a modal system's labelled calculus (any other calculus
-/// is refused by name), else drawn in LaTeX, Typst or SVG, as a Fitch proof
-/// where `view.layout` asks for one and as a tree otherwise. `halt` says
-/// when the time limit or Ctrl-C ends it.
+/// is refused by name), else drawn in LaTeX, Typst or SVG in `layout`, as
+/// a Fitch proof or a tree. `halt` says when the time limit or Ctrl-C ends
+/// it.
 fn made(
     derivation: &Derivation,
     calculus: &Calculus,
     show: &Show,
-    format: Format,
+    (format, layout): (Format, Layout),
     halt: &dyn Fn() -> bool,
 ) -> Result<String, Error> {
     let mut text = String::new();
@@ -306,7 +306,7 @@ fn made(
         Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| halt()),
         _ => svg::write(drawable, &styles.svg, &mut text, |_| halt()),
     };
-    match show.view.layout {
+    match layout {
         Layout::Fitch => Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits)
             .and_then(|fitch| write(Drawable::from(&fitch)))?,
         _ => Drawing::new(calculus, derivation, &show.limits)
@@ -318,10 +318,7 @@ fn made(
 /// Returns the line that says why a derivation's drawing or Fitch proof
 /// is left out.
 fn left_out(error: &Error) -> String {
-    let flag = crate::settings::raise(
-        error.setting(),
-        &["limits.derivation_bytes", "limits.work"],
-    );
+    let flag = crate::settings::raise(error.setting(), &["limits.derivation_bytes", "limits.work"]);
     format!("the derivation is left out: {error}{flag}")
 }
 
@@ -359,7 +356,13 @@ fn drawing(
     }
     if show.format.is_binary() {
         say(verdict);
-        let shown = match made(derivation, calculus, show, Format::Svg, over) {
+        let shown = match made(
+            derivation,
+            calculus,
+            show,
+            (Format::Svg, show.view.layout),
+            over,
+        ) {
             Ok(svg) => drawn_into(
                 svg,
                 false,
@@ -383,7 +386,13 @@ fn drawing(
             Shown::Written | Shown::Nothing => (status, false),
         });
     }
-    match made(derivation, calculus, show, show.format, over) {
+    match made(
+        derivation,
+        calculus,
+        show,
+        (show.format, show.view.layout),
+        over,
+    ) {
         Ok(text) => {
             if show.verdict {
                 writeln!(out.stream(), "{}", note(show.format, verdict))?;
@@ -452,7 +461,8 @@ pub(crate) fn shown(
             } else {
                 show.format
             };
-            let text = match made(derivation, calculus, show, format, halt) {
+            // `prove --system` draws a tree, whatever the layout says.
+            let text = match made(derivation, calculus, show, (format, Layout::Tree), halt) {
                 Ok(text) => text,
                 Err(error) => return Ok(Shown::LeftOut(left_out(&error))),
             };
@@ -467,7 +477,13 @@ pub(crate) fn shown(
             )
         }
         Format::Rocq => {
-            match made(derivation, calculus, show, Format::Rocq, halt) {
+            match made(
+                derivation,
+                calculus,
+                show,
+                (Format::Rocq, Layout::Tree),
+                halt,
+            ) {
                 Ok(text) => {
                     write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?;
                     Ok(Shown::Written)
