@@ -85,10 +85,13 @@ the generated families are read or changed; the harness that runs them is
   617 MiB, before the limit counted (the panel's finding); an update from another counter, a counter updated twice,
   a counter given twice in `init` (`x >= 1, x = 3` was read as `x >= 3`,
   neither constraint), and the names `top` and `bot` (units in this
-  syntax) are refused. Every refusal of the sections is led by its line
-  (`Reader::placed`, the line of the last token read: each check fails
-  at or right after the token it names, so a new check keeps to that or
-  places its error itself); "no target" has none. The
+  syntax) are refused. Every `Error::Spec` of the sections is led by its
+  line (`Reader::placed`, the line of the last token read: each check
+  fails at or right after the token it names, so a new check keeps to
+  that or places its error itself); "no target" has none, and a counter
+  named by a keyword is the shared `Error::AtomName` (`name::check`),
+  which `placed` passes through without a line, since the variant has no
+  place for one. The
   expected result is the first line's `#expected result: safe|unsafe`,
   which only 12 of the suite's files state (`Safety::Unsafe` is
   provable). The mode is not in the file: a coverability question is
