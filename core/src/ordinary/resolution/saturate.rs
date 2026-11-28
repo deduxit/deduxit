@@ -100,25 +100,19 @@ pub(super) fn run(
             let Some((resolved, origin)) = resolve(&made, c, other) else {
                 continue;
             };
-            if options.steps.is_some_and(|s| statistics.steps >= s) {
-                return unknown(
-                    Bound::Steps {
-                        limit: options.steps.unwrap_or(u64::MAX),
-                    },
-                    statistics,
-                );
+            if let Some(limit) = options.steps
+                && statistics.steps >= limit
+            {
+                return unknown(Bound::Steps { limit }, statistics);
             }
             statistics.steps += 1;
             if resolved.is_tautology() || seen.contains(&resolved) {
                 continue;
             }
-            if options.clauses.is_some_and(|m| made.len() as u64 >= m) {
-                return unknown(
-                    Bound::Clauses {
-                        limit: options.clauses.unwrap_or(u64::MAX),
-                    },
-                    statistics,
-                );
+            if let Some(limit) = options.clauses
+                && made.len() as u64 >= limit
+            {
+                return unknown(Bound::Clauses { limit }, statistics);
             }
             hold(&resolved)?;
             seen.insert(resolved.clone());

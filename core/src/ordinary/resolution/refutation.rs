@@ -225,10 +225,10 @@ impl Refutation {
             return Ok(());
         }
         for (k, r) in self.resolvents.iter().enumerate() {
-            if limits.work.is_some_and(|w| k as u64 >= w) {
-                return Err(Error::Refused(Refusal::Work {
-                    limit: limits.work.unwrap_or(u64::MAX),
-                }));
+            if let Some(limit) = limits.work
+                && k as u64 >= limit
+            {
+                return Err(Error::Refused(Refusal::Work { limit }));
             }
             if stop(Progress::new(Phase::Check, 1, k as u64)) {
                 return Err(Error::Refused(Refusal::stopped(Phase::Check)));

@@ -133,12 +133,14 @@ pub(super) fn run(
             },
         })
     };
-    // Whether the trace holds as many events as the bound allows: the
-    // next event is past it.
-    let full = |events: &[Event]| options.steps.is_some_and(|s| events.len() as u64 >= s);
-    let past = Verdict::Unknown(Bound::Steps {
-        limit: options.steps.unwrap_or(u64::MAX),
-    });
+    // The verdict where the trace holds as many events as the bound
+    // allows: the next event is past it.
+    let past = |events: &[Event]| {
+        options
+            .steps
+            .filter(|&limit| events.len() as u64 >= limit)
+            .map(|limit| Verdict::Unknown(Bound::Steps { limit }))
+    };
     loop {
         if stop(Progress::new(Phase::Search, 1, events.len() as u64)) {
             return finish(Verdict::Unknown(Bound::Stopped), events);
@@ -188,7 +190,7 @@ pub(super) fn run(
             }
         }
         if let Some(k) = conflict {
-            if full(&events) {
+            if let Some(past) = past(&events) {
                 return finish(past, events);
             }
             events.push(Event::Conflict { clause: k });
@@ -197,16 +199,16 @@ pub(super) fn run(
             held = refutation.resolvents()[made..].iter().fold(held, |sum, r| {
                 sum.saturating_add(RESOLVENT_BYTES + 4 * r.clause.literals().len() as u64)
             });
-            match found {
-                Some(_) if full(&events) => return finish(past, events),
-                Some(flipped) => events.push(Event::Backtrack {
-                    literal: flipped,
-                    level,
-                }),
-                None => {
-                    return finish(Verdict::Refuted(Box::new(refutation.trimmed())), events);
-                }
+            let Some(flipped) = found else {
+                return finish(Verdict::Refuted(Box::new(refutation.trimmed())), events);
+            };
+            if let Some(past) = past(&events) {
+                return finish(past, events);
             }
+            events.push(Event::Backtrack {
+                literal: flipped,
+                level,
+            });
             continue;
         }
         if !open {
@@ -220,7 +222,7 @@ pub(super) fn run(
         if let Some((l, k)) = unit {
             value[l.atom() as usize] = Some(l.is_positive());
             trail.push((l, Reason::Unit(k)));
-            if full(&events) {
+            if let Some(past) = past(&events) {
                 return finish(past, events);
             }
             events.push(Event::Unit {
@@ -250,7 +252,7 @@ pub(super) fn run(
             let l = Literal::of(a as u32, seen[a][0]);
             value[a] = Some(l.is_positive());
             trail.push((l, Reason::Pure));
-            if full(&events) {
+            if let Some(past) = past(&events) {
                 return finish(past, events);
             }
             events.push(Event::Pure { literal: l });
@@ -267,7 +269,7 @@ pub(super) fn run(
         value[a] = Some(true);
         trail.push((l, Reason::Decision));
         level += 1;
-        if full(&events) {
+        if let Some(past) = past(&events) {
             return finish(past, events);
         }
         events.push(Event::Decide { literal: l, level });
