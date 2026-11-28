@@ -268,7 +268,7 @@ The design, with its reasons, alternatives and sources, is
   the nodes, the names, `add`, `atom`, `holds`, the occurrence bound),
   the parser's text reader, its end of a formula and its sides of a
   sequent (`crate::arena::parse`), and the formula form and its reader
-  (`serialize/ordinary.rs`). **What it copied** (for the kernel crate):
+  (`serialize/ordinary/mod.rs`). **What it copied** (for the kernel crate):
   `Sequent`, the rest of the parser but for its TPTP dialect, the
   sequent's serde form, the model check's shape and bounds
   from `ordinary/model.rs` (the cell and byte estimates, its errors),

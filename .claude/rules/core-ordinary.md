@@ -61,7 +61,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   ~~p /\ forall x. q(x)`, also made the claim propositional and so
   decided by another method). Its JSON forms and those of the
   sequent, the derivation and the outcome are in
-  `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
+  `core/src/serialize/ordinary/`: the sequent, the derivation and the
   goal state at wire level 8 (`wire::ORDINARY`, 9 with LJ's cut), the
   outcome at 12 (`wire::SEARCH`), the Kripke model at 13.
 - **Every entry keeps to the occurrence bound**: `Sequent::parse_within`
@@ -1848,7 +1848,7 @@ classical logic only (`Error::Logic`, which names the method).
   follow the linear search's order, not a tableau's. The method builds
   its own LK derivation and `Tableau::of` stays the view of any
   derivation of LK.
-- **Their JSON** (wire level 14, `serialize/ordinary.rs`): `TableForm`
+- **Their JSON** (wire level 14, `serialize/ordinary/tables.rs`): `TableForm`
   (rows as `T`/`F` strings over the form's formulas; the reader
   computes the table again and refuses a row or a falsifying list that
   differs; the outcome's reader refuses a verdict its table or tableau
@@ -1997,7 +1997,7 @@ passes (core has `serde_json` only under `protocol`).
 - **The expected sequent** (`review`'s `expected`) is compared as two
   sets of signed formulas with the first lines, after mapping its arena
   into a copy of the tableau's.
-- **JSON** (`serialize/ordinary.rs`, `ReviewForm`, written only, level
+- **JSON** (`serialize/ordinary/transforms.rs`, `ReviewForm`, written only, level
   14): `{version, standing, sequent, text_line?, line?, message,
   countermodel?}`; nothing reads it back.
 

@@ -373,7 +373,11 @@ from before the release (`ids`, `var_dict`, `proof`, a mode as an object
 of flags) are not read: a file in them is refused naming the key it
 lacks.
 
-**Level 8 is ordinary logic** (`wire::ORDINARY`, `serialize/ordinary.rs`):
+**Level 8 is ordinary logic** (`wire::ORDINARY`, `serialize/ordinary/`:
+`mod.rs` the sequent, the derivation, the outcome and the session,
+`tables.rs` the truth table and the tableau, `transforms.rs` the
+written-only forms; one `SequentForm::of_sequent` makes a whole
+sequent's form):
 the ordinary sequent (`formulas` in the arena's order with the tags
 `V ⊤ ⊥ ¬ ∧ ∨ → ↔`, `atoms`, `left`, `right`), the derivation of LK or LJ,
 and the goal state, each written at level 8, at 9 with LJ's cut; the
@@ -401,7 +405,7 @@ arena it builds (equal formulas are one node there), so a document of
 ours writes back the same bytes. Level 16 (`wire::TRANSFORMS`) is a
 negative translation compared and an interpolation, written only:
 they hold ordinary outcomes nested without `version` and `deduxit`
-(`serialize/ordinary.rs`'s `NestedOutcome`, the same `OutcomeForm` with
+(`serialize/ordinary/mod.rs`'s `NestedOutcome`, the same `OutcomeForm` with
 both keys `None`), and nothing reads them back, since a front end
 holds the sequent and asks again. `ill.rs`'s refusal test names the level
 above `wire::LEVEL`, so that a raise of the level needs no test change.
