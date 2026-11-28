@@ -145,7 +145,9 @@ for NanoYalla. What the code relies on:
   `Named::from_str(rule.name())` is the rule, for every named rule
   (`names_round_trip`, in `style.rs` and `rule.rs`): the interactive JSON
   depends on both. A new rule is a new entry in `Rule::ALL`, its named
-  forms in `Named::ALL`, both tables, `name` and `from_str`.
+  forms in `Named::ALL`, both tables, `name`, the test's `WRITTEN` and,
+  for an ASCII spelling, `from_str`'s match: `from_str` reads every name
+  `Named::name` gives through `KNOWN`, which is made from it.
   The labels of LK and LJ are `ordinary::Rule::markup(subscript)`
   (`Upright` the upright one, `Subscript` with `subscript`, `Off` none),
   read off one table of the two conventions (`ordinary::derivation::

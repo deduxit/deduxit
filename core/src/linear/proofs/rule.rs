@@ -432,51 +432,33 @@ impl FromStr for Named {
     fn from_str(text: &str) -> Result<Self, Error> {
         use Rule::*;
         use Side::{Input, Output};
-        if let Some(&named) = Self::DIVISIONS.iter().find(|named| named.name() == text) {
-            return Ok(named);
+        if let Some(index) = KNOWN.iter().position(|&name| name == text) {
+            return Ok(Self::at(index));
         }
+        // The ASCII spellings of the names that have another.
         let (rule, side) = match text {
-            "ax" => (Ax, None),
-            "⊗" | "*" => (Tensor, None),
-            "⅋" | "par" | "|" => (Par, None),
-            "1" => (One, None),
-            "⊥" | "bot" => (Bot, None),
-            "&" => (With, None),
-            "⊕₁" | "+1" => (PlusLeft, None),
-            "⊕₂" | "+2" => (PlusRight, None),
-            "⊤" | "top" => (Top, None),
-            "!" => (Promotion, None),
-            "?d" => (Dereliction, None),
-            "?c" => (Contraction, None),
-            "?w" => (Weakening, None),
-            "mix" => (Mix, None),
-            "wk" => (AffineWeakening, None),
-            "cut" => (Cut, None),
-            "∀" | "forall" => (Forall, None),
-            "∃" | "exists" => (Exists, None),
-            "⊸L" | "-oL" => (Tensor, Some(Input)),
-            "⊸R" | "-oR" => (Par, Some(Output)),
-            "⊗L" | "*L" => (Par, Some(Input)),
-            "⊗R" | "*R" => (Tensor, Some(Output)),
-            "&L₁" | "&L1" => (PlusLeft, Some(Input)),
-            "&L₂" | "&L2" => (PlusRight, Some(Input)),
-            "&R" => (With, Some(Output)),
-            "⊕L" | "+L" => (With, Some(Input)),
-            "⊕R₁" | "+R1" => (PlusLeft, Some(Output)),
-            "⊕R₂" | "+R2" => (PlusRight, Some(Output)),
-            "1L" => (Bot, Some(Input)),
-            "1R" => (One, Some(Output)),
-            "0L" => (Top, Some(Input)),
-            "⊤R" | "topR" => (Top, Some(Output)),
-            "!L" => (Dereliction, Some(Input)),
-            "!R" => (Promotion, Some(Output)),
-            "!c" => (Contraction, Some(Input)),
-            "!w" => (Weakening, Some(Input)),
-            "∀R" | "forallR" => (Forall, Some(Output)),
-            "∃L" | "existsL" => (Forall, Some(Input)),
-            "∃R" | "existsR" => (Exists, Some(Output)),
-            "∀L" | "forallL" => (Exists, Some(Input)),
-            "open" => (Open, None),
+            "*" => (Tensor, None),
+            "par" | "|" => (Par, None),
+            "bot" => (Bot, None),
+            "+1" => (PlusLeft, None),
+            "+2" => (PlusRight, None),
+            "top" => (Top, None),
+            "forall" => (Forall, None),
+            "exists" => (Exists, None),
+            "-oL" => (Tensor, Some(Input)),
+            "-oR" => (Par, Some(Output)),
+            "*L" => (Par, Some(Input)),
+            "*R" => (Tensor, Some(Output)),
+            "&L1" => (PlusLeft, Some(Input)),
+            "&L2" => (PlusRight, Some(Input)),
+            "+L" => (With, Some(Input)),
+            "+R1" => (PlusLeft, Some(Output)),
+            "+R2" => (PlusRight, Some(Output)),
+            "topR" => (Top, Some(Output)),
+            "forallR" => (Forall, Some(Output)),
+            "existsL" => (Forall, Some(Input)),
+            "existsR" => (Exists, Some(Output)),
+            "forallL" => (Exists, Some(Input)),
             _ => {
                 return Err(Error::UnknownName {
                     what: "rule",
@@ -489,29 +471,40 @@ impl FromStr for Named {
     }
 }
 
-/// The names of [`Named::ALL`], in its order.
-#[cfg(test)]
-const NAMES: &[&str] = KNOWN.split_at(Named::ALL.len()).0;
-
 /// The names of [`Named::ALL`], in its order, then those of the
-/// divisions.
-const KNOWN: &[&str] = &[
+/// divisions, as written: what the label tables and a session's file name.
+#[cfg(test)]
+const WRITTEN: &[&str] = &[
     "ax", "⊗", "⅋", "1", "⊥", "&", "⊕₁", "⊕₂", "⊤", "!", "?d", "?c", "?w", "mix", "wk", "cut", "∀",
     "∃", "⊸L", "⊸R", "⊗L", "⊗R", "&L₁", "&L₂", "&R", "⊕L", "⊕R₁", "⊕R₂", "1L", "1R", "0L", "⊤R",
     "!L", "!R", "!c", "!w", "∀R", "∃L", "∃R", "∀L", "open", "\\L", "\\R", "/L", "/R",
 ];
 
+/// The names of [`Named::ALL`], in its order, then those of the
+/// divisions: each one's [`Named::name`].
+const KNOWN: &[&str] = &{
+    const LEN: usize = Named::ALL.len() + Named::DIVISIONS.len();
+    let mut names = [""; LEN];
+    let mut i = 0;
+    while i < LEN {
+        names[i] = Named::at(i).name();
+        i += 1;
+    }
+    names
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Every named rule reads back from its name, which [`NAMES`] lists in
-    /// the order of [`Named::ALL`], and its index is its place there.
+    /// Every named rule reads back from its name, which [`WRITTEN`] lists
+    /// in the order of [`Named::ALL`], and its index is its place there.
     /// `new` gives every rule on every side a name of the list.
     #[test]
     fn names_round_trip() {
+        assert_eq!(KNOWN, WRITTEN);
         for (i, named) in Named::ALL.into_iter().enumerate() {
-            assert_eq!(named.name(), NAMES[i]);
+            assert_eq!(named.name(), WRITTEN[i]);
             assert_eq!(named.name().parse::<Named>().unwrap(), named, "{named:?}");
             assert_eq!(named.index(), i);
         }
@@ -523,7 +516,7 @@ mod tests {
         }
         for (i, named) in Named::DIVISIONS.into_iter().enumerate() {
             let index = Named::ALL.len() + i;
-            assert_eq!(named.name(), KNOWN[index]);
+            assert_eq!(named.name(), WRITTEN[index]);
             assert_eq!(named.name().parse::<Named>().unwrap(), named, "{named:?}");
             assert_eq!((named.index(), Named::at(index)), (index, named));
         }
