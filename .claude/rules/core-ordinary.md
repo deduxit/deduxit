@@ -529,7 +529,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
       the intuitionistic rows are not shown faithful here; no
       countermodel is read off. `Options::method_for` makes the embedding
       the default at first order, so the command (`prove`, the batch)
-      asks it, not `method()`, before `by_native`; its verdict line and
+      asks it, not `method()`, before `natively`; its verdict line and
       exit status follow (`cli/src/ordinary.rs`, `incomplete`, `status`).
       An outcome with a first-order derivation or this unknown is written
       at level 25, and the reader takes an unknown `incomplete` over an
@@ -950,7 +950,7 @@ the search, `read_back.rs` the derivation of LK.
   so the bound is minutes on the serial relation. The command calls the
   prover directly under its time share and is not bounded so. `decide`'s door
   (`takes_first_order`) lets `Embedding`, `Connection` and `Grounding`
-  through at first order. The command asks `method_for` in `by_native`,
+  through at first order. The command asks `method_for` in `natively`,
   `decide_natively` and `keeps_evidence` (`cli/src/ordinary.rs`). An
   intuitionistic first-order sequent outside grounding's classes goes to
   the embedding, not the intuitionistic connection prover: at 2 s on

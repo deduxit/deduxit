@@ -14,6 +14,8 @@ mod batch;
 mod calculus;
 /// The `check` command.
 mod check;
+/// The decision of one sequent, shared by `prove` and the batch.
+mod decide;
 /// The `eliminate` command.
 mod eliminate;
 /// `grade`: an answer to a problem, checked by its kind.

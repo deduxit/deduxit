@@ -228,7 +228,7 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `keeps_evidence`, below): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
   `Options::method_for(&sequent)` is not the embedding (a first-order
-  sequent with no method given goes to the embedding) `by_native`
+  sequent with no method given goes to the embedding) `natively`
   decides it by
   `decide_natively` (LJT, the SAT solver, or with no method given the
   library's `sat::decide_preferring_ljt`, as `ordinary::decide`'s
@@ -261,9 +261,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   outside its classes on every such sequent), so the user sees what a
   bound buys; the batch's lines and JSON say nothing of it.
   **The classical default** (`keeps_evidence`):
-  `by_native` returns `Native::Solved` with the solver's decided
-  outcome, unwritten; `prove` (and the batch's `decide`) then run the
-  image path as before, translating and searching within `bounded`
+  `natively` returns `Native::Solved` with the solver's decided
+  outcome, unwritten; `decide::decide` then runs the image path as
+  before, translating and searching within `bounded`
   (`ordinary::EVIDENCE_WORK` occurrences and units of work, or a lower
   `--occurrence-limit` or `--work-limit`: an image past it is refused
   and the solver's answer written), and
@@ -284,13 +284,38 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   library's `decide::ended`), and only another refusal (the tableau's
   steps past `--derivation-limit`, a first-order read-back past
   `--term-limit`) is exit 2 naming the limits and `--method embedding`.
-  The batch has the same in
-  `Shared::by_native` and `write_native` (an entry is `Loaded::Ordinary` or
-  `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
+  The batch writes the same answer by `native_done` and `write_native`
+  (an entry is `Loaded::Ordinary` or `Loaded::Linear`, the forest
+  boxed). `interact --logic`'s `close` stays
   the embedding on a propositional goal (its steps take no cut), and a
   first-order goal's outcome is the method's that answered, its line
   `native_verdict_line` with the structure or Kripke model after it
   (`Session::close`).
+- **One decision** (`decide.rs`): `prove` and a batch's entry read
+  their sequent (`decide::Read`), call `decide::decide` and write its
+  `Answer` (`Native`, `Stopped`, `Untranslated` or `Searched`, the last
+  with its status, `Ended` and verdict line); the order of the methods
+  is written there once. What differs between the two callers is a
+  `Run`:
+  - the batch's own limit (`beyond`, `stopped`);
+  - the search on the calling thread for an entry on one thread
+    (`threads: None`);
+  - `own` for `prove` alone: the race of the model search beside the
+    embedding, the notices, Ctrl-C caught, the translation within the
+    deadline (so only `prove` has `Untranslated`), and a native
+    refusal said with its flag (the batch keeps the library's error,
+    which its JSON record's `error` field needs);
+  - `ready`, which `prove` answers by `output_can_be_made` and, before
+    the linear search, by `Show::new`, at the points it did.
+
+  `prove` runs the native step and the search on the large stack
+  (`Run::stacked`), and writes what they found there too
+  (`Answer::Native::on_stack`); the model search first, the
+  translation and their answers stay on the calling thread, so a stack
+  that cannot be made fails only what needed it, as before.
+  The session's `close` shares the linear search's call (`searched`),
+  not the decision: a goal of a session is no sequent read (departs from
+  the plan's "and a session's `close`").
 - `calculus.rs`: `check` of a derivation in a calculus given as data
   (`read_document` probes the key `calculus` first: no other document
   has it). `--calculus CALCULUS` (a path, an input like the proof file,
@@ -1453,8 +1478,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   from the parsed one, so `==` called a text-started session's own file
   another sequent's.
 - **The connection prover** (`--method connection`, the default of a
-  first-order classical sequent): `by_native` and the batch's
-  `by_native` ask `Options::method_for(sequent)`, `decide_natively`
+  first-order classical sequent): `natively` asks
+  `Options::method_for(sequent)`, `decide_natively`
   takes the settings' search options for `--path-length` and
   `--restricted-backtracking` (`SearchArgs`, keys `search.path_length`
   and `search.restricted_backtracking`), `native_statistics` prints its
@@ -1550,9 +1575,8 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `model_grace` (5% of the time limit), its refutation the answer, else
   the embedding takes the rest; `prove` calls it where
   `races_the_embedding` says no and `models_beside` yes (`--jobs 1`,
-  `--deterministic`), and the batch for every such entry (`decide`,
-  after `by_native`), so an entry answers as `prove --deterministic`
-  does.
+  `--deterministic`), and the batch for every such entry (a `Run` not
+  `own`), so an entry answers as `prove --deterministic` does.
   `--model-worlds N|none` (key `search.model_worlds`); an unknown at
   `kripke_size` names both flags (`advice`); `check` of an outcome with
   a Kripke model is `check_kripke_structure` (`write_refuted`, shared

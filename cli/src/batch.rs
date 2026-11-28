@@ -7,20 +7,18 @@
 //! are decided.
 
 use crate::argument_parsing::{Format, InputFormat, ProveArgs};
+use crate::decide::{self, Answer, Run, Searched};
 use crate::io::{self, admit, written_in};
 use crate::limit::Deadline;
 use crate::ordinary;
-use crate::ordinary::{Embedded, Native};
-use crate::prove::{
-    Ended, Stop, describe, halting, on_large_stack, searched, statistics, stopped, verdict_line,
-};
+use crate::prove::{Ended, Stop, on_large_stack, statistics, stopped};
 use crate::settings::{Threads, time_limit};
-use crate::show::{Show, Shown, derivation, every_steps, net_into, nets_exist};
+use crate::show::{Show, Shown, derivation, every_steps, net_into};
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::search::batch::{self, Cores};
-use deduxit::linear::search::{Goal, Outcome, Pool, Verdict, prove_goal};
-use deduxit::ordinary::{self as ordinary_logic, Image, Method};
+use deduxit::linear::search::{Outcome, Pool, Verdict};
+use deduxit::ordinary::{self as ordinary_logic, Image};
 use deduxit::{
     Settings,
     linear::{Forest, InputOptions, Mode},
@@ -735,136 +733,60 @@ impl Shared {
                 status: Status::Unknown,
             });
         };
-        // The classical default's answer, written where the embedding gives
-        // no evidence for it.
-        let mut solved = None;
-        let (forest, image, writing) = match (read?, logic) {
-            (Loaded::Ordinary(sequent), Some(options)) => {
-                if options.method_for(&sequent) != Method::Embedding {
-                    match self.by_native(&entry.name, &options, &sequent, plan, &deadline)? {
-                        Native::Answered(done) => return Ok(done),
-                        Native::GivesWay(_) => {}
-                        Native::Solved(outcome, start) => solved = Some((outcome, start)),
-                    }
-                }
-                // An entry is a call on one thread: the model search goes
-                // first within its grace, as `prove` does there.
-                if solved.is_none() && ordinary::models_beside(&options, &sequent) {
-                    let halt = || interrupted() || deadline.passed() || self.batch.passed();
-                    if let Some((refuted, elapsed)) =
-                        ordinary::model_first(&options, &sequent, search, limits, &deadline, &halt)
-                    {
-                        let begun = Instant::now()
-                            .checked_sub(elapsed)
-                            .unwrap_or_else(Instant::now);
-                        return self.native_done(&entry.name, &refuted, begun, &deadline, false);
-                    }
-                }
-                // The classical default's evidence is translated within a
-                // bound: an image past it is refused, and the solver's
-                // answer written.
-                let translating = match &solved {
-                    Some(_) => ordinary::bounded(limits),
-                    None => *limits,
-                };
-                match (
-                    ordinary::translated(&options, &sequent, &translating),
-                    &solved,
-                ) {
-                    (Ok((forest, image)), _) => (forest, Some(image), None),
-                    (Err(_), Some((outcome, start))) => {
-                        return self.native_done(&entry.name, outcome, *start, &deadline, false);
-                    }
-                    (Err(error), None) => return Err(error),
-                }
+        let read = match (read?, logic) {
+            (Loaded::Ordinary(sequent), Some(options)) => decide::Read::Ordinary(options, sequent),
+            (Loaded::Linear(forest, writing), _) => {
+                let mode = entry.mode.unwrap_or(self.mode);
+                let mode = format.map_or(mode, |format| io::affine_for(format, mode));
+                decide::Read::Linear(forest, writing, mode)
             }
-            (Loaded::Linear(forest, writing), _) => (*forest, None, writing),
             (Loaded::Ordinary(_), None) => unreachable!("ordinary logic is read under --logic"),
         };
-        let sequent = forest.sequent();
-        let mode = match &image {
-            Some(image) => image.mode(),
-            None => {
-                let mode = entry.mode.unwrap_or(self.mode);
-                format.map_or(mode, |format| io::affine_for(format, mode))
-            }
-        };
-        if self.show.net {
-            nets_exist(sequent, mode)?;
-        }
-        let start = Instant::now();
         // The entry's limit, or the batch's where the entry has none: the
         // flags say which passed.
-        let passed = || deadline.passed() || self.batch.passed();
-        let passed: &(dyn Fn() -> bool + Sync) = &passed;
-        let limit = (self.timeout.or(self.batch.limit()), passed);
-        // The classical default's evidence is searched for within a bound.
-        let within = match &solved {
-            Some(_) => ordinary::bounded(limits),
-            None => *limits,
+        let beyond = || self.batch.passed();
+        let stopped_now = || self.stopped(&deadline);
+        let run = Run {
+            search,
+            limits: *limits,
+            threads: (search.jobs.count() > 1).then_some(self.threads),
+            deadline: &deadline,
+            beyond: &beyond,
+            limit: self.timeout.or(self.batch.limit()),
+            stopped: &stopped_now,
+            linear: args.linear,
+            net: self.show.net,
+            own: false,
+            ready: &|_| Ok(()),
         };
-        let outcome = if search.jobs.count() > 1 {
-            searched(
-                Goal::conclusion(&forest),
-                mode,
-                search,
-                &within,
-                self.threads,
-                limit,
-            )
-        } else {
-            prove_goal(
-                Goal::conclusion(&forest),
-                mode,
-                search,
-                &within,
-                halting(limit.0, limit.1),
-            )
-        };
-        let outcome = match (outcome, &solved) {
-            (Ok(outcome), _) => outcome,
-            (Err(_), Some((solved, start))) => {
-                return self.native_done(&entry.name, solved, *start, &deadline, false);
+        let searched = match decide::decide(read, &run)? {
+            Answer::Native {
+                outcome,
+                start,
+                after_search,
+                ..
+            } => return self.native_done(&entry.name, &outcome, start, &deadline, after_search),
+            Answer::Stopped(line) | Answer::Untranslated(line) => {
+                return Ok(Done {
+                    text: self.unknown(&entry.name, &line),
+                    status: Status::Unknown,
+                });
             }
-            (Err(error), None) => return Err(describe(error, sequent)),
+            Answer::Searched(searched) => *searched,
         };
-        // A derivation read back to decide whether the embedding gives the
-        // evidence, drawn as it is.
-        let mut read = None;
-        if let (Some((solved, begun)), Some(image)) = (&solved, &image) {
-            let halt = || interrupted() || deadline.passed() || self.batch.passed();
-            match ordinary::evidence(&outcome, image, solved, limits, halt)? {
-                Embedded::Derivation(derivation) => read = Some(*derivation),
-                Embedded::Refutation => {}
-                Embedded::Nothing => {
-                    return self.native_done(&entry.name, solved, *begun, &deadline, false);
-                }
-            }
-        }
-        let start = solved.as_ref().map_or(start, |(_, begun)| *begun);
-        let elapsed = start.elapsed();
-        let stop = self.stopped(&deadline);
-        let status = if args.linear {
-            Status::from(&outcome.verdict)
-        } else {
-            ordinary::status(&outcome, image.as_ref())
-        };
-        let ended = Ended {
-            stop,
-            elapsed,
-            after_search: false,
-        };
-        let line = match &image {
-            Some(image) => ordinary::verdict_line(
-                &outcome,
-                image.logic(),
-                image.translation(),
-                ordinary::incomplete(&outcome, image),
-                ordinary::image_axioms(image),
-                &ended,
-            ),
-            None => verdict_line(&outcome, search.fragment.is_some(), &ended),
-        };
+        let Searched {
+            outcome,
+            image,
+            writing,
+            mode,
+            read,
+            solved,
+            status,
+            ended,
+            line,
+            ..
+        } = searched;
+        let elapsed = ended.elapsed;
         // Under --logic the JSON is the ordinary outcome, the image's
         // nested in it; --linear asks for the image's alone.
         let json = self.json_lines() || self.show.format == Format::Json;
@@ -872,7 +794,7 @@ impl Shared {
             (Some(image), false) if json => {
                 let over = || interrupted() || deadline.passed() || self.batch.passed();
                 let mut ordinary = image.outcome(outcome.clone(), limits, |_| over())?;
-                ordinary::solver_model(&mut ordinary, solved.as_ref().map(|(s, _)| &**s));
+                ordinary::solver_model(&mut ordinary, solved.as_deref());
                 Some(ordinary)
             }
             _ => None,
@@ -912,94 +834,6 @@ impl Shared {
             }
         }
         Ok(Done { text, status })
-    }
-
-    /// Decides an entry of ordinary logic by LJT or the SAT solver and
-    /// answers it ([`native_done`](Self::native_done)); hands it to the
-    /// embedding where the logic's default gives way (it ended at a bound
-    /// other than the time limit, or a bound refused its proof's
-    /// derivation), and where the classical default decided, for the
-    /// embedding's evidence. With `--net` the classical default leaves the
-    /// entry to the embedding at once.
-    fn by_native(
-        &self,
-        name: &str,
-        options: &deduxit::ordinary::Options,
-        sequent: &deduxit::ordinary::Sequent,
-        plan: &batch::Plan,
-        deadline: &Deadline,
-    ) -> Result<Native<Done>> {
-        let method = options.method_for(sequent);
-        let keeps = ordinary::keeps_evidence(options, sequent);
-        if self.show.net {
-            if keeps {
-                return Ok(Native::GivesWay(None));
-            }
-            bail!(
-                "--net draws the proof net of a linear proof, and {} makes none",
-                ordinary::by(method)
-            );
-        }
-        let gives_way = options.method.is_none();
-        let start = Instant::now();
-        let share = ordinary::first_order_share(options, sequent, deadline)?;
-        let connection = ordinary::connection_share(options, sequent, deadline)?;
-        let halt = || interrupted() || deadline.passed() || self.batch.passed() || share.passed();
-        // Whether the read-back or a check began, which the entry's line of
-        // a stop says (LJT's and the SAT solver's follow their search).
-        let after_search = std::cell::Cell::new(false);
-        let decided = ordinary::decide_natively(
-            options,
-            sequent,
-            &plan.search,
-            &plan.limits,
-            &ordinary::Race {
-                connection: &connection,
-                grace: ordinary::model_grace(deadline),
-                halt: &halt,
-            },
-            |p| {
-                if p.phase != deduxit::Phase::Search {
-                    after_search.set(true);
-                }
-                halt()
-            },
-        );
-        let at_share =
-            ordinary::stopped_at_share(&decided, &share, deadline) && !self.batch.passed();
-        if gives_way && (at_share || ordinary_logic::gives_way(&decided)) {
-            return Ok(Native::GivesWay(None));
-        }
-        let outcome = match decided {
-            Ok(outcome)
-                if keeps
-                    && matches!(
-                        outcome.verdict,
-                        ordinary_logic::Verdict::Valid(_) | ordinary_logic::Verdict::NotValid
-                    ) =>
-            {
-                return Ok(Native::Solved(Box::new(outcome), start));
-            }
-            Ok(outcome) => outcome,
-            // Only the table and the tableau answer the stop with no
-            // outcome, since theirs holds what the stop left unbuilt.
-            Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
-                let line = format!(
-                    "unknown ({} logic by {}): {}",
-                    options.logic,
-                    ordinary::by(method),
-                    Stop::why(self.stopped(deadline))
-                );
-                return Ok(Native::Answered(Done {
-                    text: self.unknown(name, &line),
-                    status: Status::Unknown,
-                }));
-            }
-            Err(error) => return Err(error.into()),
-        };
-        let after_search = after_search.get() && matches!(method, Method::Ljt | Method::Sat);
-        self.native_done(name, &outcome, start, deadline, after_search)
-            .map(Native::Answered)
     }
 
     /// Returns what is written for an entry LJT or the SAT solver decided

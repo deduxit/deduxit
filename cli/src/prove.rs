@@ -2,26 +2,24 @@
 // Licensed under the EUPL
 
 use crate::argument_parsing::{Format, ProveArgs, Tree};
+use crate::decide::{Answer, Before, Read, Run, Searched};
 use crate::io;
-use crate::limit::{Deadline, Notice};
-use crate::ordinary::{Embedded, Native};
+use crate::limit::Deadline;
 use crate::settings::{Given, Threads, time_limit};
 use crate::show::{
     Show, Shown, derivation, disproof_into, every_steps, lambda_json, lambda_line, linear_term,
-    net_into, net_json, nets_exist, note,
+    net_into, net_json, note,
 };
-use crate::{Status, catch_interrupt, interrupted};
+use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
 use deduxit::linear::search::{
     Disproof, Engine, Goal, Options, Outcome, Reason, Refutation, Verdict, prove_goal, race,
 };
-use deduxit::ordinary::{Image, Method};
 use deduxit::{
     Clock, Error, Limits, Progress, Settings,
     linear::{Atom, CheckError, Forest, Sequent, Term, sequents::Visit},
 };
 use std::fmt::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -315,10 +313,9 @@ fn proved(args: &ProveArgs, given: &Given) -> Result<Status> {
     let (mode, read) = (args.mode.mode(), settings.input);
     let ordinary = crate::settings::ordinary(&settings, &args.logic, args.linear);
     let format = args.output.format();
-    // Ordinary logic is read first: LJT or the SAT solver decides it, or
-    // by default hands it to the embedding where a bound stopped it.
-    let (mut gave_way, mut solved) = (None, None);
-    let ordinary = match ordinary {
+    // How the sequent was written is kept for a derivation drawn so.
+    let keep = settings.view.classical == deduxit::linear::ClassicalSides::Two;
+    let read = match ordinary {
         Some(options) => {
             crate::ordinary::method_given(args, &options)?;
             let read = deadline.within(move || {
@@ -333,390 +330,241 @@ fn proved(args: &ProveArgs, given: &Given) -> Result<Status> {
             let sequent = sequent?;
             // Set once: `prove` reads one sequent.
             let _ = CONJECTURE.set(!sequent.right().is_empty());
-            if options.method_for(&sequent) != Method::Embedding {
-                output_can_be_made(args, format)?;
-                match crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)? {
-                    Native::Answered(status) => return Ok(status),
-                    Native::GivesWay(why) => gave_way = why,
-                    Native::Solved(outcome, start) => solved = Some((outcome, start)),
-                }
-            }
-            Some((options, sequent))
+            Read::Ordinary(options, sequent)
         }
-        None => None,
-    };
-    let translates = ordinary.is_some();
-    // The default of a first-order sequent in intuitionistic or minimal
-    // logic races the model search beside the embedding.
-    let race = match &ordinary {
-        Some((options, sequent)) if solved.is_none() => {
-            crate::ordinary::races_the_embedding(options, sequent, &settings.search)
-                .then(|| (*options, sequent.clone()))
-        }
-        Some(_) | None => None,
-    };
-    // On one thread there is no race: the model search goes first, within
-    // its grace, and the embedding takes the rest of the time.
-    if race.is_none()
-        && solved.is_none()
-        && let Some((options, sequent)) = &ordinary
-        && crate::ordinary::models_beside(options, sequent)
-    {
-        // The first Ctrl-C stops the search here too, and a wait on a
-        // terminal is said.
-        catch_interrupt();
-        let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
-        let halt = || interrupted() || deadline.passed();
-        let first = crate::ordinary::model_first(
-            options,
-            sequent,
-            &settings.search,
-            &limits,
-            &deadline,
-            &halt,
-        );
-        drop(notice);
-        if let Some((refuted, elapsed)) = first {
-            output_can_be_made(args, format)?;
-            let ended = Ended {
-                stop: stopped(&deadline),
-                elapsed,
-                after_search: false,
+        None => {
+            let loaded = deadline.within(move || input.forest(&limits, &read, mode, keep))?;
+            let Some(loaded) = loaded else {
+                let limit = deadline.limit().expect("only a limit passes");
+                return unread_into(args, &unread(limit));
             };
-            return crate::ordinary::write_native(args, &settings, &refuted, &ended, &deadline);
+            let (forest, writing) = loaded?;
+            Read::Linear(Box::new(forest), writing, args.input.mode(args.mode.mode()))
         }
+    };
+    // The output is made before the search, which would lose it; the
+    // flags of the output are read before the linear search.
+    let show = std::sync::OnceLock::new();
+    let ready = |before: Before| -> Result<()> {
+        if before == Before::Search {
+            let _ = show.set(Show::new(&args.output, &settings)?);
+        }
+        output_can_be_made(args, format)
+    };
+    let stopped_now = || stopped(&deadline);
+    let run = Run {
+        search: &settings.search,
+        limits,
+        threads: Some(Threads::of(&settings)),
+        deadline: &deadline,
+        beyond: &|| false,
+        limit: deadline.limit(),
+        stopped: &stopped_now,
+        linear: args.linear,
+        net: args.output.net,
+        own: true,
+        ready: &ready,
+    };
+    // An answer the large stack found is written there, as its derivation
+    // may recurse as deep.
+    match crate::decide::decide(read, &run)? {
+        Answer::Native {
+            outcome,
+            start,
+            after_search,
+            on_stack,
+        } => {
+            let write = || {
+                let ended = run.ended(start, after_search);
+                crate::ordinary::write_native(args, &settings, &outcome, &ended, &deadline)
+            };
+            if on_stack {
+                on_large_stack(limits.stack_bytes(), write)?
+            } else {
+                write()
+            }
+        }
+        Answer::Stopped(line) => {
+            match (format, &args.output.output) {
+                (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
+                _ => eprintln!("{line}"),
+            }
+            Ok(Status::Unknown)
+        }
+        Answer::Untranslated(line) => unread_into(args, &line),
+        Answer::Searched(searched) => on_large_stack(limits.stack_bytes(), || {
+            let made;
+            let show = match show.get() {
+                Some(show) => show,
+                None => {
+                    made = Show::new(&args.output, &settings)?;
+                    &made
+                }
+            };
+            written(args, &settings, show, *searched, &deadline)
+        })?,
     }
-    // The classical default's answer, written where the embedding gives no
-    // evidence for it.
-    let write_solved = |outcome: &deduxit::ordinary::Outcome, start: Instant| {
-        let ended = Ended {
-            stop: stopped(&deadline),
-            elapsed: start.elapsed(),
-            after_search: false,
-        };
-        crate::ordinary::write_native(args, &settings, outcome, &ended, &deadline)
-    };
-    let input = args.input.clone();
-    // How the sequent was written is kept for a derivation drawn so.
-    let keep = settings.view.classical == deduxit::linear::ClassicalSides::Two;
-    // The classical default's evidence is translated within a bound: an
-    // image past it is refused, and the solver's answer written.
-    let translating = match &solved {
-        Some(_) => crate::ordinary::bounded(&limits),
-        None => limits,
-    };
-    let loaded = deadline.within(move || match ordinary {
-        Some((options, sequent)) => crate::ordinary::translated(&options, &sequent, &translating)
-            .map(|(forest, image)| (forest, Some(image), None)),
-        None => input
-            .forest(&limits, &read, mode, keep)
-            .map(|(forest, writing)| (forest, None, writing)),
-    })?;
-    let Some(forest) = loaded else {
-        let limit = deadline.limit().expect("only a limit passes");
-        return match (&solved, translates) {
-            (Some((outcome, start)), _) => write_solved(outcome, *start),
-            (None, true) => unread_into(args, &untranslated(limit, gave_way.as_deref())),
-            (None, false) => unread_into(args, &unread(limit)),
-        };
-    };
-    let (forest, image, writing) = match (forest, &solved) {
-        (Ok(loaded), _) => loaded,
-        (Err(_), Some((outcome, start))) => return write_solved(outcome, *start),
-        (Err(error), None) => return Err(error),
-    };
-    let sequent = forest.sequent();
-    let mode = image
-        .as_ref()
-        .map_or_else(|| args.input.mode(args.mode.mode()), Image::mode);
-    if args.output.net {
-        nets_exist(sequent, mode)?;
-    }
-    let options = &settings.search;
-    let limits = settings.limits;
-    let threads = Threads::of(&settings);
-    // A race's model search takes one of the threads, so that it slows the
-    // embedding's search no more than a thread fewer does.
-    let threads = match &race {
-        Some(_) => Threads {
-            jobs: threads.jobs.saturating_sub(1).max(1),
-            ..threads
-        },
-        None => threads,
-    };
-    let deepens = options.copies.is_none() && sequent.fragment().has_exponentials();
-    let quiet = args.output.quiet;
-    let show = Show::new(&args.output, &settings)?;
-    output_can_be_made(args, format)?;
-    catch_interrupt();
+}
 
-    let status = on_large_stack(limits.stack_bytes(), || {
-        let start = solved
-            .as_ref()
-            .map_or_else(Instant::now, |(_, start)| *start);
-        let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), deepens));
-        // Both conditions are flags, so every poll asks both; a model the
-        // race's search found ends the embedding's search too.
-        let found = AtomicBool::new(false);
-        let passed = || deadline.passed() || found.load(Ordering::Relaxed);
-        // The classical default's evidence is searched for within a bound;
-        // a race leaves the model search a quarter of the memory bound.
-        let within = match (&solved, &race) {
-            (Some(_), _) => crate::ordinary::bounded(&limits),
-            (None, Some(_)) => limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4 * 3)),
-            (None, None) => limits,
+/// Writes what `prove` writes for the linear search's answer: the verdict
+/// line, the derivation or the proof net, the lambda-term and the
+/// statistics, or the outcome as JSON; returns the exit status.
+///
+/// # Errors
+///
+/// An output that cannot be written, and a defect of a read-back.
+fn written(
+    args: &ProveArgs,
+    settings: &Settings,
+    show: &Show,
+    searched: Searched,
+    deadline: &Deadline,
+) -> Result<Status> {
+    let Searched {
+        outcome,
+        image,
+        writing,
+        mode,
+        mut read,
+        solved,
+        gave_way,
+        status,
+        ended,
+        line,
+    } = searched;
+    let limits = settings.limits;
+    let format = args.output.format();
+    let quiet = args.output.quiet;
+    // The proof's lambda-term: of its LJ derivation under --logic, of the
+    // linear proof otherwise.
+    let term_of =
+        |proof: &deduxit::linear::Proof, over: &dyn Fn() -> bool| match (&image, args.linear) {
+            (Some(image), false) => crate::ordinary::term(image, proof, show, over),
+            _ => linear_term(proof, mode, show, over),
         };
-        let (outcome, modelled) = std::thread::scope(|scope| {
-            let model = race.as_ref().and_then(|(options, sequent)| {
-                let quarter = limits.with_memory_bytes(limits.memory_bytes.map(|m| m / 4));
-                let (found, deadline, search) = (&found, &deadline, &settings.search);
-                std::thread::Builder::new()
-                    .name("model search".into())
-                    .spawn_scoped(scope, move || {
-                        let start = Instant::now();
-                        let modelled = deduxit::ordinary::models::decide(
-                            sequent,
-                            options.logic,
-                            search,
-                            &quarter,
-                            |_| interrupted() || deadline.passed() || found.load(Ordering::Relaxed),
-                        );
-                        let refuted = matches!(
-                            &modelled,
-                            Ok(deduxit::ordinary::models::Outcome {
-                                verdict: deduxit::ordinary::Verdict::NotValid,
-                                ..
-                            })
-                        );
-                        if refuted {
-                            found.store(true, Ordering::Relaxed);
-                        }
-                        (modelled, start.elapsed())
-                    })
-                    .ok()
-            });
-            let outcome = searched(
-                Goal::conclusion(&forest),
-                mode,
-                options,
-                &within,
-                threads,
-                (deadline.limit(), &passed),
-            );
-            // A proof ends the model search; anything else waits for it.
-            let proved = matches!(
-                &outcome,
-                Ok(Outcome {
-                    verdict: Verdict::Proved(_),
-                    ..
-                })
-            );
-            let modelled = model.and_then(|model| {
-                if proved {
-                    found.store(true, Ordering::Relaxed);
-                }
-                match model.join() {
-                    Ok((Ok(m), elapsed)) if !proved => Some((m, elapsed)),
-                    Ok(_) => None,
-                    Err(panic) => std::panic::resume_unwind(panic),
-                }
-            });
-            (outcome, modelled)
-        });
-        drop(notice);
-        // The model search refuted the sequent first: its answer is the
-        // command's.
-        if let Some((m, elapsed)) = modelled
-            && matches!(m.verdict, deduxit::ordinary::Verdict::NotValid)
-        {
-            let ended = Ended {
-                stop: stopped(&deadline),
-                elapsed,
-                after_search: false,
-            };
-            let refuted = deduxit::ordinary::Outcome::from(m);
-            return crate::ordinary::write_native(args, &settings, &refuted, &ended, &deadline);
-        }
-        let outcome = match (outcome, &solved) {
-            (Ok(outcome), _) => outcome,
-            (Err(_), Some((solved, start))) => return write_solved(solved, *start),
-            (Err(error), None) => return Err(describe(error, sequent)),
-        };
-        // A derivation read back to decide whether the embedding gives the
-        // evidence, drawn as it is.
-        let mut read = None;
-        if let (Some((solved, start)), Some(image)) = (&solved, &image) {
-            let halt = || interrupted() || deadline.passed();
-            match crate::ordinary::evidence(&outcome, image, solved, &limits, halt)? {
-                Embedded::Derivation(derivation) => read = Some(*derivation),
-                Embedded::Refutation => {}
-                Embedded::Nothing => return write_solved(solved, *start),
-            }
-        }
-        let stop = stopped(&deadline);
-        let elapsed = start.elapsed();
-        // Under --logic, an unprovable image of a first-order sequent is
-        // unknown; --linear answers for the image.
-        let status = if args.linear {
-            Status::from(&outcome.verdict)
-        } else {
-            crate::ordinary::status(&outcome, image.as_ref())
-        };
-        // The proof's lambda-term: of its LJ derivation under --logic, of
-        // the linear proof otherwise.
-        let term_of =
-            |proof: &deduxit::linear::Proof, over: &dyn Fn() -> bool| match (&image, args.linear) {
-                (Some(image), false) => crate::ordinary::term(image, proof, &show, over),
-                _ => linear_term(proof, mode, &show, over),
-            };
-        let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
-        if format == Format::Json {
-            let net = match &outcome.verdict {
-                Verdict::Proved(proof) if show.net => {
-                    let over = || interrupted() || deadline.passed() || io::closed();
-                    let why = || Stop::why(stopped(&deadline));
-                    let found = outcome.net.as_deref();
-                    net_json(found, proof, mode, &show, &over, &why, &mut out)?
-                }
-                _ => false,
-            };
-            // Under --logic the output is the ordinary outcome, the
-            // image's nested in it; --linear asks for the image's alone.
-            match (&image, args.linear, net) {
-                (_, _, true) => {}
-                (Some(image), false, false) => {
-                    let over = || interrupted() || deadline.passed();
-                    let mut ordinary = image.outcome(outcome, &limits, |_| over())?;
-                    crate::ordinary::solver_model(
-                        &mut ordinary,
-                        solved.as_ref().map(|(s, _)| &**s),
-                    );
-                    crate::ordinary::write_json(&ordinary, &show, over, &mut out)?;
-                    out.finish()?;
-                    return Ok(status);
-                }
-                _ => {}
-            }
-            match (&outcome.verdict, net) {
-                (_, true) => {}
-                (Verdict::Proved(proof), false) if show.lambda.is_some() => {
-                    let over = || interrupted() || deadline.passed();
-                    let term = term_of(proof, &over);
-                    let mut value = serde_json::to_value(&outcome)?;
-                    if let Some(object) = value.as_object_mut() {
-                        object.insert("lambda".into(), lambda_json(term, &show, over)?);
-                    }
-                    serde_json::to_writer(out.stream(), &value)?;
-                }
-                (_, false) => serde_json::to_writer(out.stream(), &outcome)?,
-            }
-            out.finish()?;
-            return Ok(status);
-        }
-        // The verdict first, then the derivation as it is made.
-        let ended = Ended {
-            stop,
-            elapsed,
-            after_search: false,
-        };
-        let line = show.verdict.then(|| match &image {
-            Some(image) => {
-                let line = crate::ordinary::verdict_line(
-                    &outcome,
-                    image.logic(),
-                    image.translation(),
-                    crate::ordinary::incomplete(&outcome, image),
-                    crate::ordinary::image_axioms(image),
-                    &ended,
-                );
-                // The logic's default gave way: say why, so that the user
-                // sees what a bound buys.
-                match gave_way.as_deref() {
-                    Some(why) => format!("{line}; {why}, and the embedding took over"),
-                    None => line,
-                }
-            }
-            None => verdict_line(&outcome, options.fragment.is_some(), &ended),
-        });
-        let prefix = show.open(&mut out, line.as_deref())?;
-        // The time limit and Ctrl-C hold for the derivation as for the
-        // search.
-        // A reader that closed the pipe wants no more of the derivation.
-        let over = || interrupted() || deadline.passed() || io::closed();
-        let halt = every_steps(&over);
-        let why = || Stop::why(stopped(&deadline));
-        let shown = match (&outcome.verdict, format, quiet) {
-            (Verdict::Proved(proof), _, false) if show.net => {
+    let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
+    if format == Format::Json {
+        let net = match &outcome.verdict {
+            Verdict::Proved(proof) if show.net => {
+                let over = || interrupted() || deadline.passed() || io::closed();
+                let why = || Stop::why(stopped(deadline));
                 let found = outcome.net.as_deref();
-                net_into(
-                    found,
-                    proof,
-                    mode,
-                    &show,
-                    &over,
-                    &why,
-                    prefix.as_deref(),
-                    &mut out,
-                )?
+                net_json(found, proof, mode, show, &over, &why, &mut out)?
             }
-            (Verdict::Proved(_), _, false) if over() => {
-                Shown::LeftOut(format!("the derivation is not written: {}", why()))
-            }
-            (Verdict::Proved(proof), _, false) => match (&image, args.linear) {
-                (Some(image), false) => crate::ordinary::derivation(
-                    image,
-                    proof,
-                    read.take(),
-                    &show,
-                    halt,
-                    why,
-                    prefix.as_deref(),
-                    &mut out,
-                )?,
-                _ => derivation(
-                    proof,
-                    mode,
-                    writing.as_deref(),
-                    &show,
-                    halt,
-                    why,
-                    prefix.as_deref(),
-                    &mut out,
-                )?,
-            },
-            (Verdict::Unprovable(disproof), Format::Rocq, false) => {
-                disproof_into(disproof, image.as_ref(), &show, prefix.as_deref(), &mut out)
-            }
-            _ => Shown::Nothing,
+            _ => false,
         };
-        let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
-        let keep = show.close(&mut out, shown, line.as_deref())?;
-        // Under the classical default, a refutation of the image that is no
-        // assignment names no atoms: the SAT solver's model follows, as
-        // after the solver's own verdict line.
-        if let (Verdict::Unprovable(disproof), Some((solved, _)), Format::Text, false, false) =
-            (&outcome.verdict, &solved, format, quiet, args.linear)
-            && show.tree != Tree::Never
-            && !matches!(disproof.refutation(), Refutation::Classical(_))
-            && let Some(countermodel) = &solved.countermodel
-        {
-            show.after(&mut out, &countermodel.model.to_string(), drawn)?;
+        // Under --logic the output is the ordinary outcome, the image's
+        // nested in it; --linear asks for the image's alone.
+        match (&image, args.linear, net) {
+            (_, _, true) => {}
+            (Some(image), false, false) => {
+                let over = || interrupted() || deadline.passed();
+                let mut ordinary = image.outcome(outcome, &limits, |_| over())?;
+                crate::ordinary::solver_model(&mut ordinary, solved.as_deref());
+                crate::ordinary::write_json(&ordinary, show, over, &mut out)?;
+                out.finish()?;
+                return Ok(status);
+            }
+            _ => {}
         }
-        // The other formats write the term into their drawing.
-        if let (Verdict::Proved(proof), Format::Text, Some(_)) =
-            (&outcome.verdict, format, show.lambda)
-        {
-            let term = term_of(proof, &over);
-            show.after(&mut out, &lambda_line(term, &show, &over), drawn)?;
+        match (&outcome.verdict, net) {
+            (_, true) => {}
+            (Verdict::Proved(proof), false) if show.lambda.is_some() => {
+                let over = || interrupted() || deadline.passed();
+                let term = term_of(proof, &over);
+                let mut value = serde_json::to_value(&outcome)?;
+                if let Some(object) = value.as_object_mut() {
+                    object.insert("lambda".into(), lambda_json(term, show, over)?);
+                }
+                serde_json::to_writer(out.stream(), &value)?;
+            }
+            (_, false) => serde_json::to_writer(out.stream(), &outcome)?,
         }
-        if args.stats {
-            show.after(&mut out, &statistics(&outcome, elapsed), drawn)?;
+        out.finish()?;
+        return Ok(status);
+    }
+    // The verdict first, then the derivation as it is made. The logic's
+    // default gave way: the line says why, so that the user sees what a
+    // bound buys.
+    let line = show.verdict.then(|| match (&image, gave_way.as_deref()) {
+        (Some(_), Some(why)) => format!("{line}; {why}, and the embedding took over"),
+        _ => line,
+    });
+    let prefix = show.open(&mut out, line.as_deref())?;
+    // The time limit and Ctrl-C hold for the derivation as for the search.
+    // A reader that closed the pipe wants no more of the derivation.
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let halt = every_steps(&over);
+    let why = || Stop::why(stopped(deadline));
+    let shown = match (&outcome.verdict, format, quiet) {
+        (Verdict::Proved(proof), _, false) if show.net => {
+            let found = outcome.net.as_deref();
+            net_into(
+                found,
+                proof,
+                mode,
+                show,
+                &over,
+                &why,
+                prefix.as_deref(),
+                &mut out,
+            )?
         }
-        if keep {
-            out.finish()?;
+        (Verdict::Proved(_), _, false) if over() => {
+            Shown::LeftOut(format!("the derivation is not written: {}", why()))
         }
-        anyhow::Ok(status)
-    })??;
+        (Verdict::Proved(proof), _, false) => match (&image, args.linear) {
+            (Some(image), false) => crate::ordinary::derivation(
+                image,
+                proof,
+                read.take(),
+                show,
+                halt,
+                why,
+                prefix.as_deref(),
+                &mut out,
+            )?,
+            _ => derivation(
+                proof,
+                mode,
+                writing.as_deref(),
+                show,
+                halt,
+                why,
+                prefix.as_deref(),
+                &mut out,
+            )?,
+        },
+        (Verdict::Unprovable(disproof), Format::Rocq, false) => {
+            disproof_into(disproof, image.as_ref(), show, prefix.as_deref(), &mut out)
+        }
+        _ => Shown::Nothing,
+    };
+    let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
+    let keep = show.close(&mut out, shown, line.as_deref())?;
+    // Under the classical default, a refutation of the image that is no
+    // assignment names no atoms: the SAT solver's model follows, as after
+    // the solver's own verdict line.
+    if let (Verdict::Unprovable(disproof), Some(solved), Format::Text, false, false) =
+        (&outcome.verdict, &solved, format, quiet, args.linear)
+        && show.tree != Tree::Never
+        && !matches!(disproof.refutation(), Refutation::Classical(_))
+        && let Some(countermodel) = &solved.countermodel
+    {
+        show.after(&mut out, &countermodel.model.to_string(), drawn)?;
+    }
+    // The other formats write the term into their drawing.
+    if let (Verdict::Proved(proof), Format::Text, Some(_)) = (&outcome.verdict, format, show.lambda)
+    {
+        let term = term_of(proof, &over);
+        show.after(&mut out, &lambda_line(term, show, &over), drawn)?;
+    }
+    if args.stats {
+        show.after(&mut out, &statistics(&outcome, ended.elapsed), drawn)?;
+    }
+    if keep {
+        out.finish()?;
+    }
     Ok(status)
 }
 

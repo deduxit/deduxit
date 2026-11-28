@@ -7,10 +7,8 @@
 
 use crate::argument_parsing::{Format, InputFormat, ProveArgs, Tree};
 use crate::io::{self, Most, admit, bound, refused};
-use crate::limit::{Deadline, Notice};
-use crate::prove::{
-    Ended, NOTICE_AFTER, Stop, advice, notice_line, on_large_stack, stopped, unknown,
-};
+use crate::limit::Deadline;
+use crate::prove::{Ended, Stop, advice, stopped, unknown};
 use crate::show::{Show, Shown, every_steps, lambda_json, lambda_line, not_built};
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, anyhow, bail};
@@ -574,17 +572,22 @@ fn by_connection(
     connected
 }
 
-/// What deciding an ordinary sequent by LJT or the SAT solver leaves to
-/// its caller.
-pub(crate) enum Native<T> {
-    /// The answer, written: `prove`'s exit status, or a batch's entry.
-    Answered(T),
+/// What deciding an ordinary sequent by its own method leaves to its
+/// caller.
+pub(crate) enum Native {
+    /// The outcome, when its search began, and whether the search had
+    /// decided and its read-back or a check had begun, where a stop ended
+    /// it.
+    Decided(Box<ordinary::Outcome>, Instant, bool),
+    /// No outcome: the table or the tableau stopped. The line of the
+    /// unknown verdict.
+    Stopped(String),
     /// The logic's default ended at a bound, and the embedding decides in
     /// its place.
     GivesWay(GaveWay),
     /// The SAT solver decided a classical sequent by default, and the
     /// embedding is asked for its evidence within [`bounded`]; where it
-    /// gives none, this outcome is written. The instant is the search's
+    /// gives none, this outcome is the answer. The instant is the search's
     /// start.
     Solved(Box<ordinary::Outcome>, Instant),
 }
@@ -692,136 +695,125 @@ fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveW
     Some(format!("{} gave no verdict: {why}", by(method)))
 }
 
-/// Decides an ordinary sequent by LJT or the SAT solver, as the options'
-/// method says, and writes what `prove` writes for it ([`write_native`]).
-/// Writes nothing where the logic's default gives way to the embedding
-/// (it ended at a bound other than the time limit or Ctrl-C, or a bound
-/// refused the derivation of the proof it found), or where the classical
-/// default decided and the embedding is asked for its evidence; with
-/// `--net`, the classical default leaves the sequent to the embedding at
-/// once.
+/// Decides an ordinary sequent by its own method, as the options' method
+/// says, for [`crate::decide::decide`]. Gives way where the logic's default
+/// ends at a bound other than the time limit or Ctrl-C, or a bound refused
+/// the derivation of the proof it found; asks the embedding for its
+/// evidence where the classical default decided; with `--net`, the
+/// classical default leaves the sequent to the embedding at once.
 ///
 /// # Errors
 ///
 /// `--net` beside any other method, which draws a linear proof; a refusal
 /// that is no reason of an unknown (the tableau's steps past the
-/// derivation's bound, a first-order read-back past the terms' bound); an
-/// output that cannot be written.
-pub(crate) fn by_native(
-    args: &ProveArgs,
-    settings: &Settings,
+/// derivation's bound, a first-order read-back past the terms' bound),
+/// which a call of its own says with the flag that raises it.
+pub(crate) fn natively(
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
-    deadline: &Deadline,
-) -> Result<Native<Status>> {
+    run: &crate::decide::Run<'_>,
+) -> Result<Native> {
     let method = options.method_for(sequent);
     let keeps = keeps_evidence(options, sequent);
-    if args.output.net {
+    if run.net {
         if keeps {
             return Ok(Native::GivesWay(None));
         }
+        let advice = if run.own {
+            ": add --method embedding"
+        } else {
+            ""
+        };
         bail!(
-            "--net draws the proof net of a linear proof, and {} makes none: add --method \
-             embedding",
+            "--net draws the proof net of a linear proof, and {} makes none{advice}",
             by(method)
         );
     }
-    let limits = settings.limits;
+    let deadline = run.deadline;
     // The logic's default, which the embedding takes over from.
     let gives_way = options.method.is_none();
-    catch_interrupt();
-    on_large_stack(limits.stack_bytes(), || {
-        let start = Instant::now();
-        let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
-        let share = first_order_share(options, sequent, deadline)?;
-        let connection = connection_share(options, sequent, deadline)?;
-        let halt = || interrupted() || deadline.passed() || share.passed();
-        // Whether the read-back or a check began, which the verdict line of
-        // a stop says (LJT's and the SAT solver's follow their search).
-        let after_search = std::cell::Cell::new(false);
-        let decided = decide_natively(
-            options,
-            sequent,
-            &settings.search,
-            &limits,
-            &Race {
-                connection: &connection,
-                grace: model_grace(deadline),
-                halt: &halt,
-            },
-            |p| {
-                if p.phase != Phase::Search {
-                    after_search.set(true);
-                }
-                halt()
-            },
-        );
-        drop(notice);
-        // The method that ran last: the model search after the connection
-        // prover, where it took over.
-        let last = decided.as_ref().map_or(method, ordinary::Outcome::method);
-        if gives_way && stopped_at_share(&decided, &share, deadline) {
-            return Ok(Native::GivesWay(Some(format!(
-                "{} gave no verdict within {FIRST_ORDER_SHARE}% of the time limit",
-                by(last)
-            ))));
-        }
-        if gives_way && ordinary::gives_way(&decided) {
-            return Ok(Native::GivesWay(gave_way(last, &decided)));
-        }
-        if keeps
-            && let Ok(solved) = &decided
-            && matches!(
-                solved.verdict,
-                ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid
+    if run.own {
+        catch_interrupt();
+    }
+    let start = Instant::now();
+    let notice = run.notice(false);
+    let share = first_order_share(options, sequent, deadline)?;
+    let connection = connection_share(options, sequent, deadline)?;
+    let halt = || run.halted() || share.passed();
+    // Whether the read-back or a check began, which the verdict line of a
+    // stop says (LJT's and the SAT solver's follow their search).
+    let after_search = std::cell::Cell::new(false);
+    let decided = decide_natively(
+        options,
+        sequent,
+        run.search,
+        &run.limits,
+        &Race {
+            connection: &connection,
+            grace: model_grace(deadline),
+            halt: &halt,
+        },
+        |p| {
+            if p.phase != Phase::Search {
+                after_search.set(true);
+            }
+            halt()
+        },
+    );
+    drop(notice);
+    // The method that ran last: the model search after the connection
+    // prover, where it took over.
+    let last = decided.as_ref().map_or(method, ordinary::Outcome::method);
+    if gives_way && stopped_at_share(&decided, &share, deadline) && !(run.beyond)() {
+        return Ok(Native::GivesWay(Some(format!(
+            "{} gave no verdict within {FIRST_ORDER_SHARE}% of the time limit",
+            by(last)
+        ))));
+    }
+    if gives_way && ordinary::gives_way(&decided) {
+        return Ok(Native::GivesWay(gave_way(last, &decided)));
+    }
+    if keeps
+        && let Ok(solved) = &decided
+        && matches!(
+            solved.verdict,
+            ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid
+        )
+    {
+        return Ok(Native::Solved(Box::new(solved.clone()), start));
+    }
+    let after_search = after_search.get() && matches!(method, Method::Ljt | Method::Sat);
+    match decided {
+        Ok(outcome) => Ok(Native::Decided(Box::new(outcome), start, after_search)),
+        // Only the table and the tableau answer the stop with no outcome,
+        // since theirs holds the table or the tableau the stop left
+        // unbuilt; every other method answers it as an unknown.
+        Err(Error::Refused(Refusal::Stopped { .. })) => Ok(Native::Stopped(format!(
+            "unknown ({} logic by {}): {}",
+            options.logic,
+            by(method),
+            Stop::why((run.stopped)())
+        ))),
+        Err(error) if !run.own => Err(error.into()),
+        Err(error @ Error::Refused(Refusal::Atoms { .. })) => bail!(
+            "{error}; raise the limit with --table-atoms, or decide the sequent by another method \
+             (--method tableau)"
+        ),
+        Err(error @ Error::Refused(_)) => {
+            // Only the tableau's steps are held to the drawing's bound.
+            let flags = if matches!(error, Error::Refused(Refusal::Output { .. })) {
+                "--derivation-limit"
+            } else {
+                "--memory-limit, --work-limit"
+            };
+            bail!(
+                "{} gave no verdict: {error}; raise the limit ({flags}), or decide through the \
+                 embedding with --method embedding",
+                by(method)
             )
-        {
-            return Ok(Native::Solved(Box::new(solved.clone()), start));
         }
-        let ended = Ended {
-            stop: stopped(deadline),
-            elapsed: start.elapsed(),
-            after_search: after_search.get() && matches!(method, Method::Ljt | Method::Sat),
-        };
-        let outcome = match decided {
-            Ok(outcome) => outcome,
-            // Only the table and the tableau answer the stop with no
-            // outcome, since theirs holds the table or the tableau the stop
-            // left unbuilt; every other method answers it as an unknown.
-            Err(Error::Refused(Refusal::Stopped { .. })) => {
-                let line = format!(
-                    "unknown ({} logic by {}): {}",
-                    options.logic,
-                    by(method),
-                    Stop::why(ended.stop)
-                );
-                match (args.output.format(), &args.output.output) {
-                    (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
-                    _ => eprintln!("{line}"),
-                }
-                return Ok(Native::Answered(Status::Unknown));
-            }
-            Err(error @ Error::Refused(Refusal::Atoms { .. })) => bail!(
-                "{error}; raise the limit with --table-atoms, or decide the sequent by another \
-                 method (--method tableau)"
-            ),
-            Err(error @ Error::Refused(_)) => {
-                // Only the tableau's steps are held to the drawing's bound.
-                let flags = if matches!(error, Error::Refused(Refusal::Output { .. })) {
-                    "--derivation-limit"
-                } else {
-                    "--memory-limit, --work-limit"
-                };
-                bail!(
-                    "{} gave no verdict: {error}; raise the limit ({flags}), or decide through \
-                     the embedding with --method embedding",
-                    by(method)
-                )
-            }
-            Err(error) => return Err(error.into()),
-        };
-        write_native(args, settings, &outcome, &ended, deadline).map(Native::Answered)
-    })?
+        Err(error) => Err(error.into()),
+    }
 }
 
 /// Writes what `prove` writes for an ordinary sequent LJT or the SAT
