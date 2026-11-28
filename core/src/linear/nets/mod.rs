@@ -607,6 +607,10 @@ impl NetError {
                 f,
                 "proof nets exist for MLL without units only, not for {fragment}"
             ),
+            Mode { mode } if mode.is_affine() => write!(
+                f,
+                "proof nets exist in linear mode only, with or without Mix, not in {mode} mode"
+            ),
             Mode { mode } if mode.is_ordered() && mode.has_mix() => {
                 f.write_str("proof nets of an ordered mode exist without Mix only: leave out Mix")
             }
@@ -2065,6 +2069,18 @@ mod tests {
                 .starts_with("proof nets exist in linear mode only"),
             "{affine}"
         );
+        // An ordered affine mode is refused for its weakening too.
+        for mode in [
+            Mode::CYCLIC.with_affine(),
+            Mode::CYCLIC.with_affine().with_mix(),
+            Mode::LAMBEK.with_affine(),
+        ] {
+            let refused = Criterion::of(mode).unwrap_err().to_string();
+            assert!(
+                refused.starts_with("proof nets exist in linear mode only"),
+                "{mode}: {refused}"
+            );
+        }
         let mix = Criterion {
             mix: true,
             ..Criterion::CYCLIC
