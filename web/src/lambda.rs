@@ -18,15 +18,9 @@
 use crate::Failure;
 use crate::tab;
 use deduxit::lambda::{ReduceOptions, Term};
-use deduxit::{Progress, Settings, protocol, wire};
+use deduxit::{Settings, protocol, wire};
 use serde::Deserialize;
 use serde_json::Value;
-
-/// The stop of every call. The page cancels a call by stopping its
-/// worker, so only the bounds of the settings end a call early.
-const fn never(_: Progress) -> bool {
-    false
-}
 
 /// Runs a protocol operation of the lambda suite under the tab's
 /// settings and returns its output.
@@ -36,7 +30,7 @@ fn ran(
     parameters: &str,
     settings: &Settings,
 ) -> Result<String, Failure> {
-    Ok(protocol::run(operation, inputs, parameters, settings, never)?.value)
+    Ok(protocol::run(operation, inputs, parameters, settings, crate::unstopped())?.value)
 }
 
 /// Returns the statement of a lambda-term typed as `--lambda-types`
@@ -143,8 +137,18 @@ pub fn read_type(text: &str, settings: &str) -> Result<String, Failure> {
 fn printed(term: &mut Value, settings: &Settings) -> Result<(), Failure> {
     let read = read_term(term, settings)?;
     let (mut written, mut judgement) = (String::new(), String::new());
-    read.write(&mut written, &settings.lambda, &settings.limits, never)?;
-    read.write_judgement(&mut judgement, &settings.lambda, &settings.limits, never)?;
+    read.write(
+        &mut written,
+        &settings.lambda,
+        &settings.limits,
+        crate::unstopped(),
+    )?;
+    read.write_judgement(
+        &mut judgement,
+        &settings.lambda,
+        &settings.limits,
+        crate::unstopped(),
+    )?;
     if let Value::Object(keys) = term {
         keys.insert("text".to_owned(), Value::String(written));
         keys.insert("judgement".to_owned(), Value::String(judgement));
@@ -186,7 +190,7 @@ pub fn reduce(term: &str, options: &str, settings: &str) -> Result<String, Failu
                     redex,
                     &settings.lambda,
                     &settings.limits,
-                    never,
+                    crate::unstopped(),
                 )?;
                 debug_assert_eq!(written, text);
                 let utf16 = |s: &str| s.encode_utf16().count();

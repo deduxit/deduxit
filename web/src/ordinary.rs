@@ -22,14 +22,8 @@ use deduxit::ordinary::{
     Side, Status, Step, WrittenTableau,
 };
 use deduxit::ordinary::{normal, resolution};
-use deduxit::{Progress, Settings, linear::GoalId, wire};
+use deduxit::{Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
-
-/// The stop of every call. The page cancels a call by stopping its
-/// worker, so only the bounds of the settings end a call early.
-const fn never(_: Progress) -> bool {
-    false
-}
 
 /// An open goal as the page shows it.
 #[derive(Serialize)]
@@ -493,7 +487,7 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
             settings.ordinary.translation,
             &settings.search,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(Failure::from)?;
     let refused = closed
@@ -529,8 +523,12 @@ fn with_countermodel(
     let Ok(sequent) = Sequent::new(state.formulas().clone(), left.to_vec(), right.to_vec()) else {
         return;
     };
-    if let Ok(found) = ordinary::sat::decide(&sequent, state.logic(), &settings.limits, never)
-        && matches!(found.verdict, ordinary::Verdict::NotValid)
+    if let Ok(found) = ordinary::sat::decide(
+        &sequent,
+        state.logic(),
+        &settings.limits,
+        crate::unstopped(),
+    ) && matches!(found.verdict, ordinary::Verdict::NotValid)
     {
         outcome.countermodel = found.model;
     }
@@ -567,7 +565,7 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
             settings.ordinary.translation,
             &settings.search,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(Failure::from)?;
     let mut outcome = hint.outcome;
@@ -640,7 +638,7 @@ pub fn model(
         model.check_world(w).map_err(Failure::from)?;
     }
     let forcing = model
-        .forcing(&sequent, logic, &settings.limits, never)
+        .forcing(&sequent, logic, &settings.limits, crate::unstopped())
         .map_err(Failure::from)?;
     let failing = match world {
         Some(w) => forcing.failing(w),
@@ -721,7 +719,7 @@ pub fn structure(
         let alone = Sequent::new(sequent.formulas().clone(), vec![formula], Vec::new())
             .map_err(Failure::from)?;
         let evaluation = structure
-            .refutes(&alone, &settings.limits, never)
+            .refutes(&alone, &settings.limits, crate::unstopped())
             .map_err(Failure::from)?;
         Ok(Valued {
             formula: sequent.formulas().formula(formula).to_string(),
@@ -740,8 +738,11 @@ pub fn structure(
         .collect::<Result<_, _>>()?;
     // Every formula was interpreted above, so a refusal of the check is
     // the structure not refuting the sequent.
-    let checked =
-        ordinary::FiniteCountermodel::new(sequent, structure).check(logic, &settings.limits, never);
+    let checked = ordinary::FiniteCountermodel::new(sequent, structure).check(
+        logic,
+        &settings.limits,
+        crate::unstopped(),
+    );
     let reason = match checked {
         Ok(()) => None,
         Err(error @ deduxit::Error::Structure { .. }) => Some(error.to_string()),
@@ -811,7 +812,12 @@ pub fn tableau_review(text: &str, sequent: &str, settings: &str) -> Result<Strin
     let calculus: deduxit::rules::Calculus =
         wire::upgrade(&mut json, &settings.limits).map_err(Failure::from)?;
     let review = tableau
-        .review(&calculus, expected.as_ref(), &settings.limits, never)
+        .review(
+            &calculus,
+            expected.as_ref(),
+            &settings.limits,
+            crate::unstopped(),
+        )
         .map_err(Failure::from)?;
     written(&review)
 }
@@ -839,8 +845,14 @@ pub fn translate(sequent: &str, options: &str, settings: &str) -> Result<String,
         serde_json::from_str(options).map_err(Failure::json)?
     };
     let search = deduxit::linear::search::Options::default();
-    let compared = negative::compare(&sequent, &options, &search, &settings.limits, never)
-        .map_err(Failure::from)?;
+    let compared = negative::compare(
+        &sequent,
+        &options,
+        &search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     written(&compared)
 }
 
@@ -880,7 +892,7 @@ pub fn interpolate(
         &partition,
         &search,
         &settings.limits,
-        never,
+        crate::unstopped(),
     )
     .map_err(Failure::from)?;
     written(&found)
@@ -909,8 +921,14 @@ pub fn normalize(sequent: &str, options: &str, settings: &str) -> Result<String,
         serde_json::from_str(options).map_err(Failure::json)?
     };
     let search = deduxit::linear::search::Options::default();
-    let made = normal::normalize(&sequent, &options, &search, &settings.limits, never)
-        .map_err(Failure::from)?;
+    let made = normal::normalize(
+        &sequent,
+        &options,
+        &search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     written(&made)
 }
 
@@ -966,15 +984,20 @@ pub fn resolve(sequent: &str, options: &str, settings: &str) -> Result<String, F
         serde_json::from_str(options).map_err(Failure::json)?
     };
     let search = deduxit::linear::search::Options::default();
-    let (clauses, _) =
-        resolution::clauses_of(&sequent, options.form, &search, &settings.limits, never)
-            .map_err(Failure::from)?;
+    let (clauses, _) = resolution::clauses_of(
+        &sequent,
+        options.form,
+        &search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     let decide = resolution::Options::default()
         .with_method(options.method)
         .with_clauses(options.clauses)
         .with_steps(options.steps);
-    let answer =
-        resolution::decide(&clauses, &decide, &settings.limits, never).map_err(Failure::from)?;
+    let answer = resolution::decide(&clauses, &decide, &settings.limits, crate::unstopped())
+        .map_err(Failure::from)?;
     written(&answer)
 }
 
@@ -996,8 +1019,14 @@ pub fn clauses(sequent: &str, form: &str, settings: &str) -> Result<String, Fail
         form.parse().map_err(Failure::from)?
     };
     let search = deduxit::linear::search::Options::default();
-    let (clauses, _) = resolution::clauses_of(&sequent, form, &search, &settings.limits, never)
-        .map_err(Failure::from)?;
+    let (clauses, _) = resolution::clauses_of(
+        &sequent,
+        form,
+        &search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     written(&resolution::Refutation::new(clauses))
 }
 
@@ -1030,7 +1059,7 @@ pub fn resolve_step(
     let settings = tab::read(settings)?;
     let mut refutation = refutation_of(refutation, &settings)?;
     refutation
-        .check_steps(&settings.limits, never)
+        .check_steps(&settings.limits, crate::unstopped())
         .map_err(Failure::from)?;
     let first = crate::calls::index(first, "first")?;
     let second = crate::calls::index(second, "second")?;
@@ -1060,7 +1089,7 @@ pub fn refutation_check(refutation: &str, settings: &str) -> Result<String, Fail
     let settings = tab::read(settings)?;
     let refutation = refutation_of(refutation, &settings)?;
     refutation
-        .check_steps(&settings.limits, never)
+        .check_steps(&settings.limits, crate::unstopped())
         .map_err(Failure::from)?;
     Ok(serde_json::json!({"finished": refutation.is_finished()}).to_string())
 }
@@ -1074,9 +1103,14 @@ fn decided(sequent: &str, method: Method, settings: &str) -> Result<String, Fail
         .with_logic(Logic::Classical)
         .with_method(Some(method));
     let search = deduxit::linear::search::Options::default();
-    let outcome =
-        deduxit::ordinary::decide_within(&sequent, &options, &search, &settings.limits, never)
-            .map_err(Failure::from)?;
+    let outcome = deduxit::ordinary::decide_within(
+        &sequent,
+        &options,
+        &search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     written(&outcome)
 }
 
@@ -1096,8 +1130,8 @@ pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let term = state
-        .derivation_within(&settings.view, &settings.limits, never)
-        .and_then(|derivation| derivation.term(&settings.limits, never));
+        .derivation_within(&settings.view, &settings.limits, crate::unstopped())
+        .and_then(|derivation| derivation.term(&settings.limits, crate::unstopped()));
     crate::calls::termed(term, &settings)
 }
 
@@ -1134,18 +1168,21 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     let (limits, styles) = (&settings.limits, &settings.styles);
     let mut out = String::new();
     if format == "rocq" {
-        let derivation = state.finished(limits, never).map_err(Failure::from)?;
-        rocq::write(&derivation, &styles.rocq, &mut out, never).map_err(Failure::from)?;
+        let derivation = state
+            .finished(limits, crate::unstopped())
+            .map_err(Failure::from)?;
+        rocq::write(&derivation, &styles.rocq, &mut out, crate::unstopped())
+            .map_err(Failure::from)?;
         return Ok(out);
     }
     let derivation = state
-        .derivation_within(&settings.view, limits, never)
+        .derivation_within(&settings.view, limits, crate::unstopped())
         .map_err(Failure::from)?;
     match format {
-        "text" => derivation.write_text(&styles.text, &mut out, never),
-        "latex" => latex::write(&derivation, &styles.latex, &mut out, never),
-        "typst" => typst::write(&derivation, &styles.typst, &mut out, never),
-        "svg" => svg::write(&derivation, &styles.svg, &mut out, never),
+        "text" => derivation.write_text(&styles.text, &mut out, crate::unstopped()),
+        "latex" => latex::write(&derivation, &styles.latex, &mut out, crate::unstopped()),
+        "typst" => typst::write(&derivation, &styles.typst, &mut out, crate::unstopped()),
+        "svg" => svg::write(&derivation, &styles.svg, &mut out, crate::unstopped()),
         _ => {
             return Err(Failure::refused(
                 "unknown_name",
@@ -1197,7 +1234,7 @@ pub fn model_drawing(outcome: &str, settings: &str) -> Result<String, Failure> {
         logic,
         &settings.styles.svg,
         &settings.limits,
-        never,
+        crate::unstopped(),
     )
     .map_err(Failure::from)
 }
@@ -1222,7 +1259,7 @@ pub fn model_certificate(outcome: &str, settings: &str) -> Result<String, Failur
         &settings.styles.rocq,
         &settings.limits,
         &mut out,
-        never,
+        crate::unstopped(),
     )
     .map_err(Failure::from)?;
     Ok(out)
@@ -1284,7 +1321,12 @@ pub fn certificate(outcome: &str, settings: &str) -> Result<String, Failure> {
     match (&outcome.verdict, &outcome.countermodel) {
         (ordinary::Verdict::Valid(evidence), _) => {
             let derivation = evidence.derivation().map_err(Failure::from)?;
-            rocq::write(derivation, &settings.styles.rocq, &mut out, never)
+            rocq::write(
+                derivation,
+                &settings.styles.rocq,
+                &mut out,
+                crate::unstopped(),
+            )
         }
         (_, Some(countermodel)) => rocq::write_countermodel(
             countermodel,
@@ -1292,7 +1334,7 @@ pub fn certificate(outcome: &str, settings: &str) -> Result<String, Failure> {
             &settings.styles.rocq,
             &settings.limits,
             &mut out,
-            never,
+            crate::unstopped(),
         ),
         _ => {
             return Err(Failure::refused(
