@@ -942,7 +942,7 @@ impl Workspace {
     /// session's reader's error.
     pub fn work(&mut self, node: NodeId, session: &str, limits: &Limits) -> Result<(), Error> {
         let Some(at) = self.nodes.binary_search_by_key(&node, |n| n.id).ok() else {
-            return Err(no_node(node));
+            return Err(no_node(node, self.nodes.len()));
         };
         let Body::Work { recipe, .. } = &self.nodes[at].body else {
             return Err(Error::NotApplicable {
@@ -1030,7 +1030,9 @@ impl Workspace {
             now
         };
         let halted = || Error::Refused(Refusal::stopped(crate::Phase::Search));
-        let found = self.node(node).ok_or_else(|| no_node(node))?;
+        let found = self
+            .node(node)
+            .ok_or_else(|| no_node(node, self.nodes.len()))?;
         let Body::Derived { recipe, record } = &found.body else {
             return Err(Error::NotApplicable {
                 operation: "run".into(),
@@ -1584,12 +1586,12 @@ fn limit_named(reason: &str, setting: Option<&str>) -> Limit {
     }
 }
 
-/// Returns the error of a node the workspace lacks.
-fn no_node(node: NodeId) -> Error {
+/// Returns the error of a node the workspace of `len` nodes lacks.
+fn no_node(node: NodeId, len: usize) -> Error {
     Error::IndexOutOfBounds {
         space: crate::limits::Space::Node,
         index: node.0 as usize,
-        len: 0,
+        len,
     }
 }
 
@@ -1630,7 +1632,10 @@ impl Edit<'_> {
 
     /// Returns a node, or the error that names it missing.
     fn existing(&self, id: NodeId) -> Result<Node, Error> {
-        self.workspace.node(id).cloned().ok_or_else(|| no_node(id))
+        self.workspace
+            .node(id)
+            .cloned()
+            .ok_or_else(|| no_node(id, self.workspace.nodes.len()))
     }
 
     /// Adds a node that holds a value of the kind named `kind`, and returns

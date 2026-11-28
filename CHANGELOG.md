@@ -224,6 +224,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   connective takes, the contexts that cannot be told apart; a sort with
   an empty name is said as such, where it was called declared twice. A
   saved session of a rule file with no node or no scope says which.
+- **An index out of range says what it names**: "index 7 names no term:
+  there are 3 terms", and the same for a node, where the term message
+  called the index a root formula and the node message spoke of a
+  proof's nodes. A workspace edit of a node that does not exist gives
+  the workspace's count of nodes, where it said there were 0.
 
 ### Deprecated
 

@@ -1202,11 +1202,13 @@ fn out_of_bounds(space: Space, index: usize, len: usize) -> String {
             counted(len, "name", "names")
         ),
         Space::Term => format!(
-            "a root formula is term {index}, but the arena has {}",
+            "index {index} names no term: there {} {}",
+            if len == 1 { "is" } else { "are" },
             counted(len, "term", "terms")
         ),
         Space::Node => format!(
-            "a proof refers to node {index}, but it has {}",
+            "index {index} names no node: there {} {}",
+            if len == 1 { "is" } else { "are" },
             counted(len, "node", "nodes")
         ),
         Space::Occurrence => format!(

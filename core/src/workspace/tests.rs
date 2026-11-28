@@ -471,6 +471,16 @@ fn edits_that_do_not_apply_are_refused_and_leave_nothing() {
         .edit("detach", &limits, |edit| edit.detach(decided))
         .unwrap_err();
     assert_eq!(error.code(), "not_applicable");
+    // A node the workspace lacks is named with the nodes it has.
+    let error = workspace
+        .edit("missing", &limits, |edit| {
+            edit.set(NodeId(99), &classical("|- d"))
+        })
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "index 99 names no node: there are 2 nodes"
+    );
     assert_eq!(seen(&workspace), before, "a refused action keeps nothing");
     assert_eq!(workspace.undoable(), Some("decision"));
 }
