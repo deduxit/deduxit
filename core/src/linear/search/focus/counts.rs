@@ -8,7 +8,6 @@
 //! per sequent.
 
 use super::Switches;
-use super::split::Forced;
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId, Sign};
 use crate::linear::proofs::Branch;
@@ -171,6 +170,20 @@ pub(crate) struct RowEntry {
     pub(crate) lo: i32,
     /// The greatest balance.
     pub(crate) hi: i32,
+}
+
+/// What a factor of a `⊗` forces on its side of the split.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Forced {
+    /// No split works: the factor is `0`.
+    Nothing,
+    /// The empty context: the factor is `1` or `!`.
+    Empty,
+    /// The dual literal alone: the factor is a positive literal.
+    Dual,
+    /// One dual literal per literal of the factor, a tensor of positive
+    /// literals.
+    Duals,
 }
 
 /// The rows of the occurrences computed so far, one after another.

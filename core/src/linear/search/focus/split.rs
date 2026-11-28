@@ -13,7 +13,7 @@
 //! balance of each atom's literals.
 
 use super::choices::Site;
-use super::counts::{Split, Tally};
+use super::counts::{Forced, Split, Tally};
 use super::scratch::Pooled;
 use super::zone::{Cursors, Linear as _, Unrestricted as _, Zone};
 use super::{
@@ -1077,20 +1077,6 @@ struct Forcing<M> {
     other: M,
     /// Which of the two the forcing factor is.
     side: Branch,
-}
-
-/// What a factor of a `⊗` forces on its side of the split.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Forced {
-    /// No split works: the factor is `0`.
-    Nothing,
-    /// The empty context: the factor is `1` or `!`.
-    Empty,
-    /// The dual literal alone: the factor is a positive literal.
-    Dual,
-    /// One dual literal per literal of the factor, a tensor of positive
-    /// literals.
-    Duals,
 }
 
 /// The occurrences a left factor of a `⊗` must have for its free split
