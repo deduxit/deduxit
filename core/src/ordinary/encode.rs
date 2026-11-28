@@ -5,7 +5,7 @@
 //! write with its bounds and the stop, the conjunction and disjunction of
 //! a list, the disjunction over the tuples a term's arguments may denote,
 //! and the lookup of a variable's element in a chain of bindings. The
-//! finite model search and the Kripke model search each hold a [`Core`];
+//! finite model search and the Kripke model search each hold a `Core`;
 //! grounding shares the lookup.
 
 use super::grounding::{ATOM_BYTES, NODE_BYTES, poll_by};
