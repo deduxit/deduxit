@@ -179,16 +179,8 @@ struct Session {
 impl Commands for Session {
     fn command(&mut self, words: &[&str]) -> Result<String> {
         let (command, rest) = words.split_first().map_or(("", &[][..]), |(c, r)| (*c, r));
-        let goal = |i: usize| -> Result<GoalId> {
-            let word = rest.get(i).context("which goal? see `goals`")?;
-            // Rust's parse error says nothing a user can act on.
-            let id: u32 = word.parse().map_err(|_| {
-                anyhow::anyhow!(
-                    "{word:?} is not a goal: a goal is a number, and `goals` lists them"
-                )
-            })?;
-            Ok(GoalId::new(id))
-        };
+        let goal =
+            |i: usize| -> Result<GoalId> { Ok(GoalId::new(super::goal_number(rest.get(i))?)) };
         let formula = |i: usize| -> Result<(Side, usize)> {
             address(rest.get(i).context("which formula? see `goals`")?)
         };
@@ -200,7 +192,7 @@ impl Commands for Session {
                 let (side, position) = formula(1)?;
                 let rules = self.state.rules(goal(0)?, side, position)?;
                 if rules.is_empty() {
-                    "no rule acts on it".to_owned()
+                    super::NO_RULE.to_owned()
                 } else {
                     rules
                         .iter()
@@ -336,11 +328,12 @@ impl Commands for Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Ordinary(state) => *state,
-                    Saved::Linear(_) | Saved::Rules(_) => bail!(
-                        "{path} holds a session of linear logic or of a calculus given as \
-                         data; `load` resumes one of this sequent, and `deduxit interact \
-                         --state {path}` starts that one"
-                    ),
+                    Saved::Linear(_) | Saved::Rules(_) => {
+                        return Err(super::another_kind(
+                            path,
+                            "linear logic or of a calculus given as data",
+                        ));
+                    }
                 };
                 // The exit status answers for the session's sequent and
                 // logic, so a file of another question is refused, as
@@ -368,7 +361,7 @@ impl Commands for Session {
                 "`cut` is a command of a session of linear logic; a session of LK or LJ has \
                  the rules of the calculus alone, without cut"
             ),
-            _ => bail!("unknown command {command:?}; `help` lists them"),
+            _ => return Err(super::unknown_command(command)),
         })
     }
 

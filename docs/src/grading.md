@@ -89,7 +89,7 @@ the first line that failed.
 
 ```console
 $ echo 'not an answer' | deduxit grade --format json "A |- A"
-{"version":1,"verdict":"incorrect","answer":"script","message":"the script's 1 command leaves the proof unfinished; the first that failed: unknown command \"not\"; `help` lists them","line":1}
+{"version":1,"verdict":"incorrect","answer":"script","message":"the script's 1 command leaves the proof unfinished; the first that failed: unknown command \"not\"; `help` lists the commands","line":1}
 ```
 
 ## Problems with verified answers

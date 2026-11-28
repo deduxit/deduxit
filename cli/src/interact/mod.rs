@@ -356,6 +356,33 @@ fn opened_line<S: Driven>(session: &S, goals: &[S::Goal]) -> String {
         .join("\n")
 }
 
+/// Returns the goal number a word gives, or the answer every session
+/// gives to a missing word or one that is no number.
+fn goal_number(word: Option<&&str>) -> Result<u32> {
+    let word = word.context("which goal? see `goals`")?;
+    // Rust's parse error says nothing a user can act on.
+    word.parse().map_err(|_| {
+        anyhow::anyhow!("{word:?} is not a goal: a goal is a number, and `goals` lists them")
+    })
+}
+
+/// The answer to `rules` where no rule applies.
+const NO_RULE: &str = "no rule applies there";
+
+/// Returns the answer to a command no session has.
+fn unknown_command(command: &str) -> anyhow::Error {
+    anyhow::anyhow!("unknown command {command:?}; `help` lists the commands")
+}
+
+/// Returns the answer to `load` of a file that holds another kind of
+/// session, `kinds` naming the kinds the other two sessions are.
+fn another_kind(path: &str, kinds: &str) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{path} holds a session of {kinds}; `load` resumes one of this kind, and `deduxit \
+         interact --state {path}` starts that one"
+    )
+}
+
 /// Runs `save FILE`: writes the session's document.
 ///
 /// # Errors
@@ -697,15 +724,7 @@ impl Session {
                 .map(|w| read_position(w))
                 .collect()
         };
-        let goal = |i: usize| -> Result<GoalId> {
-            let word = rest.get(i).context("which goal? see `goals`")?;
-            let id: u32 = word.parse().map_err(|_| {
-                anyhow::anyhow!(
-                    "{word:?} is not a goal: a goal is a number, and `goals` lists them"
-                )
-            })?;
-            Ok(GoalId::new(id))
-        };
+        let goal = |i: usize| -> Result<GoalId> { Ok(GoalId::new(goal_number(rest.get(i))?)) };
         let position = |i: usize| -> Result<usize> {
             read_position(rest.get(i).context("which formula? see `goals`")?)
         };
@@ -716,7 +735,7 @@ impl Session {
             "rules" => {
                 let rules = self.state.rules(goal(0)?, position(1)?)?;
                 if rules.is_empty() {
-                    "no rule acts on it".to_owned()
+                    NO_RULE.to_owned()
                 } else {
                     rules
                         .iter()
@@ -910,11 +929,12 @@ impl Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Linear(state) => *state,
-                    Saved::Ordinary(_) | Saved::Rules(_) => bail!(
-                        "{path} holds a session of LK or LJ or of a calculus given as data; \
-                         `load` resumes one of this sequent, and `deduxit interact --state \
-                         {path}` starts that one"
-                    ),
+                    Saved::Ordinary(_) | Saved::Rules(_) => {
+                        return Err(another_kind(
+                            path,
+                            "LK or LJ or of a calculus given as data",
+                        ));
+                    }
                 };
                 // The exit status answers for the session's sequent and
                 // mode, so a file of another question is refused, as
@@ -940,7 +960,7 @@ impl Session {
                 self.groups.clear();
                 goals(self)
             }
-            _ => bail!("unknown command {command:?}; `help` lists them"),
+            _ => return Err(unknown_command(command)),
         })
     }
 

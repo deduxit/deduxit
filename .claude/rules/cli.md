@@ -1607,7 +1607,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `HELP`, and the session test in `cli/tests/cli.rs`
   (`interactive_session`, `ordinary_session`), which pins the exact
   output of a scripted session. A command one kind of session lacks is
-  refused there by name, never as unknown.
+  refused there by name, never as unknown. The answers all three give
+  are written once in `interact/mod.rs` (`goal_number`, `NO_RULE`,
+  `unknown_command`, `another_kind`), so a session never words one of
+  them its own way (`the_sessions_word_their_shared_answers_alike`).
 - **An output format** (`lean`, say): a variant of `Format` (its
   extension in `Format::extension`, its key in `Format::style_key` and `Styles`),
   its arm in `shown`'s `match show.format` calling the library's

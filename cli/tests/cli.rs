@@ -448,6 +448,44 @@ fn jobs_are_bounded() {
     );
 }
 
+/// The three sessions give one answer to a goal that is no number, to an
+/// unknown command and to a saved session of another kind.
+#[test]
+fn the_sessions_word_their_shared_answers_alike() {
+    let saved = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-other-kind.json");
+    let saved = saved.to_str().unwrap();
+    let (status, _, err) = deduxit(&["interact", "a |- a"], &format!("save {saved}\n"));
+    assert_eq!(status, 1, "{err}");
+    let script = format!("rules x R0\nfrob\nload {saved}\n");
+    for (args, kinds) in [
+        (
+            vec!["interact", "--logic", "classical", "a |- a"],
+            "linear logic or of a calculus given as data",
+        ),
+        (
+            vec!["interact", "--calculus", "NJ", "a -> a"],
+            "linear logic or of LK or LJ",
+        ),
+    ] {
+        let (_, out, _) = deduxit(&args, &script);
+        let expected = format!(
+            "error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
+             error: unknown command \"frob\"; `help` lists the commands\n\
+             error: {saved} holds a session of {kinds}; `load` resumes one of this kind, and \
+             `deduxit interact --state {saved}` starts that one\n"
+        );
+        assert!(out.ends_with(&expected), "{args:?}: {out}");
+    }
+    let (_, out, _) = deduxit(&["interact", "a |- a"], "rules x 0\nfrob\n");
+    assert!(
+        out.ends_with(
+            "error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
+             error: unknown command \"frob\"; `help` lists the commands\n"
+        ),
+        "{out}"
+    );
+}
+
 /// A derivation estimated above `--derivation-limit` is not written: the
 /// verdict stands with its exit status, standard error says how large the
 /// derivation is and how to get it, and `none` lifts the limit;

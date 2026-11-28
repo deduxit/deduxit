@@ -284,11 +284,7 @@ fn line(word: &str) -> Result<LineId> {
 
 /// Returns the goal a word names.
 fn goal(word: Option<&&str>) -> Result<GoalId> {
-    let word = word.context("which goal? see `goals`")?;
-    let index: u32 = word
-        .parse()
-        .with_context(|| format!("{word:?} names no goal: give its number, as `goals` shows it"))?;
-    Ok(deduxit::rules::GoalId::new(index))
+    Ok(deduxit::rules::GoalId::new(super::goal_number(word)?))
 }
 
 impl Commands for Session {
@@ -301,7 +297,7 @@ impl Commands for Session {
             "rules" => {
                 let rules = self.state.rules(goal(rest.first())?)?;
                 if rules.is_empty() {
-                    "no rule applies to the goal".to_owned()
+                    super::NO_RULE.to_owned()
                 } else {
                     rules
                         .iter()
@@ -448,9 +444,7 @@ impl Commands for Session {
                     bail!("load what? give one file, in quotes if its name has blanks");
                 };
                 let Saved::Rules(state) = load(Path::new(path), &self.limits)? else {
-                    bail!(
-                        "{path} holds a session of another kind: `deduxit interact --state {path}` starts it"
-                    );
+                    return Err(super::another_kind(path, "linear logic or of LK or LJ"));
                 };
                 // The exit status answers for the session's own question.
                 if statement(&state) != statement(&self.state) {
@@ -462,7 +456,7 @@ impl Commands for Session {
                 self.state = *state;
                 format!("session loaded from {path}\n{}", self.goals())
             }
-            other => bail!("unknown command {other:?}; `help` lists the commands"),
+            other => return Err(super::unknown_command(other)),
         })
     }
 
