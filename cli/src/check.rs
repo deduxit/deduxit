@@ -418,9 +418,9 @@ pub(crate) fn read_document(text: &str, limits: &Limits) -> Result<Document> {
 fn limit_advice(error: Error) -> std::result::Result<anyhow::Error, Error> {
     // Only the occurrence and term bounds have flags: the width of the
     // representation's indices is no setting.
+    let flag = crate::settings::raise(error.setting(), &["limits.occurrences", "limits.terms"]);
     match error.setting() {
-        Some("limits.occurrences") => Ok(anyhow!("{error}; raise it with --occurrence-limit")),
-        Some("limits.terms") => Ok(anyhow!("{error}; raise it with --term-limit")),
+        _ if !flag.is_empty() => Ok(anyhow!("{error}{flag}")),
         _ if error.kind() == ErrorKind::Limit => Ok(error.into()),
         _ => Err(error),
     }
@@ -722,9 +722,9 @@ pub(crate) fn check_derivation(
     let line = match &result {
         Ok(()) => format!("valid derivation in {calculus} of {sequent} ({logic} logic)"),
         Err(error) if status == Status::Unknown => {
+            let flag = crate::settings::raise(error.setting(), crate::settings::LIMITS);
             let advice = match error.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit SIZE".to_owned(),
-                Some("limits.work") => "; raise it with --work-limit N".to_owned(),
+                _ if !flag.is_empty() => flag,
                 _ => match stopped(deadline) {
                     Some(Stop::Timeout(t)) => format!(
                         ": the time limit of {t:?} was reached; --timeout DURATION gives the \
@@ -1399,9 +1399,9 @@ pub(crate) fn check_into(
     let line = match &result {
         Ok(()) => format!("valid proof of {sequent} ({mode})"),
         Err(e @ CheckError::Refused(refused)) => {
+            let flag = crate::settings::raise(refused.refusal.setting(), crate::settings::LIMITS);
             let advice = match refused.refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit SIZE".to_owned(),
-                Some("limits.work") => "; raise it with --work-limit N".to_owned(),
+                _ if !flag.is_empty() => flag,
                 _ => match stopped(deadline) {
                     Some(Stop::Timeout(t)) => format!(
                         ": the time limit of {t:?} was reached; --timeout DURATION gives the \

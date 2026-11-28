@@ -132,10 +132,12 @@ pub(crate) fn review(
 
 /// Returns a refusal's message with the flag that raises its bound.
 fn advice(error: &Error, deadline: &Deadline) -> String {
+    let flag = crate::settings::raise(
+        error.setting(),
+        &["limits.memory_bytes", "limits.work", "limits.occurrences"],
+    );
     match error.setting() {
-        Some("limits.memory_bytes") => format!("{error}; raise it with --memory-limit"),
-        Some("limits.work") => format!("{error}; raise it with --work-limit"),
-        Some("limits.occurrences") => format!("{error}; raise it with --occurrence-limit"),
+        _ if !flag.is_empty() => format!("{error}{flag}"),
         _ if deadline.passed() => {
             "the time limit was reached; --timeout DURATION gives the check longer".to_owned()
         }

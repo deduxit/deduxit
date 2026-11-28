@@ -181,9 +181,9 @@ pub(crate) fn check_rules(
             }
         }
         Err(error) if status == Status::Unknown => {
+            let flag = crate::settings::raise(error.setting(), crate::settings::LIMITS);
             let advice = match error.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit SIZE".to_owned(),
-                Some("limits.work") => "; raise it with --work-limit N".to_owned(),
+                _ if !flag.is_empty() => flag,
                 _ => match stopped(deadline) {
                     Some(Stop::Timeout(t)) => format!(
                         ": the time limit of {t:?} was reached; --timeout DURATION gives the \
@@ -318,11 +318,10 @@ fn made(
 /// Returns the line that says why a derivation's drawing or Fitch proof
 /// is left out.
 fn left_out(error: &Error) -> String {
-    let flag = match error.setting() {
-        Some("limits.derivation_bytes") => "; raise --derivation-limit",
-        Some("limits.work") => "; raise --work-limit",
-        _ => "",
-    };
+    let flag = crate::settings::raise(
+        error.setting(),
+        &["limits.derivation_bytes", "limits.work"],
+    );
     format!("the derivation is left out: {error}{flag}")
 }
 

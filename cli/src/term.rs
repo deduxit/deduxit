@@ -344,11 +344,7 @@ fn reduce(args: &TermReduceArgs, given: &Given) -> Result<Status> {
 /// Says why a bound or the stop ended a call, with the flag that lifts
 /// the bound: the time limit or Ctrl-C for the stop.
 fn refused_why(refusal: &Refusal, deadline: &Deadline) -> String {
-    let flag = match refusal.setting() {
-        Some("limits.memory_bytes") => "; raise it with --memory-limit",
-        Some("limits.work") => "; raise it with --work-limit",
-        _ => "",
-    };
+    let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
     if refusal.is_stop() {
         Stop::why(stopped(deadline))
     } else {
@@ -485,11 +481,7 @@ fn refused<T: HasOutput>(
     let why = match error {
         Error::Refused(Refusal::Stopped { .. }) => Stop::why(stopped(deadline)),
         Error::Refused(refusal) => {
-            let flag = match refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit",
-                Some("limits.work") => "; raise it with --work-limit",
-                _ => "",
-            };
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
             format!("{refusal}{flag}")
         }
         error => return Err(error.into()),

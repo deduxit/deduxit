@@ -145,6 +145,11 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- **A refusal names the flag that raises its bound one way on every
+  command**, with what the flag takes: `; raise it with --work-limit N`
+  where `term`, `resolve`, `herbrand`, `interpolate` and `check --tableau`
+  said `--work-limit`, and `; raise it with --derivation-limit SIZE`
+  where a rules derivation's drawing said `; raise --derivation-limit`.
 - **`--timeout`, `--memory-limit` and `--work-limit` stand together** in
   the Limits heading of every command's help, being one group of flags
   now; `grade --help` words them as the term commands do.

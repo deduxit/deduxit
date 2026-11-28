@@ -386,7 +386,7 @@ fn check_advises_only_the_limit_that_refused() {
     let (status, _, err) = deduxit(&["check"], &proof);
     assert_eq!(status, 2, "{err}");
     assert!(
-        err.ends_with("; raise it with --occurrence-limit\n"),
+        err.ends_with("; raise it with --occurrence-limit N\n"),
         "{err}"
     );
 }
@@ -940,7 +940,10 @@ fn the_clausal_form_keeps_to_the_memory_limit() {
         out.starts_with("unknown: the rewriting takes more"),
         "{out}"
     );
-    assert!(out.ends_with("raise it with --memory-limit\n"), "{out}");
+    assert!(
+        out.ends_with("raise it with --memory-limit SIZE\n"),
+        "{out}"
+    );
     let (status, out, _) = deduxit(&["herbrand", "--memory-limit", "1MiB", &sequent], "");
     assert_eq!(status, 0, "{out}");
     assert!(

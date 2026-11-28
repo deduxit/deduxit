@@ -93,11 +93,7 @@ pub(crate) fn resolve(args: &ResolveArgs, given: &Given) -> Result<Status> {
             return unknown(args, &Stop::why(stopped(&deadline)));
         }
         Err(Error::Refused(refusal)) => {
-            let flag = match refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit",
-                Some("limits.work") => "; raise it with --work-limit",
-                _ => "",
-            };
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
             return unknown(args, &format!("{refusal}{flag}"));
         }
         Err(error) => return Err(error.into()),
@@ -164,11 +160,7 @@ fn first_order(
             bail!("{error}; raise limits.form_occurrences in a --settings file")
         }
         Err(Error::Refused(refusal)) => {
-            let flag = match refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit",
-                Some("limits.work") => "; raise it with --work-limit",
-                _ => "",
-            };
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
             return unknown(args, &format!("{refusal}{flag}"));
         }
         Err(error) => return Err(error.into()),

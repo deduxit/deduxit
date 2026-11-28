@@ -374,6 +374,31 @@ impl CheckArgs {
     }
 }
 
+/// The flag that sets each settings key a bound reads, with what it
+/// takes, as a refusal's advice names it.
+const RAISED_BY: [(&str, &str); 6] = [
+    ("limits.memory_bytes", "--memory-limit SIZE"),
+    ("limits.work", "--work-limit N"),
+    ("limits.occurrences", "--occurrence-limit N"),
+    ("limits.terms", "--term-limit N"),
+    ("limits.derivation_bytes", "--derivation-limit SIZE"),
+    ("cut.nodes", "--node-limit N"),
+];
+
+/// The keys of [`LimitArgs`](crate::argument_parsing::LimitArgs)'s two
+/// bounds, which most commands raise by a flag.
+pub(crate) const LIMITS: &[&str] = &["limits.memory_bytes", "limits.work"];
+
+/// Returns `; raise it with FLAG` for a refusal whose settings key is one
+/// of `offered`, the keys the command has a flag for, and nothing for any
+/// other: a command never names a flag it does not take.
+pub(crate) fn raise(setting: Option<&str>, offered: &[&str]) -> String {
+    setting
+        .filter(|key| offered.contains(key))
+        .and_then(|key| RAISED_BY.iter().find(|(k, _)| *k == key))
+        .map_or_else(String::new, |(_, flag)| format!("; raise it with {flag}"))
+}
+
 impl crate::argument_parsing::LimitArgs {
     /// Applies the time limit, the memory bound and the work bound the
     /// flags give to `clock` and `limits`, each where its flag is given or

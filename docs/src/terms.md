@@ -436,7 +436,7 @@ $ deduxit term reduce --steps none --work-limit 100 '(\x. x x) (\x. x x)'
 (λx. x x) (λx. x x)
   β: (λx. x x) (λx. x x)
 (λx. x x) (λx. x x)
-not finished after 5 steps: the call did the most work allowed, 100 units; raise it with --work-limit
+not finished after 5 steps: the call did the most work allowed, 100 units; raise it with --work-limit N
 ```
 
 The exit status is 0 at the normal form and at a `--steps` given, 1 for

@@ -124,11 +124,7 @@ pub(crate) fn normalize(args: &NormalizeArgs, given: &Given) -> Result<Status> {
             bail!("{error}; raise the limit with --form-limit")
         }
         Err(Error::Refused(refusal @ (Refusal::Memory { .. } | Refusal::Work { .. }))) => {
-            let flag = match refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit",
-                Some("limits.work") => "; raise it with --work-limit",
-                _ => "",
-            };
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
             return unknown(&args.common, &format!("{refusal}{flag}"));
         }
         Err(error) => return Err(error.into()),
@@ -346,11 +342,7 @@ pub(crate) fn herbrand(args: &HerbrandArgs, given: &Given) -> Result<Status> {
             bail!("{error}; raise the limit with --settings and limits.form_occurrences")
         }
         Err(Error::Refused(refusal @ (Refusal::Memory { .. } | Refusal::Work { .. }))) => {
-            let flag = match refusal.setting() {
-                Some("limits.memory_bytes") => "; raise it with --memory-limit",
-                Some("limits.work") => "; raise it with --work-limit",
-                _ => "",
-            };
+            let flag = crate::settings::raise(refusal.setting(), crate::settings::LIMITS);
             return unknown(&args.common, &format!("{refusal}{flag}"));
         }
         Err(error) => return Err(error.into()),

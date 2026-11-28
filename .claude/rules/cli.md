@@ -846,6 +846,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   orders headings by their first argument. `--settings` stays declared
   per command: its help names the keys each command reads, which is all
   it has in common. A new command with these flags flattens `LimitArgs`.
+- **A refusal's advice names its flag one way** (`settings::raise(setting,
+  offered)` over `RAISED_BY`: "; raise it with --memory-limit SIZE",
+  "--work-limit N", "--occurrence-limit N", "--term-limit N",
+  "--derivation-limit SIZE", "--node-limit N"), `offered` being the keys
+  the command has a flag for, so that no line names a flag its command
+  lacks (`LIMITS` is the common pair). `prove`'s advice by `Reason`, the
+  readers' fixed lines (`io.rs`) and resolution's own bounds are other
+  mappings and stay.
 - **Shared small writers**: `show::counted` writes a count with its noun
   (`1 step`, `3 steps`) for every command; `check::Checked::new(word)`
   or `Checked::of(status)` (`valid`, `unknown`, else `invalid`) with

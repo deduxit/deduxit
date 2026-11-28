@@ -726,11 +726,13 @@ fn cut_formula(before: &Proof, cut: Member, mode: Mode, reading: Option<&Reading
 /// Returns how to lift the bound that refused the elimination, or why
 /// the stop ended it.
 fn advice(refusal: &Refusal, deadline: &Deadline) -> String {
+    let flag = crate::settings::raise(
+        refusal.setting(),
+        &["cut.nodes", "limits.memory_bytes", "limits.work"],
+    );
     match refusal.setting() {
         Some("cut.steps") => "; --steps N allows more".to_owned(),
-        Some("cut.nodes") => "; raise it with --node-limit N".to_owned(),
-        Some("limits.memory_bytes") => "; raise it with --memory-limit SIZE".to_owned(),
-        Some("limits.work") => "; raise it with --work-limit N".to_owned(),
+        _ if !flag.is_empty() => flag,
         _ => match stopped(deadline) {
             Some(Stop::Timeout(t)) => format!(
                 ": the time limit of {t:?} was reached; --timeout DURATION gives the \
