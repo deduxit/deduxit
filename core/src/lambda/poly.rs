@@ -52,35 +52,13 @@ fn rebuild(
             Task::Leave(t, depth) => {
                 let ty = types.get(t);
                 let new = |o: TypeId, d: u32| made[&(o, d)];
-                let rebuilt = match ty {
-                    Type::Tensor { left, right } => Type::Tensor {
-                        left: new(left, depth),
-                        right: new(right, depth),
-                    },
-                    Type::With { left, right } => Type::With {
-                        left: new(left, depth),
-                        right: new(right, depth),
-                    },
-                    Type::Plus { left, right } => Type::Plus {
-                        left: new(left, depth),
-                        right: new(right, depth),
-                    },
-                    Type::Lollipop { from, to } => Type::Lollipop {
-                        from: new(from, depth),
-                        to: new(to, depth),
-                    },
-                    Type::Bang { of } => Type::Bang { of: new(of, depth) },
-                    Type::Forall { variable, body } => Type::Forall {
-                        variable,
-                        body: new(body, depth.saturating_add(1)),
-                    },
-                    Type::Atom { .. }
-                    | Type::One
-                    | Type::Top
-                    | Type::Zero
-                    | Type::Bound { .. }
-                    | Type::Variable { .. } => ty,
+                // A `∀`'s body stands one binder deeper.
+                let inner = if matches!(ty, Type::Forall { .. }) {
+                    depth.saturating_add(1)
+                } else {
+                    depth
                 };
+                let rebuilt = ty.map_operands(|o| new(o, inner));
                 let id = if rebuilt == ty { t } else { types.add(rebuilt) };
                 made.insert((t, depth), id);
             }
@@ -92,24 +70,14 @@ fn rebuild(
 /// Hands each operand of a type to `f` with the depth of `∀` it stands
 /// at, the type itself at `depth`.
 fn operands(ty: Type, depth: u32, mut f: impl FnMut(TypeId, u32)) {
-    match ty {
-        Type::Tensor { left, right } | Type::With { left, right } | Type::Plus { left, right } => {
-            f(left, depth);
-            f(right, depth);
-        }
-        Type::Lollipop { from, to } => {
-            f(from, depth);
-            f(to, depth);
-        }
-        Type::Bang { of } => f(of, depth),
-        // A type of more than 2³² nested `∀` is not held in memory.
-        Type::Forall { body, .. } => f(body, depth.saturating_add(1)),
-        Type::Atom { .. }
-        | Type::One
-        | Type::Top
-        | Type::Zero
-        | Type::Bound { .. }
-        | Type::Variable { .. } => {}
+    // A type of more than 2³² nested `∀` is not held in memory.
+    let inner = if matches!(ty, Type::Forall { .. }) {
+        depth.saturating_add(1)
+    } else {
+        depth
+    };
+    for operand in ty.operands() {
+        f(operand, inner);
     }
 }
 

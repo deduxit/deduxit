@@ -510,7 +510,7 @@ impl Copier<'_> {
                         operands[i]
                     });
                     let standing = &self.standing;
-                    rebind(&mut node, |v| {
+                    node.map_variables(|v| {
                         standing[v.index()].expect("a node's variables stand for one of the copy")
                     });
                     if let Node::Left { sum: ty, .. }
@@ -567,36 +567,6 @@ fn binders(node: &Node) -> Vec<VarId> {
         | Node::Discard { .. }
         | Node::TypeLambda { .. }
         | Node::TypeApply { .. } => Vec::new(),
-    }
-}
-
-/// Replaces every variable a node names, bound or used, by what `f` maps
-/// it to.
-fn rebind(node: &mut Node, f: impl Fn(VarId) -> VarId) {
-    match node {
-        Node::Var { variable } | Node::Lambda { variable, .. } => *variable = f(*variable),
-        Node::LetTensor { left, right, .. }
-        | Node::Case { left, right, .. }
-        | Node::Copy { left, right, .. } => {
-            *left = f(*left);
-            *right = f(*right);
-        }
-        Node::Promote { variables, .. } => variables.iter_mut().for_each(|v| *v = f(*v)),
-        Node::Apply { .. }
-        | Node::Tensor { .. }
-        | Node::Unit
-        | Node::LetUnit { .. }
-        | Node::Pair { .. }
-        | Node::First { .. }
-        | Node::Second { .. }
-        | Node::Left { .. }
-        | Node::Right { .. }
-        | Node::True { .. }
-        | Node::False { .. }
-        | Node::Derelict { .. }
-        | Node::Discard { .. }
-        | Node::TypeLambda { .. }
-        | Node::TypeApply { .. } => {}
     }
 }
 

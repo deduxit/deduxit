@@ -476,22 +476,7 @@ fn free_in<'a>(
             continue;
         }
         let ty = types[t.index()];
-        let mut operands: Vec<TypeId> = Vec::new();
-        match ty {
-            Type::Tensor { left, right }
-            | Type::With { left, right }
-            | Type::Plus { left, right } => {
-                operands.extend([left, right]);
-            }
-            Type::Lollipop { from, to } => operands.extend([from, to]),
-            Type::Bang { of } | Type::Forall { body: of, .. } => operands.push(of),
-            Type::Atom { .. }
-            | Type::One
-            | Type::Top
-            | Type::Zero
-            | Type::Bound { .. }
-            | Type::Variable { .. } => {}
-        }
+        let operands: Vec<TypeId> = ty.operands().collect();
         if !left {
             stack.push((t, true));
             stack.extend(operands.iter().map(|&o| (o, false)));

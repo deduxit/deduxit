@@ -48,90 +48,6 @@ fn malformed(message: String) -> Error {
     }
 }
 
-/// Hands every type a type names to `f`.
-fn type_operands(ty: Type, mut f: impl FnMut(TypeId)) {
-    match ty {
-        Type::Atom { .. }
-        | Type::One
-        | Type::Top
-        | Type::Zero
-        | Type::Bound { .. }
-        | Type::Variable { .. } => {}
-        Type::Bang { of } | Type::Forall { body: of, .. } => f(of),
-        Type::Tensor { left, right } | Type::With { left, right } | Type::Plus { left, right } => {
-            f(left);
-            f(right);
-        }
-        Type::Lollipop { from, to } => {
-            f(from);
-            f(to);
-        }
-    }
-}
-
-/// Returns a type with every type it names replaced by what `f` maps it
-/// to.
-fn retyped(ty: Type, f: impl Fn(TypeId) -> TypeId) -> Type {
-    match ty {
-        Type::Atom { .. }
-        | Type::One
-        | Type::Top
-        | Type::Zero
-        | Type::Bound { .. }
-        | Type::Variable { .. } => ty,
-        Type::Bang { of } => Type::Bang { of: f(of) },
-        Type::Forall { variable, body } => Type::Forall {
-            variable,
-            body: f(body),
-        },
-        Type::Tensor { left, right } => Type::Tensor {
-            left: f(left),
-            right: f(right),
-        },
-        Type::With { left, right } => Type::With {
-            left: f(left),
-            right: f(right),
-        },
-        Type::Plus { left, right } => Type::Plus {
-            left: f(left),
-            right: f(right),
-        },
-        Type::Lollipop { from, to } => Type::Lollipop {
-            from: f(from),
-            to: f(to),
-        },
-    }
-}
-
-/// Hands every variable a node names to `f`.
-fn variables_of(node: &Node, mut f: impl FnMut(VarId)) {
-    match node {
-        Node::Var { variable } | Node::Lambda { variable, .. } => f(*variable),
-        Node::LetTensor { left, right, .. }
-        | Node::Case { left, right, .. }
-        | Node::Copy { left, right, .. } => {
-            f(*left);
-            f(*right);
-        }
-        Node::Promote { variables, .. } => variables.iter().copied().for_each(f),
-        Node::Apply { .. }
-        | Node::Tensor { .. }
-        | Node::Unit
-        | Node::LetUnit { .. }
-        | Node::Pair { .. }
-        | Node::First { .. }
-        | Node::Second { .. }
-        | Node::Left { .. }
-        | Node::Right { .. }
-        | Node::True { .. }
-        | Node::False { .. }
-        | Node::Derelict { .. }
-        | Node::Discard { .. }
-        | Node::TypeLambda { .. }
-        | Node::TypeApply { .. } => {}
-    }
-}
-
 impl Term {
     /// Returns the term a document's parts hold, its types made one id
     /// per type, or why they are no term. The parts together are within
@@ -226,7 +142,7 @@ impl Term {
         let mut ids: Vec<TypeId> = Vec::with_capacity(types.len());
         for (i, &ty) in types.iter().enumerate() {
             let mut fits = true;
-            type_operands(ty, |operand| fits &= operand.index() < i);
+            fits &= ty.operands().all(|operand| operand.index() < i);
             let ty = match ty {
                 Type::Atom { atom } => match merged.get(atom as usize) {
                     Some(&atom) => Type::Atom { atom },
@@ -254,7 +170,7 @@ impl Term {
                     "type {i} names a type that does not come before it, or an atom or a type variable past the list"
                 )));
             }
-            ids.push(interned.add(retyped(ty, |operand| ids[operand.index()])));
+            ids.push(interned.add(ty.map_operands(|operand| ids[operand.index()])));
         }
         // A type a term writes is closed: every `bound` index names a
         // `forall` inside it.
@@ -289,7 +205,9 @@ impl Term {
         for (i, node) in nodes.iter_mut().enumerate() {
             let mut fits = true;
             super::operands(node, |operand| fits &= operand.index() < i);
-            variables_of(node, |variable| fits &= variable.index() < variables.len());
+            fits &= node
+                .variables()
+                .all(|variable| variable.index() < variables.len());
             if !fits {
                 return Err(malformed(format!(
                     "node {i} names a node that does not come before it, or a variable past the list"

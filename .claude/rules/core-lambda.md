@@ -43,6 +43,13 @@ design, with its sources and the alternatives weighed, is
   `untyped_tests.rs`: untyped terms, the stepper against a de Bruijn
   reducer of the tests' own, and the principal type against every
   typing the checker accepts.
+- **A node's variables and a type's operands are walked by one function
+  each** (crate-private, in `mod.rs`): `Node::variables` and
+  `map_variables` (the reader's shape check, the stepper's copy),
+  `Type::operands` and `map_operands` (the reader, `poly`'s walks with
+  their depth, the printer's free names). A new node or type adds its arm
+  there; `operands`/`renumber` over a node's subterms stay as they are,
+  and `check::written` and `reduce::binders` are other sets.
 - **A variable is its `VarId`, with its type** (Church's own typing):
   a binder and every use name one entry of `Term::variables`, so a
   node's type depends on the node alone and a shared node is typed
@@ -116,7 +123,8 @@ design, with its sources and the alternatives weighed, is
   variable's, or a variable bound twice (`needs_copy`), is copied once
   before the first step, so every redex a step names is at one place.
   Only `(λx. M) N` is a redex: the linear calculus's other constructs are
-  copied as they are (`binders`, `rebind` name every node's variables).
+  copied as they are (`binders` names a node's binders,
+  `Node::map_variables` every variable it names).
 - **Names are fixed after the copy** (`rename`): a binder whose body
   has a free variable of its name, which a substitution can make
   (`(λx. λy. x) y`), is renamed to its letters with the least index the

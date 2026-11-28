@@ -525,6 +525,59 @@ pub enum Type {
 }
 
 impl Type {
+    /// Returns the types this type names, in the order written: a `∀`'s
+    /// body, a `!`'s operand, a binary type's two.
+    pub(crate) fn operands(self) -> impl Iterator<Item = TypeId> {
+        let (first, second) = match self {
+            Self::Atom { .. }
+            | Self::One
+            | Self::Top
+            | Self::Zero
+            | Self::Bound { .. }
+            | Self::Variable { .. } => (None, None),
+            Self::Bang { of } | Self::Forall { body: of, .. } => (Some(of), None),
+            Self::Tensor { left, right }
+            | Self::With { left, right }
+            | Self::Plus { left, right } => (Some(left), Some(right)),
+            Self::Lollipop { from, to } => (Some(from), Some(to)),
+        };
+        first.into_iter().chain(second)
+    }
+
+    /// Returns the type with every type it names replaced by what `f`
+    /// maps it to, in the order written.
+    pub(crate) fn map_operands(self, mut f: impl FnMut(TypeId) -> TypeId) -> Self {
+        match self {
+            Self::Atom { .. }
+            | Self::One
+            | Self::Top
+            | Self::Zero
+            | Self::Bound { .. }
+            | Self::Variable { .. } => self,
+            Self::Bang { of } => Self::Bang { of: f(of) },
+            Self::Forall { variable, body } => Self::Forall {
+                variable,
+                body: f(body),
+            },
+            Self::Tensor { left, right } => Self::Tensor {
+                left: f(left),
+                right: f(right),
+            },
+            Self::With { left, right } => Self::With {
+                left: f(left),
+                right: f(right),
+            },
+            Self::Plus { left, right } => Self::Plus {
+                left: f(left),
+                right: f(right),
+            },
+            Self::Lollipop { from, to } => Self::Lollipop {
+                from: f(from),
+                to: f(to),
+            },
+        }
+    }
+
     /// Returns the type as the arena compares it: a `∀` without the name
     /// it is printed with, so that types equal up to the names of their
     /// bound variables are one id.
@@ -769,6 +822,69 @@ pub enum Node {
         /// `A`
         argument: TypeId,
     },
+}
+
+impl Node {
+    /// Returns the variables the node names, bound or used, in the order
+    /// written.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn variables(&self) -> impl Iterator<Item = VarId> + '_ {
+        let (single, list): ([Option<VarId>; 2], &[VarId]) = match self {
+            Self::Var { variable } | Self::Lambda { variable, .. } => {
+                ([Some(*variable), None], &[])
+            }
+            Self::LetTensor { left, right, .. }
+            | Self::Case { left, right, .. }
+            | Self::Copy { left, right, .. } => ([Some(*left), Some(*right)], &[]),
+            Self::Promote { variables, .. } => ([None, None], variables),
+            Self::Apply { .. }
+            | Self::Tensor { .. }
+            | Self::Unit
+            | Self::LetUnit { .. }
+            | Self::Pair { .. }
+            | Self::First { .. }
+            | Self::Second { .. }
+            | Self::Left { .. }
+            | Self::Right { .. }
+            | Self::True { .. }
+            | Self::False { .. }
+            | Self::Derelict { .. }
+            | Self::Discard { .. }
+            | Self::TypeLambda { .. }
+            | Self::TypeApply { .. } => ([None, None], &[]),
+        };
+        single.into_iter().flatten().chain(list.iter().copied())
+    }
+
+    /// Replaces every variable the node names, bound or used, by what `f`
+    /// maps it to, in the order written.
+    pub(crate) fn map_variables(&mut self, mut f: impl FnMut(VarId) -> VarId) {
+        match self {
+            Self::Var { variable } | Self::Lambda { variable, .. } => *variable = f(*variable),
+            Self::LetTensor { left, right, .. }
+            | Self::Case { left, right, .. }
+            | Self::Copy { left, right, .. } => {
+                *left = f(*left);
+                *right = f(*right);
+            }
+            Self::Promote { variables, .. } => variables.iter_mut().for_each(|v| *v = f(*v)),
+            Self::Apply { .. }
+            | Self::Tensor { .. }
+            | Self::Unit
+            | Self::LetUnit { .. }
+            | Self::Pair { .. }
+            | Self::First { .. }
+            | Self::Second { .. }
+            | Self::Left { .. }
+            | Self::Right { .. }
+            | Self::True { .. }
+            | Self::False { .. }
+            | Self::Derelict { .. }
+            | Self::Discard { .. }
+            | Self::TypeLambda { .. }
+            | Self::TypeApply { .. } => {}
+        }
+    }
 }
 
 /// A lambda-term with its typing judgement: the variables it may use
