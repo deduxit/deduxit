@@ -21,9 +21,14 @@ pub(crate) mod additive;
 /// from the search.
 mod basis;
 pub mod batch;
+/// The atom bias: which literal of each atom a focused search takes as
+/// positive.
+pub(crate) mod bias;
 /// The classical refuter: it looks for an assignment of truth values
 /// that makes the goal's classical reading false.
 mod classical;
+/// The count invariants the engines prune and refute with.
+pub(crate) mod counts;
 /// Essential-net search for unit-free IMLL.
 mod essential;
 /// The focused sequent engine.
@@ -1071,7 +1076,7 @@ fn conclude(
             // found.
             let refutation = refutation.unwrap_or_else(|| {
                 let mut polled = |_| stop(Progress::new(Phase::Refute, 0, 0));
-                focus::counts::refutation(
+                counts::refutation(
                     forest,
                     goal.occurrences,
                     goal.fragment,

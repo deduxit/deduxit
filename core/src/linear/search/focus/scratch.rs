@@ -10,11 +10,11 @@
 //! (a set), whose formulas under a `?` it may copy any number of times.
 
 use super::Run;
-use super::counts::{Split, Tally};
 use super::split::Frame;
 use super::zone::{Cursors, Linear as _, Unrestricted as _, Zone};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::{Branch, NodeId};
+use crate::linear::search::counts::{Split, Tally};
 use crate::memory::{Charged, bytes_of};
 
 impl<Z: Zone> Run<'_, Z> {

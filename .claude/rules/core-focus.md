@@ -1,6 +1,8 @@
 ---
 paths:
   - "core/src/linear/search/focus/**"
+  - "core/src/linear/search/counts.rs"
+  - "core/src/linear/search/bias.rs"
   - "core/src/linear/search/generate.rs"
 ---
 
@@ -27,8 +29,11 @@ over (`Zone`, `Linear`, `Unrestricted`, `Ground`, `Cursors`, below);
 and answers in `mod.rs`, the keys of its stable sequents in `keys.rs`,
 its `impl Zone` in `zone.rs`, the closing of a proof in `closing.rs`) and `first_order.rs` the
 rules it adds ("The first-order zone", below);
-`tests.rs` the tests; `bias.rs`, `classes.rs`, `context.rs`,
-`counts.rs`, `memo.rs` as named below.
+`tests.rs` the tests; `classes.rs`, `context.rs` and `memo.rs` as
+named below. The atom bias and the counts are `search/bias.rs` and
+`search/counts.rs`, beside the engine, since the Horn engine, the
+inverse method, the front door and the interactive session read them
+too; their rules are here.
 
 `search/focus/mod.rs` is the spec's MALL-Seq and MELL-Seq in one engine, for
 every classical fragment up to full LL, with units, Mix, the exponentials
@@ -40,7 +45,7 @@ functions are the spec's rules: `asynchronous` (the phase `⊢ Θ ; Γ ⇑ L`),
 `initial` (the two initial rules), `split` (the `⊗` rule), `mix`. What it
 relies on:
 
-- **Atom bias** (`focus/bias.rs`, `signs(forest, rule)`, a function of
+- **Atom bias** (`search/bias.rs`, `signs(forest, rule)`, a function of
   the sequent alone, so a run stays deterministic; `Counts::new_until`
   reads it once per search and the engine reads polarities off
   `Counts::positive`, so that the option reaches every place a literal's
@@ -689,7 +694,7 @@ relies on:
   (`Tally::absorbs`), and not in affine mode. The other immediate tests: a
   dual pair succeeds; a literal-only sequent fails without Mix and with an
   empty `Θ`; an unbalanced sequent fails.
-- **Counts** (`focus/counts.rs`): per occurrence a sparse row of intervals
+- **Counts** (`search/counts.rs`): per occurrence a sparse row of intervals
   per atom (literals `±1`, `⊗`/`⅋` sum, `&`/`⊕` hull, units nothing), an
   `absorbs` flag (a `⊤` at or below it: the row is meaningless and any set
   containing the occurrence passes), and a `weight` `t − p − #1 + #⊥`. The
@@ -847,7 +852,8 @@ relies on:
   proved in 1.1 s and `Diffusion2D_2D8_gradient_40x40_50_5_1` in 0.27 s
   where 4.9 s were needed before it.
 - **`split_passes`** is the count test of a split as a function (the
-  engine's `Switches::new` and a `Split` with every member placed), for the
+  counts' `Prunes::new`, which the engine's `Switches::new` reads, and a
+  `Split` with every member placed), for the
   interactive state's helper. It is `Split::feasible`, the very test the
   engine's search ends on, so the two cannot drift apart.
 - **Free splits are searched, not enumerated** (`search_splits`, for `⊗`
@@ -903,7 +909,7 @@ relies on:
   partitions searched by `search_splits` like the splits of a `⊗`, and
   each part decided by `prove` with the same `Θ` and budget, so the memo
   shares parts between partitions.
-- **Mix is left out of the search in affine mode** (`Switches::new`: `mix`
+- **Mix is left out of the search in affine mode** (`Prunes::new`, which `Switches::new` reads: `mix`
   is `mode.mix && !mode.affine`; `Mode`, the checker, the interactive
   rules and the net engine's refusal are untouched). With weakening it
   proves nothing new: carry the other part down the proof of one part;

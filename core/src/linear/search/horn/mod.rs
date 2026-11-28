@@ -188,7 +188,7 @@ impl Decide for Horn {
         // net, which the search would explore until the memory bound. The
         // counts are charged to an account of their own and give it back
         // when they go, so the search has the whole bound.
-        let counted = super::focus::counts::refutation(
+        let counted = super::counts::refutation(
             task.forest,
             task.goal,
             task.fragment,

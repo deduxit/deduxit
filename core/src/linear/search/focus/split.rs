@@ -13,7 +13,6 @@
 //! balance of each atom's literals.
 
 use super::choices::Site;
-use super::counts::{Forced, Split, Tally};
 use super::scratch::Pooled;
 use super::zone::{Cursors, Linear as _, Unrestricted as _, Zone};
 use super::{
@@ -23,11 +22,12 @@ use super::{
 use crate::linear::occurrences::{OccId, Side};
 use crate::linear::proofs::{Branch, Node, NodeId};
 use crate::linear::search::Reason;
+use crate::linear::search::counts::{Forced, Split, Tally};
 use crate::linear::sequents::Kind;
 
 impl<Z: Zone> Run<'_, Z> {
     /// What a factor of a `⊗` forces on its side of the split
-    /// ([`Counts::forced`](super::counts::Counts::forced)).
+    /// ([`Counts::forced`](crate::linear::search::counts::Counts::forced)).
     ///
     /// With weakening nothing but `0` forces anything, since every leaf
     /// takes any context.

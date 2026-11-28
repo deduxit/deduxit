@@ -14,7 +14,7 @@ use crate::linear::occurrences::{Member, OccId, Reading, Side};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
 use crate::linear::proofs::multiset::Multiset;
 use crate::linear::proofs::{Branch, Named, Proof, Rule};
-use crate::linear::search::{self, Options, Verdict, focus};
+use crate::linear::search::{self, Options, Verdict};
 use crate::linear::sequents::Kind;
 use crate::unify::Clash;
 use crate::{Error, WitnessFault};
@@ -837,7 +837,7 @@ impl Interactive {
             unreachable!("a split has two premises");
         };
         let fragment = search::goal_fragment(&self.forest, &sequent);
-        focus::counts::split_passes(
+        search::counts::split_passes(
             &self.forest,
             fragment,
             self.mode,

@@ -218,7 +218,7 @@ copies they had are gone (F103, F104).
   `Options::check` off skips it; a stop answers `Unknown(Stopped)`, a
   failed check `Error::Refutation`).
 - **A refutation says what the counts rule out** (`Refutation`,
-  `focus::counts::refutation`, called by `prove_goal` on every `Unprovable` of
+  `counts::refutation`, called by `prove_goal` on every `Unprovable` of
   every engine that gives none of its own, which construct
   `Refutation::Exhausted`). It builds the
   `Counts` the focused engine prunes with (fresh account, the caller's stop: a pass

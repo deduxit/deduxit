@@ -63,7 +63,7 @@ of terms. Invariants the code relies on:
   states read from JSON) goes through one of the two, so the default
   limit holds wherever no caller names another.
 - **The forest has no atom bias**: which literal of an atom is positive
-  is the focused engine's choice (`search::Bias`, `focus/bias.rs`,
+  is the focused engine's choice (`search::Bias`, `search/bias.rs`,
   `core-focus.md`), and `Kind::polarity` is the fixed polarity of a
   connective only. A literal's polarity is never read off the forest.
 - Literal lists are one `Box<[OccId]>` in CSR layout, grouped by atom, then

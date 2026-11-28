@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 //! The atom bias: which literal of each atom, `a` or `~a`, the engine
-//! treats as positive, under each rule of [`Bias`](crate::linear::Bias).
+//! treats as positive, under each rule of [`Bias`].
 //!
 //! Focusing finds a proof under any choice of polarities, so the bias
 //! changes the search's speed, never what it proves. It is a function of

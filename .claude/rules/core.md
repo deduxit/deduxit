@@ -20,7 +20,7 @@ it; only what holds for the whole crate goes here.
 | `core-proofs.md` | `proofs/mod.rs`, `check/`, `oracle.rs`, `cut/` | proof terms and their invariants, the checker: its one pass, its memory bound, its integers, the one-succedent condition; cut elimination on terms |
 | `core-derivations.md` | `proofs/derivation/`, `size.rs`, `fmt.rs`, `multiset.rs`, `interactive/` | the derivation view, the size estimate, the bounds of `ViewOptions`, the compact view, the two-sided view of a classical derivation (`TwoSided`), the text tree, interactive proving |
 | `core-search.md` | `search/mod.rs` and the front door's `interface.rs`, `dispatch.rs`, `engine.rs`, `options.rs` and `outcome.rs`, the root's `memory.rs`, `work.rs`, `additive.rs`, `reference.rs`, `reference_fo.rs`, `refutation.rs`, `weighted.rs` | the front door (`prove_goal`, the one engine interface `Decide`, the check of every proof, `Outcome`, `Options`, refutations and their check, the weighted count, the dispatch, where every engine polls its stop), the memory bound, the work count, the additive path, the test-only reference provers, propositional and first-order |
-| `core-focus.md` | `search/focus/`, `search/generate.rs` | the focused engine, one- and two-sided: the atom bias, dyadic sequents, the copy bound and the memo, the two searches of the default bias, the arena, counts, interchangeable occurrences, the split search, recursion, allocation |
+| `core-focus.md` | `search/focus/`, `search/counts.rs`, `search/bias.rs`, `search/generate.rs` | the focused engine, one- and two-sided: the atom bias, dyadic sequents, the copy bound and the memo, the two searches of the default bias, the arena, counts, interchangeable occurrences, the split search, recursion, allocation |
 | `core-inverse.md` | `search/inverse/`, `search/saturated.rs` | the inverse method: rules as terms with holes, what a derived sequent stands for, the evaluation that mirrors the checker, every filter that removes a sequent and why it removes none a proof needs, the tries, its limits and work, and the check of its refutation by a saturated set |
 | `core-horn.md` | `search/horn/` | the Horn engine: the shape it reads as a Petri net and why its refutations are sound in every mode, places, classes and dead transitions, the sparse markings, the frontier and the backward search beside it, coverability in affine mode and its trie, the state equation and its exact check, sharing memory and time, its limits, the proof read off a firing sequence |
 | `core-nets.md` | `nets/`, `search/net.rs`, `search/essential.rs`, `search/planar.rs` | proof structures, the correctness criteria (switchings, essential nets, planarity), MELL nets with boxes, sequentialization, the net engines |
@@ -102,9 +102,11 @@ for tests only, cut elimination `cut`, `derivation`, `size`, the text tree `fmt`
 labels `style`, the crate-private `multiset`, and `interactive` behind
 the feature of that name), `search` (the front door in `mod.rs`, the
 work count and the helpers for what
-threads share in `work`, the focused engine in `focus/` with
-`arena`, `bias`, `classes`, `context`, `counts`, `memo`, `schedule`, `scratch`,
-`split`, `tests` and `parallel`, the net engine in
+threads share in `work`, the count invariants in `counts` and the atom
+bias in `bias` (which the focused, Horn and inverse engines, the front
+door and the interactive session read), the focused engine in `focus/`
+with `arena`, `classes`, `context`, `framed`, `memo`, `schedule`,
+`scratch`, `split`, `tests` and `parallel`, the net engine in
 `net`, the Horn engine in `horn/` with `reach`, `cover`, `equation`, `proof` and `tests`, the inverse method in `inverse/` with `rules`, `eval`, `index` and `tests`, the check of a saturated set in `saturated` (no code shared with `inverse/`), the runtime of the pool in `parallel` behind the feature of that
 name, the front door's parts `interface`, `dispatch`, `engine`,
 `options` and `outcome`, the additive path in `additive`, the test-only `generate` with its

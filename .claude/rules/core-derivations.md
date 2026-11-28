@@ -490,7 +490,7 @@ code relies on:
   of the goal, and the net engine never runs off the roots. The outcome
   returned is the search's, its proof the proof of the goal alone.
   `split_passes` lends the client the focused engine's count prunes
-  (`focus::counts::split_passes`, which builds the engine's `Switches` and tallies
+  (`search::counts::split_passes`, which builds the counts' `Prunes`, the engine's switches of the count tests, and tallies
   for the two sides) as a "this split cannot close" test; a split that
   passes may still fail. It judges the step's own rule (a Mix on a `⊗`
   formula as a Mix, a `⊗` elsewhere refused as `apply` refuses it, any

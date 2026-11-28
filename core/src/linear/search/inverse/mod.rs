@@ -141,7 +141,7 @@ fn search(
     account: &Account,
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> (Finished, Option<Refutation>) {
-    let signs = super::focus::bias::signs(task.forest, options.bias);
+    let signs = super::bias::signs(task.forest, options.bias);
     let positive = signs.to_vec();
     let shape = Shape::new(
         task.forest,

@@ -49,23 +49,19 @@
 //! must stay on the consequent's side. That is the one place the engine
 //! reads the reading.
 //!
-//! The counts of `counts.rs` prune. A stable sequent, or a side of a split,
+//! The counts (`search::counts`) prune. A stable sequent, or a side of a split,
 //! whose count intervals exclude zero for some atom is refuted without
 //! search. In the multiplicative fragments the count equation prunes as
 //! well.
 
 /// The proof arena: pending and kept nodes.
 mod arena;
-/// The atom bias.
-pub(crate) mod bias;
 /// The choices a first-order search logs to resume a premise.
 mod choices;
 /// Interchangeable occurrences.
 mod classes;
 /// The linear zone as a multiset.
 mod context;
-/// The count invariants the engine prunes with.
-pub(crate) mod counts;
 /// The rules a first-order zone adds.
 mod first_order;
 /// The zone of a first-order search.
@@ -94,7 +90,6 @@ mod zone;
 
 use self::arena::Arena;
 use self::classes::Classes;
-use self::counts::{Counts, Prunes, Split, Tally};
 use self::framed::Framed;
 use self::memo::{Entry, Failure, Inserted, Key, Table, Zones};
 use self::schedule::{Plan, plan, turns};
@@ -102,6 +97,7 @@ use self::scratch::{Pooled, Pools};
 use self::split::Join;
 use self::waiting::Waiting;
 use self::zone::{Ground, Linear as _, Unrestricted as _, Zone};
+use super::counts::{Counts, Prunes, Split, Tally};
 use super::{
     Answer, Decide, Finished, Options, Reason, Statistics, Stop, Task, Work, set_up_stopped,
 };

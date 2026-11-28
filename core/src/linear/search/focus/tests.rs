@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::linear::Sequent;
+use crate::linear::search::counts;
 use crate::linear::search::generate::{self, Rng, Rules};
 use crate::linear::search::{Bias, Goal, Verdict, prove_goal};
 use crate::{Limits, Progress};

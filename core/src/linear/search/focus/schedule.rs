@@ -19,7 +19,6 @@
 //!   ([`alternate`](crate::linear::search::focus::schedule::alternate)).
 
 use super::arena::{Arena, Kept};
-use super::counts::Counts;
 use super::memo::{Interner, Memo, Table};
 use super::zone::Zone;
 use super::{Problem, Run, SetUp};
@@ -28,6 +27,8 @@ use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Forest, OccId};
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Bias;
+use crate::linear::search::bias;
+use crate::linear::search::counts::Counts;
 use crate::linear::search::{Finished, Options, Reason, Statistics, Stop};
 use crate::linear::sequents::Kind;
 use crate::memory::Account;
@@ -282,7 +283,7 @@ pub(crate) fn plan(
         bias: Bias::Rarer,
         copies,
     };
-    let same = super::bias::signs(forest, Bias::Factors) == super::bias::signs(forest, Bias::Rarer);
+    let same = bias::signs(forest, Bias::Factors) == bias::signs(forest, Bias::Rarer);
     (forward, (!same).then_some(backward))
 }
 
