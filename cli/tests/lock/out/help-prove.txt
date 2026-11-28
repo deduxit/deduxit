@@ -403,6 +403,20 @@ Limits:
           
           [default: 2s]
 
+      --memory-limit <SIZE>
+          The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
+          
+          The limit counts the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough, the verdict is unknown (exit status 3). The proof's check and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit; the default allows a few seconds of rendering.
+          
+          [default: 1GiB]
+
+      --work-limit <N>
+          The most units of work the search may do, or `none` (limits.work)
+          
+          A unit is what each engine counts as it goes: a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine. So this limit gives the same verdict on every machine, which a time limit does not. Past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
+          
+          [default: none]
+
       --classical-work <N>
           The most work the classical refutation may do after a search that did not prove the sequent, in formulas evaluated, or 0 for none (search.classical_work)
           
@@ -445,26 +459,12 @@ Limits:
           
           [default: none]
 
-      --memory-limit <SIZE>
-          The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
-          
-          The limit counts the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough, the verdict is unknown (exit status 3). The proof's check and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit; the default allows a few seconds of rendering.
-          
-          [default: 1GiB]
-
       --recursion-limit <N>
           The deepest nesting of rules on one branch before the search gives up (limits.recursion_depth)
           
           Raise it for sequents with thousands of connectives. The search runs on a thread whose stack grows with the limit.
           
           [default: 2048]
-
-      --work-limit <N>
-          The most units of work the search may do, or `none` (limits.work)
-          
-          A unit is what each engine counts as it goes: a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine. So this limit gives the same verdict on every machine, which a time limit does not. Past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
-          
-          [default: none]
 
       --derivation-limit <SIZE>
           The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)

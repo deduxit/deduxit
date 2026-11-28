@@ -130,17 +130,17 @@ Limits:
       --timeout <DURATION>
           Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` (clock.time_limit_ms)
           
-          The check counts against it, from the start of the command. When the time runs out, the verdict is unknown (exit status 3).
+          It counts from the start of the command. When the time runs out, the answer is unknown (exit status 3).
           
           [default: 2s]
 
       --memory-limit <SIZE>
-          The most memory the check may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
+          The most memory the call may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit` (limits.memory_bytes)
           
           [default: 1GiB]
 
       --work-limit <N>
-          The most units of work the check may do, or `none` (limits.work)
+          The most units of work the call may do, or `none`; see `prove --work-limit` (limits.work)
           
           [default: none]
 --- stderr
