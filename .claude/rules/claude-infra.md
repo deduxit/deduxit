@@ -57,7 +57,8 @@ Current contents:
   - `rules/core-derivations.md` (`proofs/derivation/`, `size.rs`,
     `fmt.rs`, `multiset.rs`, `interactive/`): the derivation view, its
     size and bounds, the compact view, the text tree, interactive proving;
-  - `rules/core-search.md` (`search/mod.rs`, the root's `memory.rs`, `work.rs`,
+  - `rules/core-search.md` (`search/mod.rs` and the front door's other
+    five files, the root's `memory.rs`, `work.rs`,
     `additive.rs`, `reference.rs`, `refutation.rs`): the search's front door, the engine
     interface, where every engine polls, the memory bound, the additive
     path, the reference prover, refutations and disproofs;

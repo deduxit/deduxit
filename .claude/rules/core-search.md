@@ -1,6 +1,11 @@
 ---
 paths:
   - "core/src/linear/search/mod.rs"
+  - "core/src/linear/search/interface.rs"
+  - "core/src/linear/search/dispatch.rs"
+  - "core/src/linear/search/engine.rs"
+  - "core/src/linear/search/options.rs"
+  - "core/src/linear/search/outcome.rs"
   - "core/src/memory.rs"
   - "core/src/linear/search/work.rs"
   - "core/src/linear/search/additive.rs"
@@ -18,6 +23,24 @@ own: `core-focus.md`, `core-nets.md` (the net engines, classical and
 essential) and `core-parallel.md` (the pool).
 
 ## Proof search: the front door
+
+- **The front door is six files**, each public item re-exported from
+  `mod.rs` at its `linear::search::…` path: `mod.rs` the calls
+  (`prove`, `prove_within`, `prove_goal`, `race`, `engine_for`) and the
+  passes they share (`prepare`, `answer_goal`, `conclude`, the polls),
+  with its tests; `interface.rs` what every engine shares (`Task`,
+  `Finished`, `Answer`, `Decide`); `dispatch.rs` the table (`DISPATCH`,
+  `Row`, `Modes`, `Feature`), the inverse method's turns (`Turns`,
+  `probes`, `PROBE_AFTER`, `TURN_SHARE`) and `goal_fragment`;
+  `engine.rs` the catalogue (`Engine` with its documented table,
+  `Engine::implementation`, `Counter`, `NotTaken`) and
+  `the_documented_dispatch_is_the_dispatch`, which reads that table
+  from `engine.rs`; `options.rs` (`Options`, `Bias`, `Jobs`, `Cadence`,
+  `Schedule`); `outcome.rs` (`Outcome`, `Verdict`, `Reason`,
+  `Statistics`). What one file uses of another's private items is
+  `pub(super)`. A child module's inner doc resolves its links in
+  `mod.rs`'s scope (its `mod` line has an outer doc too), so `mod.rs`
+  imports for the docs (`#[cfg(doc)]`) what such a doc names.
 
 `search/mod.rs` is what a front end calls: `prove(&sequent, mode,
 &options)` and `prove_within(…, &limits, stop)` return `Result<Outcome,
