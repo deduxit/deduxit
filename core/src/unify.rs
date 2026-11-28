@@ -12,7 +12,7 @@
 //! the call stack allows.
 
 use crate::first_order::{Args, Eigen, FirstOrder, FoTerm, FoTermId};
-use std::collections::HashSet;
+use crate::hash::HashSet;
 
 /// A store of terms the unifier reads: each term by its id, and each
 /// argument list by its id.

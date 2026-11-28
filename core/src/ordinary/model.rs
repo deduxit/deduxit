@@ -294,7 +294,7 @@ impl Model {
         // Each world's atoms as sorted indices: the sequent's atoms keep
         // their own, below `named`, and the other names follow.
         let named = formulas.atom_names().len();
-        let mut index: std::collections::HashMap<&str, u32> = formulas
+        let mut index: crate::hash::HashMap<&str, u32> = formulas
             .atom_names()
             .iter()
             .enumerate()

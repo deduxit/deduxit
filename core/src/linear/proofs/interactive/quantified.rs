@@ -956,7 +956,7 @@ impl Quantified {
             .collect();
         // A pair met before is equal already. So shared terms are compared
         // once, not once per path to them.
-        let mut met: std::collections::HashSet<((FoTermId, bool), (FoTermId, bool))> =
+        let mut met: crate::hash::HashSet<((FoTermId, bool), (FoTermId, bool))> =
             Default::default();
         while let Some(((s, so), (t, to))) = pairs.pop() {
             let (s, t) = (side(s, &fx, so), side(t, &fy, to));
@@ -981,7 +981,7 @@ impl Quantified {
     pub(super) fn variables(&self, forest: &Forest, t: FoTermId) -> (Vec<Eigen>, Vec<u32>) {
         let terms = self.terms(forest);
         let (mut eigens, mut metas) = (Vec::new(), Vec::new());
-        let mut seen: std::collections::HashSet<FoTermId> = Default::default();
+        let mut seen: crate::hash::HashSet<FoTermId> = Default::default();
         let mut stack = vec![t];
         while let Some(u) = stack.pop() {
             let u = self.resolve(forest, u);

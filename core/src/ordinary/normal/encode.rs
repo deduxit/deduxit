@@ -10,7 +10,7 @@ use super::{Form, Made, Rule, Step, disjunction};
 use crate::Error;
 use crate::ordinary::polarity::{FALSE, TRUE, polarities};
 use crate::ordinary::{Formulas, Node, NodeId, Sequent};
-use std::collections::HashMap;
+use crate::hash::HashMap;
 
 /// Returns whether `id` is a literal of a clause: an atom, a constant or
 /// the negation of one.
@@ -89,7 +89,7 @@ pub(super) fn encoded(
     let mut clauses: Vec<NodeId> = Vec::new();
     let mut clauses_size = 0u64;
     // What each compound node of the input is named.
-    let mut name: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut name: HashMap<NodeId, NodeId> = HashMap::default();
     let mut count = 0u64;
     for &x in &order {
         if is_literal(&formulas, x) {

@@ -259,6 +259,14 @@ cargo check --manifest-path fuzz/Cargo.toml --bins` shows that they
 build (the TPTP target stayed broken from the commit that gave
 `read_tptp` its limits until a fuzz run found it).
 
+**Every hash table is the crate's** (`crate::hash`: std's tables with
+foldhash and a fixed seed): `core/clippy.toml` disallows
+`std::collections::HashMap` and `HashSet`, so a new table takes the
+crate's hasher; the alias itself and the integration tests, which cannot
+reach it, `#[expect]` the lint with their reason. A table's order never
+reaches an output, and with the fixed seed every run of a build counts
+the same.
+
 **One error family** (`errors/mod.rs`, `limits.rs`): every public
 fallible call answers `Error` or a specific type that converts into it
 without loss (`CheckError`, `NetError`, `ShapeError`, `StepError`,

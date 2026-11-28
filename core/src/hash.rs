@@ -17,7 +17,15 @@
 pub(crate) type BuildHasher = foldhash::fast::FixedState;
 
 /// A hash map keyed with the crate's hasher.
+#[expect(
+    clippy::disallowed_types,
+    reason = "the crate's tables are the standard library's with its hasher"
+)]
 pub(crate) type HashMap<K, V> = std::collections::HashMap<K, V, BuildHasher>;
 
 /// A hash set keyed with the crate's hasher.
+#[expect(
+    clippy::disallowed_types,
+    reason = "the crate's tables are the standard library's with its hasher"
+)]
 pub(crate) type HashSet<T> = std::collections::HashSet<T, BuildHasher>;

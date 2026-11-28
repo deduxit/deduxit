@@ -1,0 +1,11 @@
+# deduxit © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# The library's hash tables use its own hasher (`crate::hash`, foldhash,
+# with a fixed seed), not the standard library's SipHash: they are faster,
+# and every run hashes the same way. A site that needs the std type says
+# why at an `#[expect(clippy::disallowed_types)]`.
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "use crate::hash::HashMap, the crate's hasher" },
+  { path = "std::collections::HashSet", reason = "use crate::hash::HashSet, the crate's hasher" },
+]
