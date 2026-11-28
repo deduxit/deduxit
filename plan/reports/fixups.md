@@ -3654,3 +3654,82 @@ sequent translated and compared with the image's), a follow-up below.
 - **`check` of an outcome whose countermodel and image disagree** (above):
   answer unknown where a countermodel is present and refused, or tie the
   two.
+
+## Session fixup-40: check confirms an outcome only by evidence of one sequent
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-87c1-64a1a5` on `lkpuszrx`
+(fixup-39), cores 7 to 9, in the conversation of 87c1 to fixup-39. Panel
+(argument and counterexamples on Opus at `high`), fresh-reviewer on Opus
+at `high`. Nothing pushed.
+
+### What landed
+
+- `snvytuvl` "Confirm an outcome in check only by an image refutation
+  that stands for it": in `check_ordinary`, a propositional "not valid"
+  over an embedding image is confirmed by the image's refutation only
+  where `untied` finds nothing wrong:
+  - the translation decides the outcome's logic;
+  - the refutation refutes the whole image (no goal), in
+    `Translation::target().mode`;
+  - no structure or Kripke structure stands beside it;
+  - a countermodel, right or refused at a bound (a wrong one is answered
+    invalid first, as it was), has a sequent that, translated by the
+    outcome's logic and translation, prints as the image. A countermodel
+    is propositional (its check refuses a first-order arena), so that
+    image holds no binder and its text is the formula.
+
+  Otherwise the answer is unknown, exit 3, with the reason. The brief's
+  other option, unknown wherever a countermodel is refused, was not
+  taken: an honest outcome with a countermodel too large to check and a
+  sound image refutation, confirmed today, would have become unknown.
+  The test `a_countermodel_of_another_sequent_confirms_nothing` (a right
+  countermodel of `c ⊢ d`, the same padded past 64 KiB, a goal, a mode;
+  exit 0 before on each, 3 now). The changelog (Fixed), docs/src/check.md,
+  docs/src/ordinary-logic.md, skills/deduxit/reference.md, `cli.md`.
+
+### Checks
+
+- `gate` passed on the final tree, and the `msrv` check (the workspace
+  on 1.92) after the reviewer's finding.
+- The panel, on the first version (the countermodel's translation
+  compared with the image, nothing else):
+  - **Argument:** the text comparison sound for a propositional image;
+    every outcome `prove` writes agrees (60 sequents, all logics and
+    translations, the batch). Two holes, both also in the base and
+    without a countermodel: a refutation of a goal off the image's roots
+    (`a, b |- a`'s image refuted on `⊢ ~b` alone, exit 0) and an image in
+    another mode than the translation's (classical, no weakening, for the
+    affine translation). A structure beside a propositional image was
+    never looked at. The docs said a countermodel of another sequent gets
+    exit 3, false for a wrong one (exit 1).
+  - **Counterexamples:** the same two holes (56 edited outcomes of valid
+    sequents, all exit 0 at the first version, judged by its own truth
+    tables). Honest outcomes: 1 248 single outcomes and 1 968 batch
+    files, `check` in text and JSON by both builds, byte for byte the
+    same. Edits: swapped, reordered, relabelled, padded countermodels,
+    1 900 in all, every disagreement unknown at head.
+  - All fixed in the final version; every witness file of both members
+    but the honest and the linear ones now exits 3.
+- The reviewer, on the second version (goal, mode and structure
+  closed): honest outcomes again on the final shape, 4 758 single checks
+  and 2 600 batch checks against the base, 0 differences; the test fails
+  without the fix. Two findings, the first fixed: the arm's `if let`
+  guard does not compile on the workspace's 1.92 (`E0658`, only the
+  `msrv` check would catch it; a nested `match` now), and a translation
+  that does not decide the outcome's logic (cbn's image claimed
+  classical) was confirmed, now unknown.
+
+### Follow-up
+
+- **An image of one logic claimed in another that its translation also
+  decides** (the reviewer's `/tmp/claude-1000/review-f40/min-as-intu.json`:
+  `false |- a` decided in minimal logic by cbn, relabelled intuitionistic,
+  confirmed; in the base too). The image alone does not say which of the
+  two logics it was made for, and the outcome holds no ordinary sequent
+  to translate again; an honest intuitionistic or minimal outcome has no
+  countermodel, so requiring one would make them unknown. A full tie
+  needs the ordinary sequent in the outcome: a change of the wire form,
+  for part 2.
+- **The valid side has the same shape**: `check_derivation` checks the
+  derivation and then the image's proof in its own mode, and nothing ties
+  the two sequents (each confirmed piece true of its own sequent).
