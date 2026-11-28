@@ -440,8 +440,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   session that names a logic (`load` probes the file's `logic` key, so
   `--state` takes either kind and `load` refuses the other kind by
   name). It shares `mod.rs`'s loop (`run` over the `Commands` trait),
-  `words`, `show_target`/`so_far` and `proof_target`/`proof_written`;
-  the rest is its own. A formula is `L0`/`R1` (`address`), because the
+  `words`, `show_target`/`so_far` and `proof_target`/`proof_written`,
+  and the driver both sessions implement (`Driven`: its steps, goals,
+  invertible rules and the groups `undo` takes back together), over
+  which `undo`, `invertible on|off`, `save`, `invert_all`, `stepped`,
+  `goals` and `opened_line` are written once; an invertible run clears an
+  earlier Ctrl-C first in the ordinary session alone
+  (`Driven::CLEARS_STOP`), as each session did before they shared it. `close`, `show`, `proof` and `load` stay
+  each session's (another verdict line, another derivation, another
+  kind refused by name). A formula is `L0`/`R1` (`address`), because the
   library's refusals name a side and a position there, and a global
   numbering as the linear intuitionistic session prints it would have
   made those messages name other numbers than the user typed. Rule names

@@ -18,7 +18,7 @@ use crate::limit::{Deadline, Notice};
 use crate::prove::{Ended, NOTICE_AFTER, notice_line, on_large_stack, stopped};
 use crate::settings::Threads;
 use crate::show::{Show, Shown, bytes_text};
-use crate::{catch_interrupt, clear_interrupt, interrupted, io, style};
+use crate::{catch_interrupt, clear_interrupt, interrupted, style};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Styles, latex, svg, typst};
 use deduxit::linear::search::Options;
@@ -131,7 +131,7 @@ pub(super) fn interact(
     let invertible = settings.interactive.invertible;
     on_large_stack(limits.stack_bytes(), move || {
         let first = if invertible {
-            session.invert_all()
+            super::invert_all(&mut session)
         } else {
             None
         };
@@ -195,7 +195,7 @@ impl Commands for Session {
         Ok(match command {
             "" => String::new(),
             "help" => HELP.to_owned(),
-            "goals" => self.goals(),
+            "goals" => super::goals(self),
             "rules" => {
                 let (side, position) = formula(1)?;
                 let rules = self.state.rules(goal(0)?, side, position)?;
@@ -252,44 +252,14 @@ impl Commands for Session {
                     .filter(|(witness, _)| !known.contains(witness))
                     .map(|(witness, term)| format!("filled {witness} with {term}\n"))
                     .collect();
-                format!("{}{}", filled.concat(), self.stepped(before, opened)?)
+                format!(
+                    "{}{}",
+                    filled.concat(),
+                    super::stepped(self, before, opened)?
+                )
             }
-            "undo" => {
-                let steps = self.state.steps();
-                let back = match self.groups.last() {
-                    Some(&(before, after)) if after == steps => {
-                        self.groups.pop();
-                        steps - before
-                    }
-                    _ => 1,
-                };
-                let mut reopened = None;
-                for _ in 0..back {
-                    reopened = self.state.undo().or(reopened);
-                }
-                match reopened {
-                    Some(goal) if back > 1 => {
-                        format!("retracted {back} steps\nreopened {}", self.goal_line(goal))
-                    }
-                    Some(goal) => format!("reopened {}", self.goal_line(goal)),
-                    None => "nothing to undo".to_owned(),
-                }
-            }
-            "invertible" => match rest {
-                ["on"] => {
-                    let then = self.invert_all();
-                    let goals = self.goals();
-                    match then {
-                        Some(then) => format!("invertible rules on; then {then}\n{goals}"),
-                        None => format!("invertible rules on\n{goals}"),
-                    }
-                }
-                ["off"] => {
-                    self.invertible = false;
-                    "invertible rules off".to_owned()
-                }
-                _ => bail!("invertible on|off: say which"),
-            },
+            "undo" => super::undo(self),
+            "invertible" => super::invertible(self, rest)?,
             "close" => {
                 let goals = match rest.first() {
                     Some(_) => vec![goal(0)?],
@@ -359,13 +329,7 @@ impl Commands for Session {
                     .derivation_within(&self.view, &self.limits, |_| false)?;
                 super::lambda_line(&d.term(&self.limits, |_| false), &self.lambda, &self.limits)
             }
-            "save" => {
-                let [path] = rest else {
-                    bail!("save where? give one file, in quotes if its name has blanks");
-                };
-                io::write(Some(Path::new(path)), &serde_json::to_string(&self.state)?)?;
-                format!("session written to {path}")
-            }
+            "save" => super::save(&self.state, rest)?,
             "load" => {
                 let [path] = rest else {
                     bail!("load what? give one file, in quotes if its name has blanks");
@@ -398,7 +362,7 @@ impl Commands for Session {
                 self.state = state;
                 // A loaded session's steps are undone one at a time.
                 self.groups.clear();
-                self.goals()
+                super::goals(self)
             }
             "cut" => bail!(
                 "`cut` is a command of a session of linear logic; a session of LK or LJ has \
@@ -413,45 +377,47 @@ impl Commands for Session {
     }
 }
 
-impl Session {
-    /// Turns the invertible rules on and applies them to every open goal,
-    /// as one step for `undo`, and says how many steps that took.
-    fn invert_all(&mut self) -> Option<String> {
-        self.invertible = true;
-        let before = self.state.steps();
-        // Ctrl-C ends a long run, the steps taken standing; a stop that
-        // ended an earlier command must not end this one.
-        clear_interrupt();
+impl super::Driven for Session {
+    type Goal = GoalId;
+    const CLEARS_STOP: bool = true;
+    fn steps(&self) -> usize {
+        self.state.steps()
+    }
+    fn undo_step(&mut self) -> Option<GoalId> {
+        self.state.undo()
+    }
+    fn open_goals(&self) -> Vec<GoalId> {
+        self.state.goals().collect()
+    }
+    fn is_complete(&self) -> bool {
+        self.state.is_complete()
+    }
+    fn goal_line(&self, goal: GoalId) -> String {
+        Self::goal_line(self, goal)
+    }
+    fn invert_every(&mut self) -> (usize, Option<deduxit::Refusal>) {
         let inverted = self
             .state
             .invert_all_within(&self.limits, |_| interrupted());
-        if inverted.steps > 0 {
-            self.groups.push((before, self.state.steps()));
-        }
-        super::inverted_line(inverted.steps, inverted.finished.as_ref().err())
+        (inverted.steps, inverted.finished.err())
     }
-
-    /// Returns what a step that opened `opened` prints, the session's
-    /// steps having been `before` steps: with the invertible rules on,
-    /// after applying them to the goals it opened, as one step for `undo`.
-    fn stepped(&mut self, before: usize, opened: Vec<GoalId>) -> Result<String> {
-        if !self.invertible {
-            return Ok(self.opened(&opened));
-        }
-        let (mut steps, mut open, mut refused) = (0, Vec::new(), None);
-        clear_interrupt();
-        for goal in opened {
-            let inverted = self
-                .state
-                .invert_within(goal, &self.limits, |_| interrupted())?;
-            steps += inverted.steps;
-            open.extend(inverted.open);
-            refused = refused.or(inverted.finished.err());
-        }
-        self.groups.push((before, self.state.steps()));
-        let then = super::inverted_line(steps, refused.as_ref());
-        let then = then.map(|t| format!("then {t}\n")).unwrap_or_default();
-        Ok(format!("{then}{}", self.opened(&open)))
+    fn invert_goal(
+        &mut self,
+        goal: GoalId,
+    ) -> Result<(usize, Vec<GoalId>, Option<deduxit::Refusal>)> {
+        let inverted = self
+            .state
+            .invert_within(goal, &self.limits, |_| interrupted())?;
+        Ok((inverted.steps, inverted.open, inverted.finished.err()))
+    }
+    fn invertible(&self) -> bool {
+        self.invertible
+    }
+    fn set_invertible(&mut self, on: bool) {
+        self.invertible = on;
+    }
+    fn groups(&mut self) -> &mut Vec<(usize, usize)> {
+        &mut self.groups
     }
 }
 
@@ -535,35 +501,6 @@ impl Session {
                 bail!("the goal is valid, but its derivation is not grafted: {refusal}")
             }
         }
-    }
-
-    /// Lists the open goals, or says that none is.
-    fn goals(&self) -> String {
-        let goals: Vec<GoalId> = self.state.goals().collect();
-        if goals.is_empty() {
-            return "no goal is open: `proof` checks the proof".to_owned();
-        }
-        goals
-            .iter()
-            .map(|&g| self.goal_line(g))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// Lists goals just opened, or says that the step closed its goal.
-    fn opened(&self, goals: &[GoalId]) -> String {
-        if goals.is_empty() {
-            return if self.state.is_complete() {
-                "closed; no goal is open: `proof` checks the proof".to_owned()
-            } else {
-                "closed".to_owned()
-            };
-        }
-        goals
-            .iter()
-            .map(|&g| format!("opened {}", self.goal_line(g)))
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 
     /// Returns `goal G: ` and the goal's sequent with every formula's side
