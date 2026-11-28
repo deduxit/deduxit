@@ -8995,3 +8995,11 @@ move (D26).
   F-1a-10 and half of F-1c-08 stay for reading's sake. Rebased onto `main` with no conflict; in CI
   before `main`. 87e4 (moves only) in its worker on 87c6's head, cores 7-9 (decided unattended:
   ahead of wave C's end, as 87e1, since 87c5 touches none of its files).
+- 2026-11-28, about 06:15: **fixup-35 reviewed; 87e6 started.** fixup-35 (Opus, high; the reviewer
+  on Opus): the four ILTP problems are not valid TPTP (their conjectures use `A` and `B` past the
+  quantifier's scope, which TPTP forbids outside CNF), so the reader keeps refusing them, now with
+  the whole word marked and a hint saying why; the other 2 666 problems read byte for byte as
+  before. The worker recommends leaving the four out of ILTP counts with that reason (no reading
+  gives the intended statement); agreed (decided unattended). Stacked on 87c6 for one CI run. 87e6
+  (the MELL drawing's 1 390-line function, the nets' long functions, idiom; moves only) in its
+  worker, cores 10-12; `serialize/ordinary.rs` (F-6a-19) waits for 87c5.
