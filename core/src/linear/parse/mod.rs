@@ -475,14 +475,13 @@ impl<'a> Parser<'a> {
     fn predicate(&mut self, name: &'a str, start: usize) -> Result<(Atom, bool), Error> {
         self.enter_first_order(start..self.at)?;
         let (symbol, from, items) = self.application(name, start)?;
-        let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
-        let args = self.interner.list(&items);
         // `f(a) = b`: the application was a term.
         if self.equality_follows() {
-            let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
-            let left = self.interner.term(FoTerm::App(symbol, args));
+            let left = self.applied(&symbol, from, &items)?;
             return self.equality(left);
         }
+        let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
+        let args = self.interner.list(&items);
         let symbol = self.symbol(&symbol, arity, true, from..self.at)?;
         Ok((self.predicate_atom(symbol, args), false))
     }
@@ -553,12 +552,20 @@ impl<'a> Parser<'a> {
                 if open.is_empty() {
                     return Ok((symbol, from, items));
                 }
-                let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
-                let args = self.interner.list(&items);
-                let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
-                id = self.interner.term(FoTerm::App(symbol, args));
+                id = self.applied(&symbol, from, &items)?;
             }
         }
+    }
+
+    /// Returns the term of the function symbol `name`, which starts at byte
+    /// `from`, applied to `items`, its application read up to here.
+    #[cold]
+    #[inline(never)]
+    fn applied(&mut self, name: &str, from: usize, items: &[FoTermId]) -> Result<FoTermId, Error> {
+        let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
+        let args = self.interner.list(items);
+        let symbol = self.symbol(name, arity, false, from..self.at)?;
+        Ok(self.interner.term(FoTerm::App(symbol, args)))
     }
 
     /// Refuses a keyword read where a term stands, at byte `at`.
@@ -656,10 +663,7 @@ impl<'a> Parser<'a> {
             self.keyword_term(word, at)?;
             self.at += 1;
             let (symbol, from, items) = self.application(word, at)?;
-            let arity = u32::try_from(items.len()).map_err(|_| self.past_bound())?;
-            let args = self.interner.list(&items);
-            let symbol = self.symbol(&symbol, arity, false, from..self.at)?;
-            self.interner.term(FoTerm::App(symbol, args))
+            self.applied(&symbol, from, &items)?
         } else {
             self.bare_term(word, at)?
         };
