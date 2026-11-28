@@ -9135,3 +9135,13 @@ move (D26).
   The stack rebased onto fixup-33 and fixup-34 with two conflicts resolved here (fixup-34's test
   rename carried into 87e5's moved `ordinary/models/mod.rs`; the fixups report kept every section).
   CI run 46130530681 passed.
+- 2026-11-28, about 11:30: **fixup-37 reviewed; fixup-38 started.** fixup-37 (Opus, high; the panel
+  and the reviewer on Opus): 87e5's held move of the ordinary Rocq writers into `ordinary/rocq/`,
+  and the not-valid certificates over `Prop` proved by evaluation in place of `tauto`, statements
+  word for word: the three slow certificates fixup-33's panel found check in 0.13 to 0.17 s (they
+  ran 17 to 52 minutes or out of 8 GB); 121 certificates of that corpus each in at most 0.17 s.
+  Rocq's time stays superlinear on very long formulas (an implication 3 000 deep, over 120 s): a
+  follow-up names each suffix by a local definition for linear-time certificates (queued, after
+  part 1). Rebased onto `main`, the changelog's and the report's conflicts resolved by keeping both
+  sides; in CI before `main`. fixup-38 (`check` of a first-order `not_valid` resting on the image's
+  refutation; the panel) in its worker, cores 7-9.
