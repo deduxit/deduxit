@@ -9190,3 +9190,13 @@ move (D26).
   image's proof untied (**fixup-41**, started in the same worker, cores 7-9; the panel; unknown
   where nothing ties, the ordinary sequent in the outcome as the part 2 change). In CI before
   `main`.
+- 2026-11-28, about 13:29: **87f1 reviewed; 87f2 started.** 87f1 (Opus, high; the reviewer on Opus):
+  the twelve F2 messages name what is wrong and what to do, in the user's calculus and command;
+  `linear::StepError`'s split and eigenvariable errors carry a public `SplitCause` and `EigenCause`
+  (`#[non_exhaustive]`; decided unattended; departs from the plan, which adds no public items in part
+  1; changelog Added). The behaviour lock reblessed in its own commit; the reviewer's seven findings
+  fixed. For the web client's step: the report lists every message the page shows that changed, and
+  one JSON kind changes (a split position past the goal is `no_formula`, where it was `split`). Left
+  for part 2: a `.spec` counter named by a keyword gets no line (a field on a public variant).
+  Rebased onto `main` with no conflict; in CI before `main`. 87f2 (wave F's last: docs behind the
+  code) in its worker, cores 13-15.
