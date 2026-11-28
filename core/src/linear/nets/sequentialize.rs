@@ -133,6 +133,100 @@ struct Sequentialization<'a> {
     proof: Assembly<(Vec<OccId>, Vec<OccId>)>,
 }
 
+// Both parts of a stage are inlined into it, as the stage is into the
+// shared loop: the net engine's journey (`search-wide-m2-256`) counts the
+// stage's searches as they are made there.
+impl Sequentialization<'_> {
+    /// Opens every `⅋` conclusion of a sub-net, outermost first, in place
+    /// in `gamma`, and leaves their rules to apply last, below the rest.
+    #[inline(always)]
+    fn open(&mut self, gamma: &mut Vec<OccId>) {
+        let f = self.net.forest();
+        let child = |o: OccId, left: bool| if left { f.left(o) } else { f.right(o) }.unwrap();
+        let mut pars = Vec::new();
+        let mut i = 0;
+        while i < gamma.len() {
+            let c = gamma[i];
+            if f.kind(c) == Kind::Par {
+                gamma[i] = child(c, true);
+                gamma.push(child(c, false));
+                self.scratch.delete(c.get());
+                pars.push(Open::Par(c));
+            } else {
+                i += 1;
+            }
+        }
+        if !pars.is_empty() {
+            self.proof.apply(Rule::Opened(pars));
+        }
+    }
+
+    /// Leaves the steps that prove a connected sub-net by its splitting
+    /// `⊗` conclusion or cut link: the two sides and the rule after them.
+    #[inline(always)]
+    fn split(&mut self, gamma: Vec<OccId>, cuts: Vec<OccId>) {
+        let f = self.net.forest();
+        let graph = &self.net.graph;
+        let child = |o: OccId, left: bool| if left { f.left(o) } else { f.right(o) }.unwrap();
+        let across = |a: OccId| f.dual(a).expect("a cut link's end in a cut formula");
+        // The splitting ⊗ conclusion with the smallest id, one whose
+        // premise edge is a bridge, or else the splitting cut link
+        // with the smallest end, whose edge is a bridge.
+        let tensor = gamma
+            .iter()
+            .copied()
+            .filter(|&c| f.kind(c) == Kind::Tensor)
+            .filter(|&c| self.scratch.is_bridge(c.get(), child(c, true).get()))
+            .min();
+        let cut = || {
+            cuts.iter()
+                .copied()
+                .filter(|&a| self.scratch.is_bridge(a.get(), across(a).get()))
+                .min()
+        };
+        let (split, left_end, right_end) = match tensor {
+            Some(t) => {
+                self.scratch.delete(t.get());
+                (Rule::Tensor(t), child(t, true), child(t, false))
+            }
+            None => {
+                let a = cut().expect(
+                    "a connected proof net whose conclusions are not all literals has a \
+                     splitting ⊗ or cut link",
+                );
+                graph.remove_cut(&mut self.scratch, a.get());
+                (Rule::Cut(a), a, across(a))
+            }
+        };
+        graph.search(&mut self.scratch, [left_end.get()]);
+        let (mut left, mut right) = (vec![left_end], vec![right_end]);
+        let (mut left_cuts, mut right_cuts) = (Vec::new(), Vec::new());
+        for &c in &gamma {
+            if matches!(split, Rule::Tensor(t) if t == c) {
+                continue;
+            }
+            if self.scratch.reached(c.get()) {
+                left.push(c);
+            } else {
+                right.push(c);
+            }
+        }
+        for &a in &cuts {
+            if matches!(split, Rule::Cut(b) if b == a) {
+                continue;
+            }
+            if self.scratch.reached(a.get()) {
+                left_cuts.push(a);
+            } else {
+                right_cuts.push(a);
+            }
+        }
+        self.proof.apply(split);
+        self.proof.prove((right, right_cuts));
+        self.proof.prove((left, left_cuts));
+    }
+}
+
 impl Assemble for Sequentialization<'_> {
     type Goal = (Vec<OccId>, Vec<OccId>);
 
@@ -153,29 +247,9 @@ impl Assemble for Sequentialization<'_> {
     // by sequentializing the net found.
     #[inline(always)]
     fn stage(&mut self, (mut gamma, cuts): Self::Goal) {
+        self.open(&mut gamma);
         let f = self.net.forest();
         let graph = &self.net.graph;
-        let child = |o: OccId, left: bool| if left { f.left(o) } else { f.right(o) }.unwrap();
-        let across = |a: OccId| f.dual(a).expect("a cut link's end in a cut formula");
-
-        // Every ⅋ conclusion is opened, outermost first; its rule is
-        // applied last, below the rest.
-        let mut pars = Vec::new();
-        let mut i = 0;
-        while i < gamma.len() {
-            let c = gamma[i];
-            if f.kind(c) == Kind::Par {
-                gamma[i] = child(c, true);
-                gamma.push(child(c, false));
-                self.scratch.delete(c.get());
-                pars.push(Open::Par(c));
-            } else {
-                i += 1;
-            }
-        }
-        if !pars.is_empty() {
-            self.proof.apply(Rule::Opened(pars));
-        }
 
         let roots = gamma.iter().chain(&cuts).map(|o| o.get());
         let parts = graph.search(&mut self.scratch, roots);
@@ -209,61 +283,7 @@ impl Assemble for Sequentialization<'_> {
             let (x, y) = (gamma[0].min(gamma[1]), gamma[0].max(gamma[1]));
             self.proof.proved_by(Node::Ax(x.into(), y.into()));
         } else {
-            // The splitting ⊗ conclusion with the smallest id, one whose
-            // premise edge is a bridge, or else the splitting cut link
-            // with the smallest end, whose edge is a bridge.
-            let tensor = gamma
-                .iter()
-                .copied()
-                .filter(|&c| f.kind(c) == Kind::Tensor)
-                .filter(|&c| self.scratch.is_bridge(c.get(), child(c, true).get()))
-                .min();
-            let cut = || {
-                cuts.iter()
-                    .copied()
-                    .filter(|&a| self.scratch.is_bridge(a.get(), across(a).get()))
-                    .min()
-            };
-            let (split, left_end, right_end) = match tensor {
-                Some(t) => {
-                    self.scratch.delete(t.get());
-                    (Rule::Tensor(t), child(t, true), child(t, false))
-                }
-                None => {
-                    let a = cut().expect(
-                        "a connected proof net whose conclusions are not all literals has a \
-                         splitting ⊗ or cut link",
-                    );
-                    graph.remove_cut(&mut self.scratch, a.get());
-                    (Rule::Cut(a), a, across(a))
-                }
-            };
-            graph.search(&mut self.scratch, [left_end.get()]);
-            let (mut left, mut right) = (vec![left_end], vec![right_end]);
-            let (mut left_cuts, mut right_cuts) = (Vec::new(), Vec::new());
-            for &c in &gamma {
-                if matches!(split, Rule::Tensor(t) if t == c) {
-                    continue;
-                }
-                if self.scratch.reached(c.get()) {
-                    left.push(c);
-                } else {
-                    right.push(c);
-                }
-            }
-            for &a in &cuts {
-                if matches!(split, Rule::Cut(b) if b == a) {
-                    continue;
-                }
-                if self.scratch.reached(a.get()) {
-                    left_cuts.push(a);
-                } else {
-                    right_cuts.push(a);
-                }
-            }
-            self.proof.apply(split);
-            self.proof.prove((right, right_cuts));
-            self.proof.prove((left, left_cuts));
+            self.split(gamma, cuts);
         }
     }
 }
