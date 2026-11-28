@@ -332,6 +332,166 @@ pub(super) fn describe(
     }
 }
 
+/// A structure with boxes as the drawing reads its vertices: their
+/// occurrences and kinds, their formulas as the look writes them, and
+/// their ids.
+struct View<'a> {
+    /// The structure.
+    net: &'a MellStructure,
+    /// The style.
+    style: &'a Style,
+    /// The reading of the sequent, for an essential net.
+    reading: Option<&'a Reading<'a>>,
+    /// Whether the vertices are written as their formulas.
+    formulas: bool,
+    /// Whether a `?` vertex is drawn as nodes of the rules.
+    rules: bool,
+    /// How many vertices each occurrence has, for the ids.
+    instances: Vec<u32>,
+}
+
+impl<'a> View<'a> {
+    /// Returns the view of a structure under a style and a reading.
+    fn of(net: &'a MellStructure, style: &'a Style, reading: Option<&'a Reading<'a>>) -> Self {
+        let mut view = Self {
+            net,
+            style,
+            reading,
+            formulas: style.net == NetDrawing::Formulas,
+            rules: style.net_look.why_not == WhyNot::Rules,
+            instances: vec![0u32; net.forest().len()],
+        };
+        for v in 0..net.len() as u32 {
+            let o = view.occ(v).index();
+            view.instances[o] += 1;
+        }
+        view
+    }
+
+    /// Returns the advance of a character.
+    fn advance(&self, c: char) -> i64 {
+        i64::from(self.style.font.advances.advance(c))
+    }
+
+    /// Returns the width of a text.
+    fn width(&self, text: &str) -> i64 {
+        lay(text, 1000, &self.style.font, |_| {})
+    }
+
+    /// Returns a vertex's occurrence.
+    fn occ(&self, v: u32) -> OccId {
+        self.net.occurrence(VertexId::new(v)).expect("a vertex")
+    }
+
+    /// Returns a vertex's kind.
+    fn kind_of(&self, v: u32) -> Kind {
+        self.net.forest().kind(self.occ(v))
+    }
+
+    /// Returns a vertex's parent, or `NONE`.
+    fn parent(&self, v: u32) -> u32 {
+        raw(self.net.parent(VertexId::new(v)))
+    }
+
+    /// Returns the `!` vertex of a vertex's innermost box, or `NONE`.
+    fn inside(&self, v: u32) -> u32 {
+        raw(self.net.inside(VertexId::new(v)))
+    }
+
+    /// Returns whether a vertex is a conclusion outside every box.
+    fn root(&self, v: u32) -> bool {
+        self.parent(v) == NONE && self.inside(v) == NONE
+    }
+
+    /// Returns whether a vertex's formula is written.
+    fn written(&self, v: u32) -> bool {
+        self.formulas || self.net.forest().is_literal(self.occ(v)) || self.root(v)
+    }
+
+    /// Returns whether a vertex is a `⊗` or a `⅋`.
+    fn binary(&self, v: u32) -> bool {
+        matches!(self.kind_of(v), Kind::Tensor | Kind::Par)
+    }
+
+    /// Writes a vertex's formula as the drawing writes it: one-sided, or as
+    /// the reading reads it, which writes a literal as its atom.
+    fn write(&self, out: &mut String, v: u32, brackets: bool) {
+        net_text(out, self.net.forest(), self.reading, self.occ(v), brackets);
+    }
+
+    /// Returns whether a vertex is in input position under the reading.
+    fn input(&self, v: u32) -> bool {
+        self.reading
+            .is_some_and(|r| r.position(self.occ(v)) == Side::Input)
+    }
+
+    /// Returns the fill attribute of an input vertex's text, or nothing.
+    fn fill(&self, v: u32) -> String {
+        match self.input(v) {
+            true => format!(r#" fill="{}""#, escaped(&self.style.input)),
+            false => String::new(),
+        }
+    }
+
+    /// Returns the symbol at a vertex's joint, door or circle, and the
+    /// height of its middle above its baseline. Under the reading, `A⊥ ⅋ B`
+    /// in output position and `A ⊗ B⊥` in input position are `⊸`, and a `?`
+    /// is the hypothesis `!A`.
+    fn symbol_of(&self, v: u32) -> (&'static str, i64) {
+        match self.kind_of(v) {
+            Kind::Par | Kind::Tensor if self.reading.is_some() => {
+                match (self.kind_of(v) == Kind::Par) != self.input(v) {
+                    true => (NOTATION.lollipop, AXIS),
+                    false => (NOTATION.tensor, AXIS),
+                }
+            }
+            Kind::Par => (NOTATION.par, PAR_MIDDLE),
+            Kind::Tensor => (NOTATION.tensor, AXIS),
+            Kind::Quest if self.reading.is_some() => (NOTATION.bang, PAR_MIDDLE),
+            Kind::Bang => (NOTATION.bang, PAR_MIDDLE),
+            Kind::Quest => (NOTATION.quest, PAR_MIDDLE),
+            Kind::Atom
+            | Kind::DualAtom
+            | Kind::One
+            | Kind::Bot
+            | Kind::Top
+            | Kind::Zero
+            | Kind::With
+            | Kind::Plus
+            | Kind::Forall
+            | Kind::Exists => {
+                unreachable!("a literal has no symbol, a MELL net no unit, additive or binder")
+            }
+        }
+    }
+
+    /// Returns whether a copy lies in another box than its `?` vertex.
+    fn boxed(&self, c: u32) -> bool {
+        let q = self.parent(c);
+        q != NONE && self.kind_of(q) == Kind::Quest && self.inside(c) != self.inside(q)
+    }
+
+    /// Returns a vertex's id: `o<n>` for the only vertex of its occurrence,
+    /// else `v<k>`.
+    fn id(&self, v: u32) -> String {
+        match self.instances[self.occ(v).index()] {
+            1 => format!("o{}", self.occ(v).get()),
+            _ => format!("v{v}"),
+        }
+    }
+
+    /// Returns the key of a boxed copy's doors: its `?` vertex, or under
+    /// the rules the copy itself.
+    fn key_of(&self, c: u32) -> u32 {
+        if self.rules { c } else { self.parent(c) }
+    }
+
+    /// Returns the `?` vertex of a door's key.
+    fn owner(&self, key: u32) -> u32 {
+        if self.rules { self.parent(key) } else { key }
+    }
+}
+
 /// Returns a proof structure with boxes as an SVG document, titled with
 /// its sequent in plain text.
 ///
@@ -383,75 +543,8 @@ pub(super) fn draw(
     let (gap, radius) = (i64::from(style.literal_gap), i64::from(style.node_radius));
     let (margin, stroke) = (i64::from(style.margin), i64::from(style.stroke_width));
     let label_size = i64::from(style.label_size);
-    let advance = |c: char| i64::from(style.font.advances.advance(c));
-    let width = |text: &str| lay(text, 1000, &style.font, |_| {});
-    let occ = |v: u32| net.occurrence(VertexId::new(v)).expect("a vertex");
-    let kind_of = |v: u32| forest.kind(occ(v));
-    let parent = |v: u32| raw(net.parent(VertexId::new(v)));
-    let inside = |v: u32| raw(net.inside(VertexId::new(v)));
-    let root = |v: u32| parent(v) == NONE && inside(v) == NONE;
-    let written = |v: u32| formulas || forest.is_literal(occ(v)) || root(v);
-    let binary = |v: u32| matches!(kind_of(v), Kind::Tensor | Kind::Par);
-    // A vertex's formula as the drawing writes it: one-sided, or as the
-    // reading reads it, which writes a literal as its atom.
-    let write = |out: &mut String, v: u32, brackets: bool| {
-        net_text(out, forest, reading, occ(v), brackets);
-    };
-    let input = |v: u32| reading.is_some_and(|r| r.position(occ(v)) == Side::Input);
-    let fill = |v: u32| match input(v) {
-        true => format!(r#" fill="{}""#, escaped(&style.input)),
-        false => String::new(),
-    };
+    let view = View::of(net, style, reading);
     let arrow = radius / 2;
-    // The symbol at a joint, at a door or in a circle, and the height of
-    // its middle above its baseline. Under the reading, `A⊥ ⅋ B` in output
-    // position and `A ⊗ B⊥` in input position are `⊸`, and a `?` is the
-    // hypothesis `!A`.
-    let symbol_of = |v: u32| -> (&'static str, i64) {
-        match kind_of(v) {
-            Kind::Par | Kind::Tensor if reading.is_some() => {
-                match (kind_of(v) == Kind::Par) != input(v) {
-                    true => (NOTATION.lollipop, AXIS),
-                    false => (NOTATION.tensor, AXIS),
-                }
-            }
-            Kind::Par => (NOTATION.par, PAR_MIDDLE),
-            Kind::Tensor => (NOTATION.tensor, AXIS),
-            Kind::Quest if reading.is_some() => (NOTATION.bang, PAR_MIDDLE),
-            Kind::Bang => (NOTATION.bang, PAR_MIDDLE),
-            Kind::Quest => (NOTATION.quest, PAR_MIDDLE),
-            Kind::Atom
-            | Kind::DualAtom
-            | Kind::One
-            | Kind::Bot
-            | Kind::Top
-            | Kind::Zero
-            | Kind::With
-            | Kind::Plus
-            | Kind::Forall
-            | Kind::Exists => {
-                unreachable!("a literal has no symbol, a MELL net no unit, additive or binder")
-            }
-        }
-    };
-    // Whether a copy lies in another box than its `?` vertex.
-    let boxed = |c: u32| {
-        let q = parent(c);
-        q != NONE && kind_of(q) == Kind::Quest && inside(c) != inside(q)
-    };
-    // How many vertices each occurrence has, for the ids.
-    let mut instances = vec![0u32; forest.len()];
-    for v in 0..n as u32 {
-        instances[occ(v).index()] += 1;
-    }
-    let id = |v: u32| match instances[occ(v).index()] {
-        1 => format!("o{}", occ(v).get()),
-        _ => format!("v{v}"),
-    };
-    // The key of a boxed copy's doors (its `?` vertex, or under the rules
-    // the copy itself), and the `?` vertex of a door's key.
-    let key_of = |c: u32| if rules { c } else { parent(c) };
-    let owner = |key: u32| if rules { parent(key) } else { key };
 
     // The layout tree, by each node's children:
     // - a vertex: its premises;
@@ -474,7 +567,7 @@ pub(super) fn draw(
     let mut edges: Vec<(u32, u32, u32)> = Vec::with_capacity(nodes);
     // A cut link inside a box stands in it after everything else there.
     for (i, &(x, y)) in raw_cuts.iter().enumerate() {
-        let b = inside(x);
+        let b = view.inside(x);
         if b != NONE {
             let key = n as u32 + 2 * i as u32;
             edges.push((n as u32 + b, key, x));
@@ -482,15 +575,15 @@ pub(super) fn draw(
         }
     }
     for v in 0..n as u32 {
-        if kind_of(v) == Kind::Bang {
+        if view.kind_of(v) == Kind::Bang {
             edges.push((v, 0, n as u32 + v));
             let premise = net.premises(VertexId::new(v)).next().expect("a premise");
             edges.push((n as u32 + v, pre[v as usize], premise.get()));
             continue;
         }
         for (k, c) in net.premises(VertexId::new(v)).enumerate() {
-            if boxed(c.get()) {
-                let unit = n as u32 + inside(c.get());
+            if view.boxed(c.get()) {
+                let unit = n as u32 + view.inside(c.get());
                 edges.push((unit, pre[v as usize], c.get()));
             } else {
                 edges.push((v, k as u32, c.get()));
@@ -513,13 +606,13 @@ pub(super) fn draw(
     let doors = Doors::of(net, rules);
     let target = |d: usize| {
         let (b, key) = doors.pairs[d];
-        let outer = inside(b);
-        (outer != inside(owner(key))).then(|| doors.index(outer, key))
+        let outer = view.inside(b);
+        (outer != view.inside(view.owner(key))).then(|| doors.index(outer, key))
     };
     let mut last: HashMap<u32, Vec<u32>> = HashMap::default();
     for (d, &(b, key)) in doors.pairs.iter().enumerate() {
         if target(d).is_none() {
-            last.entry(owner(key)).or_default().push(b);
+            last.entry(view.owner(key)).or_default().push(b);
         }
     }
     // Under the rules, per `?` vertex:
@@ -534,11 +627,11 @@ pub(super) fn draw(
     let (mut inputs, mut levels, mut extra) = (vec![0u32; n], vec![0u32; n], vec![0u32; n]);
     if rules {
         for c in 0..n as u32 {
-            if parent(c) != NONE && kind_of(parent(c)) == Kind::Quest {
-                inputs[parent(c) as usize] += 1;
+            if view.parent(c) != NONE && view.kind_of(view.parent(c)) == Kind::Quest {
+                inputs[view.parent(c) as usize] += 1;
             }
         }
-        for q in (0..n as u32).filter(|&q| kind_of(q) == Kind::Quest) {
+        for q in (0..n as u32).filter(|&q| view.kind_of(q) == Kind::Quest) {
             let (k, own) = (inputs[q as usize], kids(q as usize).next().is_some());
             levels[q as usize] = u32::from(own || k >= 2) + k.saturating_sub(1) + u32::from(k == 0);
             extra[q as usize] = match formulas {
@@ -548,13 +641,13 @@ pub(super) fn draw(
         }
     }
     // A `?` vertex whose one premise is a wire, which is its conclusion.
-    let bare = |q: u32| rules && kind_of(q) == Kind::Quest && levels[q as usize] == 0;
+    let bare = |q: u32| rules && view.kind_of(q) == Kind::Quest && levels[q as usize] == 0;
 
     // Rows: every vertex one below the lowest of what it depends on (its
     // layout children, a box's contents, the boxes its wires leave), in a
     // walk that finishes what a vertex depends on first.
     let depends = |v: u32| -> Vec<u32> {
-        let mut on: Vec<u32> = if kind_of(v) == Kind::Bang {
+        let mut on: Vec<u32> = if view.kind_of(v) == Kind::Bang {
             kids(unit(v)).collect()
         } else {
             kids(v as usize).collect()
@@ -574,9 +667,9 @@ pub(super) fn draw(
         if ready || on.iter().all(|&w| layer[w as usize] != u32::MAX) {
             // Under the rules, a copy in a box has its dereliction on the
             // row below it, inside the box.
-            let below = |w: u32| u32::from(rules && kind_of(v) == Kind::Bang && boxed(w));
+            let below = |w: u32| u32::from(rules && view.kind_of(v) == Kind::Bang && view.boxed(w));
             let lowest = on.iter().map(|&w| layer[w as usize] + below(w)).max();
-            layer[v as usize] = match (lowest, forest.is_literal(occ(v))) {
+            layer[v as usize] = match (lowest, forest.is_literal(view.occ(v))) {
                 (_, true) => 0,
                 (Some(l), false) => l + 1 + extra[v as usize],
                 (None, false) => 1 + extra[v as usize],
@@ -604,16 +697,16 @@ pub(super) fn draw(
     let mut order: Vec<u32> = (0..n as u32).collect();
     order.sort_unstable_by_key(|&v| pre[v as usize]);
     for &v in &order {
-        let fixed = kind_of(v) == Kind::Bang && has_doors[v as usize];
-        let p = parent(v);
+        let fixed = view.kind_of(v) == Kind::Bang && has_doors[v as usize];
+        let p = view.parent(v);
         if fixed {
             continue;
         }
-        if root(v) {
+        if view.root(v) {
             row[v as usize] = bottom;
         } else if p != NONE
-            && kind_of(p) == Kind::Quest
-            && !boxed(v)
+            && view.kind_of(p) == Kind::Quest
+            && !view.boxed(v)
             && (rules || kids(p as usize).nth(1).is_some())
         {
             row[v as usize] = row[v as usize].max(row[p as usize] - 1 - extra[p as usize]);
@@ -682,15 +775,15 @@ pub(super) fn draw(
         }
         let v = node as u32;
         formula.clear();
-        let text_width = if written(v) {
-            write(&mut formula, v, false);
-            width(&formula)
+        let text_width = if view.written(v) {
+            view.write(&mut formula, v, false);
+            view.width(&formula)
         } else {
             0
         };
-        if forest.is_literal(occ(v)) {
-            let atom = if kind_of(v) == Kind::DualAtom {
-                width(formula.trim_end_matches(RAISED_BOT))
+        if forest.is_literal(view.occ(v)) {
+            let atom = if view.kind_of(v) == Kind::DualAtom {
+                view.width(formula.trim_end_matches(RAISED_BOT))
             } else {
                 text_width
             };
@@ -698,18 +791,24 @@ pub(super) fn draw(
             extent[node] = (-(atom / 2), text_width - atom / 2);
             continue;
         }
-        let bracket = |c: u32, side: char| if binary(c) { advance(side) } else { 0 };
-        let own = match kind_of(v) {
+        let bracket = |c: u32, side: char| {
+            if view.binary(c) {
+                view.advance(side)
+            } else {
+                0
+            }
+        };
+        let own = match view.kind_of(v) {
             Kind::Tensor | Kind::Par => {
                 let (l, r) = (children[0] as usize, children[1] as usize);
                 let (left, right) = (extent[l], extent[r]);
                 if formulas {
                     formula.clear();
-                    write(&mut formula, l as u32, true);
+                    view.write(&mut formula, l as u32, true);
                     formula.push(' ');
-                    let half = symbol_of(v).0.chars().map(advance).sum::<i64>() / 2;
-                    from_left[node] = width(&formula) + half;
-                    let space = advance(' ');
+                    let half = view.symbol_of(v).0.chars().map(|c| view.advance(c)).sum::<i64>() / 2;
+                    from_left[node] = view.width(&formula) + half;
+                    let space = view.advance(' ');
                     offset[l] = -(half + space + bracket(l as u32, ')') + left.1);
                     offset[r] = half + space + bracket(r as u32, '(') - right.0;
                     (-from_left[node], text_width - from_left[node])
@@ -729,10 +828,10 @@ pub(super) fn draw(
                 }
             }
             Kind::Bang | Kind::Quest => {
-                let symbol = symbol_of(v).0.chars().map(advance).sum::<i64>();
+                let symbol = view.symbol_of(v).0.chars().map(|c| view.advance(c)).sum::<i64>();
                 // The subformula as it stands after the symbol: the premise,
                 // or the first copy.
-                let first = if kind_of(v) == Kind::Bang {
+                let first = if view.kind_of(v) == Kind::Bang {
                     net.premises(VertexId::new(v)).next().map(VertexId::get)
                 } else {
                     children.first().copied()
@@ -741,7 +840,7 @@ pub(super) fn draw(
                     from_left[node] = symbol / 2;
                     if let Some(f) = first {
                         let at = symbol + bracket(f, '(') + from_left[f as usize] - from_left[node];
-                        if kind_of(v) == Kind::Bang {
+                        if view.kind_of(v) == Kind::Bang {
                             offset[unit(v)] = at;
                         } else {
                             side_by_side(&children, 0, at, &mut offset, &extent);
@@ -759,7 +858,7 @@ pub(super) fn draw(
                         }
                     }
                 }
-                if kind_of(v) == Kind::Bang {
+                if view.kind_of(v) == Kind::Bang {
                     // The box reaches out to its `!` door.
                     let u = unit(v);
                     let joint = -offset[u];
@@ -835,7 +934,7 @@ pub(super) fn draw(
         let mut c = b;
         while c != NONE && nesting[c as usize] == u32::MAX {
             chain.push(c);
-            c = inside(c);
+            c = view.inside(c);
         }
         let below = if c == NONE {
             0
@@ -852,7 +951,7 @@ pub(super) fn draw(
     // side, and its links.
     let mut children_of: HashMap<u32, Vec<u32>> = HashMap::default();
     for &b in &boxes {
-        children_of.entry(inside(b)).or_default().push(b);
+        children_of.entry(view.inside(b)).or_default().push(b);
     }
     for list in children_of.values_mut() {
         list.sort_unstable_by_key(|&b| sides(b).0);
@@ -860,7 +959,7 @@ pub(super) fn draw(
     let mut links_of: HashMap<u32, Vec<(u32, u32)>> = HashMap::default();
     for &(p, q) in net.links() {
         links_of
-            .entry(inside(p.get()))
+            .entry(view.inside(p.get()))
             .or_default()
             .push((p.get(), q.get()));
     }
@@ -919,13 +1018,13 @@ pub(super) fn draw(
         for (d, &(_, key)) in doors.pairs.iter().enumerate() {
             let above = match target(d) {
                 Some(outer) => row[doors.pairs[outer].0 as usize],
-                None => row[owner(key) as usize],
+                None => row[view.owner(key) as usize],
             };
             if !rules {
                 *level.entry(above).or_default() += 1;
             }
         }
-        for q in (0..n as u32).filter(|&q| rules && kind_of(q) == Kind::Quest) {
+        for q in (0..n as u32).filter(|&q| rules && view.kind_of(q) == Kind::Quest) {
             let (k, own) = (inputs[q as usize], kids(q as usize).count() as u32);
             let first = row[q as usize] + u32::from(!formulas) - levels[q as usize];
             let last = row[q as usize] - u32::from(formulas);
@@ -952,11 +1051,11 @@ pub(super) fn draw(
     // under an edge down from its door.
     let lowered = |v: u32| {
         style.net_look.conclusions == Conclusions::Bottom
-            && root(v)
-            && kind_of(v) == Kind::Bang
+            && view.root(v)
+            && view.kind_of(v) == Kind::Bang
             && has_doors[v as usize]
     };
-    let text_y = |v: u32| match (formulas, root(v)) {
+    let text_y = |v: u32| match (formulas, view.root(v)) {
         (true, _) if lowered(v) => baseline + i64::from(bottom) * pitch,
         (true, _) => baseline + i64::from(row[v as usize]) * pitch,
         (false, true) => under,
@@ -983,7 +1082,7 @@ pub(super) fn draw(
     let foot = |v: u32| (x[v as usize], text_y(v) + depth);
     // Where an edge from a vertex below ends at `v`: a written formula's
     // foot, or a compact circle's rim towards `to`.
-    let end_at = |v: u32, to: (i64, i64)| match formulas || forest.is_literal(occ(v)) {
+    let end_at = |v: u32, to: (i64, i64)| match formulas || forest.is_literal(view.occ(v)) {
         true => foot(v),
         false if bare(v) => node(v),
         false => towards(node(v), to, radius),
@@ -995,8 +1094,8 @@ pub(super) fn draw(
     let mut by_depth: Vec<usize> = (0..doors.pairs.len()).collect();
     by_depth.sort_unstable_by_key(|&d| std::cmp::Reverse(nesting[doors.pairs[d].0 as usize]));
     for c in 0..n as u32 {
-        if boxed(c) {
-            let d = doors.index(inside(c), key_of(c));
+        if view.boxed(c) {
+            let d = doors.index(view.inside(c), view.key_of(c));
             feeders[d].push(x[c as usize]);
         }
     }
@@ -1058,7 +1157,7 @@ pub(super) fn draw(
             centre.0 - label.width / 2,
             centre.1 + middle * label_size / 1000,
             &label,
-            &format!(r#" font-size="{label_size}"{}"#, fill(v)),
+            &format!(r#" font-size="{label_size}"{}"#, view.fill(v)),
             None,
         );
     };
@@ -1072,16 +1171,16 @@ pub(super) fn draw(
         .unwrap();
     };
     for v in 0..n as u32 {
-        if written(v) {
-            let named = formulas || forest.is_literal(occ(v));
+        if view.written(v) {
+            let named = formulas || forest.is_literal(view.occ(v));
             let mut attributes = if named {
-                format!(r#" id="{}""#, id(v))
+                format!(r#" id="{}""#, view.id(v))
             } else {
                 String::new()
             };
-            attributes.push_str(&fill(v));
+            attributes.push_str(&view.fill(v));
             formula.clear();
-            write(&mut formula, v, false);
+            view.write(&mut formula, v, false);
             let line = run(&formula, 1000, &style.font);
             text(
                 &mut texts,
@@ -1093,21 +1192,21 @@ pub(super) fn draw(
             );
         }
         // Under the rules a `?` vertex is its nodes, drawn below.
-        if forest.is_literal(occ(v)) || (rules && kind_of(v) == Kind::Quest) {
+        if forest.is_literal(view.occ(v)) || (rules && view.kind_of(v) == Kind::Quest) {
             continue;
         }
         let centre = node(v);
         if !formulas {
-            let group = if input(v) {
+            let group = if view.input(v) {
                 &mut input_lines
             } else {
                 &mut lines
             };
-            circle(group, centre, Some(&id(v)));
+            circle(group, centre, Some(&view.id(v)));
         }
-        label(&mut texts, centre, symbol_of(v), v);
-        let switched = matches!(kind_of(v), Kind::Par | Kind::Quest) && dashed;
-        let children: Vec<u32> = if kind_of(v) == Kind::Bang {
+        label(&mut texts, centre, view.symbol_of(v), v);
+        let switched = matches!(view.kind_of(v), Kind::Par | Kind::Quest) && dashed;
+        let children: Vec<u32> = if view.kind_of(v) == Kind::Bang {
             net.premises(VertexId::new(v)).map(VertexId::get).collect()
         } else {
             kids(v as usize).collect()
@@ -1120,7 +1219,7 @@ pub(super) fn draw(
                 // connectives up into their input premises (a `?` into its
                 // copies), and nothing into the antecedent of an output
                 // implication.
-                let (upward, antecedent) = (input(c), input(c) && !input(v));
+                let (upward, antecedent) = (view.input(c), view.input(c) && !view.input(v));
                 let out = match (marks(v, c), antecedent, upward) {
                     (true, _, _) => &mut marked,
                     (false, true, _) => &mut dominator_lines,
@@ -1166,9 +1265,9 @@ pub(super) fn draw(
             }
         }
         // A compact conclusion's edge hangs from its circle to its text.
-        if root(v) && !formulas {
+        if view.root(v) && !formulas {
             let (start, foot) = ((centre.0, centre.1 + radius), (centre.0, end));
-            match (reading, input(v)) {
+            match (reading, view.input(v)) {
                 (Some(_), true) => directed(&mut input_lines, foot, start),
                 (Some(_), false) => directed(&mut lines, start, foot),
                 (None, _) => {
@@ -1251,14 +1350,14 @@ pub(super) fn draw(
         false => segment(out, a, b, dashing),
     };
     let mut entry: HashMap<usize, End> = HashMap::default();
-    for q in (0..n as u32).filter(|&q| rules && kind_of(q) == Kind::Quest) {
+    for q in (0..n as u32).filter(|&q| rules && view.kind_of(q) == Kind::Quest) {
         let k = inputs[q as usize];
         let wires = doors
             .pairs
             .iter()
             .enumerate()
-            .filter(|&(d, &(_, key))| owner(key) == q && target(d).is_none());
-        let down = parent(q) != NONE && marks(parent(q), q);
+            .filter(|&(d, &(_, key))| view.owner(key) == q && target(d).is_none());
+        let down = view.parent(q) != NONE && marks(view.parent(q), q);
         // A compact conclusion's edge, from `from` down to its text.
         let hanging = |lines: &mut String, marked: &mut String, from: i64| {
             let target = if down { marked } else { lines };
@@ -1284,7 +1383,7 @@ pub(super) fn draw(
                     },
                 );
             }
-            if !formulas && root(q) {
+            if !formulas && view.root(q) {
                 hanging(&mut *rule_lines, &mut marked, into.1);
             }
             continue;
@@ -1301,12 +1400,12 @@ pub(super) fn draw(
             writeln!(
                 rule_lines,
                 r#"<circle id="{}" cx="{}" cy="{}" r="{radius}"/>"#,
-                id(q),
+                view.id(q),
                 last.0,
                 last.1
             )
             .unwrap();
-            if root(q) {
+            if view.root(q) {
                 hanging(&mut *rule_lines, &mut marked, last.1 + radius);
             }
         }
@@ -1409,11 +1508,11 @@ pub(super) fn draw(
     // and runs through its doors, which have no symbol of their own.
     let door_radius = if rules { 0 } else { radius };
     for c in 0..n as u32 {
-        if !boxed(c) {
+        if !view.boxed(c) {
             continue;
         }
-        let q = parent(c);
-        let d = doors.index(inside(c), key_of(c));
+        let q = view.parent(c);
+        let d = doors.index(view.inside(c), view.key_of(c));
         let to = point[d];
         let switched = dashed && !bare(q);
         let plain = if reading.is_some() {
@@ -1465,7 +1564,7 @@ pub(super) fn draw(
                     (to, above.unwrap_or(to.1 - 2 * radius))
                 }
                 None => {
-                    let to = node(owner(doors.pairs[d].1));
+                    let to = node(view.owner(doors.pairs[d].1));
                     (to, to.1 - 2 * radius)
                 }
             };
@@ -1487,7 +1586,7 @@ pub(super) fn draw(
         }
     }
     for (d, &(b, key)) in doors.pairs.iter().enumerate() {
-        let q = owner(key);
+        let q = view.owner(key);
         let from = point[d];
         let (to, into, above) = match target(d) {
             Some(outer) => (point[outer], door_radius, None),
@@ -1580,7 +1679,7 @@ pub(super) fn draw(
             };
             circle(group, from, None);
         }
-        label(&mut texts, from, symbol_of(q), q);
+        label(&mut texts, from, view.symbol_of(q), q);
     }
     // Each box's rectangle, its bottom border broken at its doors.
     for b in net.boxes().map(VertexId::get) {
@@ -1632,7 +1731,7 @@ pub(super) fn draw(
         // From the input literal to the output one, at the arc's top.
         let head = reading
             .is_some()
-            .then(|| (left == if input(p) { q } else { p }, arrow));
+            .then(|| (left == if view.input(p) { q } else { p }, arrow));
         link_arc(
             out,
             (p.min(q), p.max(q)),
@@ -1647,7 +1746,7 @@ pub(super) fn draw(
     // formulas, joined to them from below.
     let cut_depth = 2 * radius;
     for &(a, d) in &raw_cuts {
-        let below = |v: u32| match formulas || forest.is_literal(occ(v)) || root(v) {
+        let below = |v: u32| match formulas || forest.is_literal(view.occ(v)) || view.root(v) {
             true => foot(v).1,
             false => node(v).1 + radius,
         };
