@@ -418,15 +418,16 @@ type Counts = Vec<(usize, u32)>;
 /// named twice keeps its larger count.
 fn merged(mut counts: Counts) -> Counts {
     counts.sort_unstable();
-    let mut merged: Counts = Vec::with_capacity(counts.len());
-    for (x, k) in counts {
-        match merged.last_mut() {
-            Some((y, m)) if *y == x => *m = (*m).max(k),
-            _ => merged.push((x, k)),
+    // `dedup_by` hands the later element first and the one it keeps second.
+    counts.dedup_by(|later, kept| {
+        let same = later.0 == kept.0;
+        if same {
+            kept.1 = kept.1.max(later.1);
         }
-    }
-    merged.retain(|&(_, k)| k > 0);
-    merged
+        same
+    });
+    counts.retain(|&(_, k)| k > 0);
+    counts
 }
 
 /// A token of a `.spec` file.
