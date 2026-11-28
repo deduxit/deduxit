@@ -593,8 +593,24 @@ pub(crate) fn check_ordinary(
                 )
             }
             (ordinary::Verdict::NotValid, Some(linear)) => match &linear.verdict {
+                // The refutation confirms the outcome only as the refutation
+                // of the whole image in the translation's mode, with what
+                // else the file holds of the same sequent: two pieces of
+                // evidence of two sequents confirm neither.
                 deduxit::linear::Verdict::Unprovable(disproof) => {
-                    check_disproof((**disproof).clone(), &show, deadline, &mut out)?
+                    match untied(&outcome, disproof, &show.limits) {
+                        Some(why) => {
+                            let line = format!(
+                                "unknown: {why}, so the file's outcome of {logic} logic is not \
+                                 confirmed"
+                            );
+                            (
+                                Status::Unknown,
+                                unchecked_into(&line, Some(logic), &show, &mut out)?,
+                            )
+                        }
+                        None => check_disproof((**disproof).clone(), &show, deadline, &mut out)?,
+                    }
                 }
                 _ => bail!("the outcome's image holds no refutation"),
             },
@@ -650,6 +666,47 @@ pub(crate) fn check_ordinary(
         }
         anyhow::Ok(status)
     })?
+}
+
+/// Returns why the image's refutation `disproof` does not stand for the
+/// propositional outcome as a whole, or `None` where it does: the
+/// translation must decide the outcome's logic, and the refutation must
+/// refute the whole image (no goal) in the mode the translation decides
+/// its images in, no first-order countermodel may stand beside it, and a
+/// countermodel (right, or too large to check: a wrong one is answered
+/// before) must be of the sequent the image translates, its sequent
+/// translated as the outcome says. A countermodel is propositional (its
+/// check refuses a first-order arena), so that image holds no binder and
+/// its text is the formula. A translation refused at a bound is no
+/// agreement.
+fn untied(
+    outcome: &ordinary::Outcome,
+    disproof: &Disproof,
+    limits: &Limits,
+) -> Option<&'static str> {
+    let ordinary::Search::Embedding { translation, .. } = outcome.search else {
+        return Some("the file's refutation is of no translation");
+    };
+    if !translation.decides(outcome.logic) {
+        return Some("the file's translation does not decide its logic");
+    }
+    if disproof.goal().is_some() {
+        return Some(
+            "the translation's refutation is of a goal, not of the whole translated sequent",
+        );
+    }
+    if disproof.mode() != translation.target().mode {
+        return Some("the translation's refutation is in another mode than the translation's");
+    }
+    if outcome.structure.is_some() || outcome.kripke.is_some() {
+        return Some("a first-order countermodel stands beside a propositional translation");
+    }
+    let countermodel = outcome.countermodel.as_ref()?;
+    let agrees = ordinary::translate(&countermodel.sequent, outcome.logic, translation, limits)
+        .is_ok_and(|translated| translated.sequent().to_string() == disproof.sequent().to_string());
+    (!agrees).then_some(
+        "the file's countermodel is of another sequent than its translation's refutation",
+    )
 }
 
 /// Returns whether an image is a first-order sequent's: it has a

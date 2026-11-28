@@ -215,6 +215,18 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- **`check` confirmed an outcome whose countermodel and image were of
+  different sequents.** Beside a countermodel that is right, or too
+  large to check, `check` confirmed the translated sequent's refutation,
+  so a file whose two pieces of evidence are about two sequents passed
+  (exit 0), and so did a refutation of only part of the image, or in
+  another mode than the translation's. It now confirms the image's
+  refutation only as the refutation of the whole image in the
+  translation's mode, by a translation that decides the outcome's logic,
+  with no first-order countermodel beside it and any
+  countermodel's sequent, translated as the outcome says, the image's;
+  otherwise it answers unknown (exit 3). Every outcome `prove` writes
+  agrees, so honest outcomes check as before.
 - **`grade` could mark a "not valid" answer to a valid problem
   correct.** An ordinary outcome's countermodel was held to the
   problem's sequent, but the outcome was then checked by its translated

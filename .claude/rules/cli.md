@@ -171,7 +171,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   quantifier as well as with first-order tables, since a JSON sequent
   without its tables reads with quantifiers and none; a structure or
   Kripke structure beside an image is not checked, since nothing ties
-  its sequent to the image's) and an unknown are `unknown`, exit 3
+  its sequent to the image's), a propositional "not valid" whose image
+  refutation does not stand for the outcome (`untied`: a translation
+  that does not decide the outcome's logic; a refutation of a
+  goal, or in another mode than `Translation::target().mode`; a
+  structure or Kripke structure beside it; a countermodel, right or
+  refused at a bound, whose sequent translated by the outcome's logic
+  and translation prints otherwise than the image, which is safe since
+  a countermodel is propositional; answering unknown for every refused
+  countermodel would have made an honest outcome with a large
+  countermodel unknown) and an unknown are `unknown`, exit 3
   (`unchecked_into`; the linear `check` refuses an unknown linear
   outcome, exit 2, as before); a mode
   flag beside an ordinary file is refused; its `Checked` JSON has

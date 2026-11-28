@@ -1405,7 +1405,10 @@ checks the derivation by its calculus and the image's proof or
 refutation, and a countermodel against its sequent; a clausal proof's
 counts, a "not valid" of LJT, a first-order "not valid" by the image's
 refutation (the translation may lose first-order proofs), and
-an unknown hold nothing to check (exit status 3).
+an unknown hold nothing to check (exit status 3), as does a "not valid"
+whose image's refutation is of a goal or in another mode than the
+translation's, or whose countermodel, right or too large to check, is
+of another sequent than its image.
 
 ### Countermodels
 

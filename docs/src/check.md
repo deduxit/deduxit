@@ -25,7 +25,13 @@ SAT solver, an unknown) gets exit status 3 ([Ordinary
 logic](ordinary-logic.md#json-output)). So does a "not valid" of a
 first-order sequent that rests on the translated sequent's refutation:
 the translation may lose a first-order proof, so that refutation
-leaves the sequent open, as `prove` says.
+leaves the sequent open, as `prove` says. The translated sequent's
+refutation confirms a "not valid" only as the refutation of the whole
+translated sequent, in the translation's mode, beside no evidence of
+another sequent: a countermodel that is right, or too large to check,
+must be of the sequent the translation comes from. Otherwise the answer
+is exit status 3, since two pieces of evidence about two sequents
+confirm neither. A wrong countermodel is invalid (exit status 1).
 
 A derivation in a calculus you give as a rule file is checked by
 `check` as well ([Check a derivation in your own rules](rules.md)).

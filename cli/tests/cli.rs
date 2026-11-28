@@ -1871,6 +1871,62 @@ fn an_unknown_first_order_embedding_has_no_certificate() {
     }
 }
 
+/// `check` confirms an outcome only where its countermodel and its image
+/// are of one sequent: a countermodel of another sequent, right or too
+/// large to check, beside the image's refutation leaves it unknown.
+#[test]
+fn a_countermodel_of_another_sequent_confirms_nothing() {
+    let (_, outcome, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "embedding",
+            "--format",
+            "json",
+            "a |- b",
+        ],
+        "",
+    );
+    let mut outcome: serde_json::Value = serde_json::from_str(&outcome).unwrap();
+    let (status, out, err) = deduxit(&["check"], &outcome.to_string());
+    assert_eq!(status, 0, "{out}{err}");
+    let other = |atoms: serde_json::Value| {
+        serde_json::json!({
+            "sequent": {"formulas": [{"V": 0}, {"V": 1}], "atoms": ["c", "d"], "left": [0], "right": [1]},
+            "model": {"worlds": [{"atoms": atoms}], "world": 0},
+        })
+    };
+    let padded: Vec<String> = std::iter::once("c".to_owned())
+        .chain((0..5000).map(|k| format!("z{k}")))
+        .collect();
+    for (countermodel, limit) in [
+        (other(serde_json::json!(["c"])), "1GiB"),
+        (other(serde_json::json!(padded)), "64KiB"),
+    ] {
+        outcome["countermodel"] = countermodel;
+        let (status, out, err) = deduxit(&["check", "--memory-limit", limit], &outcome.to_string());
+        assert_eq!(status, 3, "{limit}: {out}{err}");
+        assert!(
+            out.starts_with("unknown: the file's countermodel is of another sequent"),
+            "{out}"
+        );
+    }
+    // The image's refutation stands for the outcome only as the
+    // refutation of the whole image, in the translation's mode.
+    outcome.as_object_mut().unwrap().remove("countermodel");
+    let mut goal = outcome.clone();
+    goal["search"]["image"]["goal"] = serde_json::json!([1]);
+    let mut mode = outcome.clone();
+    mode["search"]["image"]["mode"] = "classical".into();
+    for (edited, why) in [(goal, "of a goal"), (mode, "in another mode")] {
+        let (status, out, err) = deduxit(&["check"], &edited.to_string());
+        assert_eq!(status, 3, "{why}: {out}{err}");
+        assert!(out.contains(why), "{out}");
+    }
+}
+
 /// `check` answers a first-order sequent's outcome as `prove` does: an
 /// outcome edited to say "not valid" on the strength of its image's
 /// refutation is unknown, since the translation may lose a proof. So is

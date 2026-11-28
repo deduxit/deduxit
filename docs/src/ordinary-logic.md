@@ -1128,7 +1128,10 @@ no refutation of a sequent that is not valid, and an unknown holds no
 proof: there `check` says the file holds nothing to check, with exit
 status 3. A file that calls a first-order sequent not valid by its
 image's refutation gets exit status 3 too, since the image's
-refutation leaves a first-order sequent open.
+refutation leaves a first-order sequent open. So does one whose image's
+refutation is of part of the image or in another mode than the
+translation's, or whose countermodel, right or too large to check, is
+of another sequent than its image.
 
 ## Step by step
 
