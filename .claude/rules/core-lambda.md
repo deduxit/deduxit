@@ -231,7 +231,7 @@ design, with its sources and the alternatives weighed, is
   `!c` copies a chain for what the premise has more of. A term with a
   `wk` is `Calculus::Affine`, one without is linear whatever the mode.
 - **The LJ read-back keeps hypotheses per formula, innermost last**, as
-  the Rocq certificate does (`ordinary/rocq.rs`): equal formulas are one
+  the Rocq certificate does (`ordinary/rocq/mod.rs`): equal formulas are one
   arena id, a contraction is a variable used twice, a weakening one left
   unused, and the admissible view (`Derivation::shown`) reads back like
   the explicit one (`simple` in `tests.rs` checks both). `WR` and `⊥L`

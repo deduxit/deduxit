@@ -29,6 +29,9 @@ use crate::linear::search::{Classical, Disproof, Refutation};
 use crate::linear::sequents::{Stop, Stops};
 use std::fmt::Write;
 
+/// The certificates of first-order countermodels for deduxit's library.
+pub(crate) mod models;
+
 /// The names the terms use. An atom's identifier that is one of them gets
 /// `'` appended until it is none.
 const USED: &[&str] = &[

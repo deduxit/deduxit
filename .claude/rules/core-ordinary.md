@@ -45,10 +45,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   expansion, `kripke.rs` the Kripke models' sequent and `encode.rs` the
   writer core they and grounding share, below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
-  `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
-  `rocq`): the certificate over `Prop`, public as
+  `NotValid`, `Unknown`, and the linear outcome); `rocq/` (behind
+  `rocq`): in `mod.rs` the certificate over `Prop`, public as
   `export::rocq::ordinary`, and a countermodel's
-  (`export::rocq::write_countermodel`, core-export.md); `negative.rs` and `interpolant.rs`: the
+  (`export::rocq::write_countermodel`, core-export.md), in `models.rs`
+  the first-order countermodels' for deduxit's library; `negative.rs` and `interpolant.rs`: the
   transformations, below; `normal/`: the normal forms, below (`mod.rs` the
   types, the claims and their check, `laws.rs` the stages, laws and
   passes, `first_order.rs` the quantifier laws and Skolem's and
@@ -193,7 +194,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   outcome or session that holds one is written at wire level 9
   (`wire::ORDINARY_CUT`, `serialize::ordinary::level`), since a reader
   of level 8 refuses the rule's name.
-- **The certificate** (`rocq.rs`) is a term, not a tactic script: an LJ
+- **The certificate** (`rocq/mod.rs`) is a term, not a tactic script: an LJ
   sequent `Γ ⊢ C` is a term of type `C` (`False` for none), an LK sequent
   a term of `False` with a continuation `k : ~ D` per formula `D` right,
   and the rules that move a formula right use `NNPP` (standalone files

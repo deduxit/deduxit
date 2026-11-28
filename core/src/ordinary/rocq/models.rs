@@ -19,10 +19,7 @@
 //! symbols are written: the library compares every table it is given
 //! along the order, and the check compared only those.
 
-use super::rocq::Closure;
-use super::{
-    FiniteCountermodel, KripkeCountermodel, KripkeStructure, Logic, Node, NodeId, Sequent,
-};
+use super::Closure;
 use crate::Error;
 use crate::export::Form;
 use crate::export::rocq::library::{self, stopped, string};
@@ -33,6 +30,9 @@ use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::sequents::{Stop, Stops};
+use crate::ordinary::{
+    FiniteCountermodel, KripkeCountermodel, KripkeStructure, Logic, Node, NodeId, Sequent,
+};
 use std::fmt::Write;
 
 /// The most the numbers of a certificate's model add up to, each counted

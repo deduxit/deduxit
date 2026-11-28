@@ -1313,7 +1313,7 @@ pub fn write_structure(
     out: &mut impl Write,
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
-    crate::ordinary::rocq_models::structure(countermodel, logic, options, limits, out, stop)
+    crate::ordinary::rocq::models::structure(countermodel, logic, options, limits, out, stop)
 }
 
 /// Writes the certificate that a first-order sequent is not valid, from
@@ -1356,7 +1356,7 @@ pub fn write_kripke_structure(
     out: &mut impl Write,
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
-    crate::ordinary::rocq_models::kripke_structure(countermodel, logic, options, limits, out, stop)
+    crate::ordinary::rocq::models::kripke_structure(countermodel, logic, options, limits, out, stop)
 }
 
 /// Writes the certificate that a modal sequent is valid, from its

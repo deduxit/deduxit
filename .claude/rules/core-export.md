@@ -93,7 +93,7 @@ for NanoYalla. What the code relies on:
   A derivation of LK or LJ (`ordinary::Derivation`) goes through the same
   `write` of every target, and has `ordinary::Derivation::write_text`
   (with `text_size` and `Display`) and `write_steps`; Rocq's `write` certifies it by the
-  term of `ordinary/rocq.rs` (`core-ordinary.md`).
+  term of `ordinary/rocq/mod.rs` (`core-ordinary.md`).
 - **Every emitter is generic over the crate-private trait
   `proofs::style::Drawn`**, implemented by `proofs::Derivation` (in
   `style.rs`), `TwoSided`, `ordinary::Derivation` (in
@@ -964,8 +964,8 @@ for NanoYalla. What the code relies on:
   arena, `modal` over a rule file's connectives, `modal_proof`, and the
   labelled items `LAB`, `REL`; the modal ones behind `serialize` too, as
   their one user is). Every
-  certificate writer (`deduxit.rs`, `ordinary/rocq.rs`,
-  `ordinary/rocq_models.rs`, `modal/rocq.rs`) takes its constructors
+  certificate writer (`deduxit.rs`, `ordinary/rocq/mod.rs`,
+  `ordinary/rocq/models.rs`, `modal/rocq.rs`) takes its constructors
   from there, and no other place of the crate names one: the modal
   writer's `head` matches on the calculus's rule names, and a
   first-order literal's arguments are what follows the first space of
@@ -1137,7 +1137,7 @@ for NanoYalla. What the code relies on:
   command writes (two by `prove`, one by `check` of an outcome, one of a
   model given) and refuses one with a valuation that shrinks.
 - **First-order countermodels' certificates** (`rocq::write_structure`,
-  `write_kripke_structure`, `ordinary/rocq_models.rs`): checked first
+  `write_kripke_structure`, `ordinary/rocq/models.rs`): checked first
   (`FiniteCountermodel::check`, `KripkeCountermodel::check`), then
   written for rocq-deduxit's first-order `Deduxit.Intuitionistic`
   (`DEDUXIT_FIRST_ORDER_MODEL_PRELUDE`, `FirstOrderCheck`): classical
