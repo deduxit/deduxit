@@ -539,36 +539,13 @@ impl NetError {
         vertices: Option<&[OccId]>,
         limit: Limit,
     ) -> FmtResult {
-        // Each formula, and each list of them, cut after `limit` characters.
-        let vertex = |v: &VertexId| {
-            let o = match vertices {
-                Some(table) => table.get(v.index()).copied(),
-                None => names.and_then(|n| (v.index() < n.forest.len()).then(|| v.occ())),
-            };
-            match (names, o) {
-                (Some(names), Some(o)) => {
-                    let mut formula = String::new();
-                    clipped(&mut formula, Some(names), o.into(), limit).unwrap();
-                    format!("{formula}[{}]", v.get())
-                }
-                _ => v.get().to_string(),
-            }
+        let text = VertexText {
+            names,
+            vertices,
+            limit,
         };
-        let list = |vs: &[VertexId]| {
-            let mut text = String::new();
-            let mut budget = Budget::new(&mut text, limit);
-            let cut_short = vs.iter().enumerate().any(|(i, v)| {
-                let separator = if i == 0 { "" } else { ", " };
-                budget
-                    .write_str(separator)
-                    .and_then(|()| budget.write_str(&vertex(v)))
-                    .is_err()
-            });
-            if cut_short {
-                write!(text, "… ({} vertices)", vs.len()).unwrap();
-            }
-            text
-        };
+        let vertex = |v: &VertexId| text.vertex(v);
+        let list = |vs: &[VertexId]| text.list(vs);
         use NetError::*;
         match self {
             // A vertex outside the structure has no formula.
@@ -648,29 +625,7 @@ impl NetError {
                 write!(f, "inside the box of {}, ", vertex(door))?;
                 error.write_over(f, names, vertices, limit)
             }
-            NotMell { fragment, mode } => {
-                // `Fragment` alone names the variant here.
-                use crate::linear::fragment::Fragment as F;
-                let unit_free = F::MLL.union(F::EXPONENTIALS);
-                if !unit_free.contains(*fragment)
-                    && unit_free.union(F::MULTIPLICATIVE_UNITS).contains(*fragment)
-                    && !mode.is_affine()
-                    && !mode.is_ordered()
-                {
-                    // The units alone are the reason.
-                    f.write_str(
-                        "proof nets with boxes exist only for MELL without units, and the \
-                         sequent has a unit",
-                    )
-                } else {
-                    write!(
-                        f,
-                        "proof nets with boxes exist for MELL without units in classical mode, \
-                         with or without Mix, and in intuitionistic mode, only, not for \
-                         {fragment} in {mode} mode"
-                    )
-                }
-            }
+            NotMell { fragment, mode } => write_not_mell(f, *fragment, *mode),
             NoCut { vertex: Some(v) } => write!(f, "vertex {} is no end of a cut link", vertex(v)),
             NoCut { vertex: None } => f.write_str("the net has no cut link"),
             Reduction { error } => {
@@ -679,6 +634,81 @@ impl NetError {
             }
             Refused { refusal } => write!(f, "{refusal}"),
         }
+    }
+}
+
+/// Writes the vertices of a [`NetError`]: each as its formula followed by
+/// its id in brackets where `names` are given, each formula and each list
+/// cut after `limit` characters.
+struct VertexText<'a> {
+    /// The forest's names, if any.
+    names: Option<Names<'a>>,
+    /// Each vertex's occurrence, for a structure with boxes.
+    vertices: Option<&'a [OccId]>,
+    /// Where each formula and each list is cut.
+    limit: Limit,
+}
+
+impl VertexText<'_> {
+    /// Returns a vertex as `formula[id]`, or its id alone.
+    fn vertex(&self, v: &VertexId) -> String {
+        let o = match self.vertices {
+            Some(table) => table.get(v.index()).copied(),
+            None => self
+                .names
+                .and_then(|n| (v.index() < n.forest.len()).then(|| v.occ())),
+        };
+        match (self.names, o) {
+            (Some(names), Some(o)) => {
+                let mut formula = String::new();
+                clipped(&mut formula, Some(names), o.into(), self.limit).unwrap();
+                format!("{formula}[{}]", v.get())
+            }
+            _ => v.get().to_string(),
+        }
+    }
+
+    /// Returns a list of vertices, cut with their count past `limit`.
+    fn list(&self, vs: &[VertexId]) -> String {
+        let mut text = String::new();
+        let mut budget = Budget::new(&mut text, self.limit);
+        let cut_short = vs.iter().enumerate().any(|(i, v)| {
+            let separator = if i == 0 { "" } else { ", " };
+            budget
+                .write_str(separator)
+                .and_then(|()| budget.write_str(&self.vertex(v)))
+                .is_err()
+        });
+        if cut_short {
+            write!(text, "… ({} vertices)", vs.len()).unwrap();
+        }
+        text
+    }
+}
+
+/// Writes why a sequent has no proof net with boxes: the units where they
+/// are the one reason, else the fragments and modes that have one.
+fn write_not_mell(f: &mut Formatter<'_>, fragment: Fragment, mode: Mode) -> FmtResult {
+    let unit_free = Fragment::MLL.union(Fragment::EXPONENTIALS);
+    if !unit_free.contains(fragment)
+        && unit_free
+            .union(Fragment::MULTIPLICATIVE_UNITS)
+            .contains(fragment)
+        && !mode.is_affine()
+        && !mode.is_ordered()
+    {
+        // The units alone are the reason.
+        f.write_str(
+            "proof nets with boxes exist only for MELL without units, and the \
+             sequent has a unit",
+        )
+    } else {
+        write!(
+            f,
+            "proof nets with boxes exist for MELL without units in classical mode, \
+             with or without Mix, and in intuitionistic mode, only, not for \
+             {fragment} in {mode} mode"
+        )
     }
 }
 
