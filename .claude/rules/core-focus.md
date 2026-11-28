@@ -728,7 +728,9 @@ relies on:
   names. A `Tally` keeps a set's sums incrementally; a `Split` keeps those
   of the two sides of a split in the making and what the members not yet
   assigned can still add (below). **How the rows are laid out and what
-  they cost** (`Counts::new_until`): one pass from the last occurrence
+  they cost** (`Counts::new_until`, its passes a function each:
+  `exponential_atoms`, `ranks`, `unrestricted_literals`, `write_rows`,
+  sharing one poll and one account): one pass from the last occurrence
   down writes each row straight after the others into three flat
   arrays, a binary node's by merging its children's, which are written
   already (`Rows::merge`; `bound[n − 1 − o]` is where the row of `o`

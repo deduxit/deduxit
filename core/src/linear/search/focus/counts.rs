@@ -325,6 +325,267 @@ impl Predicates {
     }
 }
 
+/// Returns, per atom and sign, whether a literal of it lies below a `!` or
+/// `?`, and whether a `⊤` does: the set-up's first pass.
+fn exponential_atoms(
+    forest: &Forest,
+    num_atoms: usize,
+    atom_of: &impl Fn(OccId) -> Option<Atom>,
+    stopped: &mut impl FnMut(usize) -> bool,
+) -> Result<(Vec<[bool; 2]>, bool), Reason> {
+    let mut exponential = vec![[false; 2]; num_atoms];
+    let mut absorbs_from_copies = false;
+    // An occurrence's subtree is the ids that follow it. So one pass that
+    // remembers where the outermost enclosing `!` or `?` ends knows, of every
+    // occurrence, whether it lies below one. A walk of each one's subtree
+    // would be quadratic in a nest of them.
+    let mut inside = 0;
+    for o in forest.ids() {
+        if o.index() < inside {
+            if let (Some(atom), Some(sign)) = (atom_of(o), forest.sign(o)) {
+                exponential[atom.index()][sign as usize] = true;
+            }
+            absorbs_from_copies |= forest.kind(o) == Kind::Top;
+        }
+        if matches!(forest.kind(o), Kind::Bang | Kind::Quest) {
+            inside = inside.max(o.index() + forest.size(o) as usize);
+        }
+        if stopped(1) {
+            return Err(Reason::Stopped);
+        }
+    }
+    Ok((exponential, absorbs_from_copies))
+}
+
+/// Returns each atom's rank among the atoms that have rows, those atoms,
+/// and the sign copies give each of them, if any.
+///
+/// The atoms that have rows are numbered in their own order. A tally is as
+/// wide as they are many. A Petri net has tens of thousands of atoms,
+/// nearly all with both signs below a `!`, and those have no rows: copies
+/// can move their balance either way.
+fn ranks(exponential: &[[bool; 2]]) -> (Vec<u32>, Vec<Atom>, Vec<Option<Sign>>) {
+    let mut rank = vec![0u32; exponential.len()];
+    let mut ranked = Vec::new();
+    let mut copied = Vec::new();
+    for (atom, rank) in rank.iter_mut().enumerate() {
+        *rank = ranked.len() as u32;
+        let [positive, negative] = exponential[atom];
+        if !(positive && negative) {
+            ranked.push(Atom::new(atom as u32));
+            copied.push(match (positive, negative) {
+                (true, _) => Some(Sign::Atom),
+                (_, true) => Some(Sign::Dual),
+                _ => None,
+            });
+        }
+    }
+    (rank, ranked, copied)
+}
+
+/// Returns, per atom and sign, whether a `?` can put a literal of it into
+/// the unrestricted zone: whether one lies directly under a `?`.
+fn unrestricted_literals(
+    forest: &Forest,
+    num_atoms: usize,
+    atom_of: &impl Fn(OccId) -> Option<Atom>,
+) -> Vec<[bool; 2]> {
+    let mut unrestricted = vec![[false; 2]; num_atoms];
+    for o in forest.ids() {
+        if forest.kind(o) == Kind::Quest
+            && let Some(below) = forest.left(o)
+            && let (Some(atom), Some(sign)) = (atom_of(below), forest.sign(below))
+        {
+            unrestricted[atom.index()][sign as usize] = true;
+        }
+    }
+    unrestricted
+}
+
+/// What the rows' pass reads of the passes before it, each per atom.
+struct Seen<'a> {
+    /// Per sign, whether a literal of the atom lies below a `!` or `?`.
+    exponential: &'a [[bool; 2]],
+    /// The atom's rank among the atoms that have rows.
+    rank: &'a [u32],
+    /// Per sign, whether a literal of the atom lies directly under a `?`.
+    unrestricted: &'a [[bool; 2]],
+    /// The atom's positive literal under the bias.
+    positive: &'a [Sign],
+}
+
+/// What the rows' pass writes: the rows, where each occurrence's starts,
+/// and each occurrence's absorption, weight and forced side, with the
+/// rows' bytes charged so far.
+struct Written {
+    /// The rows, one after another.
+    rows: Rows,
+    /// Where each occurrence's row starts, from the last occurrence on.
+    bound: Vec<u32>,
+    /// Whether a `⊤` lies at or below each occurrence.
+    absorbs: Vec<bool>,
+    /// Each occurrence's weight.
+    weight: Vec<i32>,
+    /// What each occurrence forces on its side of a split.
+    forced: Vec<Option<Forced>>,
+    /// The rows' bytes charged to the account.
+    charged: usize,
+}
+
+/// Writes every occurrence's row, weight, absorption and forced side, in
+/// one pass from the last occurrence down: the set-up's last pass, which
+/// charges the rows to `account` as they grow and polls by the entries
+/// merged.
+fn write_rows(
+    forest: &Forest,
+    predicates: Option<&Predicates>,
+    seen: &Seen<'_>,
+    account: &Account,
+    stopped: &mut impl FnMut(usize) -> bool,
+) -> Result<Written, Reason> {
+    let Seen {
+        exponential,
+        rank,
+        unrestricted,
+        positive,
+    } = *seen;
+    let n = forest.len();
+    let atom_of = |o: OccId| counted_atom(forest, predicates, o);
+    let open = |o: OccId| open_atom(forest, predicates, o);
+    // Whether a literal is positive, its dual only ever lies in the linear
+    // zone, and its atom is not open. A literal of an open predicate unifies
+    // with any literal of it.
+    let linear = |o: OccId| match (atom_of(o), forest.sign(o)) {
+        (Some(atom), Some(sign)) => {
+            sign == positive[atom.index()]
+                && !unrestricted[atom.index()][!sign as usize]
+                && !open(o)
+        }
+        _ => false,
+    };
+    let mut forced = vec![None; n];
+    // Every descendant has a larger id than its ancestor, so a pass from
+    // the last id down sees the children before the parent, and a row
+    // is merged from two that are written already.
+    let mut rows = Rows::default();
+    let mut bound = Vec::with_capacity(n + 1);
+    bound.push(0u32);
+    let row = |bound: &[u32], o: OccId| {
+        let at = n - 1 - o.index();
+        bound[at] as usize..bound[at + 1] as usize
+    };
+    let mut absorbs = vec![false; n];
+    let mut weight = vec![0i32; n];
+    let mut charged = 0;
+    for o in forest.ids().rev() {
+        use Kind::*;
+        let kind = forest.kind(o);
+        let mut steps = 1;
+        let (absorb, w) = match kind {
+            Atom | DualAtom => {
+                let sign = if kind == Atom { 1 } else { -1 };
+                let atom = atom_of(o).unwrap();
+                // A literal below an exponential has its entry too: a
+                // copy of it in the linear zone is used once, and the
+                // rows of a `!` or `?` itself stay empty.
+                if !exponential[atom.index()].iter().all(|&below| below) {
+                    rows.push(RowEntry {
+                        rank: Rank(rank[atom.index()]),
+                        lo: sign,
+                        hi: sign,
+                    });
+                }
+                (false, 0)
+            }
+            One => (false, -1),
+            Bot => (false, 1),
+            Top => (true, 0),
+            Zero => (false, 0),
+            // A quantifier's rule changes no count: its row is its
+            // body's.
+            Forall | Exists => {
+                let c = forest.left(o).unwrap();
+                steps += rows.copy(row(&bound, c));
+                (absorbs[c.index()], weight[c.index()])
+            }
+            Bang | Quest => {
+                // No row: the literals below it are copied any number
+                // of times, which `copied` accounts for.
+                let c = forest.left(o).unwrap();
+                (absorbs[c.index()], weight[c.index()])
+            }
+            Tensor | Par | With | Plus => {
+                let (l, r) = (forest.left(o).unwrap(), forest.right(o).unwrap());
+                let (li, ri) = (l.index(), r.index());
+                let absorb = absorbs[li] || absorbs[ri];
+                if !absorb {
+                    let sum = matches!(kind, Tensor | Par);
+                    steps += rows.merge(row(&bound, l), row(&bound, r), sum);
+                }
+                let w = weight[li]
+                    + weight[ri]
+                    + if kind == Tensor {
+                        1
+                    } else if kind == Par {
+                        -1
+                    } else {
+                        0
+                    };
+                (absorb, w)
+            }
+        };
+        let Ok(end) = u32::try_from(rows.entries.len()) else {
+            return Err(Reason::IndexLimit);
+        };
+        bound.push(end);
+        absorbs[o.index()] = absorb;
+        weight[o.index()] = w;
+        forced[o.index()] = match kind {
+            Zero => Some(Forced::Nothing),
+            One => Some(Forced::Empty),
+            // A promotion may bind a metavariable that the other factor
+            // holds, and a forced split would never ask it for another
+            // answer. So where an atom is open, `!` forces nothing.
+            Bang if predicates.is_none() => Some(Forced::Empty),
+            Atom | DualAtom
+                if forest.sign(o) == Some(positive[forest.atom(o).unwrap().index()])
+                    && !open(o) =>
+            {
+                Some(Forced::Dual)
+            }
+            Tensor
+                if forest
+                    .children(o)
+                    .all(|c| linear(c) || forced[c.index()] == Some(Forced::Duals)) =>
+            {
+                Some(Forced::Duals)
+            }
+            Atom | DualAtom | Bang | Bot | Top | Quest | Tensor | Par | With | Plus | Forall
+            | Exists => None,
+        };
+        if rows.bytes() != charged {
+            account.resize(charged, rows.bytes());
+            charged = rows.bytes();
+            if account.over() {
+                return Err(Reason::MemoryLimit {
+                    limit_bytes: account.limit(),
+                });
+            }
+        }
+        if stopped(steps) {
+            return Err(Reason::Stopped);
+        }
+    }
+    Ok(Written {
+        rows,
+        bound,
+        absorbs,
+        weight,
+        forced,
+        charged,
+    })
+}
+
 impl Counts {
     /// Computes the rows and weights of every occurrence of a forest, and the
     /// literals that are positive under the bias given. The counts are a
@@ -398,7 +659,6 @@ impl Counts {
         let predicates = Predicates::of(forest.sequent());
         let predicates = predicates.as_ref();
         let atom_of = |o: OccId| counted_atom(forest, predicates, o);
-        let open = |o: OccId| open_atom(forest, predicates, o);
         // A literal below a `?` or `!` anywhere in the problem can be copied or
         // discarded any number of times. An atom with both signs there can be
         // balanced whatever its other literals, so it gets no row entries at
@@ -417,28 +677,8 @@ impl Counts {
                 limit_bytes: account.limit(),
             });
         }
-        // Per atom and sign, whether a literal of it lies below a `!` or `?`.
-        let mut exponential = vec![[false; 2]; num_atoms];
-        let mut absorbs_from_copies = false;
-        // An occurrence's subtree is the ids that follow it. So one pass that
-        // remembers where the outermost enclosing `!` or `?` ends knows, of every
-        // occurrence, whether it lies below one. A walk of each one's subtree
-        // would be quadratic in a nest of them.
-        let mut inside = 0;
-        for o in forest.ids() {
-            if o.index() < inside {
-                if let (Some(atom), Some(sign)) = (atom_of(o), forest.sign(o)) {
-                    exponential[atom.index()][sign as usize] = true;
-                }
-                absorbs_from_copies |= forest.kind(o) == Kind::Top;
-            }
-            if matches!(forest.kind(o), Kind::Bang | Kind::Quest) {
-                inside = inside.max(o.index() + forest.size(o) as usize);
-            }
-            if stopped(1) {
-                return Err(Reason::Stopped);
-            }
-        }
+        let (mut exponential, absorbs_from_copies) =
+            exponential_atoms(forest, num_atoms, &atom_of, &mut stopped)?;
         // Copies of one sign bound a balance only where the interval check runs.
         // Elsewhere such an atom gets no rows: its rows would only reorder the
         // split search, which sorts members by their rows.
@@ -452,161 +692,23 @@ impl Counts {
                 }
             }
         }
-        // The atoms that have rows, numbered in their own order. A tally is as
-        // wide as they are many. A Petri net has tens of thousands of atoms,
-        // nearly all with both signs below a `!`, and those have no rows: copies
-        // can move their balance either way.
-        let mut rank = vec![0u32; num_atoms];
-        let mut ranked = Vec::new();
-        let mut copied = Vec::new();
-        for (atom, rank) in rank.iter_mut().enumerate() {
-            *rank = ranked.len() as u32;
-            let [positive, negative] = exponential[atom];
-            if !(positive && negative) {
-                ranked.push(Atom::new(atom as u32));
-                copied.push(match (positive, negative) {
-                    (true, _) => Some(Sign::Atom),
-                    (_, true) => Some(Sign::Dual),
-                    _ => None,
-                });
-            }
-        }
+        let (rank, ranked, copied) = ranks(&exponential);
         let row_atoms = ranked.len();
-        // The literals that a `?` can put into the unrestricted zone: those
-        // directly under one.
-        let mut unrestricted = vec![[false; 2]; num_atoms];
-        for o in forest.ids() {
-            if forest.kind(o) == Kind::Quest
-                && let Some(below) = forest.left(o)
-                && let (Some(atom), Some(sign)) = (atom_of(below), forest.sign(below))
-            {
-                unrestricted[atom.index()][sign as usize] = true;
-            }
-        }
-        // Whether a literal is positive, its dual only ever lies in the linear
-        // zone, and its atom is not open. A literal of an open predicate unifies
-        // with any literal of it.
-        let linear = |o: OccId| match (atom_of(o), forest.sign(o)) {
-            (Some(atom), Some(sign)) => {
-                sign == positive[atom.index()]
-                    && !unrestricted[atom.index()][!sign as usize]
-                    && !open(o)
-            }
-            _ => false,
+        let unrestricted = unrestricted_literals(forest, num_atoms, &atom_of);
+        let seen = Seen {
+            exponential: &exponential,
+            rank: &rank,
+            unrestricted: &unrestricted,
+            positive: &positive,
         };
-        let mut forced = vec![None; n];
-        // Every descendant has a larger id than its ancestor, so a pass from
-        // the last id down sees the children before the parent, and a row
-        // is merged from two that are written already.
-        let mut rows = Rows::default();
-        let mut bound = Vec::with_capacity(n + 1);
-        bound.push(0u32);
-        let row = |bound: &[u32], o: OccId| {
-            let at = n - 1 - o.index();
-            bound[at] as usize..bound[at + 1] as usize
-        };
-        let mut absorbs = vec![false; n];
-        let mut weight = vec![0i32; n];
-        let mut charged = 0;
-        for o in forest.ids().rev() {
-            use Kind::*;
-            let kind = forest.kind(o);
-            let mut steps = 1;
-            let (absorb, w) = match kind {
-                Atom | DualAtom => {
-                    let sign = if kind == Atom { 1 } else { -1 };
-                    let atom = atom_of(o).unwrap();
-                    // A literal below an exponential has its entry too: a
-                    // copy of it in the linear zone is used once, and the
-                    // rows of a `!` or `?` itself stay empty.
-                    if !exponential[atom.index()].iter().all(|&below| below) {
-                        rows.push(RowEntry {
-                            rank: Rank(rank[atom.index()]),
-                            lo: sign,
-                            hi: sign,
-                        });
-                    }
-                    (false, 0)
-                }
-                One => (false, -1),
-                Bot => (false, 1),
-                Top => (true, 0),
-                Zero => (false, 0),
-                // A quantifier's rule changes no count: its row is its
-                // body's.
-                Forall | Exists => {
-                    let c = forest.left(o).unwrap();
-                    steps += rows.copy(row(&bound, c));
-                    (absorbs[c.index()], weight[c.index()])
-                }
-                Bang | Quest => {
-                    // No row: the literals below it are copied any number
-                    // of times, which `copied` accounts for.
-                    let c = forest.left(o).unwrap();
-                    (absorbs[c.index()], weight[c.index()])
-                }
-                Tensor | Par | With | Plus => {
-                    let (l, r) = (forest.left(o).unwrap(), forest.right(o).unwrap());
-                    let (li, ri) = (l.index(), r.index());
-                    let absorb = absorbs[li] || absorbs[ri];
-                    if !absorb {
-                        let sum = matches!(kind, Tensor | Par);
-                        steps += rows.merge(row(&bound, l), row(&bound, r), sum);
-                    }
-                    let w = weight[li]
-                        + weight[ri]
-                        + if kind == Tensor {
-                            1
-                        } else if kind == Par {
-                            -1
-                        } else {
-                            0
-                        };
-                    (absorb, w)
-                }
-            };
-            let Ok(end) = u32::try_from(rows.entries.len()) else {
-                return Err(Reason::IndexLimit);
-            };
-            bound.push(end);
-            absorbs[o.index()] = absorb;
-            weight[o.index()] = w;
-            forced[o.index()] = match kind {
-                Zero => Some(Forced::Nothing),
-                One => Some(Forced::Empty),
-                // A promotion may bind a metavariable that the other factor
-                // holds, and a forced split would never ask it for another
-                // answer. So where an atom is open, `!` forces nothing.
-                Bang if predicates.is_none() => Some(Forced::Empty),
-                Atom | DualAtom
-                    if forest.sign(o) == Some(positive[forest.atom(o).unwrap().index()])
-                        && !open(o) =>
-                {
-                    Some(Forced::Dual)
-                }
-                Tensor
-                    if forest
-                        .children(o)
-                        .all(|c| linear(c) || forced[c.index()] == Some(Forced::Duals)) =>
-                {
-                    Some(Forced::Duals)
-                }
-                Atom | DualAtom | Bang | Bot | Top | Quest | Tensor | Par | With | Plus
-                | Forall | Exists => None,
-            };
-            if rows.bytes() != charged {
-                account.resize(charged, rows.bytes());
-                charged = rows.bytes();
-                if account.over() {
-                    return Err(Reason::MemoryLimit {
-                        limit_bytes: account.limit(),
-                    });
-                }
-            }
-            if stopped(steps) {
-                return Err(Reason::Stopped);
-            }
-        }
+        let Written {
+            rows,
+            bound,
+            absorbs,
+            weight,
+            forced,
+            charged,
+        } = write_rows(forest, predicates, &seen, account, &mut stopped)?;
         let counts = Self {
             bound: bound.into_boxed_slice(),
             entries: rows.entries.into_boxed_slice(),
