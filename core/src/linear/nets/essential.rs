@@ -157,7 +157,6 @@ impl ProofStructure {
                 *slot = s.get();
             }
         }
-        let next = |v: u32| successors[v as usize].into_iter().filter(|&s| s != NONE);
         let held_bytes = n as u64 * ESSENTIAL_BYTES;
         let mut rounds = 0;
         let mut poll = |stop: &mut dyn FnMut(Progress) -> bool| {
@@ -168,100 +167,124 @@ impl ProofStructure {
             })
         };
 
-        // A depth-first search from every vertex not yet seen. Its stack
-        // is the path from where it started, so an edge back into the
-        // stack closes a cycle. `state` holds per vertex `UNSEEN`, `NONE`
-        // once its search is done, or its place on the stack, which is
-        // below the vertices' count.
-
-        const UNSEEN: u32 = NONE - 1;
-        let mut state = vec![UNSEEN; n];
-        let mut stack: Vec<(u32, usize)> = Vec::new();
-        for start in 0..n as u32 {
-            if state[start as usize] != UNSEEN {
-                continue;
-            }
-            state[start as usize] = 0;
-            stack.push((start, 0));
-            while let Some(&mut (v, ref mut i)) = stack.last_mut() {
-                let Some(w) = next(v).nth(*i) else {
-                    state[v as usize] = NONE;
-                    stack.pop();
-                    continue;
-                };
-                *i += 1;
-                match state[w as usize] {
-                    UNSEEN => {
-                        state[w as usize] = stack.len() as u32;
-                        stack.push((w, 0));
-                    }
-                    NONE => {}
-                    place => {
-                        let cycle = stack[place as usize..]
-                            .iter()
-                            .map(|&(u, _)| VertexId::new(u))
-                            .collect();
-                        return Err(NetError::DirectedCycle { cycle });
-                    }
-                }
-            }
-        }
+        directed_cycle(&successors)?;
         if poll(&mut stop) {
             return Err(STOPPED);
         }
+        dominators(forest, &reading, &successors, &mut || poll(&mut stop))?;
+        Ok(())
+    }
+}
 
-        // For each implication, a search from its antecedent that does not
-        // enter the implication: reaching the goal is a path around it.
-        let goal = reading.goal();
-        let mut seen = vec![0u32; n];
-        let mut from = vec![NONE; n];
-        let mut round = 0u32;
-        let mut queue = Vec::new();
-        for l in forest.ids() {
-            let Some((antecedent, _)) = reading
-                .implication(l)
-                .filter(|_| l != goal && is_implication(forest, &reading, l))
-            else {
+/// Returns the directed cycle among the edges `successors` gives, as
+/// [`NetError::DirectedCycle`], if there is one.
+fn directed_cycle(successors: &[[u32; 2]]) -> Result<(), NetError> {
+    let n = successors.len();
+    let next = |v: u32| successors[v as usize].into_iter().filter(|&s| s != NONE);
+    // A depth-first search from every vertex not yet seen. Its stack
+    // is the path from where it started, so an edge back into the
+    // stack closes a cycle. `state` holds per vertex `UNSEEN`, `NONE`
+    // once its search is done, or its place on the stack, which is
+    // below the vertices' count.
+
+    const UNSEEN: u32 = NONE - 1;
+    let mut state = vec![UNSEEN; n];
+    let mut stack: Vec<(u32, usize)> = Vec::new();
+    for start in 0..n as u32 {
+        if state[start as usize] != UNSEEN {
+            continue;
+        }
+        state[start as usize] = 0;
+        stack.push((start, 0));
+        while let Some(&mut (v, ref mut i)) = stack.last_mut() {
+            let Some(w) = next(v).nth(*i) else {
+                state[v as usize] = NONE;
+                stack.pop();
                 continue;
             };
-            if poll(&mut stop) {
-                return Err(STOPPED);
-            }
-            // One round per implication, of which there are fewer than
-            // the vertices, so the stamp never wraps.
-            round += 1;
-            let antecedent = antecedent.get();
-            seen[l.index()] = round;
-            seen[antecedent as usize] = round;
-            queue.clear();
-            queue.push(antecedent);
-            let mut i = 0;
-            while let Some(&v) = queue.get(i) {
-                i += 1;
-                if v == goal.get() {
-                    let mut path = vec![VertexId::new(v)];
-                    let mut u = v;
-                    while u != antecedent {
-                        u = from[u as usize];
-                        path.push(VertexId::new(u));
-                    }
-                    path.reverse();
-                    return Err(NetError::NoDominator {
-                        implication: VertexId::of(l),
-                        path,
-                    });
+            *i += 1;
+            match state[w as usize] {
+                UNSEEN => {
+                    state[w as usize] = stack.len() as u32;
+                    stack.push((w, 0));
                 }
-                for w in next(v) {
-                    if seen[w as usize] != round {
-                        seen[w as usize] = round;
-                        from[w as usize] = v;
-                        queue.push(w);
-                    }
+                NONE => {}
+                place => {
+                    let cycle = stack[place as usize..]
+                        .iter()
+                        .map(|&(u, _)| VertexId::new(u))
+                        .collect();
+                    return Err(NetError::DirectedCycle { cycle });
                 }
             }
         }
-        Ok(())
     }
+    Ok(())
+}
+
+/// Returns the first implication in output position but the goal that
+/// does not dominate its antecedent, with a path around it, as
+/// [`NetError::NoDominator`], if there is one, asking `poll` before each
+/// implication; a stop is [`STOPPED`].
+fn dominators(
+    forest: &Forest,
+    reading: &Reading<'_>,
+    successors: &[[u32; 2]],
+    poll: &mut dyn FnMut() -> bool,
+) -> Result<(), NetError> {
+    let n = successors.len();
+    let next = |v: u32| successors[v as usize].into_iter().filter(|&s| s != NONE);
+    // For each implication, a search from its antecedent that does not
+    // enter the implication: reaching the goal is a path around it.
+    let goal = reading.goal();
+    let mut seen = vec![0u32; n];
+    let mut from = vec![NONE; n];
+    let mut round = 0u32;
+    let mut queue = Vec::new();
+    for l in forest.ids() {
+        let Some((antecedent, _)) = reading
+            .implication(l)
+            .filter(|_| l != goal && is_implication(forest, reading, l))
+        else {
+            continue;
+        };
+        if poll() {
+            return Err(STOPPED);
+        }
+        // One round per implication, of which there are fewer than
+        // the vertices, so the stamp never wraps.
+        round += 1;
+        let antecedent = antecedent.get();
+        seen[l.index()] = round;
+        seen[antecedent as usize] = round;
+        queue.clear();
+        queue.push(antecedent);
+        let mut i = 0;
+        while let Some(&v) = queue.get(i) {
+            i += 1;
+            if v == goal.get() {
+                let mut path = vec![VertexId::new(v)];
+                let mut u = v;
+                while u != antecedent {
+                    u = from[u as usize];
+                    path.push(VertexId::new(u));
+                }
+                path.reverse();
+                return Err(NetError::NoDominator {
+                    implication: VertexId::of(l),
+                    path,
+                });
+            }
+            for w in next(v) {
+                if seen[w as usize] != round {
+                    seen[w as usize] = round;
+                    from[w as usize] = v;
+                    queue.push(w);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(all(test, feature = "parse"))]
