@@ -171,7 +171,8 @@ fixup-31	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local
 87c7	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local_0e18a7bf	2026-11-27 22:33	2026-11-28 01:35	the linear engines' repeats, one meter, the memory account at the root
 87c9	small	opus-5-5	high	reviewer (fable)	local_f82f76ce	2026-11-27 23:10	2026-11-28 02:25	the command: one decision, one answer, the flags declared once
 87c5	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_323b92cf	2026-11-28 00:28		walks, copies, and the repeats of ordinary and modal logic
-87c6	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus), kani	local_0e18a7bf	2026-11-28 01:40		the linear data model, proofs and refutations; the checker's arithmetic under Kani
+87c6	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus), kani	local_0e18a7bf	2026-11-28 01:40	2026-11-28 05:55	the linear data model, proofs and refutations; the checker's arithmetic under Kani
 87c9b	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 02:30	2026-11-28 04:25	the command's one decision with the answer grade reads, the library's first-order default, the flags declared once, one session driver
 fixup-35	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 03:50		the TPTP reader takes the four ILTP problems it refused
 87e1	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 04:30		the linear search's front door in five files, moves only
+87e4	small	opus-5-5	high	reviewer (opus)	local_0e18a7bf	2026-11-28 06:00		the focused engine's first-order zone in four files, its counts per pass, the counts and the bias out of the engine

@@ -8982,3 +8982,16 @@ move (D26).
   now pass the gate and the nix checks their area needs (`rocq`, `web-wasm-tests`, `doc-private`
   and the like); the planning session's CI run is the full check. CLAUDE.md's table already lets
   `plan/push-ci.sh` be the full check; a failure there goes back to the session.
+- 2026-11-28, about 06:00: **87c6 reviewed; 87e4 started.** 87c6 (Opus, high; the panel and the
+  reviewer on Opus, Kani): the checker's sum over the unrestricted zone in three functions six new
+  Kani harnesses verify (17 harnesses pass), the refutation checks' shared failure, count walk,
+  phrases and Horn reader, one choice of a cut, one walk of first-order terms in cut elimination,
+  and the fragment and rule names read from one table each. Both target sets equal to 86, the
+  refutations' `checked` column too; the ratchet within 0.7 % per journey. No panel member found a
+  difference (96 740 inputs compared with the base). (departs from the plan) F-1c-11: the saturated
+  set's check keeps its own sorted-list functions, since 87c7 gave the inverse method the shared
+  ones and a fault there would make engine and check agree; F-1a-11's shared layout cost
+  `derivation-chain-64` 1.9 % and was dropped; F-1b-06 waits for part 2 (a public type);
+  F-1a-10 and half of F-1c-08 stay for reading's sake. Rebased onto `main` with no conflict; in CI
+  before `main`. 87e4 (moves only) in its worker on 87c6's head, cores 7-9 (decided unattended:
+  ahead of wave C's end, as 87e1, since 87c5 touches none of its files).
