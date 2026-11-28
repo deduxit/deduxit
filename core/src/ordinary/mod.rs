@@ -112,6 +112,9 @@ pub(crate) mod rocq;
 pub(crate) mod rocq_models;
 #[cfg(feature = "sat")]
 pub mod sat;
+/// One world's reading of a first-order sequent, which the countermodels'
+/// checks share.
+mod semantics;
 /// Finite structures, the countermodels of first-order sequents.
 mod structure;
 /// The translations into linear logic.

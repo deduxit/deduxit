@@ -12,9 +12,10 @@
 //! the domain's size to the power of the quantifiers nested. The walk
 //! keeps a stack of its own.
 
+use super::semantics::{ENTRY_BYTES, Interpretation, Meter, tables_bytes};
 use super::{Logic, Node, NodeId, Sequent};
 use crate::Error;
-use crate::first_order::{FoTerm, FoTermId};
+use crate::first_order::FoTerm;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 
@@ -133,21 +134,9 @@ impl Structure {
         // read from JSON is many times its text (an empty tuple is two
         // bytes there and a vector here).
         let memory = limits.memory_bytes.unwrap_or(u64::MAX);
-        let tables = self.functions.iter().fold(0u64, |held, (_, table)| {
-            held.saturating_add(ENTRY_BYTES)
-                .saturating_add((table.len() as u64).saturating_mul(4))
-        });
-        let held = self.predicates.iter().fold(
-            (self.constants.len() as u64)
-                .saturating_mul(ENTRY_BYTES)
-                .saturating_add(tables),
-            |held, (_, tuples)| {
-                tuples.iter().fold(held, |held, tuple| {
-                    held.saturating_add(ENTRY_BYTES)
-                        .saturating_add((tuple.len() as u64).saturating_mul(4))
-                })
-            },
-        );
+        let held = (self.constants.len() as u64)
+            .saturating_mul(ENTRY_BYTES)
+            .saturating_add(tables_bytes(&self.functions, &self.predicates));
         if held > memory {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::Check,
@@ -234,9 +223,7 @@ impl Structure {
             elements,
             functions,
             holds,
-            work: 0,
-            most: limits.work.unwrap_or(Self::WORK),
-            stop,
+            meter: Meter::new(limits.work.unwrap_or(Self::WORK), stop),
             wrong: &wrong,
         };
         for (at, &f) in sequent.left().iter().enumerate() {
@@ -252,11 +239,6 @@ impl Structure {
         Ok(Evaluation::Refutes)
     }
 }
-
-/// The bytes a constant or a tuple holds in a structure and in the
-/// evaluator's tables beside 4 bytes an element: its vector and its entry
-/// in a set.
-pub(super) const ENTRY_BYTES: u64 = 48;
 
 /// A step of the evaluation.
 enum Step {
@@ -295,12 +277,8 @@ struct Evaluator<'a, 's> {
     functions: HashMap<&'a str, &'a [u32]>,
     /// Each predicate's tuples.
     holds: HashMap<&'a str, HashSet<&'a [u32]>>,
-    /// The evaluations made.
-    work: u64,
-    /// The most evaluations allowed.
-    most: u64,
-    /// The caller's stop.
-    stop: &'s mut dyn FnMut(Progress) -> bool,
+    /// The evaluations made and the stop.
+    meter: Meter<'s>,
     /// Makes the error of a structure that cannot interpret the sequent.
     wrong: &'s dyn Fn(String) -> Error,
 }
@@ -425,109 +403,19 @@ impl Evaluator<'_, '_> {
 
     /// Counts an evaluation, refusing past the bound and asking the stop.
     fn tick(&mut self) -> Result<(), Error> {
-        self.tick_by(1)
-    }
-
-    /// Counts `units` evaluations, refusing past the bound and asking the
-    /// stop each time the count passes a multiple of 4 096.
-    fn tick_by(&mut self, units: u64) -> Result<(), Error> {
-        let before = self.work;
-        self.work = self.work.saturating_add(units);
-        if self.work > self.most {
-            return Err(Error::Refused(Refusal::Work { limit: self.most }));
-        }
-        if self.work / 4_096 != before / 4_096
-            && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
-        {
-            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
-        }
-        Ok(())
+        self.meter.tick_by(1)
     }
 
     /// Returns the value of the atom `a` under the bound elements `env`,
     /// the innermost last.
     fn atom(&mut self, a: u32, env: &[u32]) -> Result<bool, Error> {
-        let formulas = self.sequent.formulas();
-        let tables = formulas.first_order();
-        let (name, args): (&str, &[FoTermId]) = match tables.atoms.get(a as usize) {
-            Some(&(symbol, args)) => (tables.symbols[symbol.index()].0.as_str(), tables.list(args)),
-            None => (formulas.atom_name(a), &[]),
+        let world = Interpretation {
+            size: self.size,
+            elements: &self.elements,
+            functions: &self.functions,
+            holds: &self.holds,
         };
-        let mut tuple = Vec::with_capacity(args.len());
-        for &t in args {
-            tuple.push(self.term(t, env)?);
-        }
-        // Equality is identity in every structure.
-        if let [left, right] = tuple[..]
-            && name == crate::first_order::EQUALS
-        {
-            return Ok(left == right);
-        }
-        Ok(self
-            .holds
-            .get(name)
-            .is_some_and(|set| set.contains(tuple.as_slice())))
-    }
-
-    /// Returns the element the term `t` denotes under `env`, the innermost
-    /// binding last. A term is evaluated with a stack of its own: terms
-    /// may nest as deep as a document is long. Each application of a
-    /// function symbol is an evaluation ([`tick`](Self::tick)): a term
-    /// read from JSON may share its subterms, and is read as the tree it
-    /// stands for.
-    fn term(&mut self, t: FoTermId, env: &[u32]) -> Result<u32, Error> {
-        let sequent = self.sequent;
-        let tables = sequent.formulas().first_order();
-        let mut values: Vec<u32> = Vec::new();
-        // Each entry: a term, and whether its arguments' values are on
-        // `values` already.
-        let mut stack = vec![(t, false)];
-        while let Some((t, applied)) = stack.pop() {
-            match tables.terms[t.index()] {
-                FoTerm::Bound(index) => {
-                    let at = env.len().checked_sub(index as usize + 1).ok_or_else(|| {
-                        (self.wrong)("meets a variable no quantifier binds".to_owned())
-                    })?;
-                    values.push(env[at]);
-                }
-                FoTerm::App(f, args) => {
-                    let name = tables.symbols[f.index()].0.as_str();
-                    let args = tables.list(args);
-                    if args.is_empty() {
-                        let e = self.elements.get(name).copied().ok_or_else(|| {
-                            (self.wrong)(format!("names no element for the constant {name}"))
-                        })?;
-                        values.push(e);
-                    } else if applied {
-                        // An application costs its arguments too: a
-                        // function may take millions of them.
-                        self.tick_by(1 + args.len() as u64)?;
-                        let table = self.functions.get(name).ok_or_else(|| {
-                            (self.wrong)(format!("has no table for the function {name}"))
-                        })?;
-                        let start = values.len() - args.len();
-                        let index = values
-                            .drain(start..)
-                            .fold(0usize, |i, e| i * self.size as usize + e as usize);
-                        let e = table.get(index).copied().ok_or_else(|| {
-                            (self.wrong)(format!("gives {name} too short a table"))
-                        })?;
-                        values.push(e);
-                    } else {
-                        stack.push((t, true));
-                        for &a in args.iter().rev() {
-                            stack.push((a, false));
-                        }
-                    }
-                }
-                FoTerm::Eigen(_) | FoTerm::Meta(_) => {
-                    return Err((self.wrong)(
-                        "cannot interpret an eigenvariable or an open witness".to_owned(),
-                    ));
-                }
-            }
-        }
-        Ok(values.pop().expect("the term's value"))
+        world.atom(self.sequent, a, env, &mut self.meter, self.wrong)
     }
 }
 
@@ -578,22 +466,15 @@ impl FiniteCountermodel {
         if logic != Logic::Classical && count > 1 {
             return Err(Error::Succedents { count });
         }
-        let (side, at) = match self.structure.evaluate(&self.sequent, limits, &mut stop)? {
-            Evaluation::Refutes => return Ok(()),
-            Evaluation::FalseHypothesis(at) => ("hypothesis", at),
-            Evaluation::TrueGoal(at) => ("formula right of ⊢", at),
-        };
-        let formula = if side == "hypothesis" {
-            self.sequent.left()[at]
-        } else {
-            self.sequent.right()[at]
-        };
+        let (side, formula, value) =
+            match self.structure.evaluate(&self.sequent, limits, &mut stop)? {
+                Evaluation::Refutes => return Ok(()),
+                Evaluation::FalseHypothesis(at) => ("hypothesis", self.sequent.left()[at], "false"),
+                Evaluation::TrueGoal(at) => {
+                    ("formula right of ⊢", self.sequent.right()[at], "true")
+                }
+            };
         let written = self.sequent.formulas().formula(formula);
-        let value = if side == "hypothesis" {
-            "false"
-        } else {
-            "true"
-        };
         Err(Error::Structure {
             reason: format!("it makes the {side} {written} {value}"),
         })

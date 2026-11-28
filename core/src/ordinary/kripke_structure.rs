@@ -17,12 +17,11 @@
 //! what a world below it forces, since the domains, the predicates and
 //! `falsity` grow; the check tests that growth and does not rely on it.
 
-use super::structure::{
-    ENTRY_BYTES, Evaluation, SHOWN, write_domain, write_function, write_predicate,
-};
+use super::semantics::{ENTRY_BYTES, Interpretation, Meter, tables_bytes};
+use super::structure::{Evaluation, SHOWN, write_domain, write_function, write_predicate};
 use super::{Logic, Node, NodeId, Sequent, Structure};
 use crate::Error;
-use crate::first_order::{FoTerm, FoTermId};
+use crate::first_order::FoTerm;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 
@@ -217,19 +216,9 @@ impl KripkeStructure {
             .saturating_mul(WORLD_BYTES)
             .saturating_add((self.constants.len() as u64).saturating_mul(ENTRY_BYTES));
         for world in &self.worlds {
-            held = held.saturating_add((world.arrows.len() as u64).saturating_mul(4));
-            for (_, table) in &world.functions {
-                held = held
-                    .saturating_add(ENTRY_BYTES)
-                    .saturating_add((table.len() as u64).saturating_mul(4));
-            }
-            for (_, tuples) in &world.predicates {
-                for tuple in tuples {
-                    held = held
-                        .saturating_add(ENTRY_BYTES)
-                        .saturating_add((tuple.len() as u64).saturating_mul(4));
-                }
-            }
+            held = held
+                .saturating_add((world.arrows.len() as u64).saturating_mul(4))
+                .saturating_add(tables_bytes(&world.functions, &world.predicates));
         }
         let refuse = |needed: u64| {
             Error::Refused(Refusal::Memory {
@@ -507,9 +496,7 @@ impl KripkeStructure {
             elements,
             functions,
             holds,
-            work: 0,
-            most: limits.work.unwrap_or(Structure::WORK),
-            stop,
+            meter: Meter::new(limits.work.unwrap_or(Structure::WORK), stop),
             wrong: &wrong,
         };
         let root = self.world;
@@ -612,12 +599,8 @@ struct Forcing<'a, 's> {
     functions: Vec<HashMap<&'a str, &'a [u32]>>,
     /// Each world's predicates' tuples.
     holds: Vec<HashMap<&'a str, HashSet<&'a [u32]>>>,
-    /// The evaluations made.
-    work: u64,
-    /// The most evaluations allowed.
-    most: u64,
-    /// The caller's stop.
-    stop: &'s mut dyn FnMut(Progress) -> bool,
+    /// The evaluations made and the stop.
+    meter: Meter<'s>,
     /// Makes the error of a model that cannot interpret the sequent.
     wrong: &'s dyn Fn(String) -> Error,
 }
@@ -852,107 +835,19 @@ impl Forcing<'_, '_> {
 
     /// Counts an evaluation, refusing past the bound and asking the stop.
     fn tick(&mut self) -> Result<(), Error> {
-        self.tick_by(1)
-    }
-
-    /// Counts `units` evaluations, refusing past the bound and asking the
-    /// stop each time the count passes a multiple of 4 096.
-    fn tick_by(&mut self, units: u64) -> Result<(), Error> {
-        let before = self.work;
-        self.work = self.work.saturating_add(units);
-        if self.work > self.most {
-            return Err(Error::Refused(Refusal::Work { limit: self.most }));
-        }
-        if self.work / 4_096 != before / 4_096
-            && (self.stop)(Progress::new(Phase::Check, 4_096, self.work))
-        {
-            return Err(Error::Refused(Refusal::stopped(Phase::Check)));
-        }
-        Ok(())
+        self.meter.tick_by(1)
     }
 
     /// Returns whether world `w` forces the atom `a` under the bound
     /// elements `env`, the innermost last.
     fn atom(&mut self, a: u32, w: u32, env: &[u32]) -> Result<bool, Error> {
-        let formulas = self.sequent.formulas();
-        let tables = formulas.first_order();
-        let (name, args): (&str, &[FoTermId]) = match tables.atoms.get(a as usize) {
-            Some(&(symbol, args)) => (tables.symbols[symbol.index()].0.as_str(), tables.list(args)),
-            None => (formulas.atom_name(a), &[]),
+        let world = Interpretation {
+            size: self.worlds[w as usize].size,
+            elements: &self.elements,
+            functions: &self.functions[w as usize],
+            holds: &self.holds[w as usize],
         };
-        let mut tuple = Vec::with_capacity(args.len());
-        for &t in args {
-            tuple.push(self.term(t, w, env)?);
-        }
-        // Equality is identity at every world. An element is the same at
-        // every world that has it, and terms keep their values along the
-        // order, so identity grows as a predicate must, and it satisfies
-        // every equality axiom.
-        if let [left, right] = tuple[..]
-            && name == crate::first_order::EQUALS
-        {
-            return Ok(left == right);
-        }
-        Ok(self.holds[w as usize]
-            .get(name)
-            .is_some_and(|set| set.contains(tuple.as_slice())))
-    }
-
-    /// Returns the element the term `t` denotes at world `w` under `env`,
-    /// on a stack of its own, each application of a function symbol an
-    /// evaluation (a term may share its subterms).
-    fn term(&mut self, t: FoTermId, w: u32, env: &[u32]) -> Result<u32, Error> {
-        let sequent = self.sequent;
-        let tables = sequent.formulas().first_order();
-        let size = self.worlds[w as usize].size as usize;
-        let mut values: Vec<u32> = Vec::new();
-        let mut stack = vec![(t, false)];
-        while let Some((t, applied)) = stack.pop() {
-            match tables.terms[t.index()] {
-                FoTerm::Bound(index) => {
-                    let at = env.len().checked_sub(index as usize + 1).ok_or_else(|| {
-                        (self.wrong)("meets a variable no quantifier binds".to_owned())
-                    })?;
-                    values.push(env[at]);
-                }
-                FoTerm::App(f, args) => {
-                    let name = tables.symbols[f.index()].0.as_str();
-                    let args = tables.list(args);
-                    if args.is_empty() {
-                        let e = self.elements.get(name).copied().ok_or_else(|| {
-                            (self.wrong)(format!("names no element for the constant {name}"))
-                        })?;
-                        values.push(e);
-                    } else if applied {
-                        // An application costs its arguments too: a
-                        // function may take millions of them.
-                        self.tick_by(1 + args.len() as u64)?;
-                        let table = self.functions[w as usize].get(name).ok_or_else(|| {
-                            (self.wrong)(format!("has no table for the function {name}"))
-                        })?;
-                        let start = values.len() - args.len();
-                        let index = values
-                            .drain(start..)
-                            .fold(0usize, |i, e| i * size + e as usize);
-                        let e = table.get(index).copied().ok_or_else(|| {
-                            (self.wrong)(format!("gives {name} too short a table"))
-                        })?;
-                        values.push(e);
-                    } else {
-                        stack.push((t, true));
-                        for &a in args.iter().rev() {
-                            stack.push((a, false));
-                        }
-                    }
-                }
-                FoTerm::Eigen(_) | FoTerm::Meta(_) => {
-                    return Err((self.wrong)(
-                        "cannot interpret an eigenvariable or an open witness".to_owned(),
-                    ));
-                }
-            }
-        }
-        Ok(values.pop().expect("the term's value"))
+        world.atom(self.sequent, a, env, &mut self.meter, self.wrong)
     }
 }
 
@@ -1003,19 +898,19 @@ impl KripkeCountermodel {
         if logic != Logic::Classical && count > 1 {
             return Err(Error::Succedents { count });
         }
-        let (side, at) = match self
-            .model
-            .evaluate(&self.sequent, logic, limits, &mut stop)?
-        {
-            Evaluation::Refutes => return Ok(()),
-            Evaluation::FalseHypothesis(at) => ("hypothesis", at),
-            Evaluation::TrueGoal(at) => ("formula right of ⊢", at),
-        };
-        let (formula, value) = if side == "hypothesis" {
-            (self.sequent.left()[at], "does not force")
-        } else {
-            (self.sequent.right()[at], "forces")
-        };
+        let (side, formula, value) =
+            match self
+                .model
+                .evaluate(&self.sequent, logic, limits, &mut stop)?
+            {
+                Evaluation::Refutes => return Ok(()),
+                Evaluation::FalseHypothesis(at) => {
+                    ("hypothesis", self.sequent.left()[at], "does not force")
+                }
+                Evaluation::TrueGoal(at) => {
+                    ("formula right of ⊢", self.sequent.right()[at], "forces")
+                }
+            };
         let written = self.sequent.formulas().formula(formula);
         Err(Error::Structure {
             reason: format!("its world {value} the {side} {written}"),

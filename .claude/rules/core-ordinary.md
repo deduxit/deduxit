@@ -1420,6 +1420,20 @@ The countermodels of intuitionistic and minimal logic at first order
   it refuses a model with worlds above the refuted one; with nothing
   right of `⊢` it refuses `falsity` at the refuted world (minimal
   logic's `⊥`). A test runs it beside `Structure::refutes` on one world.
+- **One reading of terms and atoms for both checks** (`semantics.rs`):
+  `Interpretation` (a world's size, the constants' elements, its function
+  tables, its predicates) reads a term on its own stack, each application
+  `1 + arity` units, and an atom with `=` as identity, the one place that
+  says so (F-4d-01's drift came from two copies); `Meter` counts the
+  evaluations against `limits.work` and asks the stop every 4 096;
+  `tables_bytes` and `ENTRY_BYTES` are the memory estimate's per-world
+  part. `Structure::refutes` and `KripkeStructure::refutes` keep their own
+  walks (truth with its short cuts; forcing over the worlds above) and
+  their own up-front checks (the finite one compares each table's size in
+  the terms pass, the Kripke one per world after), so their work counts at
+  the bound are what they were. Running the finite check as a one-world
+  Kripke model would move those counts (ILTP's NLP problems meet 2²⁶), so
+  it is not done.
 - **The search** (`kripke_search::write`, called by `models::kripke`):
   per (K worlds, N elements) one propositional sequent over the
   original formula (forcing has no negation normal form): `le(v, u)` for
