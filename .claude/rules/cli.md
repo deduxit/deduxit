@@ -138,7 +138,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   target (`ordinary::verdict_line`); the exit statuses are the image's,
   but an unprovable image of a first-order sequent is unknown, exit 3
   (`ordinary::incomplete`, `ordinary::status`, under `--linear` the
-  image's as before).
+  image's as before), and `--format rocq` writes no certificate for it
+  (`prove.rs`, under `--linear` too, since the line says unknown there
+  as well): a certificate goes with a verdict, and the one written
+  before, the image's classical assignment over `Prop`, bound the atoms
+  by their identifiers and wrote them as `p(a)`, which Rocq refused.
+  The library's `rocq::write_not_valid` still writes that text when it
+  is handed a first-order image.
   The derivation shown is the read-back (`ordinary::derivation`: the
   linear derivation under the view's bounds, `read_back`, `check`, then
   the format's `ordinary` writer, Rocq's being the certificate over

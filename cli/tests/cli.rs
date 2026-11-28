@@ -1806,6 +1806,32 @@ fn latex_and_typst_formats() {
     );
 }
 
+/// An unprovable image of a first-order sequent leaves the sequent
+/// unknown, and `--format rocq` writes no certificate for it: the image's
+/// classical assignment stated over `Prop` named the atoms one way and
+/// wrote them another, which Rocq refused.
+#[test]
+fn an_unknown_first_order_embedding_has_no_certificate() {
+    for logic in ["classical", "intuitionistic"] {
+        let args = [
+            "prove",
+            "--logic",
+            logic,
+            "--method",
+            "embedding",
+            "--format",
+            "rocq",
+        ];
+        let (status, out, err) = deduxit(&[&args[..], &["p(a) |- q(b)"]].concat(), "");
+        assert_eq!(status, 3, "{logic}: {out}{err}");
+        assert!(out.starts_with("(* unknown ("), "{logic}: {out}");
+        assert!(
+            !out.contains("Lemma") && err.is_empty(),
+            "{logic}: {out}{err}"
+        );
+    }
+}
+
 /// `--format rocq` prints the verdict as a Rocq comment and the
 /// derivation as a lemma with its proof script for `prove` and `check`;
 /// `--standalone` adds the import; a proof with Mix has a certificate for

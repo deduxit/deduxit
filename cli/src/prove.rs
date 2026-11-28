@@ -535,6 +535,15 @@ fn written(
                 &mut out,
             )?,
         },
+        // An unprovable image of a first-order sequent leaves it unknown,
+        // and a certificate goes only with a verdict.
+        (Verdict::Unprovable(_), Format::Rocq, false)
+            if image
+                .as_ref()
+                .is_some_and(|image| crate::ordinary::incomplete(&outcome, image)) =>
+        {
+            Shown::Nothing
+        }
         (Verdict::Unprovable(disproof), Format::Rocq, false) => {
             disproof_into(disproof, image.as_ref(), show, prefix.as_deref(), &mut out)
         }
