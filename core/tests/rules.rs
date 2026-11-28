@@ -509,7 +509,7 @@ fn a_rule_file_that_is_no_calculus_is_refused() {
     let mut apart = lk.clone();
     apart["rules"][0] = json!({"name": "ax",
         "premises": [{"left": ["Γ", "Γ′"]}], "conclusion": {"left": ["Γ", "Γ′"]}});
-    assert!(reason(&apart).contains("told apart"));
+    assert!(reason(&apart).contains("contexts \"Γ\", \"Γ′\" cannot be told apart"));
     // A connective with another number of arguments than it takes.
     let mut arity = lk.clone();
     arity["rules"][0]["conclusion"]["left"] = json!([["∧", "A"]]);
@@ -529,6 +529,14 @@ fn a_rule_file_that_is_no_calculus_is_refused() {
     let mut fresh = lk.clone();
     fresh["rules"][0]["atomic"] = json!(["A", "A"]);
     assert!(reason(&fresh).contains("named twice"));
+    // A condition's variable that no sequent of the rule binds is named.
+    let mut unbound = lk.clone();
+    unbound["rules"][0]["atomic"] = json!(["B"]);
+    assert!(reason(&unbound).contains("the variable \"B\" of a condition"));
+    // A sort with an empty name is said as such, not as declared twice.
+    let mut empty = lk.clone();
+    empty["sorts"] = json!([""]);
+    assert!(reason(&empty).contains("a sort has an empty name"));
     let twice = LK.replacen(
         r#""conclusion": {"left": ["A"], "right": ["A"]}"#,
         r#""conclusion": {"left": ["A"], "left": ["A"], "right": ["A"]}"#,

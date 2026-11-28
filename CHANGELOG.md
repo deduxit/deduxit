@@ -217,6 +217,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   A saved session that breaks a rule of the form is refused naming the
   fault ("a cut names no cut formula", "an inference is the premise of
   two inferences"), where it stated the rule.
+- **A rule file's errors name what is wrong**: the variable of a
+  condition or a discharged hypothesis that no sequent binds, the context
+  written twice in a zone or used elsewhere with another discipline or
+  sort (and which of the two), the sorts an argument has and its
+  connective takes, the contexts that cannot be told apart; a sort with
+  an empty name is said as such, where it was called declared twice. A
+  saved session of a rule file with no node or no scope says which.
 
 ### Deprecated
 

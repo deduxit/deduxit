@@ -460,7 +460,10 @@ impl Calculus {
         for sort in &form.sorts {
             // No more sorts than the file's bytes.
             let index = sort_ids.len() as u32;
-            if sort.is_empty() || sort_ids.insert(sort.clone(), index).is_some() {
+            if sort.is_empty() {
+                return Err(invalid("a sort has an empty name".to_owned()));
+            }
+            if sort_ids.insert(sort.clone(), index).is_some() {
                 return Err(invalid(format!("the sort {sort:?} is declared twice")));
             }
         }
@@ -545,8 +548,13 @@ impl Calculus {
             declare(&mut names, name, Name::Context(index as u32))?;
         }
         // Rules.
+        let mut sorts = vec![""; sort_ids.len()];
+        for (name, &index) in &sort_ids {
+            sorts[index as usize] = name;
+        }
         let mut compiler = Compiler {
             names: &names,
+            sorts,
             connectives: &connectives,
             zones: &zones,
             zone_ids: zones
@@ -614,6 +622,8 @@ impl Calculus {
 struct Compiler<'a> {
     /// What each declared name stands for.
     names: &'a HashMap<&'a str, Name>,
+    /// Each sort's name, by its index.
+    sorts: Vec<&'a str>,
     /// The connectives.
     connectives: &'a [Connective],
     /// The zones.
@@ -639,6 +649,15 @@ struct Patterns {
 }
 
 impl Compiler<'_> {
+    /// Returns the name of the schematic variable or context `wanted`
+    /// stands for, for a message.
+    fn name_of(&self, wanted: impl Fn(Name) -> bool) -> &str {
+        self.names
+            .iter()
+            .find(|&(_, &name)| wanted(name))
+            .map_or("", |(&name, _)| name)
+    }
+
     /// Returns what `name` stands for.
     fn name(&self, name: &str) -> Result<Name, Error> {
         self.names.get(name).copied().ok_or_else(|| {
@@ -696,7 +715,9 @@ impl Compiler<'_> {
                     let (root, sort) = self.pattern(argument, patterns)?;
                     if sort != expected {
                         return Err(invalid(format!(
-                            "an argument of {name:?} has another sort than the connective takes"
+                            "an argument of {name:?} is of the sort {:?}, where the connective \
+                             takes {:?}",
+                            self.sorts[sort as usize], self.sorts[expected as usize]
                         )));
                     }
                     roots.push(root);
@@ -792,18 +813,25 @@ impl Compiler<'_> {
                             .to_owned(),
                     ));
                 }
+                let context = |name: Name| matches!(name, Name::Context(v) if v == variable);
                 if !placed.insert((zone, variable)) {
                     return Err(invalid(format!(
-                        "a context stands twice in the zone {name:?}"
+                        "the context {:?} stands twice in the zone {name:?}",
+                        self.name_of(context)
                     )));
                 }
                 match self.contexts[variable as usize] {
                     None => self.contexts[variable as usize] = Some((discipline, members)),
                     Some(known) if known == (discipline, members) => {}
-                    Some(_) => {
+                    Some((known, _)) => {
+                        let what = if known == discipline {
+                            "with members of another sort"
+                        } else {
+                            "in a zone of another discipline"
+                        };
                         return Err(invalid(format!(
-                            "a context of the zone {name:?} is used elsewhere with another \
-                             discipline or sort"
+                            "the context {:?} of the zone {name:?} is used elsewhere {what}",
+                            self.name_of(context)
                         )));
                     }
                 }
@@ -905,9 +933,9 @@ impl Compiler<'_> {
         }
         // The conditions and the discharged hypotheses name bound
         // variables only.
-        let unbound = |what: &str| {
+        let unbound = |what: &str, name: &str| {
             invalid(format!(
-                "a variable of {what} occurs in no sequent of the rule"
+                "the variable {name:?} of {what} occurs in no sequent of the rule"
             ))
         };
         for (list, into) in [(&form.fresh, 0), (&form.atomic, 1)] {
@@ -916,7 +944,7 @@ impl Compiler<'_> {
                     return Err(invalid(format!("{name:?} is no schematic variable")));
                 };
                 if !bound[variable as usize] {
-                    return Err(unbound("a condition"));
+                    return Err(unbound("a condition", name));
                 }
                 let list = if into == 0 {
                     &mut rule.fresh
@@ -933,9 +961,13 @@ impl Compiler<'_> {
             for &(first, root) in premise.discharges.iter().flatten().flatten() {
                 let open = rule.patterns[first as usize..=root as usize]
                     .iter()
-                    .any(|node| matches!(node, Pattern::Variable(v) if !bound[*v as usize]));
-                if open {
-                    return Err(unbound("a discharged hypothesis"));
+                    .find_map(|node| match *node {
+                        Pattern::Variable(v) if !bound[v as usize] => Some(v),
+                        _ => None,
+                    });
+                if let Some(v) = open {
+                    let name = self.name_of(|name| matches!(name, Name::Variable(w, _) if w == v));
+                    return Err(unbound("a discharged hypothesis", name));
                 }
             }
         }
@@ -1019,11 +1051,25 @@ impl Compiler<'_> {
             order.push(equation);
         }
         if order.len() < equations.len() {
-            return Err(invalid(
-                "its contexts cannot be told apart: every context must stand alone in \
-                 some zone, or beside contexts that do"
-                    .to_owned(),
-            ));
+            let mut left: Vec<&str> = equations
+                .iter()
+                .zip(&done)
+                .filter(|&(_, &done)| !done)
+                .flat_map(|(equation, _)| &equation.contexts)
+                .map(|&(variable, _)| {
+                    self.name_of(|name| matches!(name, Name::Context(v) if v == variable))
+                })
+                .collect();
+            left.sort_unstable();
+            left.dedup();
+            return Err(invalid(format!(
+                "its contexts {} cannot be told apart: every context must stand alone in some \
+                 zone, or beside contexts that do",
+                left.iter()
+                    .map(|n| format!("{n:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )));
         }
         Ok(order)
     }

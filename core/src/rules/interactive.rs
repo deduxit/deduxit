@@ -2066,8 +2066,11 @@ impl Interactive {
     ) -> Result<Self, Error> {
         let fault = |reason: &'static str| Error::InconsistentSession { reason };
         let zones = calculus.zones.len();
-        if nodes.is_empty() || scopes.is_empty() {
-            return Err(fault("a session has a node and a scope"));
+        if nodes.is_empty() {
+            return Err(fault("the session has no node"));
+        }
+        if scopes.is_empty() {
+            return Err(fault("the session has no scope"));
         }
         let rules = &calculus.rules;
         // The scopes: each inside an earlier one, the root's its own.
