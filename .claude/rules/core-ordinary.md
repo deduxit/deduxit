@@ -9,9 +9,14 @@ Loaded, beside `core.md`, when a file of `core/src/ordinary/` is read or changed
 classical, intuitionistic and minimal propositional logic decided by
 translating into linear logic, and the linear proof read back as LK or LJ.
 
-- **Layout.** `mod.rs`: `Logic`, `Translation` (`Affine`, `CallByName`,
-  `CallByValue`, `ZeroOne`; short names `affine`, `cbn`, `cbv`, `01`),
-  `Options`, the hash-consed arena `Formulas` (`Node`, `NodeId`; equal
+- **Layout.** `mod.rs`: the modules, the re-exports that keep every
+  public path at `ordinary::`, and the tests; `options.rs`: `Logic`,
+  `Translation` (`Affine`, `CallByName`, `CallByValue`, `ZeroOne`; short
+  names `affine`, `cbn`, `cbv`, `01`), `Target` (`Translation::target`:
+  MALL in classical affine mode or LL in intuitionistic mode, whose
+  `Display` the command prints, `affine MALL`, `ILL`), `Method`, `Options` and
+  the default's class test `grounds`; `formulas.rs`: the hash-consed
+  arena `Formulas` (`Node`, `NodeId`; equal
   formulas are one id, which the checker's multiset comparisons rely on;
   the nodes and names are the shared `crate::arena::Arena`, core.md,
   beside the first-order tables `fo` that only this suite has, and `add`
@@ -27,9 +32,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Error::Tptp` naming its line; the command's `io::read_tptp` and the
   harness's `text_of` call it, each inlining includes after, since the
   library reads no files); `translate.rs`: the
-  pattern table, `translate`, `Image`, `Target` (`Translation::target`:
-  MALL in classical affine mode or LL in intuitionistic mode, whose
-  `Display` the command prints, `affine MALL`, `ILL`); `derivation.rs`:
+  pattern table, `translate`, `Image`; `derivation.rs`:
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `connection/` (public): the connection prover of classical logic,
@@ -54,8 +57,15 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   types, the claims and their check, `laws.rs` the stages, laws and
   passes, `first_order.rs` the quantifier laws and Skolem's and
   Herbrand's terms, `encode.rs` the clausal encodings, `form.rs` the test
-  of a form); `interactive.rs` (behind `interactive`): the
-  goal state `Interactive`, below; `transfer.rs`: formulas copied
+  of a form); `interactive/` (behind `interactive`): the goal state
+  `Interactive`, below, along the linear session's seams (`mod.rs` the
+  vocabulary, the state and its queries; `error.rs` the refusals;
+  `expand.rs` the steps and undo; `witness.rs` open witnesses, unification
+  and the quantifier steps; `close.rs` the search's graft, `close` and
+  `hint`; `derivation.rs` the views; `invert.rs` the invertible rules;
+  `replay.rs` the reader, behind `serialize`; `tests.rs`); a helper more
+  than one part uses stays in `mod.rs`, and an item one part keeps and
+  another reads is `pub(super)`; `transfer.rs`: formulas copied
   between arenas (`copy`: a first-order goal out to the search and its
   derivation back, a written tableau's expected sequent, the goal
   state's propositional graft; `copy_first_order`, the target
@@ -1890,7 +1900,7 @@ classical logic only (`Error::Logic`, which names the method).
   node with children expanding a line and a leaf with an end, not the
   expansions).
 
-## The invertible rules (`invert.rs`)
+## The invertible rules (`interactive/invert.rs`)
 
 `Interactive::invert`, `invert_all` and `is_invertible` (feature
 `interactive`), the linear session's `invert.rs` read for LK and LJ:
@@ -2033,7 +2043,7 @@ passes (core has `serde_json` only under `protocol`).
   14): `{version, standing, sequent, text_line?, line?, message,
   countermodel?}`; nothing reads it back.
 
-## The goal state (`interactive.rs`)
+## The goal state (`interactive/`)
 
 A native state of ordinary sequents, not a session over the image: the
 goals are two-sided sequents, the rules `Rule`'s, and a finished state

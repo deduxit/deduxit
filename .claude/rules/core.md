@@ -123,9 +123,10 @@ of those names),
 `simple`, the printer `print`, the type checker `check`, the reader of
 text `parse` behind that feature and of a document's parts `read`
 behind `serialize`),
-`ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
+`ordinary` (the decision's vocabulary in `options`, the arena and its
+sequents in `formulas`, `parse` behind the
 feature of that name, `translate`, the normal forms `normal`, resolution and DPLL `resolution`, `derivation` with the read-back and
-its checker, the native engine `ljt`, the connection prover of classical logic `connection`, the decidable classes by grounding `grounding` behind `sat`, the searches for countermodels `models` behind `sat` (the driver, the finite expansion `finite`, the Kripke models' sequent `kripke` and the writer core `encode`), the countermodels and their checks `countermodel` (the check of a Kripke model in `mod.rs`, the finite structure that refutes a first-order sequent `finite`, the Kripke model with growing domains `kripke`, what the two share `semantics`), the SAT engine `sat` behind that feature, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` and its invertible rules `invert` behind that
+its checker, the native engine `ljt`, the connection prover of classical logic `connection`, the decidable classes by grounding `grounding` behind `sat`, the searches for countermodels `models` behind `sat` (the driver, the finite expansion `finite`, the Kripke models' sequent `kripke` and the writer core `encode`), the countermodels and their checks `countermodel` (the check of a Kripke model in `mod.rs`, the finite structure that refutes a first-order sequent `finite`, the Kripke model with growing domains `kripke`, what the two share `semantics`), the SAT engine `sat` behind that feature, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive/`, the goal state along the linear session's seams with its invertible rules `invert`, behind that
 feature), `modal` (the arena, `system`, `parse` behind the feature of
 that name, the model check `model`, and behind `serialize` the labelled
 calculus `calculus`, the tableau `search` and `decide`), `kripke` (the shared Kripke model), and `lltp`, `mist` and
