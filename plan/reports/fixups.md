@@ -2855,3 +2855,79 @@ read-back, all answered in `xuupvryk`:
   model too (`deduxit check` of the audit's document).
 - The Kripke model search tries no model for a sequent with `=`; with
   the check reading identity it could, at least for identity worlds.
+
+## Session fixup-35: four ILTP problems the TPTP reader refuses
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-82-141614` on `tuxxnwsr`
+(87c4), cores 10 to 12, in the conversation of steps 82, 83, 87b2, 87c2
+and 87c4. No panel (the fix changes a message, not how a formula is
+built). Nothing pushed.
+
+### What the defect is
+
+`GEJ056+1`, `GEJ056+2`, `GEJ057+1` and `GEJ057+2` write their conjecture
+as `((! [A,B] : (point(A) & point(B) & dipt(A,B))) => (? [X] : (line(X)
+=> ((~ apt(A,X)) & (~ apt(B,X))))))` (and with `L`, `M`): the
+quantifier's scope closes before the consequent, which still uses `A`
+and `B`. These are free variables of a `fof` formula, which TPTP does
+not allow: its language description (tptp.org,
+`UserDocs/TPTPLanguage/TPTPLanguage.shtml`, "Annotated Formulae") says
+that outside the CNF language every variable must be bound by a
+preceding quantification with adequate scope. (Its BNF moved to
+`bnf.tptp.org`, which the fetch could not read; the rule is the
+description's prose, and a context-free grammar could not state it
+anyway.) So the reader's refusal is right and the files are not valid
+TPTP; the reader's message only said "expected a bound variable or a
+constant", at the word's first letter.
+
+### What landed
+
+- `oyqxutpm` "Name a TPTP variable outside its quantifier's scope, and
+  why it is refused": the error spans the whole word and carries a hint,
+  "an upper-case word is a variable in TPTP, and no quantifier around it
+  binds it: each variable of a fof formula stands inside its
+  quantifier's scope". A test of the smallest failing formula,
+  `(! [Ab] : p(Ab)) => q(Ab)`, in `reads_tptp_quantifiers` (fails
+  before: the old message names `"A"` and has no hint). The changelog
+  (`[Unreleased]`, Changed) and `core-ordinary.md` say so.
+
+### Checks
+
+- Every ILTP first-order problem read before and after (`deduxit seq
+  print --logic classical --input-format tptp`, both release builds,
+  output and status digested per problem): of 2 670, exactly the four
+  read differently, by the hint alone; the other 2 666 are byte for
+  byte the same, the fifth error among them (an occurrence limit,
+  unchanged).
+- The parser's tests; `gate` passed (the ratchet's `read-tptp`
+  34 275 138 instructions, the same as at `tuxxnwsr`: the path is cold).
+  No local `nix flake check`: the planning session runs every flake check
+  on GitHub's runners before anything lands (its rule since that day),
+  and the one started here was stopped while it waited for the lock.
+
+### The reviewer
+
+fresh-reviewer (Opus 5.5, high; Fable's roles moved to Opus that day):
+the code change is sound and the brief is met. The diagnosis holds, the
+error is made only where it was, the span is the raw word's bytes (taken
+before NFC normalisation), `Clauses::located` keeps the span and the
+hint, no retry of `read_tptp` depends on the error's form, and the test
+fails without the fix. One false statement in this report, fixed: the
+follow-up called a universal closure over the whole formula the intended
+statement, which it is not (the antecedent keeps its own `∀A∀B`); the
+rules file had the same gap.
+
+### Follow-up (for the author, through the planning session)
+
+The four problems stay refused. ILTP rates them "Theorem" (0.50), so
+some provers read them anyway, presumably taking the free variables as
+universally closed. That closure does not give the intended statement
+("when there are two distinct points, a line connecting them can be
+constructed", `∀A∀B. ((point(A) ∧ point(B) ∧ dipt(A,B)) → ∃X. …)`):
+closed over the whole formula, the antecedent keeps its own `∀A∀B` and
+says that every pair is two distinct points, a different formula and
+likely a trivial one where `dipt` is irreflexive (the reviewer's
+witness). The files' intended meaning needs the quantifier's scope moved,
+an edit of the problem, not a reading. My recommendation: keep refusing
+(TPTP's rule, and no reading gives the intended statement), and leave the
+four out of the ILTP counts with this reason.
