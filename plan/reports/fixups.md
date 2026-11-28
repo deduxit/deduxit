@@ -3035,3 +3035,234 @@ guide and the behaviour lock without an example of this output.
   (`serialize/ordinary.rs` takes "not valid" over an unprovable image at
   any order). The argument member could not turn it into a wrong
   answer.
+
+## Session fixup-34: the library's default gives the model search a turn under a clock
+
+Opus 5.5 at `high`, in `../deduxit-wt-fixup-30-3e23c4` on `yqumnktz`
+(87c5), cores 13 to 15, in the conversation of 87c3, 87d4 and 87c5. The
+panel on the change of `decide_within` (argument and counterexamples on
+Opus, integers on Sonnet, all `high`), fresh-reviewer on Opus at `high`.
+Nothing pushed.
+
+### The defect
+
+87c9b's F-7b-05: `ordinary::decide_within` ran the model search only
+after the embedding ended unknown without being stopped. Under a clock
+the provers run until the stop on most sequents they do not prove, so
+the model search never ran, and the command kept an order of its own
+(time shares, `by_connection`'s race, `races_the_embedding`,
+`model_first`).
+
+### Choosing the order by measurement
+
+Everything measured on ILTP's first-order problems at 2 s on cores 13 to
+15, with the harness patched for the measurement only (never committed)
+to record the units each method's stop is told of; the rows are in the
+session's scratch directory.
+
+- **Model search first, within a budget** (the brief's second option)
+  does not work. Its units are the solver's decisions, not its
+  propagations: on the 474 problems it refutes it spends 25 to 92
+  thousand units per ms (the most any needs is 26.7 M, NLP240+1 in
+  classical logic, 289 ms), on theorems a median of 4.6 thousand and as
+  few as 58 (SYN083+1: 2 s of `batsat`'s `propagate` on 36 atoms). A
+  budget that covers the 474 (2²⁵) is seconds on most theorems, so
+  every theorem would wait for it. batsat's stop hook sees no
+  propagations (its `propagation_budget` has no setter), so a fairer
+  unit needs batsat changed: a follow-up.
+- **A budget for the embedding before the model search** (the first
+  option) works only as part of two rounds: first attempts within small
+  budgets (grounding, the connection prover in classical logic, the
+  embedding), then the model search within 2²⁵, then the long attempts.
+  A theorem the first attempts miss waits for the model search, which is
+  what the order costs.
+- The budgets came from a simulation over the measured rows (each
+  attempt's cost at the row's own rate), then the real run. Per
+  attempt: the prover's theorems need at most 2²¹ steps for 812 of
+  848 (2²² saves 21 more but leaves SYN324+1's structure no time: its
+  prover's 2²¹ steps take 1.7 s); the classical embedding's 60 theorems
+  all fit 2²⁰ (its affine image's search costs six times the time per
+  unit of the intuitionistic one); the intuitionistic embedding 2²³
+  (2²⁴ would leave two Kripke models no time); grounding 2²² of its
+  summed units (456 of its 467 classical verdicts and 82 of 90
+  intuitionistic ones).
+- A first full run without a budget for grounding lost three of the
+  474 (SYN514+1, SYN518+1, SYN520+1) and SYJ036+1's theorem: grounding
+  ran until the stop or until its node bound at 1.8 s, where the old
+  order cut it at 90% of the limit. Grounding now has its first attempt
+  too.
+
+### What landed
+
+- `wkkwqwwv` "Give the model search a turn before the long attempts of
+  the first-order default" (`core/src/ordinary/decide.rs`): `first_order`
+  runs the first attempts (grounding within `FIRST_GROUNDING_WORK`, the
+  connection prover within `FIRST_CONNECTION_WORK`, the embedding within
+  `first_embedding_work`), the model search within `MODEL_WORK`
+  (`model_turn`), the attempts that ended at their budget again
+  (`Attempt::Budget`; a caller's lower `limits.work` stays the bound),
+  and the model search again where its budget ran out and the embedding
+  ends unknown, unstopped. `within_budget` counts grounding's and the
+  model search's budgets as the summed `Progress::work` of their polls
+  (their preparation and encoding count no `limits.work`). The
+  embedding's steps are `embedded`, which both rounds call. No clock and
+  no thread: the order is a function of the input. The new constants
+  are private (no change of the public API). A test,
+  `the_model_search_has_its_turn_before_the_long_attempts`, refutes a
+  classical and an intuitionistic sequent (the manual's Kripke example)
+  under a stop that stands for a clock; both fail on the old order
+  (`Unknown(Stopped)`). `decide_within`'s docs give the order and why,
+  and the rules file says why these budgets.
+- `tstwmlro` "Decide a first-order sequent by the library's default in
+  the command": `natively` hands a first-order sequent with no method
+  (and no `--net`) to `decide_within` whole (`by_library`,
+  `by_default`, as 87c9b's parked `psvsuuvz` did on an older base); the
+  shares, the race, `model_first` and `Deadline::share` are gone. An
+  outcome the library decided through the embedding is written with the
+  embedding's verdict line and the linear statistics; a refusal is an
+  unknown line naming its flag in `prove` and the library's error in a
+  batch. The manual's Kripke example names `--timeout 10s`: the README
+  test runs a debug build, in which the embedding's first attempt takes
+  6.6 s on that sequent (0.3 s in a release build), past the default
+  limit. The manual, the guide, `cli.md` and the changelog say the new
+  order. The behaviour lock needed no change.
+
+### The measurement
+
+`bench/command-first-order.py BIN bench/iltp-first-order/Problems
+AFTER.csv 13,14,15` with a release build of `tstwmlro`, nothing built
+beside it, against `bench/defaults/command-first-order-before.csv`; the
+after file is `bench/defaults/command-first-order-after.csv`.
+
+- **No decided verdict flipped.** Every one of the 474 refutations the
+  model search gave comes back (207 classical, 267 intuitionistic).
+- Decided rows: classical 1 290 before, 1 271 after; intuitionistic 859
+  before, 861 after.
+
+| logic | method | lost | gained |
+|---|---|---|---|
+| classical | connection prover, valid | 32 | |
+| classical | grounding, valid | 2 | |
+| classical | model search, not valid | | 15 |
+| classical | SAT solver, valid (timing at the limit) | 1 | 1 |
+| intuitionistic | embedding, valid | 42 | 2 |
+| intuitionistic | model search, not valid | | 42 |
+
+- The lost theorems need more than their first attempt's budget and
+  then wait for the model search's turn, seconds on a theorem: the
+  prover's (ALG, GEJ, SET, KRS above all; 3 to 4 M steps, which took
+  0.2 to 0.5 s when the prover had 70% of the limit), the intuitionistic
+  embedding's (GEJ, SET, KRS above all), and grounding's KRS162+1 and
+  SYN723+1 (0.6 s before). The SAT rows are propositional problems at
+  the limit whose code did not change (SYJ202+1.010 lost, SYJ208+1.010
+  gained).
+- The gains are refutations the model search finds now that it runs
+  in every logic after the first attempts (NLP and SYN above all), and
+  two intuitionistic theorems.
+- Times: the classical refutations of the 474 now take a median of
+  0.25 s (1.41 s before, after the prover's 70%); the intuitionistic
+  ones 0.26 s (0.01 s before: the model search went first on one
+  thread), the embedding's first attempt being most of it. One of the
+  474 is at the edge: SYN539+1 in intuitionistic logic at 1.99 s
+  (1.83 s before), where grounding spends its budget (2²² units take
+  1.7 s there) before the model search finds a one-element structure in
+  10 ms.
+
+### The panel
+
+Argument and counterexamples on Opus, integers on Sonnet, all `high`,
+from the brief in the session's scratch directory.
+
+- **A break, found by all three, fixed.** The embedding's first attempt
+  handed its budget to the read-back and to `Derivation::check`, which
+  refuses past `limits.work` inferences with `Refusal::Work`, an error
+  that `attempt` filed as given way for good: no long attempt, and the
+  answer was "the call did the most work allowed, 1048576 units; raise
+  it with --work-limit N", a bound the user never set and could not
+  lift. Witnesses: a classical chain of 1 200 000 negations (the
+  argument member; `--method embedding` proves it in 2.3 s, the head
+  said unknown), and intuitionistic sequents whose image's proof is a
+  few thousand units and whose derivation of LJ has 9.6 million
+  inferences (the other two). Fixed in `wkkwqwwv`: the budget bounds
+  the image's search alone, the read-back and the check run under the
+  caller's limits (`embedded`'s `(limits, searched)`), with
+  `a_budget_bounds_the_embedding_s_search_alone`. The classical witness
+  is valid at the head; the intuitionistic one is too by the
+  counterexamples member's build of the head.
+- **The stop after the model search's turn** (argument): where the
+  caller's stop ended the turn, `first_order` went on to the long
+  attempts, relying on the stop to fire again, and a long embedding
+  translates the whole image before its first poll. Fixed: a stop in
+  the turn ends the call with the model search's unknown
+  (`Turn::Answer`).
+- **`--translation` alone reached the model search** (argument), against
+  `--help` ("--translation and --linear name the embedding"): fixed,
+  `by_library` takes a sequent with no translation given; with one, the
+  command's own embedding decides, as before.
+- **`--method`'s help** still described the race (argument): fixed in
+  `tstwmlro`; the lock's `help-prove` reblessed in `tnvpowzr`.
+- Remarks kept: grounding's polls report `POLL` units whatever a step's
+  weight, so its summed budget can overshoot by the weight per poll
+  (1.8 times on a nest of 8 000 quantifiers; bounded by the occurrence
+  and memory limits, deterministic); a caller's `limits.work` of the
+  budget plus one repeats the first attempt in the long one; the order is
+  a function of the input on one thread only (a pool's search can end its
+  budget at another point); a refusal line names the method the options
+  choose, not the one that refused.
+- **No wrong verdict** (counterexamples): 858 random first-order
+  sequents in three logics, the default against grounding, the
+  embedding, the model search and the connection prover, and a
+  brute-force classical evaluator on every sequent any method called
+  valid; 4 050 runs under stops at many work counts, every verdict equal
+  to the unstopped one, at most two polls after a stop, no `WorkLimit` the
+  caller did not set; 316 pairs identical twice over; 1 152 runs at work
+  limits around the budgets, each naming the caller's value; 154 runs of
+  the command's output flags.
+- **A follow-up, not this change** (counterexamples): the model search
+  returns 0.4 to 1.5 s after its stop fires on SYJ001+1.020 and
+  SYJ003+1.013 (no poll after the stop: the time is spent after its
+  last poll). `--method models` does the same on the base, and the old
+  command's model search ran under the same clock; the default now
+  reaches it on every first-order sequent the first attempts leave
+  open.
+
+### The reviewer
+
+fresh-reviewer (Opus 5.5, high): the requirements hold. It compared the
+two CSVs itself (no flip; all 474 refutations not valid after; every
+figure of the table and the changelog as stated; the committed after
+file byte for byte the run's) and re-ran the 474 with the head's
+release binary at 2 s: all refuted. It found, all fixed:
+
+- the new test starts a thread, which `web-core-wasm32` (WASI) cannot:
+  it joins `core32Skipped` in `modules/web.nix`, with the counts in
+  `web.md` and `flake.md`;
+- `by_library`'s doc gave the model search before the provers;
+- `Options::method_for`'s public doc and the test
+  `the_default_asks_the_model_search_last` (now `…_model_search`) still
+  said the model search runs last;
+- four doc comments justified their numbers by the order this change
+  removed ("the command's own order", "when the prover had 70% of the
+  limit"): reworded to what the numbers measure.
+
+It also noted that the read-back fix could turn a measured row into a
+stop as well as a verdict; no row of the after file names a work limit,
+so none met it.
+
+### Checks
+
+- The library's tests, the two new ones among them (the first also run
+  on the old order, where it fails); the workspace's tests and clippy at
+  the head; `gate` passed before the panel's fixes (the ratchet's
+  ordinary journeys within their ceilings, as at 87c5), and again at the
+  head after the panel's fixes (before the reviewer's, which are docs
+  and the wasm32 skip list); `web-core-wasm32` built for the skip list.
+  The rustdoc,
+  public and private, builds with warnings denied (a link to the private
+  `CONNECTION_WORK` in `decide_within`'s docs was replaced by the
+  number). `breaks 0.8.0`: none of this change's items in the
+  public API's diff; the new constants are private.
+- The measurement ran on the build before the panel's fixes. They can
+  only turn a first attempt's refused read-back into a verdict, end a
+  stopped call sooner, and route `--translation`, which the run does not
+  use; so the table stands as a lower bound of the head's verdicts.

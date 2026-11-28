@@ -1074,6 +1074,10 @@ serde_json, which the CLI and the core's tests already have.
   same command with the new binary into another file, compared row by
   row: a row that ends at the time limit on one side is no verdict
   change, a decided verdict that flips is (step 87c9's report).
+  `defaults/command-first-order-after.csv` is that after file for the
+  library's default in the command (fixup-34: no flip, the model
+  search's 474 refutations kept, 76 theorems lost to the first attempts'
+  budgets; `plan/reports/fixups.md` has the table).
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the
