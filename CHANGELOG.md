@@ -236,6 +236,9 @@ second number (0.1.x to 0.2.0), anything else the third.
   with boxes under the cyclic order is `NetError::NotMell`, which names
   the modes that have them. Each said that proof nets exist in linear
   mode only, which the cyclic mode is.
+- **A session's `proof` past the derivation limit names `proof
+  --json`**, the session's word for the whole proof, where it named
+  `--format json`.
 
 ### Deprecated
 

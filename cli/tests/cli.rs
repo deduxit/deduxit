@@ -504,6 +504,19 @@ fn derivation_limit_and_tree_switch() {
         "{err}"
     );
 
+    // So is a session, whose line names its own word for the proof.
+    let (status, out, _) = deduxit(
+        &["interact", "--derivation-limit", "50", "a |- a"],
+        "apply 0 0 ax\nproof\n",
+    );
+    assert_eq!(status, 0, "{out}");
+    assert!(
+        out.contains("the derivation is not written")
+            && out.contains("proof --json writes the proof itself")
+            && !out.contains("--format json"),
+        "{out}"
+    );
+
     // So is `check` of an ordinary derivation: the verdict alone.
     let (_, outcome, _) = deduxit(
         &[

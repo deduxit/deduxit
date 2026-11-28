@@ -66,6 +66,9 @@ pub(crate) struct Show {
     pub(crate) abbreviate: Option<usize>,
     /// How the proof's lambda-term is printed, where it is asked for.
     pub(crate) lambda: Option<deduxit::lambda::Options>,
+    /// Whether a session shows the derivation, whose own word for the
+    /// whole proof is `proof --json`, not `--format json`.
+    session: bool,
 }
 
 impl Show {
@@ -128,6 +131,7 @@ impl Show {
             verdict: !output.no_verdict,
             abbreviate: output.abbreviate.0.map(|n| n as usize),
             lambda,
+            session: false,
         })
     }
 
@@ -164,6 +168,17 @@ impl Show {
             verdict: true,
             abbreviate: None,
             lambda: None,
+            session: true,
+        }
+    }
+
+    /// Returns the words that write the whole proof as JSON: `proof --json`
+    /// in a session, `--format json` on the command line.
+    pub(crate) const fn whole(&self) -> &'static str {
+        if self.session {
+            "proof --json"
+        } else {
+            "--format json"
         }
     }
 
@@ -438,7 +453,7 @@ pub(crate) fn unfit(inferences: u64, width: &str, lines: u64, columns: u64, most
 }
 
 /// Returns the line for a derivation past the limit.
-pub(crate) fn too_large(size: &Size, limit: u64, least: Option<u64>) -> String {
+pub(crate) fn too_large(size: &Size, limit: u64, least: Option<u64>, whole: &str) -> String {
     // Drawn compact, the derivation is smaller, but by its lower bound
     // still over the limit.
     let compact = least
@@ -447,7 +462,7 @@ pub(crate) fn too_large(size: &Size, limit: u64, least: Option<u64>) -> String {
         .unwrap_or_default();
     format!(
         "the derivation is not written: its {} inferences with {} characters of sequents are \
-         estimated at {}{compact}, over the limit of {}; --format json writes the proof itself, \
+         estimated at {}{compact}, over the limit of {}; {whole} writes the proof itself, \
          --derivation-limit SIZE raises the limit and --derivation-limit none lifts it",
         count_text(size.inferences),
         count_text(size.characters),
@@ -458,10 +473,15 @@ pub(crate) fn too_large(size: &Size, limit: u64, least: Option<u64>) -> String {
 
 /// Returns the line for a derivation that was built and checked but is
 /// too large to draw within `--derivation-limit`.
-pub(crate) fn too_large_to_draw(inferences: u64, bytes: u64, limit: u64) -> String {
+pub(crate) fn too_large_to_draw(inferences: u64, bytes: u64, limit: u64, session: bool) -> String {
+    let whole = if session {
+        "proof --json"
+    } else {
+        "prove --format json"
+    };
     format!(
         "the derivation is not written: its {} inferences are estimated at {} drawn, over the \
-         limit of {}; prove --format json writes it, --derivation-limit SIZE raises the limit and \
+         limit of {}; {whole} writes it, --derivation-limit SIZE raises the limit and \
          --derivation-limit none lifts it",
         count_text(inferences),
         bytes_text(bytes),
@@ -471,19 +491,21 @@ pub(crate) fn too_large_to_draw(inferences: u64, bytes: u64, limit: u64) -> Stri
 
 /// Returns the line for a derivation the view did not build: its size
 /// over a bound, from `size` where it can be had, or the error's own words.
-pub(crate) fn not_built(error: &Error, size: impl FnOnce() -> Option<Size>) -> String {
+pub(crate) fn not_built(error: &Error, size: impl FnOnce() -> Option<Size>, whole: &str) -> String {
     let own = || format!("the derivation is not written: {error}");
     match error {
         Error::Refused(Refusal::Output {
             limit_bytes,
             least_bytes,
             ..
-        }) => size().map_or_else(own, |size| too_large(&size, *limit_bytes, *least_bytes)),
+        }) => size().map_or_else(own, |size| {
+            too_large(&size, *limit_bytes, *least_bytes, whole)
+        }),
         Error::Refused(Refusal::Memory { limit_bytes, .. }) => {
-            size().map_or_else(own, |size| over_memory(&size, *limit_bytes))
+            size().map_or_else(own, |size| over_memory(&size, *limit_bytes, whole))
         }
         Error::Check(CheckError::Refused(refused)) => match refused.refusal {
-            Refusal::Memory { limit_bytes, .. } => proof_unread(limit_bytes),
+            Refusal::Memory { limit_bytes, .. } => proof_unread(limit_bytes, whole),
             _ => own(),
         },
         _ => own(),
@@ -492,20 +514,20 @@ pub(crate) fn not_built(error: &Error, size: impl FnOnce() -> Option<Size>) -> S
 
 /// Returns the line for a derivation whose proof could not be read
 /// within the memory limit.
-pub(crate) fn proof_unread(limit: u64) -> String {
+pub(crate) fn proof_unread(limit: u64, whole: &str) -> String {
     format!(
         "the derivation is not written: reading the proof for it takes more than the memory \
-         limit of {}; --format json writes the proof itself, and --memory-limit SIZE raises \
+         limit of {}; {whole} writes the proof itself, and --memory-limit SIZE raises \
          the limit",
         bytes_text(limit)
     )
 }
 
 /// Returns the line for a derivation past the memory limit.
-pub(crate) fn over_memory(size: &Size, limit: u64) -> String {
+pub(crate) fn over_memory(size: &Size, limit: u64, whole: &str) -> String {
     format!(
         "the derivation is not written: its {} inferences with {} characters of sequents are \
-         estimated at {}, over the memory limit of {}; --format json writes the proof itself, \
+         estimated at {}, over the memory limit of {}; {whole} writes the proof itself, \
          and --memory-limit SIZE raises the limit",
         count_text(size.inferences),
         count_text(size.characters),
@@ -816,6 +838,7 @@ pub(crate) fn derivation(
             Err(CheckError::Refused(_)) => {
                 return Ok(Shown::LeftOut(proof_unread(
                     show.limits.memory_bytes.unwrap_or(0),
+                    show.whole(),
                 )));
             }
             Err(e) => return Err(invalid(e)),
@@ -849,7 +872,7 @@ pub(crate) fn derivation(
                     .derivation_size(&view, &Limits::default(), |_| false)
                     .ok()
             };
-            return Ok(Shown::LeftOut(not_built(&error, size)));
+            return Ok(Shown::LeftOut(not_built(&error, size, show.whole())));
         }
     };
     if show.as_written(mode) {
@@ -865,7 +888,7 @@ pub(crate) fn derivation(
         };
         return match TwoSided::new(&d, writing, &show.limits) {
             Ok(view) => shown(view, fit, show, halt, why, prefix, out),
-            Err(error) => Ok(Shown::LeftOut(not_built(&error, || None))),
+            Err(error) => Ok(Shown::LeftOut(not_built(&error, || None, show.whole()))),
         };
     }
     shown(d, fit, show, halt, why, prefix, out)
@@ -1016,6 +1039,7 @@ pub(crate) fn shown(
             d.inferences() as u64,
             bytes,
             limit,
+            show.session,
         )));
     }
     if let Some((columns, most)) = fit {

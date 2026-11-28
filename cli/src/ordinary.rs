@@ -997,7 +997,7 @@ pub(crate) fn derivation(
                     .derivation_size(&view, &Limits::default(), |_| false)
                     .ok()
             };
-            return Ok(Shown::LeftOut(not_built(&error, size)));
+            return Ok(Shown::LeftOut(not_built(&error, size, show.whole())));
         }
         Err(error @ Error::ReadBack { .. }) => return Err(error.into()),
         Err(error) => return Err(anyhow!(error).context("the proof cannot be unfolded")),
