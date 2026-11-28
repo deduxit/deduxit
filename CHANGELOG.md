@@ -215,6 +215,16 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- **`check` confirmed a first-order "not valid" that `prove` calls
+  unknown.** The translation into linear logic may lose a first-order
+  proof, so `prove` writes an unprovable image of a first-order sequent
+  as unknown (exit 3). An outcome edited to say `not_valid` was still
+  confirmed by the image's refutation (exit 0), which is true of the
+  image but not of the sequent. `check` now answers it unknown (exit 3),
+  as `prove` does, also where the image is written without its
+  first-order tables or has a structure beside it. An outcome of
+  grounding or the model search, with its checked finite structure or
+  Kripke structure, is confirmed as before.
 - **A JSON document's atoms were read past the memory bound.** A reader
   writes each atom's text in full, and terms that share their parts can
   make that text twice as long with each level of a short file.

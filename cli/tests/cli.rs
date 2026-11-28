@@ -1832,6 +1832,66 @@ fn an_unknown_first_order_embedding_has_no_certificate() {
     }
 }
 
+/// `check` answers a first-order sequent's outcome as `prove` does: an
+/// outcome edited to say "not valid" on the strength of its image's
+/// refutation is unknown, since the translation may lose a proof. So is
+/// one whose image is written without its first-order tables (its
+/// quantifier still there), and one with a finite structure beside the
+/// image, which nothing ties to the image's sequent.
+#[test]
+fn a_first_order_not_valid_by_its_image_is_unknown() {
+    let edited = |logic: &str, sequent: &str| {
+        let args = ["prove", "--logic", logic, "--method", "embedding"];
+        let (status, out, err) = deduxit(&[&args[..], &["--format", "json", sequent]].concat(), "");
+        assert_eq!(status, 3, "{logic} {sequent}: {out}{err}");
+        let mut outcome: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(outcome["reason"]["kind"], "incomplete", "{out}");
+        outcome["verdict"] = "not_valid".into();
+        outcome.as_object_mut().unwrap().remove("reason");
+        outcome
+    };
+    let unknown = |logic: &str, outcome: &serde_json::Value| {
+        let (status, out, err) = deduxit(&["check"], &outcome.to_string());
+        assert_eq!(status, 3, "{logic}: {out}{err}");
+        assert!(
+            out.starts_with(&format!(
+                "unknown: the file says a first-order sequent of {logic} logic is not valid"
+            )),
+            "{logic}: {out}"
+        );
+    };
+    for logic in ["classical", "intuitionistic"] {
+        unknown(logic, &edited(logic, "p(a) |- q(b)"));
+    }
+    let mut stripped = edited("intuitionistic", "forall x. p |- q");
+    let image = stripped["search"]["image"]["sequent"]
+        .as_object_mut()
+        .unwrap();
+    image.insert("atoms".into(), serde_json::json!(["p", "q"]));
+    for key in ["symbols", "binders", "fo"] {
+        image.remove(key);
+    }
+    unknown("intuitionistic", &stripped);
+    let (status, out, err) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "grounding",
+            "--format",
+            "json",
+            "p(a) |- q(b)",
+        ],
+        "",
+    );
+    assert_eq!(status, 1, "{out}{err}");
+    let grounded: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let mut beside = edited("classical", "p(a) |- q(b)");
+    beside["structure"] = grounded["structure"].clone();
+    unknown("classical", &beside);
+}
+
 /// `--format rocq` prints the verdict as a Rocq comment and the
 /// derivation as a lemma with its proof script for `prove` and `check`;
 /// `--standalone` adds the import; a proof with Mix has a certificate for

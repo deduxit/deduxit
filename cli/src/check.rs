@@ -511,9 +511,10 @@ pub(crate) fn check_disproof(
 /// Checks the outcome of deciding an ordinary sequent and writes the
 /// verdict: a derivation by the rules of its calculus, with the image's
 /// proof where the embedding found one; the image's proof alone where no
-/// derivation was built; the image's refutation. A sequent found not
-/// valid by LJT or the SAT solver, and one found unknown, hold nothing to
-/// check: unknown.
+/// derivation was built; the image's refutation of a propositional
+/// sequent. A sequent found not valid by LJT or the SAT solver, a
+/// first-order one found not valid through its image, and one found
+/// unknown, hold nothing to check: unknown.
 ///
 /// # Errors
 ///
@@ -568,6 +569,28 @@ pub(crate) fn check_ordinary(
             {
                 let countermodel = outcome.countermodel.as_ref().expect("a countermodel");
                 check_countermodel(countermodel, logic, &show, quiet, deadline, &mut out)?
+            }
+            // The translation may lose a first-order proof, so the image's
+            // refutation leaves a first-order sequent open, as `prove`
+            // says. A structure or Kripke structure beside the image would
+            // be another sequent's for all the file shows (`prove` writes
+            // none there), so it settles nothing either.
+            (ordinary::Verdict::NotValid, Some(linear))
+                if matches!(
+                    &linear.verdict,
+                    deduxit::linear::Verdict::Unprovable(disproof)
+                        if first_order(disproof.sequent())
+                ) =>
+            {
+                let line = format!(
+                    "unknown: the file says a first-order sequent of {logic} logic is not valid \
+                     by its translation's refutation, which leaves the sequent open, since the \
+                     translation may lose its proofs"
+                );
+                (
+                    Status::Unknown,
+                    unchecked_into(&line, Some(logic), &show, &mut out)?,
+                )
             }
             (ordinary::Verdict::NotValid, Some(linear)) => match &linear.verdict {
                 deduxit::linear::Verdict::Unprovable(disproof) => {
@@ -627,6 +650,21 @@ pub(crate) fn check_ordinary(
         }
         anyhow::Ok(status)
     })?
+}
+
+/// Returns whether an image is a first-order sequent's: it has a
+/// quantifier or an atom with arguments. Its first-order tables alone do
+/// not say: a JSON sequent may leave them out beside a quantifier, or
+/// hold predicates of no arguments.
+fn first_order(sequent: &deduxit::linear::Sequent) -> bool {
+    sequent.fragment().has_quantifiers()
+        || (0..sequent.atom_names().len()).any(|atom| {
+            u32::try_from(atom).is_ok_and(|atom| {
+                sequent
+                    .atom_predicate(deduxit::linear::Atom::new(atom))
+                    .is_some_and(|(_, args)| !sequent.arguments(args).is_empty())
+            })
+        })
 }
 
 /// Writes the verdict on a truth table that shows its sequent valid, which

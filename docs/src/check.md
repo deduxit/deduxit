@@ -22,7 +22,10 @@ translated sequent's proof or refutation where the embedding found one.
 Its JSON then names the `logic` in place of the `mode`. A file that holds
 nothing to check (a clausal proof's counts, a "not valid" of LJT or the
 SAT solver, an unknown) gets exit status 3 ([Ordinary
-logic](ordinary-logic.md#json-output)).
+logic](ordinary-logic.md#json-output)). So does a "not valid" of a
+first-order sequent that rests on the translated sequent's refutation:
+the translation may lose a first-order proof, so that refutation
+leaves the sequent open, as `prove` says.
 
 A derivation in a calculus you give as a rule file is checked by
 `check` as well ([Check a derivation in your own rules](rules.md)).

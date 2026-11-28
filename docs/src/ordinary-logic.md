@@ -1126,7 +1126,9 @@ a ⊢ a
 A clausal proof is written as its counts, LJT and the SAT solver write
 no refutation of a sequent that is not valid, and an unknown holds no
 proof: there `check` says the file holds nothing to check, with exit
-status 3.
+status 3. A file that calls a first-order sequent not valid by its
+image's refutation gets exit status 3 too, since the image's
+refutation leaves a first-order sequent open.
 
 ## Step by step
 

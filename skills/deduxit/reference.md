@@ -1401,8 +1401,9 @@ time limit refused it) neither. `--linear` writes the image's outcome
 alone. `check` reads every such file and a derivation of LK or LJ: it
 checks the derivation by its calculus and the image's proof or
 refutation, and a countermodel against its sequent; a clausal proof's
-counts, a "not valid" of LJT, and an unknown hold nothing to check (exit
-status 3).
+counts, a "not valid" of LJT, a first-order "not valid" by the image's
+refutation (the translation may lose first-order proofs), and
+an unknown hold nothing to check (exit status 3).
 
 ### Countermodels
 

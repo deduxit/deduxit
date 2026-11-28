@@ -163,9 +163,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   outcome). `check` reads it (`read_document` probes `logic`, `verdict`
   and `clausal_proof` first): `check_ordinary` checks a derivation by
   its calculus with the image's proof (`check_derivation`), the image's
-  proof alone (`check_into`), the image's refutation
-  (`check_disproof`); a clausal proof's counts, a "not valid" of LJT
-  or the SAT solver and an unknown are `unknown`, exit 3
+  proof alone (`check_into`), the image's refutation of a propositional
+  sequent (`check_disproof`); a clausal proof's counts, a "not valid" of
+  LJT or the SAT solver, a first-order "not valid" by the image's
+  refutation (a hand-edited file: `prove` writes it unknown, reason
+  `incomplete`; the image's sequent counts as first-order with a
+  quantifier as well as with first-order tables, since a JSON sequent
+  without its tables reads with quantifiers and none; a structure or
+  Kripke structure beside an image is not checked, since nothing ties
+  its sequent to the image's) and an unknown are `unknown`, exit 3
   (`unchecked_into`; the linear `check` refuses an unknown linear
   outcome, exit 2, as before); a mode
   flag beside an ordinary file is refused; its `Checked` JSON has
