@@ -462,6 +462,20 @@ pub(super) struct Pass<'a, 's, O, I> {
     passed: u64,
 }
 
+/// Returns the weight `observer` gives the `?` formula that the
+/// unrestricted member `a` is the subformula of.
+fn quest_weight<O: Observer, I: Instancing>(
+    forest: &Forest,
+    inst: &I,
+    observer: &O,
+    a: Member,
+) -> u64 {
+    let q = forest
+        .parent(inst.occ(a))
+        .expect("an unrestricted occurrence is under a ?");
+    u64::from(observer.weight(inst.parent(a, q), q))
+}
+
 impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Returns the pass before its first node. [`afford`] must have
     /// allowed its tables.
@@ -695,11 +709,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Returns the weight of the `?` formula that the unrestricted member
     /// `a` is the subformula of.
     fn quest_weight(&self, a: Member) -> u64 {
-        let q = self
-            .forest
-            .parent(self.inst.occ(a))
-            .expect("an unrestricted occurrence is under a ?");
-        u64::from(self.observer.weight(self.inst.parent(a, q), q))
+        quest_weight(self.forest, &self.inst, &*self.observer, a)
     }
 
     /// Checks that the linear zone node `id` derived is one the proof can
@@ -781,17 +791,14 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// smaller set into the larger, and notes in `shared` the members both
     /// hold.
     fn unite(&mut self, l: &mut State, r: &mut State) {
-        if r.theta.len() > l.theta.len() {
-            std::mem::swap(&mut l.theta, &mut r.theta);
-            std::mem::swap(&mut l.unrestricted, &mut r.unrestricted);
-        }
-        for a in r.theta.members.drain() {
-            if l.theta.insert(a) {
-                l.unrestricted += self.quest_weight(a);
-            } else {
-                self.shared.push(a);
-            }
-        }
+        let Self {
+            forest,
+            inst,
+            observer,
+            shared,
+            ..
+        } = self;
+        l.unite_unrestricted(r, |a| quest_weight(forest, inst, &**observer, a), shared);
     }
 
     /// Returns the sequent both premises of a two-premise rule give
@@ -1007,11 +1014,11 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
                 let o = self.inst.occ(m);
                 self.expect(m, o, Kind::Quest)?;
                 let mut d = self.premise(p)?;
-                if d.theta.remove(self.left(m, o)) {
-                    // Take off the weight the copy added when it put the
-                    // member into the zone.
+                // Take off the weight the copy added when it put the member
+                // into the zone.
+                if d.remove_unrestricted(self.left(m, o), || u64::from(self.observer.weight(m, o)))
+                {
                     facts.used = true;
-                    d.unrestricted -= u64::from(self.observer.weight(m, o));
                 }
                 self.put(&mut d, m);
                 Ok(d)
@@ -1023,9 +1030,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
                 }
                 let mut d = self.premise(p)?;
                 facts.absent[0] = self.take(&mut d, a, 0)?;
-                if d.theta.insert(a) {
-                    d.unrestricted += self.quest_weight(a);
-                } else {
+                if !d.add_unrestricted(a, || self.quest_weight(a)) {
                     facts.used = true;
                 }
                 Ok(d)

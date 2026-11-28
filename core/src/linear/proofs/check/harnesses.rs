@@ -334,6 +334,116 @@ impl Members {
         assert!(state.gamma.len >= lengths.0 && state.gamma.len >= lengths.1);
         Self::assert_exact_or_refused(&state, wanted, sums);
     }
+
+    /// Returns any weight of members of an unrestricted zone besides the
+    /// harness's own: at most 2³² − [`DOMAIN`] of them, each weighing
+    /// less than 2³², so at most their number times 2³² (a shift).
+    fn rest() -> u64 {
+        let others: u64 = kani::any();
+        kani::assume(others <= MEMBERS - DOMAIN as u64);
+        let rest: u64 = kani::any();
+        kani::assume(u128::from(rest) <= u128::from(others) << 32);
+        rest
+    }
+
+    /// Returns a sequent whose unrestricted zone holds the members of
+    /// `shape` and others weighing `rest`, the sum being the sum over the
+    /// set, as it is at every moment. The others are in the sum only, not
+    /// in the table, whose `most` is what it holds; the linear zone is
+    /// empty.
+    fn unrestricted(&self, shape: Shape, rest: u64) -> State {
+        let mut theta = Zone::default();
+        let mut sum = rest;
+        for k in 0..DOMAIN {
+            if shape[k] {
+                theta.insert(Member::new(k as u32));
+                sum += u64::from(self.weights[k]);
+            }
+        }
+        State {
+            theta,
+            gamma: Bag::default(),
+            outputs: 0,
+            linear: 0,
+            unrestricted: sum,
+            goal: 0,
+            any: false,
+        }
+    }
+
+    /// Asserts that the sequent's unrestricted zone holds exactly the
+    /// members of `shape`, with the weight `rest` of the others besides,
+    /// and that its table's `most` is no less than what it holds.
+    fn assert_unrestricted(&self, state: &State, shape: Shape, rest: u64) {
+        assert!(state.theta.most >= state.theta.len());
+        let mut sum = u128::from(rest);
+        for k in 0..DOMAIN {
+            assert!(state.theta.members.contains(&Member::new(k as u32)) == shape[k]);
+            if shape[k] {
+                sum += u128::from(self.weights[k]);
+            }
+        }
+        assert!(u128::from(state.unrestricted) == sum);
+    }
+
+    /// Copies member `k` into an unrestricted zone of `shape` and asserts
+    /// the result.
+    fn copy(shape: Shape, k: usize) {
+        let members = Self::any();
+        let rest = Self::rest();
+        let mut state = members.unrestricted(shape, rest);
+        let added = state.add_unrestricted(Member::new(k as u32), || u64::from(members.weights[k]));
+        assert!(added != shape[k]);
+        let mut wanted = shape;
+        wanted[k] = true;
+        members.assert_unrestricted(&state, wanted, rest);
+    }
+
+    /// Discharges member `k` from an unrestricted zone of `shape` as a `?`
+    /// step does and asserts the result.
+    fn quest(shape: Shape, k: usize) {
+        let members = Self::any();
+        let rest = Self::rest();
+        let mut state = members.unrestricted(shape, rest);
+        let removed =
+            state.remove_unrestricted(Member::new(k as u32), || u64::from(members.weights[k]));
+        assert!(removed == shape[k]);
+        let mut wanted = shape;
+        wanted[k] = false;
+        members.assert_unrestricted(&state, wanted, rest);
+    }
+
+    /// Unites the unrestricted zones of `left` and `right` as `&` does and
+    /// asserts the result: the union, its sum, the members both held noted
+    /// once each, and `right`'s zone emptied. The larger zone (`left` when
+    /// they are as large) has others besides: it is the one not poured,
+    /// whose members the harness need not hold in its table.
+    fn unite_unrestricted(left: Shape, right: Shape) {
+        let members = Self::any();
+        let rest = Self::rest();
+        let size = |shape: Shape| shape.iter().filter(|&&held| held).count();
+        let (ours, theirs) = if size(right) > size(left) {
+            (0, rest)
+        } else {
+            (rest, 0)
+        };
+        let mut state = members.unrestricted(left, ours);
+        let mut other = members.unrestricted(right, theirs);
+        let mut shared = Vec::new();
+        state.unite_unrestricted(
+            &mut other,
+            |m| u64::from(members.weights[m.index()]),
+            &mut shared,
+        );
+        let wanted: Shape = std::array::from_fn(|k| left[k] || right[k]);
+        members.assert_unrestricted(&state, wanted, rest);
+        assert!(other.theta.is_empty());
+        let both = (0..DOMAIN).filter(|&k| left[k] && right[k]).count();
+        assert!(shared.len() == both);
+        for m in shared {
+            assert!(left[m.index()] && right[m.index()]);
+        }
+    }
 }
 
 /// Putting a copy of a member a zone holds keeps its counts and sums
@@ -415,6 +525,77 @@ fn the_sum_of_two_zones_apart_is_counted_or_refused() {
 #[kani::unwind(5)]
 fn the_union_of_two_zones_is_counted_or_refused() {
     Members::unite(FIRST, FIRST);
+}
+
+/// Copying a member into the unrestricted zone adds its weight to the
+/// sum once, when it is new, and never overflows: the zone holds at most
+/// 2³² members of weights below 2³², so the sum stays below 2⁶⁴.
+///
+/// Bound: a zone of one member and others weighing any sum they can,
+/// the new member copied; any weights.
+#[kani::proof]
+#[kani::unwind(5)]
+fn a_new_copy_adds_its_weight() {
+    Members::copy(FIRST, 1);
+}
+
+/// As [`a_new_copy_adds_its_weight`], for a member the zone holds: the
+/// zone and its sum stay as they were.
+///
+/// Bound: a zone of one member and others, that member copied again; any
+/// weights.
+#[kani::proof]
+#[kani::unwind(5)]
+fn a_repeated_copy_adds_nothing() {
+    Members::copy(FIRST, 0);
+}
+
+/// A `?` step that discharges a member of the unrestricted zone takes its
+/// weight off the sum, which counted it, so the sum does not go below
+/// zero.
+///
+/// Bound: a zone of one member and others, that member discharged; any
+/// weights.
+#[kani::proof]
+#[kani::unwind(5)]
+fn a_discharged_member_takes_its_weight() {
+    Members::quest(FIRST, 0);
+}
+
+/// A `?` step whose member the zone lacks changes nothing.
+///
+/// Bound: a zone of one member and others, another member discharged;
+/// any weights.
+#[kani::proof]
+#[kani::unwind(5)]
+fn a_member_unused_is_not_discharged() {
+    Members::quest(FIRST, 1);
+}
+
+/// The union of two unrestricted zones, as `&` makes it, holds both sets,
+/// counts each member's weight once, notes each member both held, and
+/// never overflows.
+///
+/// Bound: two zones of the same one member, the first with others
+/// besides; any weights. Zones of equal size are not swapped first, so
+/// that path is left out: a first zone of one member and a second of both
+/// ran out of 8 GB, and an empty first zone makes the model checker drain
+/// a table never allocated, whose layout it cannot compute.
+#[kani::proof]
+#[kani::unwind(5)]
+fn the_union_of_two_unrestricted_zones_is_counted() {
+    Members::unite_unrestricted(FIRST, FIRST);
+}
+
+/// As [`the_union_of_two_unrestricted_zones_is_counted`], for zones of
+/// two different members, so that the union adds a member.
+///
+/// Bound: zones of one member each, the first with others besides; any
+/// weights.
+#[kani::proof]
+#[kani::unwind(5)]
+fn the_union_of_two_unrestricted_zones_apart_is_counted() {
+    Members::unite_unrestricted(FIRST, SECOND);
 }
 
 /// The nodes a harness's arenas hold.

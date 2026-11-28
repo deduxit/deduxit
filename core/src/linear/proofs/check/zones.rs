@@ -369,6 +369,53 @@ impl State {
         self.any |= other.any;
     }
 
+    /// Adds `m` to the unrestricted zone with `weight`, the weight of its
+    /// `?` formula, and returns whether it was not a member; `weight` is
+    /// asked only then. The sum stays the sum over the set, below 2⁶⁴.
+    #[inline]
+    pub(super) fn add_unrestricted(&mut self, m: Member, weight: impl FnOnce() -> u64) -> bool {
+        if !self.theta.insert(m) {
+            return false;
+        }
+        self.unrestricted += weight();
+        true
+    }
+
+    /// Removes `m` from the unrestricted zone with `weight`, what
+    /// [`add_unrestricted`](Self::add_unrestricted) was given for it, and
+    /// returns whether it was a member; `weight` is asked only then. The
+    /// sum counted `m`, so it does not go below zero.
+    #[inline]
+    pub(super) fn remove_unrestricted(&mut self, m: Member, weight: impl FnOnce() -> u64) -> bool {
+        if !self.theta.remove(m) {
+            return false;
+        }
+        self.unrestricted -= weight();
+        true
+    }
+
+    /// Unites the unrestricted zone of `other` into this one, pouring the
+    /// smaller set into the larger, with `weight` giving a member's as
+    /// [`add_unrestricted`](Self::add_unrestricted) takes it, and pushes
+    /// onto `shared` every member both held. `other`'s zone is left empty.
+    #[inline]
+    pub(super) fn unite_unrestricted(
+        &mut self,
+        other: &mut Self,
+        weight: impl Fn(Member) -> u64,
+        shared: &mut Vec<Member>,
+    ) {
+        if other.theta.len() > self.theta.len() {
+            std::mem::swap(&mut self.theta, &mut other.theta);
+            std::mem::swap(&mut self.unrestricted, &mut other.unrestricted);
+        }
+        for a in other.theta.members.drain() {
+            if !self.add_unrestricted(a, || weight(a)) {
+                shared.push(a);
+            }
+        }
+    }
+
     /// Counts the outputs and the weights of the linear zone anew, after
     /// the zone was replaced. `of` gives a member's weight and whether it
     /// is in output position.

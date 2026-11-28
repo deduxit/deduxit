@@ -247,7 +247,9 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   zones keep the counts, the outputs and both weights exact, or make
   the zone longer than `Bag::MOST`, where `within` refuses it, so a
   count or a sum saturates only there, no subtraction goes below zero,
-  and no count is zero or over the length; and a proof `Proof::new`
+  and no count is zero or over the length; copying into, discharging
+  from and uniting (`&`) unrestricted zones keep the sum the sum over
+  the set, below 2⁶⁴, and the union notes each member both held; and a proof `Proof::new`
   keeps has every premise before its node, the root last and every
   other node read by a later one, so node `i` of `n` has at most `n − i`
   readers. The first three are checked for every value; a put or a take
@@ -257,9 +259,16 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   members, and the swap `Bag::add` makes before pouring the smaller
   table took past ten minutes and are left out); the arenas the one of
   `1`, Mix, Mix with any premises and the root last (a free root ran out
-  of 8 GB). The arithmetic of the pass lives in
-  functions the harnesses call (`State::put`, `remove`, `add_linear`,
-  `recount`, `pass::room`, `table_bytes`): a change of it goes there,
+  of 8 GB); an unrestricted zone of one member with others besides,
+  their weight any the set can have, and the union of it with a zone of
+  the same member or of another (the swap before the pour left out: a
+  zone of one member and one of both ran out of 8 GB, and an empty zone
+  makes CBMC drain a table never allocated, whose layout Kani cannot
+  compute, an undetermined check). The arithmetic of
+  the pass lives in functions the harnesses call (`State::put`,
+  `remove`, `add_linear`, `recount`, `add_unrestricted`,
+  `remove_unrestricted`, `unite_unrestricted`, `pass::room`,
+  `table_bytes`): a change of it goes there,
   so that the harnesses keep checking the code that runs.
 - **What makes a harness tractable for CBMC** (up to ten minutes and
   8 GB each): a member's id is a constant (a symbolic key makes every
