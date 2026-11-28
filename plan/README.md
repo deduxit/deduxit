@@ -9103,3 +9103,20 @@ move (D26).
   Rebased onto `main` alone (87d2's stack waits for its fix); in CI before `main`. fixup-37 in its
   worker, cores 7-9, taking 87e5's held move of the ordinary Rocq writers first, now that
   fixup-33 has left `ordinary/rocq.rs`.
+- 2026-11-28, about 10:15: **fixup-34 reviewed.** fixup-34 (Opus, high; the panel and the reviewer
+  on Opus): the library's first-order default (`ordinary::decide_within`) runs a first attempt of
+  grounding, the connection prover and the embedding within counted budgets, then the model search
+  within 2^25, then the long attempts; no clock, no thread, the order a function of the input. The
+  command takes it whole (its time shares, race and `model_first` gone), as F-7b-05 asked. ILTP's
+  first-order problems at 2 s against 87c9's baseline: no decided verdict flips, the 474 model
+  search refutations all come back, 57 more refutations and 2 more theorems, 76 theorems lost (32
+  of the prover, 42 of the intuitionistic embedding, 2 of grounding: they need more than their first
+  budget, then wait for the model search, whose units count the solver's decisions); decided rows
+  classical 1 290 to 1 271, intuitionistic 859 to 861. Accepted (decided unattended): one
+  deterministic order for the library and the command, the same answer on any machine, at a cost of
+  0.8 % of decided rows at 2 s. Follow-up: a fairer unit for the model search needs batsat's
+  propagation budget (no setter today), which would let the lost theorems through sooner. The
+  panel's one break (the embedding's check held to the budget) fixed. The manual's Kripke example
+  names `--timeout 10s` (a debug build's first attempt takes 6.6 s, a release build's 0.3 s).
+  Stacked on fixup-33 for one CI run. 87e2 (the last of wave E, moves only) in its worker, cores
+  13-15.
