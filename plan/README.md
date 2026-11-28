@@ -9056,3 +9056,15 @@ move (D26).
   equal. (departs from the plan) The ordinary and lambda hot spots (F-4a-06, F-4a-05, F-5a-01) go
   to 87d3. Stacked on 87e3 for one CI run. 87d2 in its worker, cores 4-6; its shims in the nets and
   the MELL drawing wait for 87e6.
+- 2026-11-28, about 09:25: **87e6 reviewed; 87e5 started.** 87e6 (Opus, high; the reviewer on
+  Opus, two sub-agents on Opus for the drawing and the deferred items): `svg::mell::draw` from about
+  1 390 lines to 40 (a `Layout` with a method per pass), the nets' seven long functions at their
+  seams, `serialize/ordinary.rs` in three, and theme E3's idiom (the nets' tests after their code,
+  `midpoint`, the parser's wildcard arms named, the focused engine's lints with reasons, its
+  threaded schedule a module, its sentinel named); `manual_midpoint`, `allow_attributes` and
+  `allow_attributes_without_reason` turned on, no `#[allow(` left in the workspace. Every SVG and
+  JSON byte for byte; both target sets and 87a's connection pin equal; the reviewer's differential
+  of 1 584 drawings and checks identical. (departs from the plan) The drawing's passes landed in one
+  commit, and three focused-engine items in another; the four commits after 87c5 and 87e4 landed
+  were checked by their runs, not by the reviewer. Rebased onto `main` with no conflict; in CI
+  before `main`. 87e5 (moves only) in its worker, cores 10-12; wave E then has only 87e2 left.
