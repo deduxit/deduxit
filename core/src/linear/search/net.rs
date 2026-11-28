@@ -271,15 +271,15 @@ pub(super) fn counts_admit(forest: &Forest, mix: bool) -> bool {
     }
     let conclusions = forest.roots().len() as i64;
     let needed = tensors - pars + 2;
-    if if mix {
-        conclusions < needed
+    // Mix only raises the count of conclusions.
+    let counted = if mix {
+        conclusions >= needed
     } else {
-        conclusions != needed
-    } {
-        return false;
-    }
-    atoms(forest)
-        .all(|a| forest.literals(a, Sign::Atom).len() == forest.literals(a, Sign::Dual).len())
+        conclusions == needed
+    };
+    counted
+        && atoms(forest)
+            .all(|a| forest.literals(a, Sign::Atom).len() == forest.literals(a, Sign::Dual).len())
 }
 
 /// Returns every atom of the forest's sequent.
