@@ -174,6 +174,7 @@ fixup-31	panel	opus-5-5	high	panel (fable, opus, sonnet), reviewer (fable)	local
 87c6	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus), kani	local_0e18a7bf	2026-11-28 01:40	2026-11-28 05:55	the linear data model, proofs and refutations; the checker's arithmetic under Kani
 87c9b	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 02:30	2026-11-28 04:25	the command's one decision with the answer grade reads, the library's first-order default, the flags declared once, one session driver
 fixup-35	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 03:50	2026-11-28 06:10	the TPTP reader takes the four ILTP problems it refused
-87e1	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 04:30		the linear search's front door in five files, moves only
+87e1	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 04:30	2026-11-28 06:35	the linear search's front door in five files, moves only
 87e4	small	opus-5-5	high	reviewer (opus)	local_0e18a7bf	2026-11-28 06:00		the focused engine's first-order zone in four files, its counts per pass, the counts and the bias out of the engine
 87e6	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 06:15		the MELL drawing, the nets' long functions and idiom split, moves only
+87d1	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus), kani	local_f82f76ce	2026-11-28 06:40		the measured hot spots: the linear checker's per-leaf state, the SVG strings, lltp's lines, mist's merge

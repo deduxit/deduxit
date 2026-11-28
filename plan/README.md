@@ -9003,3 +9003,12 @@ move (D26).
   gives the intended statement); agreed (decided unattended). Stacked on 87c6 for one CI run. 87e6
   (the MELL drawing's 1 390-line function, the nets' long functions, idiom; moves only) in its
   worker, cores 10-12; `serialize/ordinary.rs` (F-6a-19) waits for 87c5.
+- 2026-11-28, about 06:40: **87e1 reviewed; 87d1 started.** 87e1 (Opus, high; the reviewer on
+  Opus): `linear/search/mod.rs` from 5 621 lines to 3 086, the outcome, the options, the engine
+  catalogue with its documented table, the dispatch and the engines' interface each in a file of its
+  own, every public path re-exported; both target sets' counters equal to 86, every moved line byte
+  for byte (the reviewer). Its finding for the planning session answered here: the mutation run's
+  `search` batch takes the five new files, and `evidence.md` says so (`smkuzpyz`). Stacked on 87c6
+  and fixup-35 for one CI run. 87d1 (the measured hot spots; the panel and Kani for the linear
+  checker's per-leaf state) in its worker, cores 4-6 (decided unattended: ahead of wave C's end,
+  leaving the ordinary and lambda hot spots until 87c5 lands).
