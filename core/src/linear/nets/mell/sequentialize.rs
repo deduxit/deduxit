@@ -148,20 +148,10 @@ impl Sequentialization<'_> {
     }
 }
 
-impl Assemble for Sequentialization<'_> {
-    type Goal = Vec<u32>;
-
-    fn assembly(&mut self) -> &mut Assembly<Self::Goal> {
-        &mut self.proof
-    }
-
-    /// Runs one stage on the sub-net with the given conclusions. It opens
-    /// the `⅋` and `?` conclusions and the doors. Then it proves the
-    /// sub-net by an axiom, or pushes the steps that prove it: its parts
-    /// with a Mix after each but the first; the contents of its box and the
-    /// promotion; or the two sides of its splitting `⊗` or cut link, and
-    /// the rule after them.
-    fn stage(&mut self, mut gamma: Self::Goal) {
+impl Sequentialization<'_> {
+    /// Opens the `⅋` and `?` conclusions of a sub-net and its doors, in
+    /// place in `gamma`, and leaves their rules to apply below the rest.
+    fn open(&mut self, gamma: &mut Vec<u32>) {
         let net = self.net;
         let graph = &net.graph;
         let n = graph.vertex_offset();
@@ -181,7 +171,7 @@ impl Assemble for Sequentialization<'_> {
                 gamma[i] = NONE;
                 i += 1;
                 self.scratch.delete(c);
-                self.copies(c, &mut gamma, &mut rules);
+                self.copies(c, gamma, &mut rules);
                 continue;
             }
             match net.kind(c) {
@@ -198,7 +188,7 @@ impl Assemble for Sequentialization<'_> {
                     i += 1;
                     self.scratch.delete(c);
                     rules.push(Open::Quest(net.occurrence[c as usize]));
-                    self.copies(c, &mut gamma, &mut rules);
+                    self.copies(c, gamma, &mut rules);
                 }
                 Kind::Atom
                 | Kind::DualAtom
@@ -218,7 +208,96 @@ impl Assemble for Sequentialization<'_> {
         if !rules.is_empty() {
             self.proof.apply(Rule::Opened(rules));
         }
+    }
 
+    /// Leaves the steps that prove a connected sub-net by its splitting
+    /// `⊗` conclusion or cut link: the two sides and the rule after them.
+    fn split(&mut self, gamma: Vec<u32>) {
+        let net = self.net;
+        let graph = &net.graph;
+        let n = graph.vertex_offset();
+        let first_cut = graph.first_cut();
+        // The splitting ⊗ conclusion with the smallest id: one whose
+        // premise edge is a bridge. Else the splitting cut vertex with
+        // the smallest id: one whose edge to its end in a cut formula's
+        // tree is a bridge.
+        let tensor = gamma
+            .iter()
+            .copied()
+            .filter(|&c| c < n && net.kind(c) == Kind::Tensor)
+            .filter(|&c| {
+                let l = net.premises(VertexId::new(c)).next().unwrap().get();
+                self.scratch.is_bridge(c, l)
+            })
+            .min();
+        let cut = || {
+            gamma
+                .iter()
+                .copied()
+                .filter(|&c| c >= first_cut)
+                .filter(|&c| self.scratch.is_bridge(c, graph.cut_ends(c).0))
+                .min()
+        };
+        let (split, l, r) = match tensor {
+            Some(t) => {
+                let mut premises = net.premises(VertexId::new(t));
+                let (l, r) = (
+                    premises.next().unwrap().get(),
+                    premises.next().unwrap().get(),
+                );
+                (t, l, r)
+            }
+            None => {
+                let c = cut().expect(
+                    "a connected proof net that is no link and no box has a splitting ⊗ or \
+                     cut link",
+                );
+                let (a, d) = graph.cut_ends(c);
+                (c, a, d)
+            }
+        };
+        self.scratch.delete(split);
+        graph.search(&mut self.scratch, [l]);
+        let (mut left, mut right) = (vec![l], vec![r]);
+        for &c in &gamma {
+            if c == split {
+                continue;
+            }
+            if self.scratch.reached(c) {
+                left.push(c);
+            } else {
+                right.push(c);
+            }
+        }
+        let occurrence = net.occurrence[l as usize];
+        self.proof.apply(if split < n {
+            Rule::Tensor(net.occurrence[split as usize])
+        } else {
+            Rule::Cut(occurrence)
+        });
+        self.proof.prove(right);
+        self.proof.prove(left);
+    }
+}
+
+impl Assemble for Sequentialization<'_> {
+    type Goal = Vec<u32>;
+
+    fn assembly(&mut self) -> &mut Assembly<Self::Goal> {
+        &mut self.proof
+    }
+
+    /// Runs one stage on the sub-net with the given conclusions. It opens
+    /// the `⅋` and `?` conclusions and the doors. Then it proves the
+    /// sub-net by an axiom, or pushes the steps that prove it: its parts
+    /// with a Mix after each but the first; the contents of its box and the
+    /// promotion; or the two sides of its splitting `⊗` or cut link, and
+    /// the rule after them.
+    fn stage(&mut self, mut gamma: Self::Goal) {
+        self.open(&mut gamma);
+        let net = self.net;
+        let graph = &net.graph;
+        let n = graph.vertex_offset();
         let parts = graph.search(&mut self.scratch, gamma.iter().copied());
         if parts > 1 {
             debug_assert!(net.criterion.mix, "a proof net without Mix is connected");
@@ -251,66 +330,7 @@ impl Assemble for Sequentialization<'_> {
             self.proof.apply(Rule::Bang(net.occurrence[bang as usize]));
             self.proof.prove(contents);
         } else {
-            // The splitting ⊗ conclusion with the smallest id: one whose
-            // premise edge is a bridge. Else the splitting cut vertex with
-            // the smallest id: one whose edge to its end in a cut formula's
-            // tree is a bridge.
-            let tensor = gamma
-                .iter()
-                .copied()
-                .filter(|&c| c < n && net.kind(c) == Kind::Tensor)
-                .filter(|&c| {
-                    let l = net.premises(VertexId::new(c)).next().unwrap().get();
-                    self.scratch.is_bridge(c, l)
-                })
-                .min();
-            let cut = || {
-                gamma
-                    .iter()
-                    .copied()
-                    .filter(|&c| c >= first_cut)
-                    .filter(|&c| self.scratch.is_bridge(c, graph.cut_ends(c).0))
-                    .min()
-            };
-            let (split, l, r) = match tensor {
-                Some(t) => {
-                    let mut premises = net.premises(VertexId::new(t));
-                    let (l, r) = (
-                        premises.next().unwrap().get(),
-                        premises.next().unwrap().get(),
-                    );
-                    (t, l, r)
-                }
-                None => {
-                    let c = cut().expect(
-                        "a connected proof net that is no link and no box has a splitting ⊗ or \
-                         cut link",
-                    );
-                    let (a, d) = graph.cut_ends(c);
-                    (c, a, d)
-                }
-            };
-            self.scratch.delete(split);
-            graph.search(&mut self.scratch, [l]);
-            let (mut left, mut right) = (vec![l], vec![r]);
-            for &c in &gamma {
-                if c == split {
-                    continue;
-                }
-                if self.scratch.reached(c) {
-                    left.push(c);
-                } else {
-                    right.push(c);
-                }
-            }
-            let occurrence = net.occurrence[l as usize];
-            self.proof.apply(if split < n {
-                Rule::Tensor(net.occurrence[split as usize])
-            } else {
-                Rule::Cut(occurrence)
-            });
-            self.proof.prove(right);
-            self.proof.prove(left);
+            self.split(gamma);
         }
     }
 }
