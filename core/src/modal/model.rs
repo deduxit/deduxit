@@ -270,7 +270,7 @@ impl Model {
         }
         // Each world's atoms of the sequent, as sorted indices.
         let formulas = sequent.formulas();
-        let index: std::collections::HashMap<&str, u32> = formulas
+        let index: crate::hash::HashMap<&str, u32> = formulas
             .atom_names()
             .iter()
             .enumerate()

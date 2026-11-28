@@ -27,7 +27,7 @@ use crate::linear::fragment::Mode;
 use crate::linear::occurrences::instances::{eigen_names, meta_name};
 use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
 use crate::linear::sequents::{FoTerm, Kind, Term};
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 /// How large the derivation of a proof is, as
 /// [`Proof::derivation_size`] computes it without building it.
@@ -300,7 +300,7 @@ pub(crate) fn weights(forest: &Forest) -> Vec<u32> {
 fn printed_names(forest: &Forest) -> Vec<u32> {
     let sequent = forest.sequent();
     let symbols: HashSet<&str> = sequent.fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
-    let mut open: HashMap<String, u32> = HashMap::new();
+    let mut open: HashMap<String, u32> = HashMap::default();
     // The open binders' written names, each with the end of its subtree.
     let mut scope: Vec<(usize, String)> = Vec::new();
     let mut printed = vec![0u32; forest.len()];

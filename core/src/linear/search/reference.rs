@@ -41,7 +41,7 @@ use super::generate::Tree;
 use crate::linear::Sequent;
 use crate::linear::fragment::Mode;
 use crate::linear::sequents::{Term, TermId};
-use std::collections::HashMap;
+use crate::hash::HashMap;
 
 /// What the reference found.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,7 +99,7 @@ pub(crate) fn intuitionistic(hypotheses: &[Tree], goal: &Tree, mode: Mode, copie
 pub(crate) fn sequent(sequent: &Sequent, mode: Mode, copies: u32) -> Answer {
     assert!(!mode.intuitionistic, "a one-sided sequent is classical");
     let mut prover = Prover::new(mode);
-    let mut ids = HashMap::new();
+    let mut ids = HashMap::default();
     let mut formulas: Vec<u32> = sequent
         .roots()
         .iter()
@@ -219,11 +219,11 @@ impl Prover {
     fn new(mode: Mode) -> Self {
         Self {
             formulas: Vec::new(),
-            index: HashMap::new(),
+            index: HashMap::default(),
             affine: mode.affine,
             mix: mode.mix,
-            one_sided: HashMap::new(),
-            two_sided: HashMap::new(),
+            one_sided: HashMap::default(),
+            two_sided: HashMap::default(),
             visits: 0,
             gave_up: false,
         }

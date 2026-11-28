@@ -1,6 +1,11 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
+#![expect(
+    clippy::disallowed_types,
+    reason = "an integration test has no access to the crate's own hasher"
+)]
+
 //! Natural deduction's rule files against the ordinary suite. A
 //! derivation in NJ (NK, NM, and their variants) exists exactly where the
 //! ordinary suite says the sequent is valid in intuitionistic (classical,

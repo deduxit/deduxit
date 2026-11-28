@@ -595,7 +595,7 @@ pub(crate) struct Interner<K> {
 
 /// The eigenvariables' names of an arena by number, ascending, and the
 /// same names as a set.
-pub(crate) type EigenNames = (Vec<(u32, String)>, std::collections::HashSet<String>);
+pub(crate) type EigenNames = (Vec<(u32, String)>, crate::hash::HashSet<String>);
 
 impl<K> Default for Interner<K> {
     fn default() -> Self {

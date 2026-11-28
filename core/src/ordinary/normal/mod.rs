@@ -69,7 +69,7 @@ use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::search;
-use std::collections::HashMap;
+use crate::hash::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 mod encode;
@@ -1360,9 +1360,9 @@ fn copy_formulas(
 ) -> Result<Vec<NodeId>, Error> {
     let tables = from.first_order();
     let mut symbols: HashMap<crate::first_order::Symbol, crate::first_order::Symbol> =
-        HashMap::new();
-    let mut terms: HashMap<FoTermId, FoTermId> = HashMap::new();
-    let mut nodes: HashMap<NodeId, NodeId> = HashMap::new();
+        HashMap::default();
+    let mut terms: HashMap<FoTermId, FoTermId> = HashMap::default();
+    let mut nodes: HashMap<NodeId, NodeId> = HashMap::default();
     let mut symbol_in = |to: &mut Formulas,
                          s: crate::first_order::Symbol,
                          predicate: bool|

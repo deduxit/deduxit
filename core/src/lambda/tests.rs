@@ -500,7 +500,7 @@ fn every_rule_reads_back_to_a_term_of_the_sequent() {
         "(a -o c) & (b -o c), a + b |- c",
         "!(a & b) |- a * b",
     ];
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = crate::hash::HashSet::default();
     for text in linear {
         let term = round_trip(&proved(text, Mode::INTUITIONISTIC));
         assert_eq!(term.calculus, Calculus::Linear, "{text}");

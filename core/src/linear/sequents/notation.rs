@@ -233,7 +233,7 @@ pub(crate) struct Scope<'a> {
     /// How many open binders have each name.
     open: HashMap<Cow<'a, str>, u32>,
     /// The sequent's symbol names, filled at the first binder.
-    symbols: Option<std::collections::HashSet<&'a str>>,
+    symbols: Option<crate::hash::HashSet<&'a str>>,
     /// The terms of an instance's frame as written, its innermost
     /// binder's first: what the bound variables the names do not reach
     /// stand for. Empty but for an instance.

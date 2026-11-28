@@ -941,7 +941,7 @@ impl<'a> Canonical<'a> {
 /// skipped, so a sequent of a derivation reads as a sequent with those
 /// eigenvariables as new constants.
 pub(crate) fn eigen_names(fo: &FirstOrder, eigens: &[Eigen]) -> HashMap<Eigen, String> {
-    let taken: std::collections::HashSet<&str> =
+    let taken: crate::hash::HashSet<&str> =
         fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
     let mut names = HashMap::default();
     let mut candidates = (0u64..).map(|n| {

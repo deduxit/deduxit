@@ -791,7 +791,7 @@ fn lifted(maker: &mut impl Maker, t: FoTermId, by: u32) -> Option<FoTermId> {
 /// of `tables`: `a`, `b`, … `z`, then `a_1`, `b_1`, …, each name of a
 /// symbol skipped.
 pub(crate) fn eigen_names(tables: &FirstOrder<NodeId>, count: usize) -> Vec<String> {
-    let taken: std::collections::HashSet<&str> =
+    let taken: crate::hash::HashSet<&str> =
         tables.symbols.iter().map(|(s, _)| s.as_str()).collect();
     (0u64..)
         .map(|n| {
