@@ -9145,3 +9145,14 @@ move (D26).
   part 1). Rebased onto `main`, the changelog's and the report's conflicts resolved by keeping both
   sides; in CI before `main`. fixup-38 (`check` of a first-order `not_valid` resting on the image's
   refutation; the panel) in its worker, cores 7-9.
+- 2026-11-28, about 12:25: **fixup-38 reviewed; fixup-39 started.** The author repeated "unattended"
+  and allowed benchmarks while only this session uses the machine (the baseline night still waits
+  for their word). fixup-38 (Opus, high; the panel and the reviewer on Opus): `check` answers a
+  first-order `not_valid` resting on the image's refutation as unknown, exit 3, as `prove` does; a
+  structure beside an image is not checked for it; the panel's two holes (stripped tables, an untied
+  structure) and the reviewer's nullary-predicate case fixed; 1 360 unedited first-order outcomes and
+  1 560 propositional ones alike in both builds. Its follow-up is a soundness defect of `grade`, on
+  `main` before too: the embedding outcome of `a |- b` with a size-refused countermodel of `a ⊢ a`
+  grades "correct" for `a |- a`, the image's refutation checked untied to the problem
+  (**fixup-39**, started at once in the same worker, cores 7-9; the panel). fixup-38 rebased onto
+  `main`; in CI before `main`.
