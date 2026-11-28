@@ -231,6 +231,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   `--memory-limit` (a linear sequent ignored both, an intuitionistic one
   the memory bound). They now read it within the flags' bounds, as
   `check` does.
+- **A classical countermodel's Rocq certificate could take Rocq hours to
+  check.** The certificate that a sequent is not valid, over `Prop`,
+  ended its proof with `tauto`, whose search grows exponentially with
+  the formula: certificates of sequents with five atoms and about fifty
+  connectives ran out of 8 GB after 35 and 52 minutes. Its statement is unchanged, but
+  the proof now evaluates the formulas under the assignment, one tactic
+  per subformula, and the same certificates check in under 0.2 s. A
+  script that compares a certificate's text sees the new proof.
 - **A classical countermodel's Rocq certificate ignored
   `derivation_bytes`.** `rocq::write_countermodel` in classical logic
   writes the sequent over `Prop`, every formula in full, so a formula

@@ -573,8 +573,9 @@ pub(crate) fn not_valid(
 /// assignment `value` gives its atoms by name: the lemma `options.lemma`
 /// stating `~ (forall a b : Prop, Γ -> Δ)`, with `Γ` and `Δ` written as a
 /// certificate of validity writes them. The proof instantiates every atom
-/// with `True` or `False`, as `value` gives it, and `tauto` decides the
-/// closed formula left. The assignment is checked first: it must make
+/// with `True` or `False`, as `value` gives it, then takes the closed
+/// formula left apart by its value ([`evaluated`]): a step per
+/// subformula, no search. The assignment is checked first: it must make
 /// every hypothesis true and every formula right of `⊢` false. A
 /// standalone certificate starts with `options.prelude` only where one is
 /// given, since it needs no library. With a `limit`, a text estimated past
@@ -684,45 +685,285 @@ fn falsified(
     } else {
         format!(" specialize (H {}).", instances.join(" "))
     };
+    let script = evaluated(sequent, &truth);
     write!(
         out,
-        "Lemma {} : ~ ({statement}).\nProof.\n  intro H.{specialize} tauto.\nQed.",
+        "Lemma {} : ~ ({statement}).\nProof.\n  intro H.{specialize}\n  {script}.\nQed.",
         options.lemma
     )?;
     Ok(())
+}
+
+/// A hypothesis of [`evaluated`]'s script: `H`, the statement with its
+/// atoms instantiated, or `x` and a number.
+#[derive(Clone, Copy)]
+enum Named {
+    /// The statement, `H`.
+    Statement,
+    /// The hypothesis `x` with this number: at most three per formula, so
+    /// a script would pass any memory long before it wraps.
+    Made(u64),
+}
+
+/// What [`evaluated`] writes next.
+enum Piece {
+    /// The text itself.
+    Text(&'static str),
+    /// A hypothesis's name.
+    Name(Named),
+    /// A tactic that proves the formula, true under the assignment.
+    Prove(NodeId),
+    /// A tactic that proves `False` from the hypothesis, which holds the
+    /// formula, false under the assignment.
+    Refute(NodeId, Named),
+}
+
+/// Returns the tactic that proves `False` from `H`, the sequent's
+/// statement with every atom instantiated as `truth` gives it: each
+/// hypothesis proved and applied, then each formula right of `⊢`
+/// refuted. Every formula is taken apart by its value, one step for each
+/// of its subformulas, so the script grows with the statement and Rocq
+/// searches nothing (`tauto` can take more than 8 GB on a statement of
+/// 600 bytes). Rocq's own time still grows faster than the script: each
+/// step works on a hypothesis that holds the rest of its formula. It is
+/// written from a stack of its own, since a formula may be deep.
+fn evaluated(sequent: &Sequent, truth: &[bool]) -> String {
+    use Piece::{Name, Prove, Refute, Text};
+    let formulas = sequent.formulas();
+    let holds = |id: NodeId| truth[id.index()];
+    let mut made: u64 = 0;
+    let mut fresh = || {
+        made += 1;
+        Named::Made(made - 1)
+    };
+    // The statement's spine: each hypothesis proved and applied, then the
+    // disjunction of the formulas right of `⊢`, right-nested, refuted.
+    let mut tasks: Vec<Piece> = Vec::new();
+    let mut held = Named::Statement;
+    for &h in sequent.left() {
+        let next = fresh();
+        tasks.extend([
+            Text("pose proof ("),
+            Name(held),
+            Text(" ltac:("),
+            Prove(h),
+            Text(")) as "),
+            Name(next),
+            Text("; "),
+        ]);
+        held = next;
+    }
+    match sequent.right() {
+        [] => tasks.extend([Text("exact "), Name(held)]),
+        [rest @ .., last] => {
+            for &d in rest {
+                let x = fresh();
+                tasks.extend([
+                    Text("destruct "),
+                    Name(held),
+                    Text(" as ["),
+                    Name(x),
+                    Text(" | "),
+                    Name(x),
+                    Text("]; ["),
+                    Refute(d, x),
+                    Text(" | "),
+                ]);
+                held = x;
+            }
+            tasks.push(Refute(*last, held));
+            tasks.extend(rest.iter().map(|_| Text("]")));
+        }
+    }
+    tasks.reverse();
+    let mut script = String::new();
+    while let Some(task) = tasks.pop() {
+        let next: Vec<Piece> = match task {
+            Text(text) => {
+                script.push_str(text);
+                continue;
+            }
+            Name(Named::Statement) => {
+                script.push('H');
+                continue;
+            }
+            Name(Named::Made(n)) => {
+                write!(script, "x{n}").expect("a string takes the text");
+                continue;
+            }
+            Prove(id) => match formulas.node(id) {
+                Node::Atom(_) | Node::True => vec![Text("exact I")],
+                Node::Not(a) => {
+                    let x = fresh();
+                    vec![Text("intro "), Name(x), Text("; "), Refute(a, x)]
+                }
+                Node::And(a, b) => {
+                    vec![Text("split; ["), Prove(a), Text(" | "), Prove(b), Text("]")]
+                }
+                Node::Or(a, _) if holds(a) => vec![Text("left; "), Prove(a)],
+                Node::Or(_, b) => vec![Text("right; "), Prove(b)],
+                Node::Implies(_, b) if holds(b) => {
+                    let x = fresh();
+                    vec![Text("intro "), Name(x), Text("; "), Prove(b)]
+                }
+                Node::Implies(a, _) => {
+                    let x = fresh();
+                    vec![Text("intro "), Name(x), Text("; exfalso; "), Refute(a, x)]
+                }
+                Node::Iff(a, b) if holds(a) => {
+                    let (x, y) = (fresh(), fresh());
+                    vec![
+                        Text("split; [intro "),
+                        Name(x),
+                        Text("; "),
+                        Prove(b),
+                        Text(" | intro "),
+                        Name(y),
+                        Text("; "),
+                        Prove(a),
+                        Text("]"),
+                    ]
+                }
+                Node::Iff(a, b) => {
+                    let (x, y) = (fresh(), fresh());
+                    vec![
+                        Text("split; [intro "),
+                        Name(x),
+                        Text("; exfalso; "),
+                        Refute(a, x),
+                        Text(" | intro "),
+                        Name(y),
+                        Text("; exfalso; "),
+                        Refute(b, y),
+                        Text("]"),
+                    ]
+                }
+                Node::False => unreachable!("a false formula is refuted, never proved"),
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            },
+            Refute(id, v) => match formulas.node(id) {
+                Node::Atom(_) | Node::False => vec![Text("exact "), Name(v)],
+                Node::Not(a) => vec![Text("apply "), Name(v), Text("; "), Prove(a)],
+                Node::And(a, b) => {
+                    let (x, y) = (fresh(), fresh());
+                    let refuted = if holds(a) { Refute(b, y) } else { Refute(a, x) };
+                    vec![
+                        Text("destruct "),
+                        Name(v),
+                        Text(" as ["),
+                        Name(x),
+                        Text(" "),
+                        Name(y),
+                        Text("]; "),
+                        refuted,
+                    ]
+                }
+                Node::Or(a, b) => {
+                    let x = fresh();
+                    vec![
+                        Text("destruct "),
+                        Name(v),
+                        Text(" as ["),
+                        Name(x),
+                        Text(" | "),
+                        Name(x),
+                        Text("]; ["),
+                        Refute(a, x),
+                        Text(" | "),
+                        Refute(b, x),
+                        Text("]"),
+                    ]
+                }
+                Node::Implies(a, b) => {
+                    let x = fresh();
+                    vec![
+                        Text("pose proof ("),
+                        Name(v),
+                        Text(" ltac:("),
+                        Prove(a),
+                        Text(")) as "),
+                        Name(x),
+                        Text("; "),
+                        Refute(b, x),
+                    ]
+                }
+                Node::Iff(a, b) => {
+                    let (x, y, z) = (fresh(), fresh(), fresh());
+                    // The direction from the true side to the false one.
+                    let (way, from, to) = if holds(a) { (x, a, b) } else { (y, b, a) };
+                    vec![
+                        Text("destruct "),
+                        Name(v),
+                        Text(" as ["),
+                        Name(x),
+                        Text(" "),
+                        Name(y),
+                        Text("]; pose proof ("),
+                        Name(way),
+                        Text(" ltac:("),
+                        Prove(from),
+                        Text(")) as "),
+                        Name(z),
+                        Text("; "),
+                        Refute(to, z),
+                    ]
+                }
+                Node::True => unreachable!("a true formula is proved, never refuted"),
+                Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
+            },
+        };
+        tasks.extend(next.into_iter().rev());
+    }
+    script
 }
 
 /// Returns at least the bytes of [`falsified`]'s text for `sequent`, its
 /// atoms named `atoms`: per formula of the arena, counted from its
 /// operands' (no formula is written twice the same way, so the count of a
 /// shared operand is added at each use), its symbol with its spaces and
-/// two brackets.
+/// two brackets, and the steps of [`evaluated`]'s script that take it
+/// apart, which write at most five names of hypotheses (each `x` and at
+/// most twenty digits) and each operand's steps once.
 fn falsified_bytes(sequent: &Sequent, atoms: &[String], options: &Options) -> u64 {
+    /// A step of the script for one formula, beside its operands' steps:
+    /// the longest, an equivalence refuted, with its five names.
+    const STEP: u64 = 160;
     let formulas = sequent.formulas();
     let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
+    let mut steps: Vec<u64> = Vec::with_capacity(formulas.len());
     for id in 0..formulas.len() {
         let of = |k: NodeId| bytes[k.index()];
-        let b = match formulas.node(NodeId(id as u32)) {
-            Node::Atom(a) => atoms[a as usize].len() as u64,
-            Node::True | Node::False => 5,
+        let (b, s) = match formulas.node(NodeId(id as u32)) {
+            Node::Atom(a) => (atoms[a as usize].len() as u64, STEP),
+            Node::True | Node::False => (5, STEP),
             // `(~ A)`.
-            Node::Not(a) => of(a).saturating_add(4),
+            Node::Not(a) => (
+                of(a).saturating_add(4),
+                steps[a.index()].saturating_add(STEP),
+            ),
             // `(A <-> B)`, the longest symbol.
-            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                of(a).saturating_add(of(b)).saturating_add(7)
-            }
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => (
+                of(a).saturating_add(of(b)).saturating_add(7),
+                steps[a.index()]
+                    .saturating_add(steps[b.index()])
+                    .saturating_add(STEP),
+            ),
             Node::Forall(_) | Node::Exists(_) => unreachable!("{}", crate::ordinary::REFUSED),
         };
         bytes.push(b);
+        steps.push(s);
     }
     // Each formula of the sequent with its separator and the brackets of a
-    // negation; each atom bound and instantiated; the lemma's frame.
+    // negation, and its steps with the spine's that apply or split it;
+    // each atom bound and instantiated; the lemma's frame.
     let sides = sequent
         .left()
         .iter()
         .chain(sequent.right())
         .fold(0u64, |sum, id| {
-            sum.saturating_add(bytes[id.index()]).saturating_add(6)
+            sum.saturating_add(bytes[id.index()])
+                .saturating_add(steps[id.index()])
+                .saturating_add(6 + STEP)
         });
     let names = atoms
         .iter()
@@ -1034,11 +1275,55 @@ mod tests {
     use crate::kripke::{Model, World};
     use crate::{Error, Limits, Refusal};
 
+    /// The certificate that a sequent is not valid stays within the bytes
+    /// estimated for it, on a sequent that proves and refutes every
+    /// connective each way the script can.
+    #[test]
+    fn a_not_valid_certificate_keeps_to_its_estimate() {
+        let mut formulas = Formulas::default();
+        let (p, q) = (
+            formulas.atom("p").expect("an atom"),
+            formulas.atom("q").expect("an atom"),
+        );
+        let mut add = |node| formulas.add(node).expect("a formula");
+        let (t, f) = (add(Node::True), add(Node::False));
+        let hypotheses = vec![
+            p,
+            t,
+            add(Node::Not(q)),
+            add(Node::And(p, t)),
+            add(Node::Or(q, p)),
+            add(Node::Or(p, q)),
+            add(Node::Implies(q, p)),
+            add(Node::Implies(q, q)),
+            add(Node::Iff(p, p)),
+            add(Node::Iff(q, f)),
+        ];
+        let right = vec![
+            q,
+            f,
+            add(Node::Not(p)),
+            add(Node::And(p, q)),
+            add(Node::Or(q, f)),
+            add(Node::Implies(p, q)),
+            add(Node::Iff(p, q)),
+            add(Node::Iff(q, p)),
+        ];
+        let sequent = Sequent::new(formulas, hypotheses, right).expect("a sequent");
+        let options = Options::default();
+        let mut text = String::new();
+        super::falsified(&sequent, |name| name == "p", &options, None, &mut text)
+            .expect("a certificate");
+        let atoms = super::identifiers(sequent.formulas().atom_names(), options.lemma.as_str());
+        let estimate = super::falsified_bytes(&sequent, &atoms, &options);
+        assert!(text.len() as u64 <= estimate, "{} > {estimate}", text.len());
+    }
+
     /// A classical countermodel's certificate writes its formulas out, and
     /// a formula that shares its subformulas doubles its text with each
-    /// level: sixty levels would be a text of exabytes, estimated just
-    /// past `isize::MAX` and below `u64::MAX`, which the bound refuses
-    /// before anything is written, even the largest bound.
+    /// level: sixty levels would be a text of exabytes, estimated past
+    /// `isize::MAX`, which the bound refuses before anything is written,
+    /// even the largest bound.
     #[test]
     fn a_classical_countermodel_keeps_to_the_bound() {
         let mut formulas = Formulas::default();

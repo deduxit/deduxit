@@ -496,9 +496,10 @@ library; a classical one uses the standard library's excluded middle.
 For a sequent that is not valid, where its image's refutation or the SAT
 solver's model is a classical assignment, the certificate is the lemma
 that the formula does not hold for all propositions, proved by
-instantiating the atoms with `True` and `False`. A Kripke countermodel
-of intuitionistic or minimal logic has a certificate of its own
-([A countermodel](#a-countermodel)).
+instantiating the atoms with `True` and `False` and evaluating the
+formulas one step per subformula, so Rocq checks it without a search.
+A Kripke countermodel of intuitionistic or minimal logic has a
+certificate of its own ([A countermodel](#a-countermodel)).
 
 ```console
 $ deduxit prove --logic classical --format rocq 'a \/ ~a'
@@ -511,7 +512,8 @@ $ deduxit prove --logic classical --format rocq 'a -> b, b |- a'
 (* not valid (classical logic by the affine translation into affine MALL, focus engine): the translated sequent is unprovable: the classical reading is false where b is true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology *)
 Lemma certificate : ~ (forall a b : Prop, (a -> b) -> b -> a).
 Proof.
-  intro H. specialize (H False True). tauto.
+  intro H. specialize (H False True).
+  pose proof (H ltac:(intro x2; exact I)) as x0; pose proof (x0 ltac:(exact I)) as x1; exact x1.
 Qed.
 ```
 

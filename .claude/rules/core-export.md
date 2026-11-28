@@ -1045,7 +1045,13 @@ for NanoYalla. What the code relies on:
   assignment that makes every hypothesis true and every formula right of
   `⊢` false is written, as `~ (forall a b : Prop, Γ -> Δ)` with `Γ` and
   `Δ` as the positive certificate states them, proved by `intro H.
-  specialize (H True False …). tauto.`, in LK and LJ alike; otherwise
+  specialize (H True False …).` and then by evaluation (`evaluated`): each
+  hypothesis proved true and each formula right of `⊢` refuted, a tactic
+  per subformula along the values, with no search (`tauto` ran out of
+  8 GB after 35 to 52 minutes on sequents of five atoms and about fifty
+  connectives); Rocq's time still grows faster than the text (each step
+  works on a hypothesis holding the rest of its formula: a right side of
+  3 000 atoms takes about 18 s), in LK and LJ alike; otherwise
   `Unsupported::NotValid`. Snapshots `not_valid_lk.v` and
   `not_valid_lj.v` (compiled by the `rocq` check, beside two the
   command writes).
@@ -1123,7 +1129,7 @@ for NanoYalla. What the code relies on:
   the same way, bottom up and saturating, and the countermodel's
   certificate is refused past `limits.derivation_bytes` before anything
   is written, and under any limit past `isize::MAX`, which no text holds
-  (a doubling of sixty levels is estimated just past it; with
+  (a doubling of sixty levels saturates the estimate at `u64::MAX`; with
   `derivation_bytes` `None` nothing is bounded, the caller's choice)
   (`a_classical_countermodel_keeps_to_the_bound`: sixty levels, under
   1 MiB and under `u64::MAX`; unbounded, a test of forty levels was
