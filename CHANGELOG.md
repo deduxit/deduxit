@@ -215,6 +215,21 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- **`grade` could mark a "not valid" answer to a valid problem
+  correct.** An ordinary outcome's countermodel was held to the
+  problem's sequent, but the outcome was then checked by its translated
+  sequent's refutation, which nothing tied to the problem. With a
+  countermodel too large to check, the outcome of `a |- b` graded
+  "correct" for `a |- a`. `grade` now grades such an answer by its
+  countermodel alone: correct where it refutes the problem, unknown
+  (exit 3) where it is too large to check. The protocol's check of
+  `decides`, which `workspace check` makes, likewise holds a decision's
+  derivation or countermodel to the node's input: evidence of another
+  sequent fails (part `sequent`), and so does a derivation of a logic
+  that proves nothing of the input's (LK for an intuitionistic node).
+  The checks of `linear.prove` and `modal.decide` hold their proof,
+  refutation, derivation or countermodel to the input's sequent and
+  mode or system the same way.
 - **`check` confirmed a first-order "not valid" that `prove` calls
   unknown.** The translation into linear logic may lose a first-order
   proof, so `prove` writes an unprovable image of a first-order sequent

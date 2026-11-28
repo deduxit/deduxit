@@ -12,8 +12,8 @@ use super::promises::{DECIDES, EXACT, PROVES};
 #[cfg(any(feature = "latex", feature = "typst"))]
 use super::shared::Text;
 use super::{
-    Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Produced, Role, Status, Suite,
-    document, object, parameters, written,
+    Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Part, Produced, Role, Status,
+    Suite, document, object, parameters, written,
 };
 use crate::kripke::Model;
 use crate::modal::{self, Evidence, Outcome, Sequent, System, Verdict};
@@ -585,12 +585,30 @@ impl Suite for Modal {
         match promise.name {
             "decides" => {
                 let outcome: Outcome = document(output, limits)?;
-                let status = match (&outcome.verdict, &outcome.countermodel) {
-                    (Verdict::Unknown(_), _) => Status::None,
-                    (Verdict::NotValid, None) => Status::Recorded,
-                    _ => checked("evidence", outcome.check(limits, stop))?.status,
+                // The evidence is held to the input first: an outcome of
+                // another sequent or system says nothing of it, and a
+                // workspace file can claim any output.
+                let (input, system) = statement(call.input(0), limits)?;
+                let sequent = Part {
+                    name: "sequent".to_owned(),
+                    status: if outcome.system == system
+                        && outcome.sequent.to_string() == input.to_string()
+                    {
+                        Status::Held
+                    } else {
+                        Status::Failed
+                    },
+                    verdict: None,
                 };
-                Ok(Check::whole(promise, status))
+                let parts = match (&outcome.verdict, &outcome.countermodel) {
+                    (Verdict::Unknown(_), _) => return Ok(Check::whole(promise, Status::None)),
+                    (Verdict::NotValid, None) if sequent.status == Status::Held => {
+                        return Ok(Check::whole(promise, Status::Recorded));
+                    }
+                    (Verdict::NotValid, None) => vec![sequent],
+                    _ => vec![sequent, checked("evidence", outcome.check(limits, stop))?],
+                };
+                Ok(Check::of(promise, parts))
             }
             "proves" => {
                 let outcome: Outcome = document(call.input(0), limits)?;

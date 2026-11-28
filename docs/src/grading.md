@@ -58,7 +58,10 @@ hypotheses, and none is required.
 
 In ordinary and modal logic a Kripke model answers that a sequent is
 not valid: the model must refute it. `prove` writes one under
-`countermodel` (for modal logic, under `countermodel.model`):
+`countermodel` (for modal logic, under `countermodel.model`). An
+ordinary outcome that says "not valid" is graded by its countermodel,
+which must be of the problem's sequent; one too large to check leaves
+the answer unknown (exit 3):
 
 ```console
 $ echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}], "world": 0}' | deduxit grade --logic intuitionistic "|- a \/ ~a"

@@ -172,6 +172,45 @@ fn grade_reads_each_kind_of_answer() {
     assert_eq!(status, 2, "{err}");
 }
 
+/// A "not valid" answer stands on its countermodel of the problem's
+/// sequent: one too large to check leaves the answer unknown, and the
+/// outcome's image, of a sequent nothing ties to the problem, never makes
+/// it correct (the image of `a |- b` once graded the valid `a |- a`
+/// correct).
+#[test]
+fn a_not_valid_answer_stands_on_its_countermodel() {
+    let (_, outcome, _) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "embedding",
+            "--format",
+            "json",
+            "a |- b",
+        ],
+        "",
+    );
+    let mut outcome: serde_json::Value = serde_json::from_str(&outcome).unwrap();
+    let grade = |problem: &str, answer: &serde_json::Value| {
+        let args = ["grade", "--logic", "classical", "--memory-limit", "64KiB"];
+        deduxit(&[&args[..], &[problem]].concat(), &answer.to_string())
+    };
+    let (status, out, err) = grade("a |- b", &outcome);
+    assert_eq!(status, 0, "{out}{err}");
+    let atoms: Vec<String> = std::iter::once("a".to_owned())
+        .chain((0..5000).map(|k| format!("z{k}")))
+        .collect();
+    outcome["countermodel"] = serde_json::json!({
+        "sequent": {"formulas": [{"V": 0}], "atoms": ["a"], "left": [0], "right": [0]},
+        "model": {"worlds": [{"atoms": atoms}], "world": 0},
+    });
+    let (status, out, err) = grade("a |- a", &outcome);
+    assert_eq!(status, 3, "{out}{err}");
+    assert!(out.starts_with("unknown: the refutation of a ⊢ a"), "{out}");
+}
+
 /// A parse error shows the line it is in with a caret under the character
 /// that cannot go on a sequent. Of a long line it shows the part around
 /// that character, cut between characters, and says which character it

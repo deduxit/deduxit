@@ -87,6 +87,28 @@ pub(super) fn copy(
     copy_as(target, source, roots, parameters, false)
 }
 
+/// Copies the formulas `roots` of `source` into `target`, each
+/// eigenvariable a constant of its own, and returns their ids there:
+/// formulas alike in both arenas get one id, whatever names their printer
+/// would give their binders. `None` where a symbol of `source` is the
+/// target's in another role, so the formulas cannot be the target's.
+///
+/// # Errors
+///
+/// [`Refusal::Index`](crate::Refusal::Index) when the target is full.
+#[cfg(feature = "protocol")]
+pub(crate) fn ids_in(
+    target: &mut Formulas,
+    source: &Formulas,
+    roots: &[NodeId],
+) -> Result<Option<Vec<NodeId>>, Error> {
+    match copy(target, source, Some(roots), &Parameters::Constants) {
+        Ok(copied) => Ok(Some(roots.iter().map(|&n| copied.node(n)).collect())),
+        Err(Error::Symbol { .. }) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
 /// [`copy`], with the target first-order wherever the source is, even
 /// where what is copied holds no binder and no term: each atom then keeps
 /// its predicate, as a normal form's claims read the result's atoms.

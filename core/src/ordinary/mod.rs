@@ -113,7 +113,7 @@ mod table;
 mod tableau;
 /// Formulas copied between arenas: the goal state's search, the normal
 /// forms' claims, the tableau review's expected sequent.
-mod transfer;
+pub(crate) mod transfer;
 mod translate;
 /// The terms that formulas reach, each once.
 mod walk;

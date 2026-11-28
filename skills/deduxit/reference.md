@@ -774,7 +774,9 @@ read from its shape:
   `rules`, `show`, `proof`, `lambda`, `help`, blank lines, `#` comments
   and a Markdown code block's fences are passed over.
 
-A proof or an outcome must be of the problem's sequent, in its logic.
+A proof or an outcome must be of the problem's sequent, in its logic;
+an ordinary outcome that says "not valid" is graded by its countermodel
+of the problem's sequent alone, and one too large to check is unknown.
 The verdict is `correct` (exit 0), `incorrect` (exit 1, also for an
 answer that does not read; for a script, the first line that failed) or
 `unknown` (exit 3, a limit stopped the check, or the answer holds

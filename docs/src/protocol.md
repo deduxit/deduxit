@@ -157,7 +157,7 @@ defaults, its plain name, how its output relates to its inputs once made
 | promise | what it claims | what checking it costs |
 |---|---|---|
 | exact | the output is read off the input | nothing to check |
-| decides | the verdict has evidence deduxit's checker accepts | instant |
+| decides | the verdict has evidence deduxit's checker accepts, of the input's sequent | instant |
 | proves | the proof or derivation proves its sequent | instant |
 | same verdict | input and output are valid together or not | two searches |
 | interpolates | the interpolant's atoms occur in both parts, and both halves are valid | two searches |

@@ -838,7 +838,7 @@ pub(crate) fn check_derivation(
 /// # Errors
 ///
 /// An output that cannot be written.
-fn check_countermodel(
+pub(crate) fn check_countermodel(
     countermodel: &ordinary::Countermodel,
     logic: ordinary::Logic,
     show: &Show,

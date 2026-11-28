@@ -390,6 +390,23 @@ fn document(
                     ));
                 }
             }
+            // A "not valid" answer stands on its countermodel, the evidence
+            // held to the problem above: the outcome's other evidence (an
+            // image's refutation) is of a sequent nothing ties to the
+            // problem, so a countermodel too large to check leaves the
+            // answer unknown, never correct.
+            if let (ordinary::Verdict::NotValid, Some(countermodel)) =
+                (&outcome.verdict, outcome.countermodel.clone())
+            {
+                let logic = outcome.logic;
+                return kept(
+                    move |out| {
+                        check::check_countermodel(&countermodel, logic, &show, true, deadline, out)
+                    },
+                    stack,
+                )
+                .map(|kept| verdict_of("outcome", kept));
+            }
             let (settings, flags) = (settings.clone(), args.mode.clone());
             let held = io::Held::default();
             let sink = io::Sink::Held(held.clone());

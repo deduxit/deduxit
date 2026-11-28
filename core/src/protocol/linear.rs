@@ -9,8 +9,8 @@ use super::ordinary::{FORMATS, Format, checked, term_value};
 use super::promises::{DECIDES, EXACT, PROVES, RENDERS};
 use super::shared::Text;
 use super::{
-    Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Produced, Role, Status, Suite,
-    Verdict, document, kinds, object, parameters, verdict_of, written,
+    Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Part, Produced, Role, Status,
+    Suite, Verdict, document, kinds, object, parameters, verdict_of, written,
 };
 use crate::linear::nets::{Net, net_of_proof};
 use crate::linear::occurrences::reading::Side;
@@ -693,22 +693,48 @@ impl Suite for Linear {
         match promise.name {
             "decides" => {
                 let outcome: Outcome = document(output, limits)?;
-                let status = match &outcome.verdict {
+                // The evidence is held to the input first: a proof or a
+                // refutation of another sequent, or in another mode, says
+                // nothing of it, and a workspace file can claim any output.
+                let (input, mode) = statement(call.input(0), limits)?;
+                let held = |sequent: &crate::linear::Sequent, of_goal: bool| Part {
+                    name: "sequent".to_owned(),
+                    status: if outcome.mode == mode
+                        && !of_goal
+                        && sequent.to_string() == input.to_string()
+                    {
+                        Status::Held
+                    } else {
+                        Status::Failed
+                    },
+                    verdict: None,
+                };
+                let parts = match &outcome.verdict {
                     Found::Proved(proof) => {
                         let checked_proof = proof
                             .check_within(outcome.mode, limits, &mut *stop)
                             .map_err(Error::Check);
-                        checked("proof", checked_proof)?.status
+                        vec![
+                            held(proof.sequent(), proof.goal().is_some()),
+                            checked("proof", checked_proof)?,
+                        ]
                     }
                     Found::Unprovable(disproof) => {
+                        let sequent = held(disproof.sequent(), disproof.goal().is_some());
                         match disproof.check_within(limits, &mut *stop) {
-                            Err(error) if error.code() == "uncertified" => Status::Recorded,
-                            result => checked("refutation", result)?.status,
+                            Err(error) if error.code() == "uncertified" => {
+                                if sequent.status == Status::Failed {
+                                    vec![sequent]
+                                } else {
+                                    return Ok(Check::whole(promise, Status::Recorded));
+                                }
+                            }
+                            result => vec![sequent, checked("refutation", result)?],
                         }
                     }
-                    Found::Unknown(_) => Status::None,
+                    Found::Unknown(_) => return Ok(Check::whole(promise, Status::None)),
                 };
-                Ok(Check::whole(promise, status))
+                Ok(Check::of(promise, parts))
             }
             "proves" if call.operation.name == "linear.net" => {
                 let result = match net_of(output, limits)? {

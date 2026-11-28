@@ -917,7 +917,7 @@ mod promises {
     pub(super) static DECIDES: Promise = Promise {
         name: "decides",
         check: Some(Cost::Instant),
-        description: "A verdict has its evidence, which deduxit's checker accepts: a proof or derivation, a refutation or a countermodel.",
+        description: "A verdict has its evidence, of the input's sequent, which deduxit's checker accepts: a proof or derivation, a refutation or a countermodel.",
     };
 
     /// A proof proves its sequent.

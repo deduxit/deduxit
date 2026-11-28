@@ -1309,7 +1309,7 @@ impl Suite for Ordinary {
             "decides" if call.operation.name == "ordinary.instances" => {
                 instanced(call, output, limits, stop)
             }
-            "decides" => decides(output, limits, stop),
+            "decides" => decides(call, output, limits, stop),
             "proves" => {
                 let derivation: Derivation = document(output, limits)?;
                 let part = checked("derivation", derivation.check(limits, stop))?;
@@ -1855,8 +1855,10 @@ fn resolved(
     Ok(Check::of(promise, parts))
 }
 
-/// Checks a decision's evidence.
+/// Checks a decision's evidence, held to the decision's input: evidence
+/// of another sequent proves or refutes nothing of it (part `sequent`).
 fn decides(
+    call: &Call<'_>,
     output: &str,
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
@@ -1869,36 +1871,129 @@ fn decides(
         return Ok(Check::whole(promise, Status::Recorded));
     }
     let outcome: Outcome = document(output, limits)?;
-    let status = match &outcome.verdict {
+    let (input, logic) = statement(call.input(0), limits)?;
+    let held = |formulas: &ordinary::Formulas,
+                left: &[ordinary::NodeId],
+                right: &[ordinary::NodeId]|
+     -> Result<Part, Error> {
+        let same =
+            outcome.logic == logic && of_input(formulas, left, right, &input, logic, limits)?;
+        Ok(Part {
+            name: "sequent".to_owned(),
+            status: if same { Status::Held } else { Status::Failed },
+            verdict: None,
+        })
+    };
+    let parts = match &outcome.verdict {
         ordinary::Verdict::Valid(ordinary::Evidence::Derivation(derivation)) => {
-            checked("derivation", derivation.check(limits, stop))?.status
+            let (left, right) = derivation.sequent();
+            let mut sequent = held(derivation.formulas(), left, right)?;
+            // A derivation proves its sequent in its own logic, and in the
+            // logics that have more rules: LK proves nothing of LJ.
+            if !proves_in(derivation.logic(), logic) {
+                sequent.status = Status::Failed;
+            }
+            vec![
+                sequent,
+                checked("derivation", derivation.check(limits, stop))?,
+            ]
         }
-        ordinary::Verdict::Valid(_) => Status::Recorded,
+        ordinary::Verdict::Valid(_) => return Ok(Check::whole(promise, Status::Recorded)),
         ordinary::Verdict::NotValid => {
-            match (&outcome.countermodel, &outcome.structure, &outcome.kripke) {
-                (Some(countermodel), _, _) => {
+            let (sequent, part) = match (&outcome.countermodel, &outcome.structure, &outcome.kripke)
+            {
+                (Some(countermodel), _, _) => (
+                    &countermodel.sequent,
                     checked(
                         "countermodel",
                         countermodel.check(outcome.logic, limits, stop),
-                    )?
-                    .status
-                }
-                (None, Some(structure), _) => {
-                    checked("structure", structure.check(outcome.logic, limits, stop))?.status
-                }
-                (None, None, Some(kripke)) => {
+                    )?,
+                ),
+                (None, Some(structure), _) => (
+                    &structure.sequent,
+                    checked("structure", structure.check(outcome.logic, limits, stop))?,
+                ),
+                (None, None, Some(kripke)) => (
+                    &kripke.sequent,
                     checked(
                         "kripke_structure",
                         kripke.check(outcome.logic, limits, stop),
-                    )?
-                    .status
-                }
-                (None, None, None) => Status::Recorded,
-            }
+                    )?,
+                ),
+                (None, None, None) => return Ok(Check::whole(promise, Status::Recorded)),
+            };
+            vec![
+                held(sequent.formulas(), sequent.left(), sequent.right())?,
+                part,
+            ]
         }
-        ordinary::Verdict::Unknown(_) => Status::None,
+        ordinary::Verdict::Unknown(_) => return Ok(Check::whole(promise, Status::None)),
     };
-    Ok(Check::whole(promise, status))
+    Ok(Check::of(promise, parts))
+}
+
+/// Returns whether a derivation of `derivation`'s logic proves a sequent
+/// in `logic`: minimal logic's in every logic, intuitionistic logic's in
+/// classical logic too.
+fn proves_in(derivation: Logic, logic: Logic) -> bool {
+    derivation == logic
+        || matches!(
+            (derivation, logic),
+            (Logic::Minimal, Logic::Intuitionistic | Logic::Classical)
+                | (Logic::Intuitionistic, Logic::Classical)
+        )
+}
+
+/// Returns whether evidence of `left ⊢ right` in `formulas` is of the
+/// sequent `input`, decided in `logic`: each side the input's as a
+/// multiset of formulas, compared in one arena (their texts are not, since
+/// a printer names a binder apart from the eigenvariables of its arena),
+/// where the hypotheses may hold any of the equality axioms the decision
+/// adds to a sequent with `=` (true in every structure, and valid), and
+/// outside classical logic `⊥` may stand for an empty right side.
+fn of_input(
+    formulas: &ordinary::Formulas,
+    left: &[ordinary::NodeId],
+    right: &[ordinary::NodeId],
+    input: &Sequent,
+    logic: Logic,
+    limits: &Limits,
+) -> Result<bool, Error> {
+    let with = ordinary::equality::with_axioms(input, limits)?;
+    let full = with.as_ref().unwrap_or(input);
+    let mut arena = full.formulas().clone();
+    let roots: Vec<ordinary::NodeId> = left.iter().chain(right).copied().collect();
+    let Some(mut ids) = ordinary::transfer::ids_in(&mut arena, formulas, &roots)? else {
+        return Ok(false);
+    };
+    let mut answer_right = ids.split_off(left.len());
+    let mut answer_left = ids;
+    let hypotheses = full.left();
+    let axioms = ordinary::equality::axiom_count(full.formulas(), hypotheses);
+    let (own, pool) = hypotheses.split_at(hypotheses.len() - axioms);
+    // Every hypothesis of the input's own, then each other one an axiom,
+    // each used once.
+    for formula in own {
+        let Some(k) = answer_left.iter().position(|r| r == formula) else {
+            return Ok(false);
+        };
+        answer_left.swap_remove(k);
+    }
+    let mut pool = pool.to_vec();
+    for formula in &answer_left {
+        let Some(k) = pool.iter().position(|a| a == formula) else {
+            return Ok(false);
+        };
+        pool.swap_remove(k);
+    }
+    let mut problem = full.right().to_vec();
+    answer_right.sort_unstable();
+    problem.sort_unstable();
+    if answer_right == problem {
+        return Ok(true);
+    }
+    let bottom = arena.add(ordinary::Node::False)?;
+    Ok(logic != Logic::Classical && problem.is_empty() && answer_right == [bottom])
 }
 
 /// Returns a lambda-term's value, written with the settings' `lambda`.

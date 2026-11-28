@@ -434,7 +434,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   calculus and its assumptions among `--assume`'s. Then `check`'s own
   function runs into a held output (`io::Sink::Held`, `kept`, on the
   large stack), its first line the message; a model is correct where it
-  refutes (`refuted`: `check_model`'s exit 1). A script runs through
+  refutes (`refuted`: `check_model`'s exit 1). An ordinary outcome
+  that says "not valid" is graded by `check_countermodel` on its
+  countermodel, the evidence held to the problem, never by
+  `check_ordinary`, which checks an image's refutation that nothing ties
+  to the problem: a countermodel refused for its size once let the
+  image of `a |- b` grade `a |- a` correct. A script runs through
   `interact::session` with `Input::Script` (`interact`'s defaults built
   by clap, `session_args`, the setting `interactive.invertible` off):
   `close`, `invertible`, `save` and `load` are refused

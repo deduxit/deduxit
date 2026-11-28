@@ -324,6 +324,62 @@ fn a_whole_binding_matches_its_cut_text() {
     assert!(!same(&made("X1 := f(a)"), &[]));
 }
 
+/// A decision's evidence is held to its input: a countermodel or a
+/// derivation of another sequent fails the check, whatever it shows of
+/// its own sequent; the decision of a sequent with `=`, its evidence
+/// holding the equality axioms, holds.
+#[test]
+fn a_decision_s_evidence_is_of_its_input() {
+    use crate::ordinary::Logic::Classical;
+    for (text, other) in [("a |- b", "a |- a"), ("a |- a", "a |- b")] {
+        let (input, other) = (ordinary(text, Classical), ordinary(other, Classical));
+        let decided = ran("ordinary.decide", &[&input], "");
+        assert_eq!(
+            checked("ordinary.decide", &[&input], "", &decided).status,
+            Status::Held,
+            "{text}"
+        );
+        let check = checked("ordinary.decide", &[&other], "", &decided);
+        assert_eq!(check.status, Status::Failed, "{text}");
+        assert!(
+            check
+                .parts
+                .iter()
+                .any(|part| part.name == "sequent" && part.status == Status::Failed),
+            "{text}"
+        );
+    }
+    // The binders' names an eigenvariable of the derivation takes print
+    // apart (`∀a_1`), and the formulas are still the input's.
+    for text in [
+        "p(a), a = b |- p(b)",
+        "forall a. p(a) |- forall a. p(a)",
+        "forall b. q(b) |- exists a. q(a)",
+    ] {
+        let input = ordinary(text, Classical);
+        let decided = ran("ordinary.decide", &[&input], "");
+        assert!(decided.contains("\"valid\""), "{text}: {decided}");
+        assert_eq!(
+            checked("ordinary.decide", &[&input], "", &decided).status,
+            Status::Held,
+            "{text}"
+        );
+    }
+    // LK's derivation of the excluded middle claimed intuitionistic.
+    let input = ordinary("|- a \\/ ~a", crate::ordinary::Logic::Intuitionistic);
+    let classical = ran(
+        "ordinary.decide",
+        &[&ordinary("|- a \\/ ~a", Classical)],
+        "",
+    );
+    let claimed = classical.replacen("\"logic\":\"classical\"", "\"logic\":\"intuitionistic\"", 1);
+    assert_ne!(claimed, classical);
+    assert_eq!(
+        checked("ordinary.decide", &[&input], "", &claimed).status,
+        Status::Failed
+    );
+}
+
 /// A Kripke model of one world with no facts does not refute `⊢ a = a`:
 /// every world reads `=` as identity.
 #[test]
@@ -729,6 +785,45 @@ fn a_proof_that_cuts_an_occurrence_twice_has_a_net_with_boxes() {
         checked("linear.net", &[&proof], "", &net).status,
         Status::Held
     );
+}
+
+/// The linear and modal decisions' evidence is held to the input as the
+/// ordinary one's is: a proof, a refutation, a derivation or a
+/// countermodel of another sequent or system fails the check.
+#[test]
+fn every_decision_s_evidence_is_of_its_input() {
+    let linear = |text: &str| {
+        super::linear::write_statement(&text.parse().unwrap(), crate::linear::Mode::CLASSICAL)
+            .unwrap()
+    };
+    for (text, other) in [("|- a, ~a", "|- a, ~b"), ("|- a, ~b", "|- a, ~a")] {
+        let (input, other) = (linear(text), linear(other));
+        let outcome = ran("linear.prove", &[&input], "");
+        assert_eq!(
+            checked("linear.prove", &[&input], "", &outcome).status,
+            Status::Held,
+            "{text}"
+        );
+        assert_eq!(
+            checked("linear.prove", &[&other], "", &outcome).status,
+            Status::Failed,
+            "{text}"
+        );
+    }
+    let limits = settings().limits;
+    let modal =
+        |text: &str, system: &str| super::statement("modal", text, system, &limits).unwrap();
+    let s4 = ran("modal.decide", &[&modal("[]p |- [][]p", "S4")], "");
+    let k = ran("modal.decide", &[&modal("[]p |- [][]p", "K")], "");
+    for (outcome, other) in [
+        (&s4, modal("[]p |- [][]p", "K")),
+        (&k, modal("p |- p", "K")),
+    ] {
+        assert_eq!(
+            checked("modal.decide", &[&other], "", outcome).status,
+            Status::Failed
+        );
+    }
 }
 
 #[test]

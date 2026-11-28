@@ -43,7 +43,21 @@ workspace graph builds on it.
 - **The check of `decides` re-checks the outcome's evidence**: a
   derivation, a Kripke countermodel, a finite structure, a Kripke model
   with growing domains (`kripke`), each by its own check; only an
-  outcome with none of them is `Recorded`.
+  outcome with none of them is `Recorded`. The evidence is held to the
+  input first (part `sequent`, `of_input`: each side a multiset of
+  formulas, compared as ids after `ordinary::transfer::ids_in` copies
+  the evidence's sides into a copy of the input's arena, since texts
+  differ where a printer names a binder apart from an eigenvariable of
+  the derivation's arena, `∀a_1`; the hypotheses allowed any of the
+  equality axioms the decision adds, `⊥` for an empty right side
+  outside classical logic), and a derivation's own logic must prove in
+  the input's (`proves_in`: an LK derivation claimed intuitionistic
+  passed its own check), since a workspace file can claim any output for
+  a search and the evidence names its own sequent and logic.
+  `linear.prove` and `modal.decide` hold theirs the same way (part
+  `sequent`): the proof's or refutation's sequent written as the input's,
+  not of a goal, in the input's mode; the modal outcome's sequent written
+  as the input's, in its system.
 - **A check never calls a fault what a bound left open**: a promise
   between two verdicts (`same_verdict`) with one side unknown is `Open`,
   the decided side `Held`; only two decided verdicts that differ fail.
