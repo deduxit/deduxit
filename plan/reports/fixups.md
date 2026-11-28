@@ -3266,3 +3266,101 @@ so none met it.
   only turn a first attempt's refused read-back into a verdict, end a
   stopped call sooner, and route `--translation`, which the run does not
   use; so the table stands as a lower bound of the head's verdicts.
+
+## Session fixup-36: a JSON document's atom keys held to the memory bound
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-82-141614` on `lozrkyxm`
+(87e5, stacked on 87d2), cores 10 to 12, in the conversation of 87e5.
+No panel (no check accepts or refuses anything else: the change is a
+refusal at read time). Nothing pushed.
+
+### What the defect is (the brief's premise did not hold)
+
+87c5's integers member found `check --term-limit none --timeout none`
+of a first-order document with a deeply shared term taking time and
+memory doubling per level "after the work refusal". Reproduced with its
+generator (`|- p(t)`, `t = g(t', t')` to depth n, an ordinary outcome
+with a one-element structure): with `--work-limit 1000`, 0.19 s, 0.75 s,
+2.9 s at depths 22, 24, 26. Callgrind at depth 18: 97 % of the time in
+`FirstOrder::atom_key` called from `Tables::read`, the JSON reader. The
+time is in the read, before the check, not after the refusal: the
+reader writes every atom's key as its full text, and `limits.terms` was
+its one bound. Under the defaults it was bounded (the term limit
+refuses depth 30 at once, and with it lifted the 2 s time limit ends
+the read); with both lifted nothing was, not even the memory limit. So
+keeping the refusal's text while cutting the time, as the brief asked,
+was impossible; the planning session chose (A): hold the keys to
+`limits.memory_bytes` where `limits.terms` is none.
+
+### What landed
+
+`nylxknny` "Hold a JSON document's atom keys to the memory bound, and
+read the command's JSON sequents within its flags":
+- `Tables::read` (`core/src/serialize/sequents.rs`): after the term
+  bound, the keys' bytes as written (`FirstOrder::unfolded_bytes` and
+  `applied_bytes`, `first_order.rs`: each name once per term it heads,
+  brackets and separators; the largest term's text beside the atoms')
+  are held to `limits.memory_bytes`, `Refusal::Memory` in `Phase::Read`
+  before any key is written. Applied whatever the term bound (departs
+  from the plan, which said only where `limits.terms` is none): the
+  reviewer showed that a count of terms is no bound on bytes, a 21 KB
+  file whose function symbol has a 10 000-character name passing the
+  default term limit and taking 3.9 GB. At the defaults a document is
+  refused only where its keys alone would pass 1 GiB.
+- The command (`cli/src/io.rs`): `prove`, `seq` and `interact` read a
+  JSON sequent within the settings' `limits.terms` and
+  `limits.memory_bytes` (`Most::memory_bytes`); before, a linear JSON
+  sequent was read within the library's defaults, ignoring
+  `--term-limit` and `--memory-limit`, and an intuitionistic one the
+  memory flag (the reviewer's first finding; departs from the plan, which
+  did not name it, but without it the new refusal could not be raised
+  and `--term-limit none` did nothing there). A reader's memory refusal
+  names `--memory-limit` (`io::refused`, `check`'s `limit_advice`).
+- A test, `a_deep_shared_term_s_keys_are_held_to_memory`
+  (`core/tests/serialize.rs`): depth 40 without a term bound and depth 12
+  with a 1 000-byte name under the default term bound are refused under
+  1 MiB; depths 4 read.
+- The changelog (`[Unreleased]`, Fixed, two lines), `core-sequents.md`
+  (the keys bounded by the term limit and by memory, a stale line on the
+  reader's count corrected), `cli.md` (the JSON sequent's bounds), the
+  manual's `--term-limit` paragraph (`docs/src/options.md`).
+
+### Checks
+
+- The command at the head, release build: depth 30 and 40 under
+  `--term-limit none --timeout none` refused at once (exit 2, naming
+  `--memory-limit`); depth 22 and 26 read and answer as before; the
+  reviewer's witnesses: `prove --file lin22.json --term-limit none
+  --memory-limit 1MiB`, `prove -i` of the ILL form and `seq fragment`
+  refused naming the flag; `prove --file ln26.json --term-limit none`
+  no longer refused at the term limit (refused at the memory bound);
+  `prove -i --file ill30.json --term-limit none --memory-limit none`
+  ends at the time limit; `check lo17.json` (the long name) refused
+  under 1 MiB and at the defaults.
+- The core's `serialize`, `first_order` and `stability` tests; every
+  CLI test (the behaviour lock, README's and the manual's examples);
+  clippy on both crates. `gate` passed at the head (the ratchet's
+  `read-json` 12 279 707 instructions against 12 279 710, every journey
+  within its tolerance).
+
+### The reviewer
+
+fresh-reviewer (Opus 5.5, high), on the first version (the bound only
+under `limits.terms` none, counting terms): the refusal is sound (every
+unfolded term writes at least a byte), every reader goes through
+`Tables::read`, no other path writes keys from a document unbounded,
+the defaults unchanged, every command that reaches `limit_advice` has
+`--memory-limit`. Two findings, both fixed above: the command's
+`prove`, `seq` and `interact` never passed `--term-limit` or
+`--memory-limit` to the JSON readers (so the manual's new sentence was
+false there, and an intuitionistic file could be refused by a bound no
+flag raised); and the count of terms is no bound on the keys' bytes
+(long names). The reviewer runs once; the fixes were checked by the
+runs above, not reviewed again.
+
+### Later candidate
+
+Keying atoms by structure (the symbol and the argument list's id, which
+the interner hash-conses) would make the keys' size the document's and
+need neither bound. Every caller keys atoms by text (`atom_key` has
+nine), so it is a redesign, not a fixup.
