@@ -9068,3 +9068,16 @@ move (D26).
   commit, and three focused-engine items in another; the four commits after 87c5 and 87e4 landed
   were checked by their runs, not by the reviewer. Rebased onto `main` with no conflict; in CI
   before `main`. 87e5 (moves only) in its worker, cores 10-12; wave E then has only 87e2 left.
+- 2026-11-28, about 10:35: **87d2 reviewed; 87d3a started.** 87d2 (Opus, high; the reviewer on
+  Opus): long bodies generic over the stop take a trait object behind a one-line shim (the exports,
+  cut elimination, the rule files' check and the workspace's runs, the modal tableau, the
+  interpolants, the normal form's check), the checker's pass compiled for the pairs it runs, one
+  stop for all 87 calls of the bindings, the crate's hasher in the 15 files that used SipHash with
+  `core/clippy.toml` disallowing std's tables, and the lambda forms read field by field. The crate
+  −2.8 % LLVM lines (`svg::kripke::draw` from 378 copies to 120), the web module −2.7 % at gzip.
+  Both target sets equal. F-5a-07 refuses a field of another kind with the wrong type, that field
+  twice, and the array form no writer makes (decided unattended, in the changelog); names no kind
+  has are still ignored. Rebased onto `main` with no conflict; in CI before `main`. 87d3a (decided
+  unattended: 87d3 divides by suite) takes the linear candidates and 87d2's leftovers in the nets
+  and the MELL drawing; 87d3b (the other suites' candidates, F-4a-06, F-4a-05, F-5a-01) after
+  fixup-34 leaves ordinary logic. F-1c-13 and F-2a-08 (search changes) wait for a decision.
