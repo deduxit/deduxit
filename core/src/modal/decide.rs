@@ -258,6 +258,18 @@ pub fn decide_within(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
+    decided(sequent, options, limits, &mut stop)
+}
+
+/// [`decide_within`] with the stop as a trait object, so that the
+/// tableau and the derivation it emits are compiled once, not once per
+/// caller's closure.
+fn decided(
+    sequent: &Sequent,
+    options: &Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
     let system = options.system;
     let mut search = Search::new(sequent, system, limits);
     let found = search.run(&mut stop);
