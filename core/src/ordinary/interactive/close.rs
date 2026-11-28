@@ -5,9 +5,10 @@
 //! and the derivation found grafted in its place or read for its first
 //! steps.
 
+use super::derivation::estimate;
 use super::expand::premise;
 use super::witness::{arena_terms, implications_from};
-use super::{Closed, Hint, Interactive, Shape, Step, estimate, terms_full};
+use super::{Closed, Hint, Interactive, Shape, Step, terms_full};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;

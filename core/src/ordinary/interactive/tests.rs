@@ -8,8 +8,11 @@ use super::close::{Carry, with_derivation};
 use super::*;
 #[cfg(feature = "serialize")]
 use crate::WitnessFault;
+use crate::linear::proofs::{Structural, ViewOptions};
 use crate::linear::search;
 use crate::linear::search::generate::Rng;
+#[cfg(feature = "serialize")]
+use crate::ordinary::Derivation;
 use crate::ordinary::derivation::check_inference;
 #[cfg(feature = "sat")]
 use crate::ordinary::transfer::{self, Parameters};
