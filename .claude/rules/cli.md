@@ -1321,7 +1321,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   occurrence past it before anything of that size is built (a 30 MB
   text refused at a limit of 1 000 took 2.86 GB when the limit came
   after the parse), `.spec` likewise; a JSON sequent, whose arena is as
-  small as its file, is read whole and `admit` compares
+  small as its file, is read whole within the settings' `limits.terms`
+  and `limits.memory_bytes` (`Most::memory_bytes`; its atoms' keys are
+  written out as it is read: with the library's defaults there,
+  `--term-limit` and `--memory-limit` did nothing) and `admit` compares
   `Sequent::occurrences()` with the limit, refusing with exit status 2
   before anything unfolds, prints or lays out the sequent (a JSON
   sequent of 438 bytes can stand for 67 million occurrences);

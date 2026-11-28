@@ -106,7 +106,9 @@ error: the sequent unfolds to 67108863 subformula occurrences, more than the lim
 `--term-limit` bounds a first-order sequent's terms: the terms its
 atoms' arguments unfold to, which shared terms in JSON can make many
 from a short file, and the entries of a proof's instance table that
-`check` reads:
+`check` reads. A JSON document's atoms are also held to
+`--memory-limit`, since each is written out in full, its symbols'
+names included:
 
 <!-- readme-check: machine -->
 ```console

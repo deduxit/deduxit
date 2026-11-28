@@ -1291,6 +1291,53 @@ fn readers_build_their_sequent_within_the_caller_s_terms() {
     }
 }
 
+/// A sequent whose atoms' keys would pass the memory bound is refused
+/// before any key is written, whatever the bound on terms: `⊢ p(t)` with
+/// `t` shared to depth 40 (2⁴¹ terms unfolded) without a bound on terms,
+/// and at depth 12 under the default bound when `t`'s symbol has a name of
+/// 1 000 bytes (8 191 terms, 8 MB of key). Both read where they fit.
+#[test]
+fn a_deep_shared_term_s_keys_are_held_to_memory() {
+    use deduxit::{Error, Phase, Refusal};
+    let document = |name: &str, depth: u32| {
+        let shared: Vec<String> = (0..depth)
+            .map(|i| format!(r#"{{"F":[0,[{i},{i}]]}}"#))
+            .collect();
+        format!(
+            r#"{{"version":25,"formulas":[{{"V":0}}],"atoms":[{{"P":[2,[{depth}]]}}],"symbols":[["{name}",2],["c",0],["p",1]],"fo":[{{"F":[1,[]]}},{}],"left":[],"right":[0]}}"#,
+            shared.join(",")
+        )
+    };
+    let read = |text: &str, terms: Option<u64>| {
+        let limits = Limits::default()
+            .with_terms(terms)
+            .with_memory_bytes(Some(1 << 20));
+        deduxit::wire::upgrade::<deduxit::ordinary::Sequent, _>(
+            &mut serde_json::Deserializer::from_str(text),
+            &limits,
+        )
+    };
+    let long = "g".repeat(1_000);
+    let default = Limits::default().terms;
+    for refused in [
+        read(&document("g", 40), None),
+        read(&document(&long, 12), default),
+    ] {
+        assert!(
+            matches!(
+                refused,
+                Err(Error::Refused(Refusal::Memory {
+                    phase: Phase::Read,
+                    ..
+                }))
+            ),
+            "{refused:?}"
+        );
+    }
+    assert!(read(&document("g", 4), None).is_ok());
+    assert!(read(&document(&long, 4), default).is_ok());
+}
+
 /// An outcome naming an engine this build does not know is read, its
 /// engine `Unknown`, and written back with the name it was read with.
 #[test]

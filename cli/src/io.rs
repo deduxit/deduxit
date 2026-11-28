@@ -4,7 +4,6 @@
 use crate::argument_parsing::{InputFormat, SequentInput};
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::ordinary::Image;
-use deduxit::wire::Within;
 use deduxit::{
     Limits,
     linear::{
@@ -12,7 +11,6 @@ use deduxit::{
         Written,
     },
 };
-use serde::de::DeserializeSeed;
 use std::fs;
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
@@ -389,8 +387,11 @@ pub(crate) fn sequent_in(
     // The text of an intuitionistic sequent of the commutative order is
     // read in the syntax the options name, JSON as either form.
     let intuitionistic = mode.is_intuitionistic() && order == Order::Commutative;
-    let unbounded = Limits::default().with_occurrences(None);
     let within = bound(most);
+    // A JSON sequent is read within the terms and memory the settings
+    // give (its atoms' keys are written out as it is read), its
+    // occurrences counted by `admit` after.
+    let json = within.with_memory_bytes(most.memory_bytes);
     let refused = |error| refused(error, most);
     if order != Order::Commutative && matches!(format, InputFormat::Lltp | InputFormat::Spec) {
         bail!("the cyclic mode reads a sequent as text or JSON, not as an LLTP or .spec problem");
@@ -401,7 +402,7 @@ pub(crate) fn sequent_in(
             // Read within the bound: the reading builds the forest. The
             // library's error says what refused it; a refusal gets the flag
             // that raises the bound.
-            let sequent = match deduxit::wire::upgrade::<IllSequent, _>(&mut document, &within) {
+            let sequent = match deduxit::wire::upgrade::<IllSequent, _>(&mut document, &json) {
                 Ok(sequent) => sequent,
                 Err(error @ deduxit::Error::Refused(_)) => return Err(refused(error)),
                 Err(error) => {
@@ -417,10 +418,21 @@ pub(crate) fn sequent_in(
         }
         InputFormat::Json => {
             let mut document = serde_json::Deserializer::from_str(text);
-            let sequent = Within::<Sequent>::new(&unbounded)
-                .deserialize(&mut document)
-                .and_then(|sequent| document.end().map(|()| sequent));
-            sequent.context("not a sequent in JSON")
+            let sequent = match deduxit::wire::upgrade::<Sequent, _>(
+                &mut document,
+                &json.with_occurrences(None),
+            ) {
+                Ok(sequent) => sequent,
+                Err(error @ deduxit::Error::Refused(_)) => return Err(refused(error)),
+                Err(deduxit::Error::Json { message, .. }) => {
+                    return Err(anyhow!(message).context("not a sequent in JSON"));
+                }
+                Err(error) => {
+                    return Err(anyhow::Error::from(error).context("not a sequent in JSON"));
+                }
+            };
+            document.end().context("not a sequent in JSON")?;
+            Ok(sequent)
         }
         // The library's error says that the text is no LLTP problem.
         InputFormat::Lltp => Ok(deduxit::linear::lltp::read(text, &within)
@@ -518,19 +530,26 @@ pub(crate) fn refused(error: deduxit::Error, most: Most) -> anyhow::Error {
         deduxit::Error::Refused(deduxit::limits::Refusal::Terms { .. }) => {
             crate::Explained::error(format!("{error}; raise it with --term-limit"), error)
         }
+        deduxit::Error::Refused(deduxit::limits::Refusal::Memory { .. }) => {
+            crate::Explained::error(format!("{error}; raise it with --memory-limit"), error)
+        }
         error => error.into(),
     }
 }
 
 /// The bounds a sequent is read within: the most occurrences
-/// (`--occurrence-limit`, `limits.occurrences`) and the most first-order
-/// terms (`--term-limit`, `limits.terms`, `None` for any number).
+/// (`--occurrence-limit`, `limits.occurrences`), the most first-order
+/// terms (`--term-limit`, `limits.terms`, `None` for any number) and the
+/// memory a JSON sequent's atoms take.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Most {
     /// The most subformula occurrences.
     pub(crate) occurrences: u64,
     /// The most first-order terms the atoms unfold to.
     pub(crate) terms: Option<u64>,
+    /// The memory a JSON sequent's atoms may take as they are read
+    /// (`--memory-limit`, `limits.memory_bytes`, `None` for any).
+    pub(crate) memory_bytes: Option<u64>,
 }
 
 impl Most {
@@ -539,6 +558,7 @@ impl Most {
         Self {
             occurrences: limits.occurrences.unwrap_or(u64::MAX),
             terms: limits.terms,
+            memory_bytes: limits.memory_bytes,
         }
     }
 }
@@ -730,6 +750,7 @@ impl SequentInput {
         Most {
             occurrences: self.occurrence_limit.0.unwrap_or(u64::MAX),
             terms: self.term_limit.0,
+            memory_bytes: Limits::default().memory_bytes,
         }
     }
 

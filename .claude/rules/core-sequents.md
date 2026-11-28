@@ -439,8 +439,9 @@ names and binders alone as names with its binders (so `fo.atoms` empty
 and `fo.binders` not is a state a JSON document can hold, never a
 parsed one), checks the tables (`FirstOrder::check`, then
 `Sequent::check` with the scope pass), counts the terms every atom
-unfolds to against `limits.occurrences` (shared terms could name a key
-of exponential length) and computes every atom's key;
+unfolds to against `limits.terms` and the keys' bytes against
+`limits.memory_bytes` (shared terms could name a key of exponential
+length), and computes every atom's key;
 `core/tests/wire/level-7.txt` pins a one-sided, a ground and an
 intuitionistic document. The `read-text`, `read-json` and the render
 journeys of the ratchet are within 2 % of their ceilings only with the
@@ -655,6 +656,17 @@ the commit that lands it rewrites that bullet.
   unchanged), the JSON sequent reader before any key is built, and a
   proof's instance table by its entries. 42a's readers counted against
   `limits.occurrences`; the refusal is now `Refusal::Terms`.
+- **The JSON reader's keys are bounded by the term limit and by memory**
+  (`Tables::read`): after `limits.terms`, the keys' bytes as written
+  (`FirstOrder::unfolded_bytes`, `applied_bytes`: every name once per
+  term it heads, brackets and separators, the largest term's text
+  beside the atoms') are held to `limits.memory_bytes`,
+  `Refusal::Memory` in `Phase::Read` before any key is written. A count
+  of terms alone is no bound on bytes: a symbol named with 10 000
+  characters made 3.9 GB of keys within the default bounds. Keying atoms
+  by structure (symbol and argument list ids, which the interner
+  hash-conses) would need neither bound; it is a later candidate, since
+  every caller keys atoms by text.
 - `FoTerm::Eigen` exists only in a proof's extension: no reader of a
   sequent makes one (the JSON reader refuses `{"E": k}` in a sequent),
   so `FirstOrder::write` takes it as unreachable.

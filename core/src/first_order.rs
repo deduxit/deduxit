@@ -383,6 +383,42 @@ impl<K> FirstOrder<K> {
         unfolded
     }
 
+    /// Returns, per term of the arena, the bytes of its text written out
+    /// as a tree, as an atom's key writes it, saturating.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn unfolded_bytes(&self) -> Vec<u64> {
+        let mut bytes = vec![0u64; self.terms.len()];
+        for (n, term) in self.terms.iter().enumerate() {
+            bytes[n] = match *term {
+                FoTerm::App(f, args) => self.applied_bytes(f, args, &bytes),
+                variable => {
+                    let mut text = String::new();
+                    canonical(&mut text, variable).expect("a string takes any text");
+                    text.len() as u64
+                }
+            };
+        }
+        bytes
+    }
+
+    /// Returns the bytes of `symbol` applied to `args` written out, given
+    /// each term's bytes ([`unfolded_bytes`](Self::unfolded_bytes)),
+    /// saturating: the name, and for arguments their brackets and the
+    /// separators between them.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn applied_bytes(&self, symbol: Symbol, args: Args, bytes: &[u64]) -> u64 {
+        let list = self.list(args);
+        let name = self.symbols[symbol.index()].0.len() as u64;
+        if list.is_empty() {
+            return name;
+        }
+        // Two brackets and a separator between each two arguments: two
+        // bytes per argument.
+        list.iter().fold(name, |sum, t| {
+            sum.saturating_add(bytes[t.index()]).saturating_add(2)
+        })
+    }
+
     /// Returns, per term of the arena, how many binders it needs above it:
     /// one more than its largest bound index, and `0` for a ground term.
     pub(crate) fn loose(&self) -> Vec<u32> {

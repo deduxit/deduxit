@@ -416,9 +416,13 @@ pub(crate) fn read_document(text: &str, limits: &Limits) -> Result<Document> {
 /// Returns a reader's refusal at a limit with the flag that raises it,
 /// or the error back where it is none.
 fn limit_advice(error: Error) -> std::result::Result<anyhow::Error, Error> {
-    // Only the occurrence and term bounds have flags: the width of the
+    // Only the occurrence, term and memory bounds have flags (memory
+    // holds the atoms' keys where terms are unbounded): the width of the
     // representation's indices is no setting.
-    let flag = crate::settings::raise(error.setting(), &["limits.occurrences", "limits.terms"]);
+    let flag = crate::settings::raise(
+        error.setting(),
+        &["limits.occurrences", "limits.terms", "limits.memory_bytes"],
+    );
     match error.setting() {
         _ if !flag.is_empty() => Ok(anyhow!("{error}{flag}")),
         _ if error.kind() == ErrorKind::Limit => Ok(error.into()),

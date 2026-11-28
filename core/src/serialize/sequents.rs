@@ -259,7 +259,8 @@ impl Tables {
     ///
     /// The tables are checked (`FirstOrder::check`) before a key is built,
     /// and the terms every atom unfolds to are counted against
-    /// `limits.terms` first. The terms are shared, so a short document
+    /// `limits.terms` first, and the keys' bytes against
+    /// `limits.memory_bytes`. The terms are shared, so a short document
     /// could name a key of exponential length.
     pub(super) fn read<K: Copy + Ord>(
         self,
@@ -374,6 +375,27 @@ impl Tables {
             && terms > limit
         {
             return Err(crate::Error::Refused(Refusal::Terms { terms, limit }));
+        }
+        // The keys are held in memory whatever the bound on terms: a
+        // symbol's name is written once per term it heads, so a long one
+        // makes keys far longer than their count of terms.
+        let bytes = tables.unfolded_bytes();
+        let largest = bytes.iter().copied().max().unwrap_or(0);
+        let keys = tables
+            .atoms
+            .iter()
+            .fold(0u64, |sum, &(p, args)| {
+                sum.saturating_add(tables.applied_bytes(p, args, &bytes))
+            })
+            .max(largest);
+        if let Some(limit_bytes) = limits.memory_bytes
+            && keys > limit_bytes
+        {
+            return Err(crate::Error::Refused(Refusal::Memory {
+                phase: crate::limits::Phase::Read,
+                limit_bytes,
+                needed_bytes: None,
+            }));
         }
         for &(p, args) in &tables.atoms {
             names.push(tables.atom_key(p, args));

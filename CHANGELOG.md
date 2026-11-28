@@ -215,6 +215,22 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Fixed
 
+- **A JSON document's atoms were read past the memory bound.** A reader
+  writes each atom's text in full, and terms that share their parts can
+  make that text twice as long with each level of a short file.
+  `--term-limit` counts the terms, but not their names' length, and
+  `--term-limit none` lifted all bounds. Now the text's bytes are held
+  to the memory bound too (`limits.memory_bytes`), and a document past
+  it is refused before anything is written, naming `--memory-limit`.
+  Before, a 30-level file read under `--term-limit none --timeout none`
+  took 29 s and gigabytes before `check` could answer, and a 21 KB file
+  whose function symbol has a long name took 3.9 GB within the default
+  bounds.
+- **`prove`, `seq` and `interact` read a JSON sequent within the
+  library's default bounds**, ignoring `--term-limit` and
+  `--memory-limit` (a linear sequent ignored both, an intuitionistic one
+  the memory bound). They now read it within the flags' bounds, as
+  `check` does.
 - **A classical countermodel's Rocq certificate ignored
   `derivation_bytes`.** `rocq::write_countermodel` in classical logic
   writes the sequent over `Prop`, every formula in full, so a formula
