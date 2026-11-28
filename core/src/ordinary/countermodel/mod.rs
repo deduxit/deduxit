@@ -5,6 +5,23 @@
 //! joined by arrows to the worlds above them, each forcing some atoms)
 //! against an ordinary sequent: whether it is a model of the logic, what
 //! each world forces, and whether the sequent holds or fails there.
+//!
+//! Beside it, the countermodels of first-order sequents and their checks:
+//! the finite structure (`finite`) and the Kripke model with growing
+//! domains (`kripke`). The searches that find them are elsewhere
+//! (`ordinary::models`, `ordinary::sat`, grounding); these checks are what
+//! a "not valid" rests on.
+
+/// Finite structures, the countermodels of first-order sequents.
+mod finite;
+/// Kripke models of first-order sequents with growing domains.
+mod kripke;
+/// One world's reading of a first-order sequent, which the two checks
+/// share.
+mod semantics;
+
+pub use finite::{Evaluation, FiniteCountermodel, Structure};
+pub use kripke::{KripkeCountermodel, KripkeStructure, KripkeWorld};
 
 use super::{Logic, Node, NodeId, Sequent};
 use crate::Error;

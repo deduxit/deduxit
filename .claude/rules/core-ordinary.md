@@ -33,16 +33,22 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `connection/` (public): the connection prover of classical logic,
-  below; `equality.rs` (public): equality as axioms, below; `grounding.rs` (public, behind `sat`) and `structure.rs`: the
-  decidable classes and the finite structure, below; `models.rs`
-  (public, behind `sat`): the finite model search, below; `decide.rs`: `decide`, translation, search, read-back and check in one
+  below; `equality.rs` (public): equality as axioms, below; `grounding.rs` (public, behind `sat`): the
+  decidable classes, below; `countermodel/` (private, its types
+  re-exported at `ordinary::`): the countermodels and the checks a "not
+  valid" rests on, `mod.rs` the check of a Kripke model
+  (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
+  `MODEL_CELLS`), `finite.rs` the finite structure, `kripke.rs` the
+  Kripke model with growing domains and `semantics.rs` what the two
+  share, below; `models/` (public as `ordinary::models`, behind `sat`):
+  the untrusted searches, `mod.rs` the driver, `finite.rs` the
+  expansion, `kripke.rs` the Kripke models' sequent and `encode.rs` the
+  writer core they and grounding share, below; `decide.rs`: `decide`, translation, search, read-back and check in one
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
   `export::rocq::ordinary`, and a countermodel's
-  (`export::rocq::write_countermodel`, core-export.md); `model.rs`: the check of a Kripke model
-  (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
-  `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
+  (`export::rocq::write_countermodel`, core-export.md); `negative.rs` and `interpolant.rs`: the
   transformations, below; `normal/`: the normal forms, below (`mod.rs` the
   types, the claims and their check, `laws.rs` the stages, laws and
   passes, `first_order.rs` the quantifier laws and Skolem's and
@@ -1166,7 +1172,7 @@ the characters and T-string unification, `prove.rs` the prefixes as a
   first-order problems in intuitionistic logic at 2 s beside the
   embedding.
 
-## Grounding (`grounding.rs`, `structure.rs`)
+## Grounding (`grounding.rs`, `countermodel/finite.rs`)
 
 The Bernays–Schönfinkel and the monadic class decided by grounding over
 the constants and the SAT solver (`plan/notes/first-order-search-design.md`
@@ -1236,7 +1242,7 @@ the clausal proof's checker is the trust for "valid".
   (classical validity says nothing there), which the default gives way
   on. **Not valid in every logic**: a classical structure is a one-world
   Kripke model, and refuting classically refutes in the weaker logics.
-- **"Not valid" is a `FiniteCountermodel`** (`structure.rs`: the sequent
+- **"Not valid" is a `FiniteCountermodel`** (`countermodel/finite.rs`: the sequent
   and a `Structure`: `size`, `constants` by name, `predicates` by name
   with their tuples), read off the solver's checked one-world model
   (`structure_of`) and checked by `FiniteCountermodel::check` before
@@ -1321,7 +1327,7 @@ the clausal proof's checker is the trust for "valid".
   table's length, base the size or 2), the first 64 (`SHOWN`) and a
   count of the rest, predicates' tuples likewise.
 
-## The finite model search (`models.rs`, behind `sat`)
+## The finite model search (`models/`, behind `sat`)
 
 MACE's and Paradox's method (the design is
 `plan/notes/first-order-countermodels-design.md` §3), public as
@@ -1363,11 +1369,11 @@ MACE's and Paradox's method (the design is
   size without a model proves nothing), the solver given the memory
   bound less the expansion's estimate. Past the bound: `Reason::ModelSize { size }`
   (`search.model_size`); `None` deepens until the stop.
-- **One writer core for the two model searches** (`encode.rs`, behind
+- **One writer core for the two model searches** (`models/encode.rs`, behind
   `sat`): `Core` (the arena, the bytes held, `limits.occurrences` and
   the memory bound, the steps; `tick_by`, the numbered atom `m_N` or
   `k_N`, `junction`), `over_tuples` and `Denotes` over a `Writes`
-  (`models::Writer`, `kripke_search::Writer`), and `lookup` of a
+  (the `Writer`s of `models/finite.rs` and `models/kripke.rs`), and `lookup` of a
   variable's element by name, which grounding shares (the Kripke search
   binds by de Bruijn index and keeps its own). The operations and their
   order are the copies' they replaced, so the statistics (`atoms`,
@@ -1434,7 +1440,7 @@ MACE's and Paradox's method (the design is
   last size's atoms and formulas, the solver's statistics), written at
   level 26.
 
-## Kripke models with growing domains (`kripke_structure.rs`, `kripke_search.rs`)
+## Kripke models with growing domains (`countermodel/kripke.rs`, `models/kripke.rs`)
 
 The countermodels of intuitionistic and minimal logic at first order
 (design §6, §7 and §10). The check is the trust; the search behind
@@ -1466,7 +1472,7 @@ The countermodels of intuitionistic and minimal logic at first order
   it refuses a model with worlds above the refuted one; with nothing
   right of `⊢` it refuses `falsity` at the refuted world (minimal
   logic's `⊥`). A test runs it beside `Structure::refutes` on one world.
-- **One reading of terms and atoms for both checks** (`semantics.rs`):
+- **One reading of terms and atoms for both checks** (`countermodel/semantics.rs`):
   `Interpretation` (a world's size, the constants' elements, its function
   tables, its predicates) reads a term on its own stack, each application
   `1 + arity` units, and an atom with `=` as identity, the one place that
@@ -1480,7 +1486,7 @@ The countermodels of intuitionistic and minimal logic at first order
   the bound are what they were. Running the finite check as a one-world
   Kripke model would move those counts (ILTP's NLP problems meet 2²⁶), so
   it is not done.
-- **The search** (`kripke_search::write`, called by `models::kripke`):
+- **The search** (`models/kripke.rs`'s `write`, called by `models::kripke`):
   per (K worlds, N elements) one propositional sequent over the
   original formula (forcing has no negation normal form): `le(v, u)` for
   `v < u` (transitive, the root below all: any finite rooted poset has
@@ -1536,7 +1542,7 @@ intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts
 `Method::Sat` (`sat`), intuitionistic and minimal logic; classical logic
 below. `mod.rs` the
 clauses and the loop, `solver.rs` the trait over batsat, `read_back.rs`
-the derivation; the model's check is `ordinary/model.rs`. Its search,
+the derivation; the model's check is `ordinary/countermodel/mod.rs`. Its search,
 read-back and model are untrusted: the checker and `Model::refutes` are
 the trust.
 
@@ -1619,7 +1625,7 @@ the trust.
   The embedding's model (`Image::countermodel`) is also dropped where
   the stop ends its check, and the classical default takes the solver's
   where the embedding's refutation is not an assignment.
-- **The check** (`model.rs`): `Model::forcing` checks the model is one of
+- **The check** (`countermodel/mod.rs`): `Model::forcing` checks the model is one of
   the logic (the model's world among its worlds, arrows to worlds of the
   model and none round: Kahn's order on the arrows, a world after every
   world above it; atoms and `falsity` growing along every arrow, by

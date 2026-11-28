@@ -28,12 +28,11 @@
 //! right of `⊢`. The model read off is the caller's to check.
 
 use super::encode::{Core, Denotes, Writes, over_tuples};
-use super::kripke_structure::{KripkeStructure, KripkeWorld};
-use super::{Logic, Node, NodeId, Sequent};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::ordinary::{KripkeStructure, KripkeWorld, Logic, Node, NodeId, Sequent};
 
 /// No index.
 const NONE: u32 = u32::MAX;

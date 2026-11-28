@@ -69,13 +69,14 @@ mod branch;
 /// What moving or removing a binder does to de Bruijn indices.
 mod bruijn;
 pub mod connection;
+/// The countermodels and their checks: a Kripke model of a propositional
+/// sequent, a finite structure and a Kripke model with growing domains of a
+/// first-order one.
+mod countermodel;
 /// Deciding an ordinary sequent in one call.
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
-/// What the SAT encodings of first-order models share.
-#[cfg(feature = "sat")]
-mod encode;
 pub mod equality;
 #[cfg(feature = "sat")]
 pub mod grounding;
@@ -90,14 +91,7 @@ pub mod interpolant;
 /// The invertible rules of LK and LJ, applied by the goal state.
 #[cfg(feature = "interactive")]
 mod invert;
-/// The propositional sequent of a Kripke model's search.
-#[cfg(feature = "sat")]
-mod kripke_search;
-/// Kripke models of first-order sequents with growing domains.
-mod kripke_structure;
 pub mod ljt;
-/// The check of a Kripke model.
-mod model;
 #[cfg(feature = "sat")]
 pub mod models;
 pub mod negative;
@@ -115,11 +109,6 @@ pub(crate) mod rocq;
 pub(crate) mod rocq_models;
 #[cfg(feature = "sat")]
 pub mod sat;
-/// One world's reading of a first-order sequent, which the countermodels'
-/// checks share.
-mod semantics;
-/// Finite structures, the countermodels of first-order sequents.
-mod structure;
 /// The translations into linear logic.
 mod table;
 #[cfg(feature = "interactive")]
@@ -134,6 +123,10 @@ mod walk;
 #[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
 mod written;
 
+pub use countermodel::{
+    Countermodel, Evaluation, FiniteCountermodel, Forcing, KripkeCountermodel, KripkeStructure,
+    KripkeWorld, MODEL_CELLS, Structure,
+};
 pub use decide::{
     EVIDENCE_WORK, Evidence, Outcome, Search, Verdict, decide, decide_within, gives_way,
 };
@@ -145,11 +138,8 @@ pub use interactive::{
     Applicable, BindingFault, Candidate, Closed, Context, Hint, Interactive, Needs, Status, Step,
     StepError,
 };
-pub use kripke_structure::{KripkeCountermodel, KripkeStructure, KripkeWorld};
-pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp, tptp_text};
-pub use structure::{Evaluation, FiniteCountermodel, Structure};
 pub use table::{TruthTable, truth_table};
 #[cfg(feature = "interactive")]
 pub use tableau::{End, Sign, Signed, Tableau, TableauNode};

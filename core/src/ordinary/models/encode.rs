@@ -8,10 +8,10 @@
 //! finite model search and the Kripke model search each hold a `Core`;
 //! grounding shares the lookup.
 
-use super::grounding::{ATOM_BYTES, NODE_BYTES, poll_by};
-use super::{Formulas, Node, NodeId};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::ordinary::grounding::{ATOM_BYTES, NODE_BYTES, poll_by};
+use crate::ordinary::{Formulas, Node, NodeId};
 
 /// The end of a chain of bindings.
 const NONE: u32 = u32::MAX;
@@ -170,7 +170,7 @@ pub(super) fn over_tuples<W: Writes>(
 
 /// Returns the element bound to the variable `x` in the bindings from `at`
 /// back, each a variable, its element and the binding before it.
-pub(super) fn lookup(bindings: &[(u32, u32, u32)], mut at: u32, x: u32) -> u32 {
+pub(in crate::ordinary) fn lookup(bindings: &[(u32, u32, u32)], mut at: u32, x: u32) -> u32 {
     while at != NONE {
         let (y, e, before) = bindings[at as usize];
         if y == x {

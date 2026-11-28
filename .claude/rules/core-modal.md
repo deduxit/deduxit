@@ -271,7 +271,7 @@ The design, with its reasons, alternatives and sources, is
   (`serialize/ordinary/mod.rs`). **What it copied** (for the kernel crate):
   `Sequent`, the rest of the parser but for its TPTP dialect, the
   sequent's serde form, the model check's shape and bounds
-  from `ordinary/model.rs` (the cell and byte estimates, its errors),
+  from `ordinary/countermodel/mod.rs` (the cell and byte estimates, its errors),
   `found` from `ordinary::Countermodel`, and the poll cadence and
   memory account of LJT (`crate::memory::Account` as it is,
   `Reason` as it is); it uses `linear::sequents::{Stop, Stops}`,

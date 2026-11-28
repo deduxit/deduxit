@@ -13,11 +13,11 @@
 //! keeps a stack of its own.
 
 use super::semantics::{ENTRY_BYTES, Interpretation, Meter, tables_bytes};
-use super::{Logic, Node, NodeId, Sequent};
 use crate::Error;
 use crate::first_order::FoTerm;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::ordinary::{Logic, Node, NodeId, Sequent};
 
 /// A finite structure for the language of a first-order sequent.
 ///

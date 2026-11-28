@@ -17,13 +17,13 @@
 //! what a world below it forces, since the domains, the predicates and
 //! `falsity` grow; the check tests that growth and does not rely on it.
 
+use super::finite::{Evaluation, SHOWN, Structure, write_domain, write_function, write_predicate};
 use super::semantics::{ENTRY_BYTES, Interpretation, Meter, tables_bytes};
-use super::structure::{Evaluation, SHOWN, write_domain, write_function, write_predicate};
-use super::{Logic, Node, NodeId, Sequent, Structure};
 use crate::Error;
 use crate::first_order::FoTerm;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::ordinary::{Logic, Node, NodeId, Sequent};
 
 /// A finite Kripke model of a first-order language: worlds with a domain
 /// each, ordered by their arrows, and the world it is about.

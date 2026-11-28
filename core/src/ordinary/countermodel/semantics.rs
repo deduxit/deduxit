@@ -7,11 +7,11 @@
 //! own walk over the formulas (truth, or forcing over the worlds above);
 //! a change of first-order semantics, such as equality, is made here once.
 
-use super::Sequent;
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Phase, Progress, Refusal};
+use crate::ordinary::Sequent;
 
 /// The bytes a constant, a table or a tuple holds in a model and in a
 /// check's tables beside 4 bytes an element: its vector and its entry in a
