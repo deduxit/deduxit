@@ -1516,7 +1516,10 @@ pub(crate) fn net_of<'a>(
 /// past the derivation limit, a bound of the render refused it, or `stop`
 /// fired while it was rendered, for the reason `why` gives. `found` is
 /// the net the net engine found, if it ran.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "what to draw, where, and how it may stop, which every caller has apart"
+)]
 pub(crate) fn net_into(
     found: Option<&ProofStructure>,
     proof: &Proof,
