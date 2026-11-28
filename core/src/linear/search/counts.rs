@@ -1600,4 +1600,24 @@ mod tests {
         assert!(t.balanced());
         assert_eq!(t.len(), 0);
     }
+
+    /// The set-up asks its poll once every so many occurrences and row
+    /// entries visited, counted across its passes: a nest of `⊗` over
+    /// distinct atoms, whose rows are quadratic in it, is asked as many
+    /// times as its occurrences and entries say.
+    #[test]
+    fn the_set_up_polls_by_what_it_visits() {
+        let atoms: Vec<String> = (0..2_000).map(|i| format!("a{i}")).collect();
+        let s: Sequent = format!("|- {}", atoms.join(" * ")).parse().unwrap();
+        let f = Forest::new(&s).unwrap();
+        let mut polls = 0;
+        let account = Account::new(None);
+        let poll = &mut || {
+            polls += 1;
+            false
+        };
+        let counts = Counts::new_polled(&f, Bias::Auto, Mode::CLASSICAL, &account, poll);
+        assert!(counts.is_ok());
+        assert_eq!(polls, 30);
+    }
 }
