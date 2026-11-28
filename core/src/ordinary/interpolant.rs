@@ -254,6 +254,19 @@ pub fn interpolate(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolation, Error> {
+    interpolated(sequent, options, partition, search, limits, &mut stop)
+}
+
+/// [`interpolate`] with the stop as a trait object, so that it is
+/// compiled once, not once per caller's closure.
+fn interpolated(
+    sequent: &Sequent,
+    options: &Options,
+    partition: &Partition,
+    search: &search::Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Interpolation, Error> {
     let logic = options.logic;
     partition.halves(logic, sequent.left().len(), sequent.right().len())?;
     let decided = decide_within(sequent, options, search, limits, &mut stop)?;
@@ -354,6 +367,19 @@ pub fn interpolant(
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Interpolant, Error> {
+    interpolant_of(derivation, partition, search, limits, &mut stop)
+}
+
+/// [`interpolant`] with the stop as a trait object, so that Maehara's
+/// method and the checks are compiled once, not once per caller's
+/// closure.
+fn interpolant_of(
+    derivation: &Derivation,
+    partition: &Partition,
+    search: &search::Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
+) -> Result<Interpolant, Error> {
     let logic = derivation.logic();
     if derivation.inferences().iter().any(|i| i.rule == Rule::Cut) {
         return Err(Error::NotCutFree);
@@ -389,7 +415,7 @@ fn checked(
     (out, id): (Formulas, NodeId),
     search: &search::Options,
     limits: &Limits,
-    mut stop: impl FnMut(Progress) -> bool,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Interpolant, Error> {
     let (mut first_left, mut first_right, mut second_left, mut second_right) =
         (Vec::new(), Vec::new(), vec![id], Vec::new());
@@ -785,7 +811,7 @@ fn maehara(
     derivation: &Derivation,
     root: Parts,
     out: &mut Formulas,
-    stop: &mut impl FnMut(Progress) -> bool,
+    stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<NodeId, Error> {
     let logic = derivation.logic();
     let inferences = derivation.inferences();
@@ -1175,7 +1201,7 @@ mod tests {
                 (out.clone(), wrong),
                 &search::Options::default(),
                 &Limits::default(),
-                |_| false,
+                &mut |_| false,
             );
             match result {
                 Err(Error::ClaimFails { reason, .. }) => assert!(reason.contains(why), "{reason}"),
@@ -1189,7 +1215,7 @@ mod tests {
             (out, a),
             &search::Options::default(),
             &Limits::default(),
-            |_| false,
+            &mut |_| false,
         );
         assert!(right.unwrap().is_checked());
     }
