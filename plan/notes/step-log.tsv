@@ -180,8 +180,9 @@ fixup-35	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 03:46	202
 87d1	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus), kani	local_f82f76ce	2026-11-28 05:28	2026-11-28 07:25	the measured hot spots: the linear checker's per-leaf state, the SVG strings, lltp's lines, mist's merge
 fixup-34	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_323b92cf	2026-11-28 06:02		the library's default gives the model search a turn under a clock; the command takes it
 87e3	small	opus-5-5	high	reviewer (opus)	local_0e18a7bf	2026-11-28 06:07	2026-11-28 07:12	the normal forms, first-order resolution and Herbrand split along their seams, moves only
-fixup-33	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_0e18a7bf	2026-11-28 07:12		a first-order unknown writes no classical Rocq certificate Rocq refuses
+fixup-33	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_0e18a7bf	2026-11-28 07:12	2026-11-28 09:55	a first-order unknown writes no classical Rocq certificate Rocq refuses
 87d2	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 07:25	2026-11-28 08:41	the stop shims, the crate's hasher with disallowed-types, the lambda serde forms, one never stop in the bindings
 87e5	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 07:42	2026-11-28 09:11	the countermodels in a directory, the refutations' checks in a module, occurrences free of proofs
 87d3a	small	opus-5-5	high	reviewer (opus), panel if a check's layout changes	local_f82f76ce	2026-11-28 08:41		the linear suite's candidates, each measured; the nets' and the MELL drawing's stop shims
 fixup-36	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 09:11		a deeply shared term checked with no term limit stops at the work refusal
+fixup-37	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_0e18a7bf	2026-11-28 10:00		the ordinary Rocq writers moved into a directory (87e5's last move), then a not-valid certificate proved by evaluation, not tauto

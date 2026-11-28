@@ -9091,3 +9091,15 @@ move (D26).
   internals), the proofs' canonicalisation beside its caller so `occurrences` imports no `proofs`;
   both target sets and the `checked` column equal; stacked on 87d2 (one conflict resolved, 87d2's
   hasher line). fixup-36 in its worker, cores 10-12.
+- 2026-11-28, about 10:00: **fixup-33 reviewed; fixup-37 started.** fixup-33 (Opus, high; the panel
+  and the reviewer on Opus): an unknown first-order sequent gets no Rocq certificate (it wrote the
+  image's classical assignment over `Prop` with first-order atoms, which Rocq refused), with a test;
+  101 refused certificates of the base no longer written, no other difference over 9 940 inputs,
+  6 996 of 6 998 certificates accepted by Rocq. Its follow-ups: two propositional not-valid
+  certificates over `Prop` (607 bytes and less) ran Rocq's `tauto` past 8 GB (**fixup-37**: prove
+  them by evaluation); `rocq::write_not_valid` still takes a ground first-order image (part 2, an
+  API change); `check` confirms a hand-edited `not_valid` outcome of a first-order sequent by the
+  image's refutation, no wrong answer found (**fixup-38**, queued: refuse it or say unknown).
+  Rebased onto `main` alone (87d2's stack waits for its fix); in CI before `main`. fixup-37 in its
+  worker, cores 7-9, taking 87e5's held move of the ordinary Rocq writers first, now that
+  fixup-33 has left `ordinary/rocq.rs`.
