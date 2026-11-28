@@ -182,5 +182,6 @@ fixup-34	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_3
 87e3	small	opus-5-5	high	reviewer (opus)	local_0e18a7bf	2026-11-28 07:40	2026-11-28 08:05	the normal forms, first-order resolution and Herbrand split along their seams, moves only
 fixup-33	panel	opus-5-5	high	panel (opus, opus, sonnet), reviewer (opus)	local_0e18a7bf	2026-11-28 08:10		a first-order unknown writes no classical Rocq certificate Rocq refuses
 87d2	small	opus-5-5	high	reviewer (opus)	local_f82f76ce	2026-11-28 08:45	2026-11-28 10:30	the stop shims, the crate's hasher with disallowed-types, the lambda serde forms, one never stop in the bindings
-87e5	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 09:25		the countermodels in a directory, the refutations' checks in a module, occurrences free of proofs
+87e5	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 09:25	2026-11-28 11:20	the countermodels in a directory, the refutations' checks in a module, occurrences free of proofs
 87d3a	small	opus-5-5	high	reviewer (opus), panel if a check's layout changes	local_f82f76ce	2026-11-28 10:35		the linear suite's candidates, each measured; the nets' and the MELL drawing's stop shims
+fixup-36	small	opus-5-5	high	reviewer (opus)	local_444bd43f	2026-11-28 11:25		a deeply shared term checked with no term limit stops at the work refusal

@@ -9081,3 +9081,13 @@ move (D26).
   unattended: 87d3 divides by suite) takes the linear candidates and 87d2's leftovers in the nets
   and the MELL drawing; 87d3b (the other suites' candidates, F-4a-06, F-4a-05, F-5a-01) after
   fixup-34 leaves ordinary logic. F-1c-13 and F-2a-08 (search changes) wait for a decision.
+- 2026-11-28, about 11:25: **87d2's CI failed; 87e5 reviewed; fixup-36 started.** 87d2's run
+  failed every crate's Clippy check in the sandbox: two unfulfilled `#[expect(disallowed_types)]`
+  in `core/src/hash.rs`, so the sandbox's Clippy does not read `core/clippy.toml` (likely the
+  source filter); the gate passed locally. Nothing pushed; the fix goes on 87d2's head, from its
+  worker, before 87d3a. 87e5 (Opus, high; the reviewer on Opus): ordinary logic's countermodels in
+  a directory (without the Rocq writers, which wait for fixup-33), the linear refutations and their
+  checks in a module of their own (every block byte for byte, the engines reaching no check's
+  internals), the proofs' canonicalisation beside its caller so `occurrences` imports no `proofs`;
+  both target sets and the `checked` column equal; stacked on 87d2 (one conflict resolved, 87d2's
+  hasher line). fixup-36 in its worker, cores 10-12.
