@@ -2621,9 +2621,12 @@ decided not valid is `Error::ClaimFails` (kind defect).
     on `n` hypotheses, 99 % of the time), bounded by the time and the
     stop.
 
-## Herbrand's theorem (`herbrand.rs`)
+## Herbrand's theorem (`herbrand/`)
 
-Public as `ordinary::herbrand` (feature `sat`); the command's
+Public as `ordinary::herbrand` (feature `sat`; `mod.rs` the public types,
+the entry points and `deskolemized`, `search.rs` the search for ground
+instances, `matching.rs` the matching against them, `build.rs` the
+derivation read back); the command's
 `herbrand`, the protocol's `ordinary.instances` (kind
 `ordinary.instances`, form `herbrand`, level 28).
 
