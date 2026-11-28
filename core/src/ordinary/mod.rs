@@ -88,9 +88,6 @@ mod instance;
 #[cfg(feature = "interactive")]
 mod interactive;
 pub mod interpolant;
-/// The invertible rules of LK and LJ, applied by the goal state.
-#[cfg(feature = "interactive")]
-mod invert;
 pub mod ljt;
 #[cfg(feature = "sat")]
 pub mod models;

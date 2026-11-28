@@ -20,6 +20,7 @@ mod close;
 mod derivation;
 mod error;
 mod expand;
+mod invert;
 #[cfg(feature = "serialize")]
 mod replay;
 mod witness;

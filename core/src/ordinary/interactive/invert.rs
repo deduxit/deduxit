@@ -9,11 +9,11 @@
 //! logic `→L`, `¬L` and `∨R₁`, `∨R₂` are not (each drops the formula
 //! right of `⊢` or chooses a disjunct).
 
-use super::interactive::{Context, Interactive, Step};
-use super::{Logic, Node, NodeId, Rule, Side};
+use super::{Context, Interactive, Step};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::GoalId;
 use crate::linear::proofs::interactive::Inverted;
+use crate::ordinary::{Logic, Node, NodeId, Rule, Side};
 
 /// Returns the rule invertible in `logic` that acts on a formula of the
 /// kind of `node` on `side`, or `None`: the axiom, a weakening or a
@@ -241,10 +241,12 @@ impl Interactive {
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::{Interactive, Logic, Options, Rule, Sequent, Side, Step, Verdict, decide};
     use crate::Limits;
     use crate::limits::{Phase, Refusal};
     use crate::linear::proofs::GoalId;
+    use crate::ordinary::{
+        Interactive, Logic, Options, Rule, Sequent, Side, Step, Verdict, decide,
+    };
 
     /// Returns whether the open goals of a session are all valid in its
     /// logic, by the default decision.
@@ -265,7 +267,7 @@ mod tests {
     fn inverting_keeps_every_valid_goal_valid_and_ends() {
         let mut rng = crate::linear::search::generate::Rng::new(5407);
         for _ in 0..200 {
-            let sequent = super::super::tests::generated_sequent(&mut rng);
+            let sequent = crate::ordinary::tests::generated_sequent(&mut rng);
             for logic in [Logic::Classical, Logic::Intuitionistic, Logic::Minimal] {
                 // LJ takes one formula right of ⊢ at most.
                 let Ok(mut state) = Interactive::new(&sequent, logic) else {
