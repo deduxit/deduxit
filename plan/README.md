@@ -8931,3 +8931,13 @@ move (D26).
   work again. Rebased onto `main` with no conflict; in CI before `main`. 87c6 (the linear data
   model, proofs and refutations; the panel and Kani's harnesses) in its worker on 87c7's head,
   cores 7-9.
+- 2026-11-28, about 02:30: **87c9 reviewed; 87c9b started.** 87c9 (Opus, high; the reviewer on Opus):
+  the command's output repeats written once (a count with its noun, `eliminate`'s check report and
+  net dispatch, a drawing's render, `check`'s JSON record by a constructor and setters), every
+  output byte for byte as before. F-7b-05's baseline: the command at 87b3's head on ILTP's 2 670
+  first-order problems in classical and intuitionistic logic (`bench/defaults/`, with its script).
+  (departs from the plan) The step divides along its themes; 87c9b takes the decision with the
+  answer `grade` reads, F-7b-05's after run, the flags declared once with their refusal mapping,
+  one session driver and one rules derivation writer. Found: the TPTP reader refuses four ILTP
+  problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`), a fixup. Rebased onto `main` with no
+  conflict; in CI before `main`. 87c9b in its worker on 87c9's head, cores 4-6.
