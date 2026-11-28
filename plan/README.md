@@ -9162,3 +9162,11 @@ move (D26).
   The usage guard now does that; the times of today's last six entries corrected to the clock.
 - 2026-11-28, about 11:34: **The usage mark raised to 85 %.** The author: "the same rules apply" (no
   new sessions past it, the running ones finish, then the full baseline); unattended again.
+- 2026-11-28, about 11:55: **87e2 reviewed, wave E complete; 87f1 started.** 87e2 (Opus, high; the
+  reviewer on Opus): the ordinary session into a directory along the linear session's seams, and
+  `ordinary/mod.rs` into the decision's vocabulary and the formula arena (`ordinary/formulas.rs`),
+  eleven moves, every public path kept; 87a's connection pin equal on 1 312 problems, the ordinary
+  journeys and `session-ordinary` counting as at the base. Its conflicts with 87e5's, fixup-36's and
+  fixup-37's moves resolved in place by its worker. In CI before `main`. 87f1 (wave F: the messages
+  of theme F2; the behaviour lock reblessed, the page's changed hints listed) in its worker, cores
+  13-15.
