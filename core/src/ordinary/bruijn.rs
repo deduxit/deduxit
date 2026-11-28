@@ -21,15 +21,18 @@ use crate::first_order::{FoTerm, FoTermId};
 use crate::hash::HashMap;
 use crate::hash::HashSet;
 
-/// What a walk of [`Formulas::replaced`] has made so far, kept across the
+/// The replacement of each closed term a table holds by its image there,
+/// with what [`Formulas::replaced`] has made so far, kept across the
 /// formulas it maps: each node and term by its depth.
 #[cfg(feature = "sat")]
-#[derive(Debug, Default)]
-pub(super) struct Replaced {
-    /// The image of each node walked, by the binders around it.
-    nodes: HashMap<(NodeId, u32), NodeId>,
-    /// The image of each term walked, by the binders around it.
-    terms: HashMap<(FoTermId, u32), FoTermId>,
+pub(super) struct Replaced<'m>(Substitution<'m>);
+
+#[cfg(feature = "sat")]
+impl<'m> Replaced<'m> {
+    /// Returns the replacement by `image`, nothing made yet.
+    pub(super) fn new(image: &'m HashMap<FoTermId, FoTermId>) -> Self {
+        Self(Substitution::of(Replace::Table(image)))
+    }
 }
 
 impl Formulas {
@@ -159,9 +162,9 @@ impl Formulas {
         Ok(id)
     }
 
-    /// Returns `root` with each closed term that `image` holds replaced
-    /// by its image there, `made` keeping what earlier calls with the same
-    /// `image` made: a Skolem term turned back into its eigenvariable.
+    /// Returns `root` with each closed term that `made`'s table holds
+    /// replaced by its image there, `made` keeping what earlier calls made:
+    /// a Skolem term turned back into its eigenvariable.
     ///
     /// # Errors
     ///
@@ -171,33 +174,17 @@ impl Formulas {
     pub(super) fn replaced(
         &mut self,
         root: NodeId,
-        image: &HashMap<FoTermId, FoTermId>,
-        made: &mut Replaced,
+        made: &mut Replaced<'_>,
     ) -> Result<NodeId, Error> {
         self.holds(root)?;
-        let mut walk = Substitution::of(Replace::Table(image));
-        walk.nodes = std::mem::take(&mut made.nodes);
-        walk.terms = std::mem::take(&mut made.terms);
-        let result = walk.build(self, root);
-        made.nodes = walk.nodes;
-        made.terms = walk.terms;
-        result
+        made.0.build(self, root)
     }
 
-    /// Returns the closed term `t` with each term that `image` holds
+    /// Returns the closed term `t` with each term that `made`'s table holds
     /// replaced by its image there, as [`replaced`](Self::replaced) does.
     #[cfg(feature = "sat")]
-    pub(super) fn replaced_term(
-        &mut self,
-        t: FoTermId,
-        image: &HashMap<FoTermId, FoTermId>,
-        made: &mut Replaced,
-    ) -> FoTermId {
-        let mut walk = Substitution::of(Replace::Table(image));
-        walk.terms = std::mem::take(&mut made.terms);
-        let result = walk.build_term(self, t, 0);
-        made.terms = walk.terms;
-        result
+    pub(super) fn replaced_term(&mut self, t: FoTermId, made: &mut Replaced<'_>) -> FoTermId {
+        made.0.build_term(self, t, 0)
     }
 
     /// Returns `root` as the operand of a new binder whose variable stands

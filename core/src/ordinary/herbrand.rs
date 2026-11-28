@@ -1702,14 +1702,14 @@ impl Build<'_> {
             let e = Eigen::new(base.saturating_add(k as u32));
             image.insert(s, self.formulas.interner().term(FoTerm::Eigen(e)));
         }
-        let mut cache = Replaced::default();
+        let mut cache = Replaced::new(&image);
         let mut inferences = std::mem::take(&mut self.inferences);
         for inference in &mut inferences {
             for node in inference.left.iter_mut().chain(inference.right.iter_mut()) {
-                *node = self.formulas.replaced(*node, &image, &mut cache)?;
+                *node = self.formulas.replaced(*node, &mut cache)?;
             }
             if let Some(t) = inference.term {
-                inference.term = Some(self.formulas.replaced_term(t, &image, &mut cache));
+                inference.term = Some(self.formulas.replaced_term(t, &mut cache));
             }
             self.charge_arena()?;
         }
