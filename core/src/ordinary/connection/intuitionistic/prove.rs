@@ -278,13 +278,12 @@ fn prefixes_unify(
             let of_var = search
                 .calculus
                 .prefixes
-                .of_occurrence(matrix, &search.terms, gamma, k);
+                .of_occurrence(&search.terms, gamma, k);
             for (delta, d) in skolems {
-                let mut of_eigen =
-                    search
-                        .calculus
-                        .prefixes
-                        .of_occurrence(matrix, &search.terms, delta, d);
+                let mut of_eigen = search
+                    .calculus
+                    .prefixes
+                    .of_occurrence(&search.terms, delta, d);
                 of_eigen.push(search.calculus.prefixes.fresh());
                 eqs.push((of_var.clone(), of_eigen));
             }

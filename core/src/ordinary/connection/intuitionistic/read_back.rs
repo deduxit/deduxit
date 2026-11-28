@@ -988,7 +988,7 @@ impl Search<'_, '_> {
                             self.eigens.truncate(self.eigens.len() - given);
                             continue;
                         }
-                        let term = self.instance_term(tm);
+                        let term = self.term(tm);
                         let premise = with(left, &[a]);
                         let found = self.prove(&premise, goal, depth + 1);
                         self.eigens.truncate(self.eigens.len() - given);
@@ -1046,7 +1046,7 @@ impl Search<'_, '_> {
         for tm in candidates {
             let given = self.constants(tm);
             let a = self.child(goal, 0, Some(tm))?;
-            let term = self.instance_term(tm);
+            let term = self.term(tm);
             let found = self.right_unary(
                 nodes,
                 left,
@@ -1063,11 +1063,6 @@ impl Search<'_, '_> {
             }
         }
         Ok(None)
-    }
-
-    /// Returns the term of the arena a quantifier rule takes for `tm`.
-    fn instance_term(&mut self, tm: u32) -> FoTermId {
-        self.term(tm)
     }
 
     /// A rule on hypothesis `f` with one premise: `rest` and `added` left

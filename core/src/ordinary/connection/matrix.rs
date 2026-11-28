@@ -252,15 +252,18 @@ pub(super) struct Matrix {
     pub(super) by_predicate: HashMap<u64, Vec<u32>>,
 }
 
-/// The memories of the patterns made: of closed terms by term, of the
-/// terms of the atom at hand by term, the symbol of each parameter, the
-/// pattern of each Skolem term.
-type Memo<'a> = (
-    &'a mut [u32],
-    &'a mut HashMap<FoTermId, u32>,
-    &'a mut HashMap<FoTermId, u32>,
-    &'a mut [u32],
-);
+/// The memories of the patterns made while the literals are built.
+struct Memo {
+    /// The pattern of each closed term, by term, `NONE` where none is made
+    /// yet. No binder changes it.
+    closed: Vec<u32>,
+    /// The pattern of each term of the atom at hand that a binder reaches.
+    local: HashMap<FoTermId, u32>,
+    /// The symbol of each parameter.
+    parameters: HashMap<FoTermId, u32>,
+    /// The pattern of each Skolem term, `NONE` where none is made yet.
+    skolems: Vec<u32>,
+}
 
 /// A part of a matrix being built: a list of clauses or of elements, held
 /// as a tree whose leaves are in order.
@@ -586,11 +589,12 @@ impl Matrix {
         self.symbols = (0..functions)
             .map(|s| Symbol::Function(crate::first_order::Symbol::new(s)))
             .collect();
-        let mut parameters: HashMap<FoTermId, u32> = HashMap::default();
-        // The patterns of closed terms, which no binder changes.
-        let mut closed: Vec<u32> = vec![NONE; tables.terms.len()];
-        let mut skolems: Vec<u32> = vec![NONE; self.skolem_occ.len()];
-        let mut local: HashMap<FoTermId, u32> = HashMap::default();
+        let mut memo = Memo {
+            closed: vec![NONE; tables.terms.len()],
+            local: HashMap::default(),
+            parameters: HashMap::default(),
+            skolems: vec![NONE; self.skolem_occ.len()],
+        };
         // The binders around the literal, innermost first, as far as its
         // terms reach: each found once per literal, where a walk per bound
         // variable was quadratic in a nest of thousands of quantifiers.
@@ -610,21 +614,14 @@ impl Matrix {
             } else {
                 (atom, Vec::new())
             };
-            local.clear();
+            memo.local.clear();
             chain.clear();
             let start = self.lit_args.len() as u32;
             // Polled per argument: one argument can make thousands of
             // patterns (a Skolem term takes every slot around it).
             for &t in &args {
                 let before = self.pats.len() + chain.len();
-                let p = self.pattern(
-                    formulas,
-                    &loose,
-                    o as u32,
-                    t,
-                    &mut chain,
-                    (&mut closed, &mut local, &mut parameters, &mut skolems),
-                );
+                let p = self.pattern(formulas, &loose, o as u32, t, &mut chain, &mut memo);
                 self.lit_args.push(p);
                 let walked = (self.pats.len() + chain.len()).saturating_sub(before) + 1;
                 let crossed = (work + walked as u64) / POLL as u64 != work / POLL as u64;
@@ -662,7 +659,12 @@ impl Matrix {
         occ: u32,
         t: FoTermId,
         chain: &mut Vec<u32>,
-        (closed, local, parameters, skolems): Memo<'_>,
+        Memo {
+            closed,
+            local,
+            parameters,
+            skolems,
+        }: &mut Memo,
     ) -> u32 {
         let tables = formulas.first_order();
         let known = |u: FoTermId, closed: &[u32], local: &HashMap<FoTermId, u32>| {

@@ -408,14 +408,7 @@ impl Prefixes {
 
     /// Returns the prefix of occurrence `o` read in copy `copy`: the
     /// characters from the root down to it, its own included.
-    pub(super) fn of_occurrence(
-        &mut self,
-        matrix: &Matrix,
-        terms: &Terms,
-        o: u32,
-        copy: u32,
-    ) -> Vec<Sym> {
-        let _ = matrix;
+    pub(super) fn of_occurrence(&mut self, terms: &Terms, o: u32, copy: u32) -> Vec<Sym> {
         let chain = self.chain(o);
         self.read(terms, copy, &chain)
     }
