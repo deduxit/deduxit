@@ -9012,3 +9012,18 @@ move (D26).
   and fixup-35 for one CI run. 87d1 (the measured hot spots; the panel and Kani for the linear
   checker's per-leaf state) in its worker, cores 4-6 (decided unattended: ahead of wave C's end,
   leaving the ordinary and lambda hot spots until 87c5 lands).
+- 2026-11-28, about 07:20: **87c5 reviewed, wave C complete; fixup-34 started.** 87c5 (Opus, high;
+  the panel and the reviewer on Opus): ordinary and modal logic's walks and copies written once (one
+  walk to the terms formulas reach for nine readers, `transfer::copy` for the hand copies, one de
+  Bruijn substitution walk), one world's reading of terms and atoms for the finite and the Kripke
+  check (F-4d-02), one writer core of both model searches, the modal search's masked bits, the
+  polarities, an option read by name, LJT's answer and the classical solve once each. 87a's
+  connection pin equal on 1 312 problems; no panel member found a difference (about 47 000 inputs
+  compared with the base, 10 237 structures and models against an outside checker) once the argument
+  member's finding was fixed (a law claim's copy renumbered `seq normalize`'s claims). (departs from
+  the plan) A law's claim keeps its own copy; the finite check is not a one-world Kripke model (its
+  work counts at the bound would move); F-4a-07 stays (part 1 keeps the rules' table private). Its
+  chain was written before 87c7 landed; three conflicts resolved with 87c7's forms, the gate again.
+  Found outside the step: `check --term-limit none` of a term shared as a deep DAG doubles in time
+  and memory per level after the work refusal (**fixup-36**, queued). In CI before `main`. fixup-34
+  (the model search's turn under a clock; the panel) in its worker, cores 13-15.
