@@ -288,18 +288,9 @@ impl Rewrite<'_> {
         let Some((_, frame)) = table.instances.instance(m) else {
             return false;
         };
-        let mut chain = Vec::new();
-        let mut next = Some(frame);
-        let mut found = false;
-        while let Some(f) = next {
-            if let Some(&known) = named.frames.get(&f) {
-                found = known;
-                break;
-            }
-            chain.push(f);
-            next = table.instances.frame_parts(f).0;
-        }
-        for f in chain.into_iter().rev() {
+        let (cells, known) = chain(&table.instances, frame, |f| named.frames.get(&f).copied());
+        let mut found = known.unwrap_or(false);
+        for f in cells.into_iter().rev() {
             found = found || self.names_term(table.instances.frame_parts(f).1, sigma, named);
             named.frames.insert(f, found);
         }
@@ -317,23 +308,17 @@ impl Rewrite<'_> {
         let table = self.table.as_ref().expect("a proof with instances");
         let terms = table.terms(self.proof);
         let base = table.instances.base_terms as usize;
-        let mut walk = vec![(id, false)];
-        while let Some((t, expanded)) = walk.pop() {
-            if t.index() < base || named.terms.contains_key(&t) {
-                continue;
-            }
+        let mut walk = Postorder::new(id);
+        while let Some(t) = walk.next(
+            |t| t.index() < base || named.terms.contains_key(&t),
+            |t| arguments(&terms, t),
+        ) {
             let found = match terms.term(t) {
                 FoTerm::Eigen(a) => sigma.contains_key(&a),
-                FoTerm::App(_, args) => {
-                    let list = terms.list(args);
-                    if !expanded {
-                        walk.push((t, true));
-                        walk.extend(list.iter().map(|&a| (a, false)));
-                        continue;
-                    }
-                    list.iter()
-                        .any(|a| named.terms.get(a).copied().unwrap_or(false))
-                }
+                FoTerm::App(_, args) => terms
+                    .list(args)
+                    .iter()
+                    .any(|a| named.terms.get(a).copied().unwrap_or(false)),
                 FoTerm::Bound(_) | FoTerm::Meta(_) => false,
             };
             named.terms.insert(t, found);
@@ -381,18 +366,10 @@ impl Rewrite<'_> {
         sigma: &HashMap<Eigen, FoTermId>,
         replaced: &mut Replaced,
     ) -> FrameId {
-        let mut chain = Vec::new();
-        let mut next = Some(frame);
-        let mut below: Option<FrameId> = None;
-        while let Some(f) = next {
-            if let Some(&done) = replaced.frames.get(&f) {
-                below = Some(done);
-                break;
-            }
-            chain.push(f);
-            next = self.table().instances.frame_parts(f).0;
-        }
-        for f in chain.into_iter().rev() {
+        let (cells, mut below) = chain(&self.table().instances, frame, |f| {
+            replaced.frames.get(&f).copied()
+        });
+        for f in cells.into_iter().rev() {
             let (parent, term) = self.table().instances.frame_parts(f);
             let term_made = self.substituted_term(term, sigma, replaced);
             let made = if below == parent && term_made == term {
@@ -416,21 +393,20 @@ impl Rewrite<'_> {
         replaced: &mut Replaced,
     ) -> FoTermId {
         let base = self.table().instances.base_terms as usize;
-        let mut walk = vec![(id, false)];
-        while let Some((t, expanded)) = walk.pop() {
-            if t.index() < base || replaced.terms.contains_key(&t) {
-                continue;
-            }
+        let mut walk = Postorder::new(id);
+        while let Some(t) = {
+            let table = self.table.as_ref().expect("a proof with instances");
+            let terms = table.terms(self.proof);
+            walk.next(
+                |t| t.index() < base || replaced.terms.contains_key(&t),
+                |t| arguments(&terms, t),
+            )
+        } {
             let made = match self.term(t) {
                 FoTerm::Eigen(a) => sigma.get(&a).copied().unwrap_or(t),
                 FoTerm::App(f, args) => {
                     let table = self.table.as_ref().expect("a proof with instances");
                     let list: Vec<FoTermId> = table.terms(self.proof).list(args).to_vec();
-                    if !expanded {
-                        walk.push((t, true));
-                        walk.extend(list.iter().map(|&a| (a, false)));
-                        continue;
-                    }
                     let args: Vec<FoTermId> = list
                         .iter()
                         .map(|a| replaced.terms.get(a).copied().unwrap_or(*a))
@@ -589,6 +565,68 @@ fn reached(nodes: &[Node], top: NodeId, avoid: Option<NodeId>) -> Vec<bool> {
     reached
 }
 
+/// A walk over the terms a term reaches, each after its arguments, with a
+/// stack of its own: a witness may be nested as deep as a search's
+/// bindings went.
+struct Postorder(Vec<(FoTermId, bool)>);
+
+impl Postorder {
+    /// Starts a walk at `id`.
+    fn new(id: FoTermId) -> Self {
+        Self(vec![(id, false)])
+    }
+
+    /// Returns the next term whose arguments the walk has given, passing
+    /// over every term `done` says is done; `args` gives a term's
+    /// arguments, `None` for a term without a list.
+    fn next<'a>(
+        &mut self,
+        done: impl Fn(FoTermId) -> bool,
+        args: impl Fn(FoTermId) -> Option<&'a [FoTermId]>,
+    ) -> Option<FoTermId> {
+        while let Some((t, expanded)) = self.0.pop() {
+            if done(t) {
+                continue;
+            }
+            if !expanded && let Some(list) = args(t) {
+                self.0.push((t, true));
+                self.0.extend(list.iter().map(|&a| (a, false)));
+                continue;
+            }
+            return Some(t);
+        }
+        None
+    }
+}
+
+/// Returns the arguments of the term `t`, or `None` where it has no list.
+fn arguments<'t>(terms: &'t Terms<'_>, t: FoTermId) -> Option<&'t [FoTermId]> {
+    match terms.term(t) {
+        FoTerm::App(_, args) => Some(terms.list(args)),
+        FoTerm::Eigen(_) | FoTerm::Bound(_) | FoTerm::Meta(_) => None,
+    }
+}
+
+/// Returns the cells of `frame`'s chain from `frame` towards its first
+/// cell, up to the first one `known` gives a value for, and that value.
+/// A caller then makes the cells back from that one.
+fn chain<T>(
+    instances: &Instances,
+    frame: FrameId,
+    known: impl Fn(FrameId) -> Option<T>,
+) -> (Vec<FrameId>, Option<T>) {
+    let mut cells = Vec::new();
+    let mut next = Some(frame);
+    while let Some(f) = next {
+        if let Some(value) = known(f) {
+            return (cells, Some(value));
+        }
+        cells.push(f);
+        next = instances.frame_parts(f).0;
+    }
+    (cells, None)
+}
+
 /// The copy of what a proof's nodes name into a table of their own.
 struct Transfer<'t> {
     /// The terms of the table copied from, with the sequent's.
@@ -610,20 +648,16 @@ impl Transfer<'_> {
     /// stack of its own; the sequent's terms keep their ids.
     fn term(&mut self, id: FoTermId) -> FoTermId {
         let base = self.out.base_terms as usize;
-        let mut walk = vec![(id, false)];
-        while let Some((t, expanded)) = walk.pop() {
-            if t.index() < base || self.term_at.contains_key(&t) {
-                continue;
-            }
-            let made = match self.terms.term(t) {
+        let terms = self.terms;
+        let mut walk = Postorder::new(id);
+        while let Some(t) = walk.next(
+            |t| t.index() < base || self.term_at.contains_key(&t),
+            |t| arguments(&terms, t),
+        ) {
+            let made = match terms.term(t) {
                 FoTerm::App(f, args) => {
-                    let list = self.terms.list(args);
-                    if !expanded {
-                        walk.push((t, true));
-                        walk.extend(list.iter().map(|&a| (a, false)));
-                        continue;
-                    }
-                    let args: Vec<FoTermId> = list
+                    let args: Vec<FoTermId> = terms
+                        .list(args)
                         .iter()
                         .map(|a| self.term_at.get(a).copied().unwrap_or(*a))
                         .collect();
@@ -641,18 +675,10 @@ impl Transfer<'_> {
     /// Returns the frame of the table made for `frame`: the cells up to
     /// the first copied before, then made downwards.
     fn frame(&mut self, frame: FrameId) -> FrameId {
-        let mut chain = Vec::new();
-        let mut next = Some(frame);
-        let mut below = None;
-        while let Some(f) = next {
-            if let Some(&done) = self.frame_at.get(&f) {
-                below = Some(done);
-                break;
-            }
-            chain.push(f);
-            next = self.table.instances.frame_parts(f).0;
-        }
-        for f in chain.into_iter().rev() {
+        let (cells, mut below) = chain(&self.table.instances, frame, |f| {
+            self.frame_at.get(&f).copied()
+        });
+        for f in cells.into_iter().rev() {
             let term = self.term(self.table.instances.frame_parts(f).1);
             let made = self.out.frame(below, term);
             self.frame_at.insert(f, made);
