@@ -9027,3 +9027,12 @@ move (D26).
   Found outside the step: `check --term-limit none` of a term shared as a deep DAG doubles in time
   and memory per level after the work refusal (**fixup-36**, queued). In CI before `main`. fixup-34
   (the model search's turn under a clock; the panel) in its worker, cores 13-15.
+- 2026-11-28, about 07:40: **87e4 reviewed; 87e3 started.** 87e4 (Opus, high; the reviewer on
+  Opus): the focused engine's first-order zone in four files (variables and unification, keys, the
+  `Zone` impl, the closing), the counts' set-up one function per pass, and the counts and the atom
+  bias moved beside the engines that read them (`search/counts.rs`, `search/bias.rs`), with the
+  prunes the counts read apart from the engine's switches. Both target sets' counters equal to 86;
+  the focused engine's journeys within 0.3 % of the base; a new test pins how often the counts'
+  set-up polls. Stacked on 87c5 for one CI run. 87e3 (`normal.rs`, `resolution/first_order.rs`,
+  `herbrand.rs` along their seams; moves only) in its worker, cores 7-9, now that 87c5 left
+  ordinary logic. fixup-33 waits for the next free slot.
