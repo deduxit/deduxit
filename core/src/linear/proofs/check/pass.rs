@@ -7,6 +7,7 @@
 use super::error::{CheckError, Fault, Refused};
 use super::frames::{Framed, Ground, Instancing};
 use super::zones::{Bag, Eigens, State, Zone};
+use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
@@ -41,6 +42,33 @@ pub(super) const POLL: usize = 4096;
 /// most. A poll by nodes alone is too rare: one node with large shared
 /// premises does many units.
 pub(super) const POLL_WORK: u64 = 1 << 16;
+
+/// Empties a linear zone's table and returns whether it has room for
+/// [`LEAF_ROOM`] members at most, which a leaf's sequent may take over.
+///
+/// The table is drained, which resets every slot. A removal may leave a
+/// tombstone, which `capacity()` does not see, and `clear` resets nothing
+/// on a table with no member: a table of hundreds of slots emptied by
+/// removals would read as a leaf's, and a leaf counted at four slots would
+/// hold them all.
+pub(super) fn emptied_for_a_leaf(counts: &mut HashMap<Member, u32>) -> bool {
+    if counts.len() > LEAF_ROOM {
+        return false;
+    }
+    drop(counts.drain());
+    counts.capacity() <= LEAF_ROOM
+}
+
+/// How many sequents a pass keeps for reuse at most ([`Pass::spare`]).
+/// Each takes a few hundred bytes, which the pass does not count.
+const SPARE: usize = 16;
+
+/// The capacity of a hash table of four slots, the fewest the standard
+/// library's table has: the most members a sequent kept for reuse may have
+/// had room for. A leaf's sequent holds two members at most, so it fits
+/// there, and [`table_bytes`](super::zones::table_bytes) counts such a
+/// table at what it takes.
+const LEAF_ROOM: usize = 3;
 
 /// What a pass of the checker may spend, and whom it asks whether to go
 /// on: the memory bound, the work bound, the phase a refusal names, and
@@ -418,6 +446,16 @@ pub(super) struct Pass<'a, 's, O, I> {
     readers: Vec<u32>,
     /// The sequents of the nodes that a later node still reads.
     live: Vec<Option<Box<State>>>,
+    /// Sequents a rule had done with, empty, whose box and linear zone's
+    /// table a leaf's sequent takes over ([`just`](Self::just)): at most
+    /// [`SPARE`] of them, each of a table of [`LEAF_ROOM`] members at
+    /// most, so that a leaf counted by its members is counted at what it
+    /// takes. They are no sequent of the proof, so `held` leaves them out.
+    #[expect(
+        clippy::vec_box,
+        reason = "the boxes are what a leaf's sequent reuses: the pass keeps every sequent boxed"
+    )]
+    spare: Vec<Box<State>>,
     /// Who is shown every node.
     observer: &'a mut O,
     /// The unrestricted members both premises of the current node need.
@@ -505,6 +543,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
             reading,
             readers,
             live,
+            spare: Vec::new(),
             observer,
             shared: Vec::new(),
             eigens: if I::FRAMED {
@@ -771,16 +810,22 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
             reason = "a sequent is small on 32 bits, and the pass keeps every one boxed"
         )
     )]
-    fn just(&self, ids: impl IntoIterator<Item = Member>, any: bool) -> Box<State> {
-        let mut d = Box::new(State {
-            theta: Zone::default(),
-            gamma: Bag::default(),
-            outputs: 0,
-            linear: 0,
-            unrestricted: 0,
-            goal: 0,
-            any,
-        });
+    fn just(&mut self, ids: impl IntoIterator<Item = Member>, any: bool) -> Box<State> {
+        let mut d = match self.spare.pop() {
+            Some(mut d) => {
+                d.any = any;
+                d
+            }
+            None => Box::new(State {
+                theta: Zone::default(),
+                gamma: Bag::default(),
+                outputs: 0,
+                linear: 0,
+                unrestricted: 0,
+                goal: 0,
+                any,
+            }),
+        };
         for m in ids {
             self.put(&mut d, m);
         }
@@ -814,7 +859,33 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     fn join(&mut self, mut l: Box<State>, mut r: Box<State>) -> Box<State> {
         self.unite(&mut l, &mut r);
         l.add_linear(&mut r);
+        self.recycle(r);
         l
+    }
+
+    /// Keeps a sequent a rule has done with for a leaf's to reuse, emptied,
+    /// where its linear zone's table has room for a leaf's members alone
+    /// and fewer than [`SPARE`] are kept; drops it otherwise. Its
+    /// unrestricted zone's table goes, so that a leaf with none holds none.
+    fn recycle(&mut self, mut d: Box<State>) {
+        if self.spare.len() >= SPARE || !emptied_for_a_leaf(&mut d.gamma.counts) {
+            return;
+        }
+        let counts = std::mem::take(&mut d.gamma.counts);
+        *d = State {
+            theta: Zone::default(),
+            gamma: Bag {
+                counts,
+                len: 0,
+                most: 0,
+            },
+            outputs: 0,
+            linear: 0,
+            unrestricted: 0,
+            goal: 0,
+            any: false,
+        };
+        self.spare.push(d);
     }
 
     /// Carries the eigenvariables from the premises of node `id` to the
@@ -1107,6 +1178,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     )]
     fn over(&mut self, mut keep: Box<State>, mut other: Box<State>) -> Box<State> {
         self.unite(&mut keep, &mut other);
+        self.recycle(other);
         keep
     }
 

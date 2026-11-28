@@ -178,17 +178,20 @@ impl Bag {
     }
 
     /// Adds every copy of every member of `other`: the multiset sum,
-    /// pouring the smaller table into the larger.
-    pub(super) fn add(&mut self, mut other: Self) {
+    /// pouring the smaller table into the larger. `other` is left with no
+    /// member, and keeps the smaller table, empty, so that the pass can
+    /// reuse it.
+    pub(super) fn add(&mut self, other: &mut Self) {
         if other.counts.len() > self.counts.len() {
-            std::mem::swap(self, &mut other);
+            std::mem::swap(self, other);
         }
-        for (o, n) in other.counts {
+        for (o, n) in other.counts.drain() {
             let own = self.counts.entry(o).or_insert(0);
             *own = own.saturating_add(n);
         }
         self.len = self.len.saturating_add(other.len);
         self.most = self.most.max(self.counts.len());
+        other.len = 0;
     }
 
     /// Raises every member's copies to those `other` has of it: the
@@ -359,10 +362,11 @@ impl State {
     }
 
     /// Adds the linear zone of `other` and its sums, and absorbs when
-    /// either does. The unrestricted zones are left as they are.
+    /// either does. The unrestricted zones are left as they are, and
+    /// `other`'s linear zone empty.
     #[inline]
     pub(super) fn add_linear(&mut self, other: &mut Self) {
-        self.gamma.add(std::mem::take(&mut other.gamma));
+        self.gamma.add(&mut other.gamma);
         self.outputs = self.outputs.saturating_add(other.outputs);
         self.linear = self.linear.saturating_add(other.linear);
         self.goal = self.goal.saturating_add(other.goal);

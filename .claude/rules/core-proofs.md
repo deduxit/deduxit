@@ -178,7 +178,8 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   allocated (`check::afford`, which the size estimate calls before it
   makes its own, 88 bytes a node, `size_of::<Sub>()`, and four an occurrence). Not counted: what one rule needs while it joins two
   states, the one list of shared occurrences, the sequents of an error
-  report, each a small multiple of one counted state, and what is
+  report, each a small multiple of one counted state, the sixteen
+  emptied sequents kept for leaves (`Pass::spare`, below), and what is
   proportional to the forest (the reading, the weights' scratch
   tables). Measured on a proof file of 1.1 MB (46 768 nodes: 14 000 `⊥`
   formulas introduced once, then read by the 16 384 leaves of a balanced
@@ -187,6 +188,23 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   0.999) in 1.45 s; within 64 MiB it is refused after 28 ms with 62 MiB
   held, within the default after 0.40 s with 1 022 MiB.
   `holds_no_more_than_its_bound` pins the file's term.
+- **A leaf's sequent takes over a box a rule had done with**
+  (`Pass::spare`, `recycle`, `just`): `join` and `over` hand the premise
+  they drop to the pass, which keeps up to `SPARE` (16) of them, emptied,
+  where the linear zone's table has room for three members at most (four
+  slots, `LEAF_ROOM`), its unrestricted zone's table freed; `Bag::add`
+  drains the smaller table instead of consuming it, so the dropped
+  premise keeps it. A leaf holds two members at most, so a reused table
+  is the one `table_bytes` counts for it, byte for byte, and no count of
+  the pass moves. **The table is drained before its capacity is read**
+  (`emptied_for_a_leaf`): removals leave tombstones that `capacity()`
+  does not see and `clear` does not reset on a table with no member, so
+  an `&`'s dropped premise whose zone was consumed by copies read as
+  capacity 0 with 512 slots, and a leaf counted at four slots held them
+  (the integers panel's witness: 144 MiB through a bound of 7 MiB;
+  `a_table_emptied_by_removals_is_no_leaf_s`). A box and a table per leaf were 98 % of
+  `check-qbf-20-2`'s heap blocks (127 362); with the reuse it makes
+  57 238, and `check-wide-m1-2048` 31 where it made 8 216.
 - **An error costs a second pass.** The states a failing node read are
   gone or changed by the time it fails, so `examine` runs the pass again
   up to that node and reports its premises' sequents from there; they

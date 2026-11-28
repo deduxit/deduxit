@@ -52,7 +52,7 @@ pub(crate) use zones::State;
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::pass::tables;
+    use super::pass::{emptied_for_a_leaf, tables};
     use super::zones::{Bag, Zone, table_bytes};
     use super::*;
     use crate::limits::{Phase, Refusal};
@@ -826,6 +826,40 @@ mod tests {
             matches!(&e, CheckError::Refused(r) if r.refusal == Refusal::Work { limit: 40_010 }),
             "{e}"
         );
+    }
+
+    /// A table emptied by removals may hold hundreds of slots while its
+    /// tombstones hide them from `capacity()`; a leaf that took it over
+    /// would be counted at four. Members whose hashes share their low
+    /// bits fill one run of slots, so removing them leaves tombstones
+    /// throughout; before the table was drained first, it read as a
+    /// leaf's.
+    #[test]
+    fn a_table_emptied_by_removals_is_no_leaf_s() {
+        use std::hash::BuildHasher;
+        let hasher = crate::hash::BuildHasher::default();
+        let mask = (1u64 << 9) - 1;
+        let members: Vec<Member> = (0u32..)
+            .map(Member::new)
+            .filter(|m| hasher.hash_one(m) & mask == 0)
+            // As many as a table of 512 slots holds, so that no slot is
+            // left empty for a removal to give back.
+            .take(448)
+            .collect();
+        let mut counts = crate::hash::HashMap::default();
+        for &m in &members {
+            counts.insert(m, 1u32);
+        }
+        for m in &members {
+            counts.remove(m);
+        }
+        assert!(!emptied_for_a_leaf(&mut counts));
+        // A leaf's own table is taken.
+        let mut leaf = crate::hash::HashMap::default();
+        leaf.insert(members[0], 1u32);
+        leaf.insert(members[1], 1u32);
+        assert!(emptied_for_a_leaf(&mut leaf));
+        assert!(leaf.is_empty());
     }
 
     /// The bound is exact. The check of `⊢ 1` holds its tables and the
