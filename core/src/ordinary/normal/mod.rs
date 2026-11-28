@@ -1083,6 +1083,17 @@ impl NormalForm {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
+        self.checked(search, limits, &mut stop)
+    }
+
+    /// [`check`](Self::check) with the stop as a trait object, so that it
+    /// is compiled once, not once per caller's closure.
+    fn checked(
+        &mut self,
+        search: &search::Options,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
         // The SAT solver decides propositional claims; at first order the
         // logic's default does.
         let first_order = self.sequent.formulas().is_first_order();
