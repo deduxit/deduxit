@@ -29,6 +29,9 @@
       parts = {
         core = fileset.unions [
           ../core/Cargo.toml
+          # Clippy's configuration for the crate (`disallowed-types`),
+          # which crane's cargo sources leave out.
+          ../core/clippy.toml
           (craneLib.fileset.commonCargoSources ../core/src)
           # The rule files and their schema, which the library includes
           # as text.
