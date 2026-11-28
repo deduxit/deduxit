@@ -211,6 +211,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   of LJ"; the refusal of a split premise says "in intuitionistic and
   minimal logic"; a saved session with such a goal is refused naming the
   logic.
+- **A linear session's axiom refused says what the axiom needs**: "the
+  axiom needs formula 0 with its dual literal and nothing else in the
+  goal", where it said the formula was needed "without other formulas".
+  A saved session that breaks a rule of the form is refused naming the
+  fault ("a cut names no cut formula", "an inference is the premise of
+  two inferences"), where it stated the rule.
 
 ### Deprecated
 

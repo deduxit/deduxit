@@ -101,10 +101,17 @@ impl Interactive {
                 });
             }
             for &p in &inference.premises {
-                if p.index() <= i || p.index() >= n || parent[p.index()].is_some() {
-                    return Err(Error::InconsistentSession {
-                        reason: "a premise must be a later inference and the premise of one inference only",
-                    });
+                let fault = if p.index() <= i {
+                    Some("a premise is not a later inference than its conclusion")
+                } else if p.index() >= n {
+                    Some("a premise is past the last inference")
+                } else if parent[p.index()].is_some() {
+                    Some("an inference is the premise of two inferences")
+                } else {
+                    None
+                };
+                if let Some(reason) = fault {
+                    return Err(Error::InconsistentSession { reason });
                 }
                 parent[p.index()] = Some(i);
             }
@@ -121,14 +128,18 @@ impl Interactive {
             if inference.rule.rule == Rule::Open {
                 if inference.principal.is_some() || !inference.premises.is_empty() {
                     return Err(Error::InconsistentSession {
-                        reason: "an open goal has no principal formula and no premise",
+                        reason: "an open goal names a principal formula or a premise",
                     });
                 }
                 continue;
             }
             if (inference.rule.rule == Rule::Cut) != inference.cut.is_some() {
                 return Err(Error::InconsistentSession {
-                    reason: "a cut names its cut formula, every other rule none",
+                    reason: if inference.rule.rule == Rule::Cut {
+                        "a cut names no cut formula"
+                    } else {
+                        "a rule other than the cut names a cut formula"
+                    },
                 });
             }
             if inference.rule.rule == Rule::Cut {
@@ -346,7 +357,11 @@ impl Interactive {
         let has_principal = classical.has_principal();
         if inference.principal.is_some() != has_principal {
             return Err(Error::InconsistentSession {
-                reason: "every rule but the axiom and Mix names its principal formula, and those two name none",
+                reason: if has_principal {
+                    "a rule that acts on a formula names no principal formula"
+                } else {
+                    "an axiom or a Mix names a principal formula"
+                },
             });
         }
         let principal = inference.principal;

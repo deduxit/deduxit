@@ -250,9 +250,15 @@ impl Display for StepError {
             StepError::Mode { rule, mode } => {
                 write!(f, "the rule {rule} is not available in {mode} mode")
             }
+            StepError::NotAlone { rule, position } if rule.rule == Rule::Ax => write!(
+                f,
+                "the axiom needs formula {position} with its dual literal and nothing else in \
+                 the goal; in affine mode, weaken the other formulas first"
+            ),
             StepError::NotAlone { rule, position } => write!(
                 f,
-                "the rule {rule} needs formula {position} without other formulas in the goal"
+                "the rule {rule} needs formula {position} alone in the goal; in affine mode, \
+                 weaken the other formulas first"
             ),
             StepError::NoDual { position } => write!(
                 f,
@@ -1396,6 +1402,11 @@ mod tests {
                 rule: Named::from(Ax),
                 position: 0
             })
+        );
+        assert_eq!(
+            s.apply(g, &Step::new(0, Ax)).unwrap_err().to_string(),
+            "the axiom needs formula 0 with its dual literal and nothing else in the goal; in \
+             affine mode, weaken the other formulas first"
         );
         let (mut s, g) = start("|- a, b", Mode::CLASSICAL);
         assert_eq!(

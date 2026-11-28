@@ -592,10 +592,10 @@ impl Interactive {
             }
         }
         if self.mode.is_ordered() {
-            return Err(inconsistent("an ordered mode has no cut"));
+            return Err(inconsistent("a session of an ordered mode has a cut"));
         }
         let &[first, _] = inference.premises.as_slice() else {
-            return Err(inconsistent("a cut has two premises"));
+            return Err(inconsistent("a cut does not have two premises"));
         };
         let mut context = Multiset::of(self.inferences[first.index()].sequent.iter().copied());
         if !context.remove(a) {
