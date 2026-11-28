@@ -9160,3 +9160,5 @@ move (D26).
   the weekly limit start no new sessions and let the running ones finish (no pause), and the full
   baseline may start whenever suitable, best once the sessions have stopped after the 80 % mark.
   The usage guard now does that; the times of today's last six entries corrected to the clock.
+- 2026-11-28, about 11:34: **The usage mark raised to 85 %.** The author: "the same rules apply" (no
+  new sessions past it, the running ones finish, then the full baseline); unattended again.
