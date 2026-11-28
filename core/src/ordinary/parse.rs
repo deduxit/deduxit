@@ -549,13 +549,23 @@ impl<'a> Parser<'a> {
     #[cold]
     #[inline(never)]
     fn bare_term(&mut self, word: &str, here: usize) -> Result<FoTermId, Error> {
+        let written = here..here + word.len();
         let word = crate::name::normalized(word);
         match self.scope.find(&word) {
             Some(index) => Ok(self.formulas.variable(index)),
             None if self.dialect == Dialect::Tptp && word.starts_with(char::is_uppercase) => {
-                Err(self
-                    .text
-                    .unexpected(here, &["a bound variable", "a constant"]))
+                // TPTP's own rule (its language description, "Annotated
+                // Formulae"): outside CNF every variable is bound by a
+                // quantification whose scope holds it.
+                let error = ParseError::spanning(
+                    self.text.input,
+                    written,
+                    &["a bound variable", "a constant"],
+                );
+                Err(Error::from(error.with_hint(
+                    "an upper-case word is a variable in TPTP, and no quantifier around it \
+                     binds it: each variable of a fof formula stands inside its quantifier's scope",
+                )))
             }
             None => {
                 let word = self.symbol_name(&word, true);
@@ -1169,6 +1179,15 @@ mod tests {
         assert!(read("p(X)").is_err());
         assert!(read("! [] : p").is_err());
         assert!(read("! X : p(X)").is_err());
+        // A variable used past its quantifier's scope, as ILTP's GEJ056+1,
+        // GEJ056+2, GEJ057+1 and GEJ057+2 write their conjectures: the
+        // whole word is named, and why it is refused.
+        let free = read("(! [Ab] : p(Ab)) => q(Ab)").unwrap_err().to_string();
+        assert!(
+            free.contains("unexpected \"Ab\" at line 1, character 42")
+                && free.contains("no quantifier around it binds it"),
+            "{free}"
+        );
         // Equality between terms, `!=` its negation; `=>` stays the
         // implication.
         assert_eq!(

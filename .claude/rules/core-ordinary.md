@@ -445,7 +445,14 @@ translating into linear logic, and the linear proof read back as LK or LJ.
     the hot path. The LLTP reader renames nothing: its syntax is the
     linear one, whose `top` and `bot` are the units LLTP writes. A name in term position
     is the innermost bound variable of that name, else a constant or
-    function symbol; in TPTP an unbound upper-case word is refused.
+    function symbol; in TPTP an unbound upper-case word is refused,
+    with a hint that names TPTP's rule (its language description: outside
+    CNF every variable is bound by a quantifier whose scope holds it).
+    ILTP's GEJ056+1, GEJ056+2, GEJ057+1 and GEJ057+2 break it (their
+    conjectures use `A`, `B` or `L`, `M` past `! [A,B] : (…)`), so they
+    stay refused: closing them over the whole formula would leave the
+    antecedent's own quantifier in place, which is not the statement
+    meant, and TPTP gives no reading of a free variable.
     `lltp::clauses` counts `[`/`]` with the parentheses, or a
     quantifier's `[X, Y]` read as an annotation.
   - **`=` is read by looking ahead** (`equality_follows`, after an

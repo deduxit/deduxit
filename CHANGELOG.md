@@ -161,6 +161,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   the suites evenly: ordinary logic, linear logic, modal logic,
   lambda-terms and calculi given as rule files. The crate `deduxit`
   has the keyword `logic` in place of `proof-nets`.
+- The TPTP reader names a variable used outside its quantifier's scope,
+  the whole word, and says why it refuses it: TPTP binds every variable
+  of a `fof` formula by a quantifier around it. ILTP's GEJ056+1,
+  GEJ056+2, GEJ057+1 and GEJ057+2 write their conjectures so, and were
+  refused with "expected a bound variable or a constant" alone.
 - A JSON sequent of ordinary logic that holds `□` or `◇`, and one of
   modal logic that holds `∀` or `∃`, is refused with a message that says
   the formula belongs to the other suite. It was serde's "unknown
