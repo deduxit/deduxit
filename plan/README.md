@@ -8899,7 +8899,7 @@ move (D26).
   87c9 (`mklmyskz` committed; F-7a-14 unverified in its working copy; the before run at 2 019 of
   5 340 rows, resumable from its CSV) paused by the graceful-stop skill, each with its checklist in
   its report. 87d4 and 87c4 finish their checks; each resumes one paused step as it lands.
-- 2026-11-28, about 00:05: **87d4 reviewed; 87c7 resumed in its place.** 87d4 (Opus, high; the
+- 2026-11-28, about 00:00: **87d4 reviewed; 87c7 resumed in its place.** 87d4 (Opus, high; the
   panel, the reviewer on Fable): kernel certificates (`--kernel deduxit`) bind their largest shared
   formulas with `let`, as many as an estimate of Rocq's cost favours, at most 1 024 (`!A ⊢ A^256`
   4.72 s to 1.23 s in Rocq, balanced trees 13-16 % faster; the statement unchanged, nine snapshots
@@ -8912,11 +8912,11 @@ move (D26).
   the step: a first-order embedding's "unknown" writes a classical certificate Rocq refuses (on
   `main` too); a fixup once a slot is free. Rebased onto `main` with no conflict; in CI before
   `main`. 87c7 resumed from its checklist on cores 7-9.
-- 2026-11-28, about 00:40: **Four step sessions again, at the author's word; 87c9 resumed, 87c5
+- 2026-11-28, about 00:29: **Four step sessions again, at the author's word; 87c9 resumed, 87c5
   started.** 87c9 resumed from its checklist on cores 4-6; 87c5 (walks, copies, and the repeats of
   ordinary and modal logic; the panel on F-4d-02's one evaluator) in 87d4's worker on `main`, cores
   13-15.
-- 2026-11-28, about 01:40: **87c7 reviewed; 87c6 started.** 87c7 (Opus, high; the panel, the
+- 2026-11-28, about 01:22: **87c7 reviewed; 87c6 started.** 87c7 (Opus, high; the panel, the
   argument member and the reviewer on Opus once Fable's share passed half): one crate-private
   `Refusal::stopped` at the 74 sites that built it by hand, the memory account at the crate's root
   (`crate::memory`), one estimate of a hash table's bytes, and the linear engines' repeats shared
@@ -8931,7 +8931,7 @@ move (D26).
   work again. Rebased onto `main` with no conflict; in CI before `main`. 87c6 (the linear data
   model, proofs and refutations; the panel and Kani's harnesses) in its worker on 87c7's head,
   cores 7-9.
-- 2026-11-28, about 02:30: **87c9 reviewed; 87c9b started.** 87c9 (Opus, high; the reviewer on Opus):
+- 2026-11-28, about 02:26: **87c9 reviewed; 87c9b started.** 87c9 (Opus, high; the reviewer on Opus):
   the command's output repeats written once (a count with its noun, `eliminate`'s check report and
   net dispatch, a drawing's render, `check`'s JSON record by a constructor and setters), every
   output byte for byte as before. F-7b-05's baseline: the command at 87b3's head on ILTP's 2 670
@@ -8941,7 +8941,7 @@ move (D26).
   one session driver and one rules derivation writer. Found: the TPTP reader refuses four ILTP
   problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`), a fixup. Rebased onto `main` with no
   conflict; in CI before `main`. 87c9b in its worker on 87c9's head, cores 4-6.
-- 2026-11-28, about 03:00: **87c9b holds F-7b-05; three fixups queued.** The worker's after run
+- 2026-11-28, about 02:54: **87c9b holds F-7b-05; three fixups queued.** The worker's after run
   found that the library's default (`ordinary::decide_within`) runs the model search only after the
   embedding ends unknown unstopped, so under the command's time limit the 474 rows the model search
   refuted in the baseline (207 classical, 267 intuitionistic) turn unknown; no decided verdict
@@ -8952,7 +8952,7 @@ move (D26).
   gives the model search a turn under a clock (the panel), then the command takes the library's
   default, measured against 87c9's baseline (after 87c5); **fixup-35** the TPTP reader refuses
   four ILTP problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`).
-- 2026-11-28, about 03:50: **87c4 reviewed; fixup-35 started.** 87c4 (Opus, high; the panel and the
+- 2026-11-28, about 03:46: **87c4 reviewed; fixup-35 started.** 87c4 (Opus, high; the panel and the
   reviewer on Fable): one graph kernel of the correctness criterion for the structures with and
   without boxes (the bridges, the deletion rounds, the switching cycle), one proof assembly and Mix
   partition for both sequentializations, and the nets' small repeats; nothing public changes. The
@@ -8963,7 +8963,7 @@ move (D26).
   switching enumeration agreeing on 182 097). Rebased onto `main` with no conflict; in CI before
   `main`. fixup-35 (the TPTP reader) in its worker on 87c4's head, cores 10-12; fixup-33 waits for
   87c5 (both near `ordinary`'s Rocq writers), fixup-34 for 87c5 too.
-- 2026-11-28, about 04:30: **87c9b reviewed; 87e1 started.** 87c9b (Opus, high; the reviewer on
+- 2026-11-28, about 04:23: **87c9b reviewed; 87e1 started.** 87c9b (Opus, high; the reviewer on
   Opus): one decision of a sequent for `prove` and the batch (`cli/src/decide.rs`), one driver of
   the linear and the ordinary session's shared commands, one maker of a rules derivation (`check`
   now renders PNG and PDF), the time, memory and work limits declared once (`LimitArgs`, which
@@ -8976,13 +8976,13 @@ move (D26).
   87c9b's head, cores 4-6 (decided unattended: wave E waits for wave C, but 87c5 and 87c6 touch
   neither `linear/search/mod.rs` nor its rules file). Rebased onto `main` with no conflict; in CI
   before `main`.
-- 2026-11-28, about 05:30: **No local full check in step sessions** (decided unattended). Four
+- 2026-11-28, about 05:24: **No local full check in step sessions** (decided unattended). Four
   sessions' `nix flake check` queued on the machine lock, each about an hour with two jobs, while
   `plan/push-ci.sh` runs every flake check on GitHub's runners before a chain lands. The sessions
   now pass the gate and the nix checks their area needs (`rocq`, `web-wasm-tests`, `doc-private`
   and the like); the planning session's CI run is the full check. CLAUDE.md's table already lets
   `plan/push-ci.sh` be the full check; a failure there goes back to the session.
-- 2026-11-28, about 06:00: **87c6 reviewed; 87e4 started.** 87c6 (Opus, high; the panel and the
+- 2026-11-28, about 05:25: **87c6 reviewed; 87e4 started.** 87c6 (Opus, high; the panel and the
   reviewer on Opus, Kani): the checker's sum over the unrestricted zone in three functions six new
   Kani harnesses verify (17 harnesses pass), the refutation checks' shared failure, count walk,
   phrases and Horn reader, one choice of a cut, one walk of first-order terms in cut elimination,
@@ -8995,7 +8995,7 @@ move (D26).
   F-1a-10 and half of F-1c-08 stay for reading's sake. Rebased onto `main` with no conflict; in CI
   before `main`. 87e4 (moves only) in its worker on 87c6's head, cores 7-9 (decided unattended:
   ahead of wave C's end, as 87e1, since 87c5 touches none of its files).
-- 2026-11-28, about 06:15: **fixup-35 reviewed; 87e6 started.** fixup-35 (Opus, high; the reviewer
+- 2026-11-28, about 05:26: **fixup-35 reviewed; 87e6 started.** fixup-35 (Opus, high; the reviewer
   on Opus): the four ILTP problems are not valid TPTP (their conjectures use `A` and `B` past the
   quantifier's scope, which TPTP forbids outside CNF), so the reader keeps refusing them, now with
   the whole word marked and a hint saying why; the other 2 666 problems read byte for byte as
@@ -9003,7 +9003,7 @@ move (D26).
   gives the intended statement); agreed (decided unattended). Stacked on 87c6 for one CI run. 87e6
   (the MELL drawing's 1 390-line function, the nets' long functions, idiom; moves only) in its
   worker, cores 10-12; `serialize/ordinary.rs` (F-6a-19) waits for 87c5.
-- 2026-11-28, about 06:40: **87e1 reviewed; 87d1 started.** 87e1 (Opus, high; the reviewer on
+- 2026-11-28, about 05:28: **87e1 reviewed; 87d1 started.** 87e1 (Opus, high; the reviewer on
   Opus): `linear/search/mod.rs` from 5 621 lines to 3 086, the outcome, the options, the engine
   catalogue with its documented table, the dispatch and the engines' interface each in a file of its
   own, every public path re-exported; both target sets' counters equal to 86, every moved line byte
@@ -9012,7 +9012,7 @@ move (D26).
   and fixup-35 for one CI run. 87d1 (the measured hot spots; the panel and Kani for the linear
   checker's per-leaf state) in its worker, cores 4-6 (decided unattended: ahead of wave C's end,
   leaving the ordinary and lambda hot spots until 87c5 lands).
-- 2026-11-28, about 07:20: **87c5 reviewed, wave C complete; fixup-34 started.** 87c5 (Opus, high;
+- 2026-11-28, about 06:02: **87c5 reviewed, wave C complete; fixup-34 started.** 87c5 (Opus, high;
   the panel and the reviewer on Opus): ordinary and modal logic's walks and copies written once (one
   walk to the terms formulas reach for nine readers, `transfer::copy` for the hand copies, one de
   Bruijn substitution walk), one world's reading of terms and atoms for the finite and the Kripke
@@ -9027,7 +9027,7 @@ move (D26).
   Found outside the step: `check --term-limit none` of a term shared as a deep DAG doubles in time
   and memory per level after the work refusal (**fixup-36**, queued). In CI before `main`. fixup-34
   (the model search's turn under a clock; the panel) in its worker, cores 13-15.
-- 2026-11-28, about 07:40: **87e4 reviewed; 87e3 started.** 87e4 (Opus, high; the reviewer on
+- 2026-11-28, about 06:07: **87e4 reviewed; 87e3 started.** 87e4 (Opus, high; the reviewer on
   Opus): the focused engine's first-order zone in four files (variables and unification, keys, the
   `Zone` impl, the closing), the counts' set-up one function per pass, and the counts and the atom
   bias moved beside the engines that read them (`search/counts.rs`, `search/bias.rs`), with the
@@ -9036,14 +9036,14 @@ move (D26).
   set-up polls. Stacked on 87c5 for one CI run. 87e3 (`normal.rs`, `resolution/first_order.rs`,
   `herbrand.rs` along their seams; moves only) in its worker, cores 7-9, now that 87c5 left
   ordinary logic. fixup-33 waits for the next free slot.
-- 2026-11-28, about 08:10: **87e3 reviewed; fixup-33 started.** 87e3 (Opus, high; the reviewer on
+- 2026-11-28, about 07:12: **87e3 reviewed; fixup-33 started.** 87e3 (Opus, high; the reviewer on
   Opus): `normal.rs` into its vocabulary, rewriting, first-order part, encodings and form test;
   first-order resolution into its inference, check, search, read-back and text; Herbrand's instances
   into their search, matching and derivation builder; every public path kept, the ordinary journeys
   within 0.06 % of the base, the moved doc links repaired after the reviewer found the docs failing.
   In CI before `main`. fixup-33 (an unknown's classical Rocq certificate; the panel) in its worker,
   cores 7-9.
-- 2026-11-28, about 08:45: **87d1 reviewed; 87d2 started.** 87d1 (Opus, high; the panel and the
+- 2026-11-28, about 07:25: **87d1 reviewed; 87d2 started.** 87d1 (Opus, high; the panel and the
   reviewer on Opus, Kani): four measured hot spots. The linear checker reuses a dropped sequent's
   box and table for a leaf (`check-qbf-20-2` −9.6 % instructions, −55 % heap blocks; a wide check
   from 8 216 blocks to 31), the SVG layout lays a line's text out in one buffer (`render-svg`
@@ -9056,7 +9056,7 @@ move (D26).
   equal. (departs from the plan) The ordinary and lambda hot spots (F-4a-06, F-4a-05, F-5a-01) go
   to 87d3. Stacked on 87e3 for one CI run. 87d2 in its worker, cores 4-6; its shims in the nets and
   the MELL drawing wait for 87e6.
-- 2026-11-28, about 09:25: **87e6 reviewed; 87e5 started.** 87e6 (Opus, high; the reviewer on
+- 2026-11-28, about 07:42: **87e6 reviewed; 87e5 started.** 87e6 (Opus, high; the reviewer on
   Opus, two sub-agents on Opus for the drawing and the deferred items): `svg::mell::draw` from about
   1 390 lines to 40 (a `Layout` with a method per pass), the nets' seven long functions at their
   seams, `serialize/ordinary.rs` in three, and theme E3's idiom (the nets' tests after their code,
@@ -9068,7 +9068,7 @@ move (D26).
   commit, and three focused-engine items in another; the four commits after 87c5 and 87e4 landed
   were checked by their runs, not by the reviewer. Rebased onto `main` with no conflict; in CI
   before `main`. 87e5 (moves only) in its worker, cores 10-12; wave E then has only 87e2 left.
-- 2026-11-28, about 10:35: **87d2 reviewed; 87d3a started.** 87d2 (Opus, high; the reviewer on
+- 2026-11-28, about 08:41: **87d2 reviewed; 87d3a started.** 87d2 (Opus, high; the reviewer on
   Opus): long bodies generic over the stop take a trait object behind a one-line shim (the exports,
   cut elimination, the rule files' check and the workspace's runs, the modal tableau, the
   interpolants, the normal form's check), the checker's pass compiled for the pairs it runs, one
@@ -9081,7 +9081,7 @@ move (D26).
   unattended: 87d3 divides by suite) takes the linear candidates and 87d2's leftovers in the nets
   and the MELL drawing; 87d3b (the other suites' candidates, F-4a-06, F-4a-05, F-5a-01) after
   fixup-34 leaves ordinary logic. F-1c-13 and F-2a-08 (search changes) wait for a decision.
-- 2026-11-28, about 11:25: **87d2's CI failed; 87e5 reviewed; fixup-36 started.** 87d2's run
+- 2026-11-28, about 09:11: **87d2's CI failed; 87e5 reviewed; fixup-36 started.** 87d2's run
   failed every crate's Clippy check in the sandbox: two unfulfilled `#[expect(disallowed_types)]`
   in `core/src/hash.rs`, so the sandbox's Clippy does not read `core/clippy.toml` (likely the
   source filter); the gate passed locally. Nothing pushed; the fix goes on 87d2's head, from its
