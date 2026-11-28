@@ -11,7 +11,9 @@
 //! conclusion, then every position, each conclusion before its premises.
 
 use super::font::{AXIS, DEPTH, HEIGHT};
-use super::{Escaping, NOTATION, PLAIN, Run, Style, backdrop, escaped, head, label, run, text};
+use super::{
+    Escaping, NOTATION, PLAIN, Run, Style, backdrop, escaped, head, label, lay, run, run_into, text,
+};
 use crate::Error;
 use crate::export::notation::{Step, flush, walk};
 use crate::linear::proofs::style::{Drawn, RUN};
@@ -87,10 +89,12 @@ pub(super) fn draw<T: Drawn>(
     let bare = matches!(style.open, OpenGoal::Bare);
     let dotted = matches!(style.open, OpenGoal::Dots);
     let marks = style.ids;
-    let conclusion = |sequent: &mut String, id| {
+    // A conclusion's width alone, which keeps no text; its pieces are laid
+    // out again where it is written.
+    let conclusion_width = |sequent: &mut String, id| {
         sequent.clear();
         derivation.sequent(sequent, &NOTATION, id, false, marks);
-        run(sequent, 1000, font)
+        lay(sequent, 1000, font, |_| {})
     };
 
     // From the leaves to the root: sizes, the premises' offsets, and the
@@ -107,7 +111,7 @@ pub(super) fn draw<T: Drawn>(
                 crate::limits::Phase::Write,
             )));
         }
-        let width = conclusion(&mut sequent, id).width;
+        let width = conclusion_width(&mut sequent, id);
         let baseline = -(depth as i64) * line_height;
         top = top.min(baseline - HEIGHT);
         let alone = derivation.is_bare(id);
@@ -241,6 +245,7 @@ pub(super) fn draw<T: Drawn>(
     out.write_str("</g>\n")?;
     let size = format!(r#" font-size="{label_size}""#);
     let mut positions = Vec::new();
+    let mut line = Run::default();
     walk(derivation, |step| {
         let Step::Enter(id, depth) = step else {
             return Ok(());
@@ -251,7 +256,9 @@ pub(super) fn draw<T: Drawn>(
             positions = derivation.positions(id);
             (id.get(), positions.as_slice())
         });
-        let line = conclusion(&mut sequent, id);
+        sequent.clear();
+        derivation.sequent(&mut sequent, &NOTATION, id, false, marks);
+        run_into(&mut line, &sequent, 1000, font);
         text(&mut buffer, x + place.left, y, &line, &attributes, ids);
         match place.bar {
             None if dotted && derivation.is_open(id) => {

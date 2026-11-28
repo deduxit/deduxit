@@ -1035,14 +1035,23 @@ pub(crate) fn italic<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Re
 /// is the one place text enters a drawing, so no string of a style or a
 /// label table can make the document invalid XML.
 fn escape(out: &mut String, c: char) {
+    match replacement(c) {
+        Some(text) => out.push_str(text),
+        None => out.push(c),
+    }
+}
+
+/// Returns what XML text writes for a character in its place, or `None`
+/// for a character written as it is: [`escape`]'s table.
+const fn replacement(c: char) -> Option<&'static str> {
     match c {
-        '&' => out.push_str("&amp;"),
-        '<' => out.push_str("&lt;"),
-        '>' => out.push_str("&gt;"),
-        '"' => out.push_str("&quot;"),
-        '\t' | '\n' | '\r' => out.push(c),
-        '\0'..='\u{1F}' | '\u{FFFE}' | '\u{FFFF}' => out.push('\u{FFFD}'),
-        c => out.push(c),
+        '&' => Some("&amp;"),
+        '<' => Some("&lt;"),
+        '>' => Some("&gt;"),
+        '"' => Some("&quot;"),
+        '\t' | '\n' | '\r' => None,
+        '\0'..='\u{1F}' | '\u{FFFE}' | '\u{FFFF}' => Some("\u{FFFD}"),
+        _ => None,
     }
 }
 
@@ -1088,20 +1097,45 @@ struct Run {
 /// pieces with its width.
 fn run(text: &str, size: i64, font: &Font) -> Run {
     let mut pieces = Vec::new();
-    let width = lay(text, size, font, |piece| pieces.push(piece));
+    let width = lay(text, size, font, |piece| pieces.push(piece.clone()));
     Run { pieces, width }
+}
+
+/// Lays out a line as [`run`] does into `into`, whose pieces' texts are
+/// reused, so that laying out line after line allocates only where a
+/// line has more or longer pieces than any before it.
+fn run_into(into: &mut Run, text: &str, size: i64, font: &Font) {
+    let mut used = 0;
+    let pieces = &mut into.pieces;
+    into.width = lay(text, size, font, |piece| {
+        match pieces.get_mut(used) {
+            Some(kept) => {
+                kept.text.clear();
+                kept.text.push_str(&piece.text);
+                kept.offset = piece.offset;
+                kept.raise = piece.raise;
+                kept.size = piece.size;
+                kept.width = piece.width;
+                kept.formula = piece.formula;
+            }
+            None => pieces.push(piece.clone()),
+        }
+        used += 1;
+    });
+    pieces.truncate(used);
 }
 
 /// Lays out a line the notation or a rule's label wrote, at `size`
 /// thousandths of an em in the font. Hands `emit` its pieces from left to
-/// right, and returns its width.
+/// right, each in one buffer that the next piece reuses, and returns its
+/// width.
 ///
 /// [`RAISED_BOT`] becomes a superscript `⊥`, the text between the
 /// [`SUBSCRIPT`] marks a subscript, the text between the [`SUPERSCRIPT`]
 /// marks a superscript, and the text between the [`FORMULA`]
 /// marks pieces of that formula. A space separates two pieces and never
 /// starts or ends one.
-fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
+fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(&Piece)) -> i64 {
     // Widths in millionths of an em of `size`, which `scale` turns into
     // thousandths of an em of formula text; the product of a long line's
     // width and a large size passes `i64`, the quotient does not, and only
@@ -1117,17 +1151,21 @@ fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
     let mut current = (0, 1000);
     let (mut lowered, mut raised, mut formula, mut formulas) = (false, false, None, 0);
     let mut piece = String::new();
+    // One piece whose text is taken in and given back at every close, so
+    // that its buffer serves every piece of the line.
+    let mut laid = Piece::default();
     let mut close = |piece: &mut String, shape: (i64, i64), formula, start, end| {
         piece.truncate(piece.trim_end_matches(' ').len());
         if !piece.is_empty() {
-            emit(Piece {
-                text: std::mem::take(piece),
-                offset: scale(start),
-                raise: shape.0,
-                size: (shape.1 != 1000).then_some(size * shape.1 / 1000),
-                width: scale(end) - scale(start),
-                formula,
-            });
+            std::mem::swap(&mut laid.text, piece);
+            laid.offset = scale(start);
+            laid.raise = shape.0;
+            laid.size = (shape.1 != 1000).then_some(size * shape.1 / 1000);
+            laid.width = scale(end) - scale(start);
+            laid.formula = formula;
+            emit(&laid);
+            std::mem::swap(&mut laid.text, piece);
+            piece.clear();
         }
     };
     for c in text.chars() {
@@ -1263,10 +1301,18 @@ fn head(out: &mut impl Write, style: &Style, title: &str, size: (i64, i64)) -> s
 struct Escaping<'a, W>(&'a mut W);
 
 impl<W: Write> Write for Escaping<'_, W> {
+    /// Writes `s` escaped, the text between two escaped characters as it
+    /// is.
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        let mut text = String::with_capacity(s.len());
-        s.chars().for_each(|c| escape(&mut text, c));
-        self.0.write_str(&text)
+        let mut start = 0;
+        for (at, c) in s.char_indices() {
+            if let Some(text) = replacement(c) {
+                self.0.write_str(&s[start..at])?;
+                self.0.write_str(text)?;
+                start = at + c.len_utf8();
+            }
+        }
+        self.0.write_str(&s[start..])
     }
 }
 
@@ -1485,7 +1531,7 @@ fn line(style: &Style, title: &str, content: &str) -> String {
             out.push_str("<g>\n");
         }
         lay(content, 1000, &style.font, |piece| {
-            write_piece(out, margin, margin + HEIGHT, &piece, "");
+            write_piece(out, margin, margin + HEIGHT, piece, "");
         });
         if group {
             out.push_str("</g>\n");

@@ -428,6 +428,15 @@ for NanoYalla. What the code relies on:
   groups are written from their five strings into the document. A
   sequent of 2.1 million occurrences peaked at 650 MB for 205 MB
   written, when the pieces, a body and the document's copy were held.
+- **A line's text is laid out in one buffer** (`lay`): `emit` gets a
+  borrowed `Piece` whose text the next piece reuses, so a caller that
+  keeps pieces copies them (`run`), one that wants the width passes
+  `|_| {}`, and the tree's second pass reuses one `Run` for every
+  conclusion (`run_into`); `Escaping` writes the text between escaped
+  characters as it is, `replacement` being `escape`'s one table. When
+  every piece was a fresh `String` and the tree laid each conclusion out
+  through `run` for its width, `render-svg` made 49 819 heap blocks; it
+  makes 4 687.
 - **A style's numbers have maxima** (`Style::check`, which `svg::write`,
   `sequent` and `net` call before anything is drawn, `InvalidOption`
   naming the key): lengths `MOST_LENGTH` (a thousand ems), `label_size`
