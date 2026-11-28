@@ -8,9 +8,9 @@ use super::first_order::fresh_prefix;
 use super::laws::{Budget, Passes};
 use super::{Form, Made, Rule, Step, disjunction};
 use crate::Error;
+use crate::hash::HashMap;
 use crate::ordinary::polarity::{FALSE, TRUE, polarities};
 use crate::ordinary::{Formulas, Node, NodeId, Sequent};
-use crate::hash::HashMap;
 
 /// Returns whether `id` is a literal of a clause: an atom, a constant or
 /// the negation of one.

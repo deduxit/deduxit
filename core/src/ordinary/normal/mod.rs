@@ -67,9 +67,9 @@ use super::transfer::{self, Parameters};
 use super::{Formulas, Logic, Node, NodeId, Outcome, Sequent, Verdict, decide_within};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
+use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::search;
-use crate::hash::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 mod encode;

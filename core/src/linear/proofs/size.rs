@@ -22,12 +22,12 @@ use super::check::{
     self, Allowance, CheckError, Facts, Framed, Fresh, Ground, Instancing, Observer, State,
 };
 use super::{Branch, Derivation, Node, NodeId, Proof, ViewOptions};
+use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::instances::{eigen_names, meta_name};
 use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
 use crate::linear::sequents::{FoTerm, Kind, Term};
-use crate::hash::{HashMap, HashSet};
 
 /// How large the derivation of a proof is, as
 /// [`Proof::derivation_size`] computes it without building it.

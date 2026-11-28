@@ -517,8 +517,7 @@ pub(crate) fn binders(forest: &Forest) -> Vec<u32> {
 /// skipped, so a sequent of a derivation reads as a sequent with those
 /// eigenvariables as new constants.
 pub(crate) fn eigen_names(fo: &FirstOrder, eigens: &[Eigen]) -> HashMap<Eigen, String> {
-    let taken: crate::hash::HashSet<&str> =
-        fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
+    let taken: crate::hash::HashSet<&str> = fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
     let mut names = HashMap::default();
     let mut candidates = (0u64..).map(|n| {
         let letter = char::from(b'a' + (n % 26) as u8);

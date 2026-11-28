@@ -38,10 +38,10 @@
 //! answers is sound.
 
 use super::generate::Tree;
+use crate::hash::HashMap;
 use crate::linear::Sequent;
 use crate::linear::fragment::Mode;
 use crate::linear::sequents::{Term, TermId};
-use crate::hash::HashMap;
 
 /// What the reference found.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
