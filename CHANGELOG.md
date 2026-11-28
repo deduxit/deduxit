@@ -52,6 +52,9 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **`check` renders a derivation in a calculus given as data to PNG and
+  PDF**, as `prove --system` renders one, a tree or, with `--layout
+  fitch`, a Fitch proof; the verdict goes to standard error.
 - **Natural deduction has a search.** `rules::Derivation::natural`
   rewrites a checked derivation of LK, LJ or LM into a normal proof of
   one of the natural deduction rule sets deduxit ships (NJ, NK, NM and

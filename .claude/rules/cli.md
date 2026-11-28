@@ -317,13 +317,16 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   writes the Fitch proof's text in place of the list. `--format latex|
   typst|svg` (`drawing`) writes the verdict as the format's comment and
   the tree (`rules::Drawing`) or the Fitch proof (`rules::Fitch`), with
-  the styles' options; nothing to draw (an invalid derivation, `-q`,
+  the styles' options; `png` and `pdf` render the same drawing, the
+  verdict on standard error; nothing to draw (an invalid derivation, `-q`,
   `--tree never`) or a drawing left out (`Error::NotFitch`, a bound,
   `left_out`) puts the verdict and the reason on standard error and
-  writes nothing. Another `--format`,
-  `--net`, `--lambda`, a mode flag or `--logic` beside such a file is
-  exit 2. `Checked` has `calculus` for it; `eliminate` refuses the
-  flag.
+  writes nothing. `made` makes the certificate, the Fitch proof or the
+  tree for both writers, `check`'s `drawing` and `prove --system`'s
+  `shown`, and `list_past_limit` is the list's one estimate; each writer
+  keeps its words. `--net`, `--lambda`, a mode flag or `--logic` beside
+  such a file is exit 2. `Checked` has `calculus` for it; `eliminate`
+  refuses the flag.
 - `modal.rs`: modal logic under `--system SYSTEM` (`parse_system`,
   `System::from_str`: the fifteen names and K or D followed by axiom
   letters, any case), on `prove` and `check`, `conflicts_with = "logic"`.

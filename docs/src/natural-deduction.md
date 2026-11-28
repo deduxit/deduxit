@@ -82,7 +82,12 @@ valid in the calculus given (NJ): a ∨ b → b ∨ a, a derivation of 7 nodes
 7 │ a ∨ b → b ∨ a   →I 1–6
 $ deduxit check or.json --format latex --standalone --output or.tex
 $ deduxit check or.json --layout fitch --format typst --standalone --output or.typ
+$ deduxit check or.json --layout fitch --format png --output or.png
+valid in the calculus given (NJ): a ∨ b → b ∨ a, a derivation of 7 nodes
 ```
+
+`--format png` and `pdf` render the same drawing, the verdict on
+standard error.
 
 Each line has a number, its formula, and the rule with the lines it
 follows from. A subproof's lines stand together, its hypotheses first

@@ -2221,8 +2221,8 @@ your own rules").
   `NJ`, `NK`, `NM`, `NK-DNE`, `NK-LEM`, `NJ-defined`, `NK-defined`,
   `NM-defined`); `--calculus FILE` gives a rule file. The verdict line starts `valid in the calculus given`;
   exit 0 valid, 1 invalid, 3 a limit, 2 a rule file that is no
-  calculus. Text lists the nodes; `--format latex|typst|svg` draws
-  the derivation as a tree (natural deduction's hypotheses bare at the
+  calculus. Text lists the nodes; `--format latex|typst|svg|png|pdf`
+  draws the derivation as a tree (natural deduction's hypotheses bare at the
   leaves, the discharged ones `[A]¹` with the rule `→I¹`), and
   `--layout fitch` (`view.layout`) writes a Fitch proof in every format:
   numbered lines, each `RULE 1, 2–4` citing lines and subproofs, the

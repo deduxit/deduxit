@@ -148,18 +148,11 @@ pub(crate) fn check_rules(
     deadline: &Deadline,
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
-    let drawn = matches!(
-        show.format,
-        Format::Latex | Format::Typst | Format::Svg | Format::Rocq
-    );
-    if !(drawn || matches!(show.format, Format::Text | Format::Json))
-        || show.net
-        || show.lambda.is_some()
-    {
+    let drawn = !matches!(show.format, Format::Text | Format::Json);
+    if show.net || show.lambda.is_some() {
         bail!(
-            "a derivation in a calculus given as data is shown as text, json, latex, typst or \
-             svg, and one of a modal system's labelled calculus as rocq too: give one of those to \
-             --format, and leave out --net and --lambda"
+            "a derivation in a calculus given as data has no net and no lambda-term: leave out \
+             --net and --lambda"
         );
     }
     let over = || interrupted() || deadline.passed() || io::closed();
@@ -249,13 +242,7 @@ pub(crate) fn check_rules(
         }
         return Ok((status, true));
     }
-    // The list is bounded as a drawing is: a line per node, each sequent
-    // within --abbreviate.
-    let width = bound(show, &show.limits) as u64;
-    let estimate = (derivation.len() as u64).saturating_mul(width.saturating_add(LINE_BYTES));
-    if let Some(limit) = show.limits.derivation_bytes
-        && estimate > limit
-    {
+    if let Some(estimate) = list_past_limit(derivation, show) {
         let left_out = format!(
             "the list of the derivation's {} is left out: it may take {estimate} bytes, past \
              --derivation-limit; --format json writes the verdict alone",
@@ -278,6 +265,56 @@ pub(crate) fn check_rules(
     Ok((status, lines.written))
 }
 
+/// Returns the bytes the list of a derivation's nodes may take where they
+/// pass `--derivation-limit`: a line per node, each sequent within
+/// `--abbreviate`, as a drawing is bounded.
+fn list_past_limit(derivation: &Derivation, show: &Show) -> Option<u64> {
+    let width = bound(show, &show.limits) as u64;
+    let estimate = (derivation.len() as u64).saturating_mul(width.saturating_add(LINE_BYTES));
+    show.limits
+        .derivation_bytes
+        .is_some_and(|limit| estimate > limit)
+        .then_some(estimate)
+}
+
+/// Returns a checked derivation made for `format`: in Rocq the
+/// certificate of a modal system's labelled calculus (any other calculus
+/// is refused by name), else drawn in LaTeX, Typst or SVG, as a Fitch proof
+/// where `view.layout` asks for one and as a tree otherwise. `halt` says
+/// when the time limit or Ctrl-C ends it.
+fn made(
+    derivation: &Derivation,
+    calculus: &Calculus,
+    show: &Show,
+    format: Format,
+    halt: &dyn Fn() -> bool,
+) -> Result<String, Error> {
+    let mut text = String::new();
+    if format == Format::Rocq {
+        rocq::write_labelled(
+            derivation,
+            &show.styles.rocq,
+            &show.limits,
+            &mut text,
+            |_| halt(),
+        )?;
+        return Ok(text);
+    }
+    let styles = &show.styles;
+    let mut write = |drawable: Drawable<'_>| match format {
+        Format::Latex => latex::write(drawable, &styles.latex, &mut text, |_| halt()),
+        Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| halt()),
+        _ => svg::write(drawable, &styles.svg, &mut text, |_| halt()),
+    };
+    match show.view.layout {
+        Layout::Fitch => Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits)
+            .and_then(|fitch| write(Drawable::from(&fitch)))?,
+        _ => Drawing::new(calculus, derivation, &show.limits)
+            .and_then(|tree| write(Drawable::from(&tree)))?,
+    }
+    Ok(text)
+}
+
 /// Returns the line that says why a derivation's drawing or Fitch proof
 /// is left out.
 fn left_out(error: &Error) -> String {
@@ -290,8 +327,9 @@ fn left_out(error: &Error) -> String {
 }
 
 /// Writes a checked derivation in a drawn format (latex, typst, svg), as
-/// a tree or a Fitch proof by `view.layout`, or its certificate (rocq):
-/// the verdict as the format's comment, then the derivation. Where there is nothing to draw (the
+/// a tree or a Fitch proof by `view.layout`, rendered (png, pdf) with the
+/// verdict on standard error, or its certificate (rocq): the verdict as
+/// the format's comment, then the derivation. Where there is nothing to draw (the
 /// derivation is invalid, or `-q` or `--tree never` asks for none) or it
 /// is left out, the verdict and the reason go to standard error and the
 /// output holds nothing. `over` says when the time limit or Ctrl-C ends
@@ -320,36 +358,33 @@ fn drawing(
         say(verdict);
         return Ok((status, false));
     }
-    let write = |drawable: Drawable<'_>| -> Result<String, Error> {
-        let mut text = String::new();
-        let styles = &show.styles;
-        match show.format {
-            Format::Latex => latex::write(drawable, &styles.latex, &mut text, |_| over())?,
-            Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| over())?,
-            _ => svg::write(drawable, &styles.svg, &mut text, |_| over())?,
-        }
-        Ok(text)
-    };
-    let made = match show.view.layout {
-        // A modal system's labelled calculus has a certificate; any other
-        // calculus is refused by name.
-        _ if show.format == Format::Rocq => {
-            let mut text = String::new();
-            rocq::write_labelled(
-                derivation,
-                &show.styles.rocq,
-                &show.limits,
-                &mut text,
-                |_| over(),
-            )
-            .map(|()| text)
-        }
-        Layout::Fitch => Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits)
-            .and_then(|fitch| write(Drawable::from(&fitch))),
-        _ => Drawing::new(calculus, derivation, &show.limits)
-            .and_then(|tree| write(Drawable::from(&tree))),
-    };
-    match made {
+    if show.format.is_binary() {
+        say(verdict);
+        let shown = match made(derivation, calculus, show, Format::Svg, over) {
+            Ok(svg) => drawn_into(
+                svg,
+                false,
+                "the derivation",
+                show,
+                |_| Ok(()),
+                over,
+                &|| "it was stopped".to_owned(),
+            )?,
+            Err(error) => Shown::LeftOut(left_out(&error)),
+        };
+        return Ok(match shown {
+            Shown::Rendered(bytes) => {
+                out.stream().write_all(&bytes)?;
+                (status, true)
+            }
+            Shown::LeftOut(line) | Shown::Cut(line) => {
+                eprintln!("{line}");
+                (status, false)
+            }
+            Shown::Written | Shown::Nothing => (status, false),
+        });
+    }
+    match made(derivation, calculus, show, show.format, over) {
         Ok(text) => {
             if show.verdict {
                 writeln!(out.stream(), "{}", note(show.format, verdict))?;
@@ -386,24 +421,9 @@ pub(crate) fn shown(
     out: &mut io::Output,
     halt: &dyn Fn() -> bool,
 ) -> Result<Shown> {
-    let write = |drawable: Drawable<'_>, format: Format| -> Result<String, Error> {
-        let mut text = String::new();
-        let styles = &show.styles;
-        match format {
-            Format::Latex => latex::write(drawable, &styles.latex, &mut text, |_| halt())?,
-            Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| halt())?,
-            _ => svg::write(drawable, &styles.svg, &mut text, |_| halt())?,
-        }
-        Ok(text)
-    };
     match show.format {
         Format::Text => {
-            let width = bound(show, &show.limits) as u64;
-            let estimate =
-                (derivation.len() as u64).saturating_mul(width.saturating_add(LINE_BYTES));
-            if let Some(limit) = show.limits.derivation_bytes
-                && estimate > limit
-            {
+            if let Some(estimate) = list_past_limit(derivation, show) {
                 return Ok(Shown::LeftOut(format!(
                     "the list of the derivation's {} is left out: it may take {estimate} \
                      bytes, past --derivation-limit; --format json writes it",
@@ -428,15 +448,12 @@ pub(crate) fn shown(
             Ok(Shown::Written)
         }
         Format::Latex | Format::Typst | Format::Svg | Format::Png | Format::Pdf => {
-            let drawn = Drawing::new(calculus, derivation, &show.limits).and_then(|tree| {
-                let format = if show.format.is_binary() {
-                    Format::Svg
-                } else {
-                    show.format
-                };
-                write(Drawable::from(&tree), format)
-            });
-            let text = match drawn {
+            let format = if show.format.is_binary() {
+                Format::Svg
+            } else {
+                show.format
+            };
+            let text = match made(derivation, calculus, show, format, halt) {
                 Ok(text) => text,
                 Err(error) => return Ok(Shown::LeftOut(left_out(&error))),
             };
@@ -451,17 +468,8 @@ pub(crate) fn shown(
             )
         }
         Format::Rocq => {
-            // The labelled calculi of modal logic have one; any other
-            // calculus is refused by name.
-            let mut text = String::new();
-            match rocq::write_labelled(
-                derivation,
-                &show.styles.rocq,
-                &show.limits,
-                &mut text,
-                |_| halt(),
-            ) {
-                Ok(()) => {
+            match made(derivation, calculus, show, Format::Rocq, halt) {
+                Ok(text) => {
                     write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?;
                     Ok(Shown::Written)
                 }
