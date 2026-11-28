@@ -2478,7 +2478,7 @@ mod tests {
         // read-back runs it under the same bound, on its own account.
         let (mut low, mut high) = (0u64, 1 << 30);
         while low + 1 < high {
-            let mid = (low + high) / 2;
+            let mid = low.midpoint(high);
             let bound = unbounded.with_memory_bytes(Some(mid));
             if image.linear_derivation(proof, &bound, |_| false).is_ok() {
                 high = mid;

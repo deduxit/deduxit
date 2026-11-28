@@ -148,7 +148,7 @@ pub(super) fn draw<T: Drawn>(
         let row = (x - gap).max(0);
         let (left, bar) = match span {
             Some((start, end)) => {
-                let left = (start + end) / 2 - width / 2;
+                let left = start.midpoint(end) - width / 2;
                 (left, (start.min(left), end.max(left + width)))
             }
             None => (0, (0, width)),

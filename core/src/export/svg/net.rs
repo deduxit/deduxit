@@ -76,7 +76,7 @@ pub(super) fn arrowhead(out: &mut String, tip: (i64, i64), towards: (f64, f64), 
 /// pointing at `to`.
 pub(super) fn arrow_along(out: &mut String, from: (i64, i64), to: (i64, i64), size: i64) {
     let towards = ((to.0 - from.0) as f64, (to.1 - from.1) as f64);
-    let middle = ((from.0 + to.0) / 2, (from.1 + to.1) / 2);
+    let middle = (from.0.midpoint(to.0), from.1.midpoint(to.1));
     let tip = towards_by(middle, towards, size / 2);
     arrowhead(out, tip, towards, size);
 }
@@ -800,9 +800,9 @@ mod tests {
             let ry = height((b - a) / 2, &style) as f64;
             ry * (1.0 - ((x as f64 - middle) / rx).powi(2)).max(0.0).sqrt()
         };
-        let (outer, inner) = ((0, 200_000), (2_000, 30_000));
+        let (outer, inner): ((i64, i64), (i64, i64)) = ((0, 200_000), (2_000, 30_000));
         assert!(height(15_000, &style) < 15_000 * 600 / 1000);
-        for x in [inner.0, inner.0 + 500, (inner.0 + inner.1) / 2, inner.1] {
+        for x in [inner.0, inner.0 + 500, inner.0.midpoint(inner.1), inner.1] {
             assert!(at(inner, x) < at(outer, x), "{x}");
         }
     }

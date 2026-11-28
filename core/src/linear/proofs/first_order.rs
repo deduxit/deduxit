@@ -942,7 +942,7 @@ mod tests {
             "{largest} of {}",
             proof.nodes().len()
         );
-        let bound = (proof.nodes().len() + largest) / 2;
+        let bound = proof.nodes().len().midpoint(largest);
         let at_bound = |options: &cut::Options, limits: &Limits| {
             let ended =
                 cut::eliminate(&proof, mode, None, options, limits, |_| false, |_, _| {}).unwrap();

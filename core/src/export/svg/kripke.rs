@@ -336,7 +336,7 @@ pub(super) fn draw(
                 // The curve's middle stands `reach` right of its ends.
                 let towards = if row[v] > row[w] + 1 {
                     let control = (
-                        2 * (start.0.max(tip.0) + reach) - (start.0 + tip.0) / 2,
+                        2 * (start.0.max(tip.0) + reach) - start.0.midpoint(tip.0),
                         i64::midpoint(start.1, tip.1),
                     );
                     writeln!(
@@ -639,7 +639,7 @@ fn relation_arrow(
     };
     let control = (row[w].abs_diff(row[v]) > 1).then(|| {
         (
-            2 * (start.0.max(tip.0) + reach) - (start.0 + tip.0) / 2,
+            2 * (start.0.max(tip.0) + reach) - start.0.midpoint(tip.0),
             i64::midpoint(start.1, tip.1),
         )
     });
