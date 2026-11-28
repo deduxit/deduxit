@@ -34,6 +34,21 @@
 //! own, `deduxit-web-render`, which the page loads on its first such
 //! export.
 
+/// The stop of every call. The page cancels a call by stopping its
+/// worker, so only the bounds of the settings end a call early.
+const fn never(_: deduxit::Progress) -> bool {
+    false
+}
+
+/// Returns the stop of every call ([`never`]) as the protocol's runs pass
+/// theirs, a trait object: the library's functions generic over the stop
+/// are then compiled once for the protocol and the bindings, where a stop
+/// of a type of its own compiled each of them again.
+fn unstopped() -> &'static mut dyn FnMut(deduxit::Progress) -> bool {
+    // A function item takes no memory, so the box allocates nothing.
+    Box::leak(Box::new(never))
+}
+
 pub mod calls;
 pub mod lambda;
 pub mod modal;

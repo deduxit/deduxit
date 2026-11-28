@@ -17,14 +17,8 @@ use crate::tab;
 use deduxit::export::svg;
 use deduxit::kripke::Model;
 use deduxit::modal::{Countermodel, Sequent, System};
-use deduxit::{Progress, Settings, protocol, wire};
+use deduxit::{Settings, protocol, wire};
 use serde::Deserialize;
-
-/// The stop of every call. The page cancels a call by stopping its
-/// worker, so only the bounds of the settings end a call early.
-const fn never(_: Progress) -> bool {
-    false
-}
 
 /// Runs a protocol operation of the modal suite under the tab's
 /// settings and returns its output.
@@ -34,7 +28,7 @@ fn ran(
     parameters: &str,
     settings: &Settings,
 ) -> Result<String, Failure> {
-    Ok(protocol::run(operation, inputs, parameters, settings, never)?.value)
+    Ok(protocol::run(operation, inputs, parameters, settings, crate::unstopped())?.value)
 }
 
 /// Returns the statement of a modal sequent typed in the modal syntax
@@ -195,7 +189,7 @@ pub fn model_drawing(
     let countermodel = Countermodel::new(sequent, claim.system, model);
     // The stop as the protocol's `modal.draw` passes it, so the drawing is
     // compiled once for both.
-    let stop: &mut dyn FnMut(Progress) -> bool = &mut never;
+    let stop = crate::unstopped();
     Ok(svg::modal_countermodel(
         &countermodel,
         &settings.styles.svg,

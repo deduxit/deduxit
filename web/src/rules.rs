@@ -25,14 +25,8 @@ use deduxit::rules::{
     self, Apply, Calculus, Candidate, Derive, Drawing, Fitch, GoalId, Interactive, LineId, Status,
     Undone,
 };
-use deduxit::{Limits, Progress, Settings, wire};
+use deduxit::{Limits, Settings, wire};
 use serde::{Deserialize, Serialize};
-
-/// The stop of every call. The page cancels a call by stopping its
-/// worker, so only the bounds of the settings end a call early.
-const fn never(_: Progress) -> bool {
-    false
-}
 
 /// The built-in calculi by name, each its rule file: the command's.
 const BUILT_IN: [(&str, &str); 13] = [
@@ -622,7 +616,12 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     let closed = state
-        .close(GoalId::new(goal), &settings.search, &settings.limits, never)
+        .close(
+            GoalId::new(goal),
+            &settings.search,
+            &settings.limits,
+            crate::unstopped(),
+        )
         .map_err(Failure::from)?;
     let refused = closed
         .grafted
@@ -669,7 +668,12 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let hint = state
-        .hint(GoalId::new(goal), &settings.search, &settings.limits, never)
+        .hint(
+            GoalId::new(goal),
+            &settings.search,
+            &settings.limits,
+            crate::unstopped(),
+        )
         .map_err(Failure::from)?;
     written(&Hint {
         outcome: hint.outcome,
@@ -737,7 +741,7 @@ struct Checked<'a> {
 pub fn check(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    let derivation = state.finished(never).map_err(Failure::from)?;
+    let derivation = state.finished(crate::unstopped()).map_err(Failure::from)?;
     written(&Checked {
         calculus: state.calculus().name(),
         verdict: "valid in the calculus given",
@@ -777,9 +781,9 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     let write = |drawable: Drawable<'_>| -> Result<String, Failure> {
         let mut out = String::new();
         match format {
-            "latex" => latex::write(drawable, &styles.latex, &mut out, never),
-            "typst" => typst::write(drawable, &styles.typst, &mut out, never),
-            "svg" => svg::write(drawable, &styles.svg, &mut out, never),
+            "latex" => latex::write(drawable, &styles.latex, &mut out, crate::unstopped()),
+            "typst" => typst::write(drawable, &styles.typst, &mut out, crate::unstopped()),
+            "svg" => svg::write(drawable, &styles.svg, &mut out, crate::unstopped()),
             _ => {
                 return Err(Failure::refused(
                     "unknown_name",

@@ -16,7 +16,7 @@ use deduxit::linear::proofs::Compact;
 use deduxit::linear::proofs::interactive::{Applicable, Candidate, Inverted, Needs, Split, Status};
 use deduxit::linear::proofs::{Sides, cut};
 use deduxit::{
-    Error, Progress, Settings,
+    Error, Settings,
     linear::{
         ClassicalRule, ClassicalSequent, ClassicalSides, Criterion, CutFormula, Disproof, Fragment,
         GoalId, IllSequent, IllSyntax, InfId, Inference, Interactive, MellStructure, Member, Mode,
@@ -26,12 +26,6 @@ use deduxit::{
     wire,
 };
 use serde::{Deserialize, Serialize};
-
-/// The stop of every call. The page cancels a call by stopping its
-/// worker, so only the bounds of the settings end a call early.
-const fn never(_: Progress) -> bool {
-    false
-}
 
 /// Describes the module, as JSON:
 ///
@@ -424,7 +418,7 @@ impl View {
                 &settings
                     .limits
                     .with_derivation_bytes(settings.limits.memory_bytes),
-                never,
+                crate::unstopped(),
             )
             .ok();
         let reading = state.reading();
@@ -833,7 +827,7 @@ pub fn split_passes(session: &str, goal: u32, step: &str, settings: &str) -> Res
             GoalId::new(goal),
             &step_of(step, &state)?,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(|e| Failure::described(&e, &state))
 }
@@ -1004,7 +998,7 @@ pub fn fill(session: &str, goal: u32, source: &str, settings: &str) -> Result<St
     let mut state = session_of(session, &settings)?;
     let from = session_of(source, &settings)?;
     let proof = from
-        .proof(&settings.limits, never)
+        .proof(&settings.limits, crate::unstopped())
         .map_err(|e| Failure::described(&e, &from))?;
     state
         .fill(
@@ -1012,7 +1006,7 @@ pub fn fill(session: &str, goal: u32, source: &str, settings: &str) -> Result<St
             &proof,
             &settings.view,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(|e| Failure::described(&e, &state))?;
     changed(
@@ -1083,7 +1077,7 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
             &settings.search,
             &settings.view,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(|e| Failure::described(&e, &state))?;
     let refused = closed.grafted.err().map(refusal);
@@ -1147,7 +1141,13 @@ pub fn close_all(session: &str, settings: &str) -> Result<String, Failure> {
     let mut results = Vec::with_capacity(goals.len());
     for goal in goals {
         let limits = settings.limits.with_work(left);
-        let closed = state.close(goal, &settings.search, &settings.view, &limits, never);
+        let closed = state.close(
+            goal,
+            &settings.search,
+            &settings.view,
+            &limits,
+            crate::unstopped(),
+        );
         let work = closed
             .as_ref()
             .map_or(0, |closed| closed.outcome.statistics.work);
@@ -1217,7 +1217,7 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
         state.mode(),
         &settings.search,
         &settings.limits,
-        never,
+        crate::unstopped(),
     )
     .map_err(|e| Failure::described(&e, &state))?;
     let first = match &outcome.verdict {
@@ -1252,7 +1252,7 @@ fn first_order_hint(
             &settings.search,
             &settings.view,
             &settings.limits,
-            never,
+            crate::unstopped(),
         )
         .map_err(|e| Failure::described(&e, &copy))?;
     let first = match (&closed.outcome.verdict, closed.grafted) {
@@ -1260,7 +1260,7 @@ fn first_order_hint(
             let derivation = match copy.derivation_within(
                 &settings.view.with_compact(Compact::Never),
                 &settings.limits,
-                never,
+                crate::unstopped(),
             ) {
                 Ok(derivation) => Some(derivation),
                 Err(error) if error.is_refusal() => None,
@@ -1306,7 +1306,7 @@ fn first_steps(
     settings: &Settings,
 ) -> Result<Option<(Vec<StepForm>, bool)>, Failure> {
     let view = settings.view.with_compact(Compact::Never);
-    let derivation = match proof.derivation_within(&view, &settings.limits, never) {
+    let derivation = match proof.derivation_within(&view, &settings.limits, crate::unstopped()) {
         Ok(derivation) => derivation,
         Err(error) if error.is_refusal() => return Ok(None),
         Err(error) => return Err(Failure::from(error)),
@@ -1389,7 +1389,7 @@ pub fn proof(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let proof = state
-        .proof(&settings.limits, never)
+        .proof(&settings.limits, crate::unstopped())
         .map_err(|e| Failure::described(&e, &state))?;
     written(&proof)
 }
@@ -1420,8 +1420,8 @@ pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let term = state
-        .derivation_within(&settings.view, &settings.limits, never)
-        .and_then(|derivation| derivation.term(&settings.limits, never));
+        .derivation_within(&settings.view, &settings.limits, crate::unstopped())
+        .and_then(|derivation| derivation.term(&settings.limits, crate::unstopped()));
     termed(term, &settings)
 }
 
@@ -1448,8 +1448,8 @@ pub(crate) fn termed(
     let (options, limits) = (&settings.lambda, &settings.limits);
     let termed = term.and_then(|term| {
         let (mut text, mut judgement) = (String::new(), String::new());
-        term.write(&mut text, options, limits, never)?;
-        term.write_judgement(&mut judgement, options, limits, never)?;
+        term.write(&mut text, options, limits, crate::unstopped())?;
+        term.write_judgement(&mut judgement, options, limits, crate::unstopped())?;
         Ok(Termed {
             term,
             text,
@@ -1483,9 +1483,14 @@ pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
     let settings = tab::read(settings)?;
     let mode: Mode = mode.parse().map_err(Failure::from)?;
     let sequent = sequent_in(sequent, mode, &settings)?;
-    let outcome =
-        deduxit::linear::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
-            .map_err(Failure::from)?;
+    let outcome = deduxit::linear::prove_within(
+        &sequent,
+        mode,
+        &settings.search,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(Failure::from)?;
     written(&Decided {
         refutation_checked: refutation_checked(&outcome, &settings.limits),
         outcome,
@@ -1546,7 +1551,7 @@ pub fn draw_net(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let proof = state
-        .proof(&settings.limits, never)
+        .proof(&settings.limits, crate::unstopped())
         .map_err(|e| Failure::described(&e, &state))?;
     let mode = state.mode();
     nets_exist(proof.sequent().fragment(), mode).map_err(|e| Failure::from(Error::from(e)))?;
@@ -1561,13 +1566,13 @@ pub fn draw_net(session: &str, settings: &str) -> Result<String, Failure> {
         .with_essential(settings.styles.svg.essential || mode.is_intuitionistic());
     let limits = &settings.limits;
     if proof.sequent().fragment().has_exponentials() {
-        let net =
-            MellStructure::from_proof(&proof, criterion, limits, never).map_err(Failure::from)?;
-        return svg::mell_net(&net, svg_style, limits, never).map_err(Failure::from);
+        let net = MellStructure::from_proof(&proof, criterion, limits, crate::unstopped())
+            .map_err(Failure::from)?;
+        return svg::mell_net(&net, svg_style, limits, crate::unstopped()).map_err(Failure::from);
     }
-    let net =
-        ProofStructure::from_proof(&proof, criterion, limits, never).map_err(Failure::from)?;
-    svg::net(&net, svg_style, limits, never).map_err(Failure::from)
+    let net = ProofStructure::from_proof(&proof, criterion, limits, crate::unstopped())
+        .map_err(Failure::from)?;
+    svg::net(&net, svg_style, limits, crate::unstopped()).map_err(Failure::from)
 }
 
 /// Returns a session's derivation in a format, in the settings' style for
@@ -1594,17 +1599,18 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     let mut out = String::new();
     if format == "rocq" {
         let proof = state
-            .proof(limits, never)
+            .proof(limits, crate::unstopped())
             .map_err(|e| Failure::described(&e, &state))?;
         let view = settings.view.with_compact(Compact::Never);
         let derivation = proof
-            .derivation_within(&view, limits, never)
+            .derivation_within(&view, limits, crate::unstopped())
             .map_err(Failure::from)?;
-        rocq::write(&derivation, &styles.rocq, &mut out, never).map_err(Failure::from)?;
+        rocq::write(&derivation, &styles.rocq, &mut out, crate::unstopped())
+            .map_err(Failure::from)?;
         return Ok(out);
     }
     let derivation = state
-        .derivation_within(&settings.view, limits, never)
+        .derivation_within(&settings.view, limits, crate::unstopped())
         .map_err(Failure::from)?;
     let mode = state.mode();
     let as_written = settings.view.classical == ClassicalSides::Two
@@ -1633,12 +1639,12 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     };
     match format {
         "text" => match &two_sided {
-            Some(view) => view.write_text(&styles.text, &mut out, never),
-            None => derivation.write_text(&styles.text, &mut out, never),
+            Some(view) => view.write_text(&styles.text, &mut out, crate::unstopped()),
+            None => derivation.write_text(&styles.text, &mut out, crate::unstopped()),
         },
-        "latex" => latex::write(drawable, &styles.latex, &mut out, never),
-        "typst" => typst::write(drawable, &styles.typst, &mut out, never),
-        "svg" => svg::write(drawable, &styles.svg, &mut out, never),
+        "latex" => latex::write(drawable, &styles.latex, &mut out, crate::unstopped()),
+        "typst" => typst::write(drawable, &styles.typst, &mut out, crate::unstopped()),
+        "svg" => svg::write(drawable, &styles.svg, &mut out, crate::unstopped()),
         _ => {
             return Err(Failure::refused(
                 "unknown_name",
@@ -1798,7 +1804,7 @@ fn disproof_checked(
     disproof: &deduxit::linear::Disproof,
     limits: &deduxit::Limits,
 ) -> Option<bool> {
-    match disproof.check_within(limits, never) {
+    match disproof.check_within(limits, crate::unstopped()) {
         Ok(()) => Some(true),
         Err(Error::Refused(_)) => None,
         Err(_) => Some(false),
@@ -1884,7 +1890,7 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
     } else {
         settings.view.with_sides(Sides::One)
     };
-    let derivation = proof.derivation_within(&view, limits, never)?;
+    let derivation = proof.derivation_within(&view, limits, crate::unstopped())?;
     let mut svg = String::new();
     let as_written = settings.view.classical == ClassicalSides::Two
         && !mode.is_intuitionistic()
@@ -1894,7 +1900,7 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
             Drawable::from(&derivation),
             &settings.styles.svg,
             &mut svg,
-            never,
+            crate::unstopped(),
         )?;
         let nodes = derivation.inferences().iter().map(Inference::node);
         return Ok(Drawn {
@@ -1917,7 +1923,7 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
         Drawable::from(&two_sided),
         &settings.styles.svg,
         &mut svg,
-        never,
+        crate::unstopped(),
     )?;
     // The view numbers its inferences from 0 with a `u32`, so the count
     // fits.
@@ -1998,7 +2004,7 @@ impl<'a> CutsView<'a> {
 fn proof_in(proof: &str, state: &Interactive, settings: &Settings) -> Result<Proof, Failure> {
     if proof.trim().is_empty() {
         return state
-            .proof(&settings.limits, never)
+            .proof(&settings.limits, crate::unstopped())
             .map_err(|e| Failure::described(&e, state));
     }
     let mut json = serde_json::Deserializer::from_str(proof);
@@ -2196,8 +2202,15 @@ pub fn cut_step(
     let proof = proof_in(proof, &state, &settings)?;
     let mode = state.mode();
     let at = at.map(NodeId::new);
-    let reduction = cut::step(&proof, mode, at, &settings.cut, &settings.limits, never)
-        .map_err(|e| Failure::described(&e, &state))?;
+    let reduction = cut::step(
+        &proof,
+        mode,
+        at,
+        &settings.cut,
+        &settings.limits,
+        crate::unstopped(),
+    )
+    .map_err(|e| Failure::described(&e, &state))?;
     let before = drawn(&proof, &state, &settings).ok();
     let step = Taken::term(&reduction.step, &proof, mode, before.as_ref());
     written(&Stepped {
@@ -2239,7 +2252,7 @@ pub fn eliminate(session: &str, proof: &str, settings: &str) -> Result<String, F
         None,
         &settings.cut,
         &settings.limits,
-        never,
+        crate::unstopped(),
         |before, step| {
             let k = steps.len() + 1;
             let (mut drawing, mut refused, mut shown) = (None, None, None);
@@ -2331,11 +2344,13 @@ impl Net {
     fn of(proof: &Proof, mode: Mode, limits: &deduxit::Limits) -> Result<Self, Error> {
         nets_exist(proof.sequent().fragment(), mode)?;
         let criterion = Criterion::of(mode)?;
-        let boxed = || MellStructure::from_proof(proof, criterion, limits, never).map(Self::Mell);
+        let boxed = || {
+            MellStructure::from_proof(proof, criterion, limits, crate::unstopped()).map(Self::Mell)
+        };
         if proof.sequent().fragment().has_exponentials() {
             return boxed();
         }
-        match ProofStructure::from_proof(proof, criterion, limits, never) {
+        match ProofStructure::from_proof(proof, criterion, limits, crate::unstopped()) {
             Err(Error::Net(error))
                 if matches!(
                     *error,
@@ -2430,10 +2445,14 @@ impl<'a> NetRef<'a> {
             .with_essential(settings.styles.svg.essential || mode.is_intuitionistic());
         let limits = &settings.limits;
         match (self, step) {
-            (Self::Mll(net), Some(step)) => svg::net_step(net, step, style, limits, never),
-            (Self::Mll(net), None) => svg::net(net, style, limits, never),
-            (Self::Mell(net), Some(step)) => svg::mell_net_step(net, step, style, limits, never),
-            (Self::Mell(net), None) => svg::mell_net(net, style, limits, never),
+            (Self::Mll(net), Some(step)) => {
+                svg::net_step(net, step, style, limits, crate::unstopped())
+            }
+            (Self::Mll(net), None) => svg::net(net, style, limits, crate::unstopped()),
+            (Self::Mell(net), Some(step)) => {
+                svg::mell_net_step(net, step, style, limits, crate::unstopped())
+            }
+            (Self::Mell(net), None) => svg::mell_net(net, style, limits, crate::unstopped()),
         }
     }
 
@@ -2567,9 +2586,9 @@ pub fn net_cut_step(
     let at = at.map(VertexId::new);
     let (options, limits) = (&settings.cut, &settings.limits);
     let (made, step) = match &net {
-        Net::Mll(net) => nets::cut::step(net, at, options, limits, never)
+        Net::Mll(net) => nets::cut::step(net, at, options, limits, crate::unstopped())
             .map(|reduction| (Net::Mll(reduction.net), reduction.step)),
-        Net::Mell(net) => nets::cut::step(net, at, options, limits, never)
+        Net::Mell(net) => nets::cut::step(net, at, options, limits, crate::unstopped())
             .map(|reduction| (Net::Mell(reduction.net), reduction.step)),
     }
     .map_err(|e| Failure::described(&e, &state))?;
@@ -2624,14 +2643,18 @@ pub fn net_eliminate(session: &str, net: &str, settings: &str) -> Result<String,
     };
     let (options, limits) = (&settings.cut, &settings.limits);
     let (reached, end) = match &net {
-        Net::Mll(net) => nets::cut::eliminate(net, options, limits, never, |before, step| {
-            seen(NetRef::Mll(before), step);
-        })
-        .map(|e| (Net::Mll(e.net), e.end)),
-        Net::Mell(net) => nets::cut::eliminate(net, options, limits, never, |before, step| {
-            seen(NetRef::Mell(before), step);
-        })
-        .map(|e| (Net::Mell(e.net), e.end)),
+        Net::Mll(net) => {
+            nets::cut::eliminate(net, options, limits, crate::unstopped(), |before, step| {
+                seen(NetRef::Mll(before), step);
+            })
+            .map(|e| (Net::Mll(e.net), e.end))
+        }
+        Net::Mell(net) => {
+            nets::cut::eliminate(net, options, limits, crate::unstopped(), |before, step| {
+                seen(NetRef::Mell(before), step);
+            })
+            .map(|e| (Net::Mell(e.net), e.end))
+        }
     }
     .map_err(|e| Failure::described(&e, &state))?;
     let (end, reason) = ended(&end);
