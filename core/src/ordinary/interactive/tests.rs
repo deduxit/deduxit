@@ -4,6 +4,8 @@
 //! The goal state's tests.
 
 use super::*;
+#[cfg(feature = "serialize")]
+use crate::WitnessFault;
 use crate::linear::search::generate::Rng;
 use Side::{Left, Right};
 

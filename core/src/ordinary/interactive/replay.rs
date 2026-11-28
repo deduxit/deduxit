@@ -4,7 +4,8 @@
 //! A session read from its document: its parts checked as a state built
 //! step by step would be, and its history replayed.
 
-use super::{Interactive, Made, Unbound, Witnesses, implications_from, shown, unify_axiom};
+use super::witness::{Made, Unbound, Witnesses, implications_from, unify_axiom};
+use super::{Interactive, shown};
 use crate::Error;
 use crate::first_order::{FoTerm, FoTermId};
 use crate::limits::{Limits, Refusal};
