@@ -3,10 +3,17 @@
 
 //! The goal state's tests.
 
+#[cfg(feature = "sat")]
+use super::close::{Carry, with_derivation};
 use super::*;
 #[cfg(feature = "serialize")]
 use crate::WitnessFault;
+use crate::linear::search;
 use crate::linear::search::generate::Rng;
+use crate::ordinary::derivation::check_inference;
+#[cfg(feature = "sat")]
+use crate::ordinary::transfer::{self, Parameters};
+use crate::ordinary::{Evidence, Verdict};
 use Side::{Left, Right};
 
 /// Starts a proof of `text` in `logic` and returns it with its goal.
