@@ -9043,3 +9043,16 @@ move (D26).
   within 0.06 % of the base, the moved doc links repaired after the reviewer found the docs failing.
   In CI before `main`. fixup-33 (an unknown's classical Rocq certificate; the panel) in its worker,
   cores 7-9.
+- 2026-11-28, about 08:45: **87d1 reviewed; 87d2 started.** 87d1 (Opus, high; the panel and the
+  reviewer on Opus, Kani): four measured hot spots. The linear checker reuses a dropped sequent's
+  box and table for a leaf (`check-qbf-20-2` −9.6 % instructions, −55 % heap blocks; a wide check
+  from 8 216 blocks to 31), the SVG layout lays a line's text out in one buffer (`render-svg`
+  −20 %, −91 % blocks), the TPTP and LLTP readers read a line's names by bytes (−5 %, −33 to
+  −59 % blocks), and a `.spec` file's counts merge in place. The ceilings lowered in a commit of
+  their own. The panel's integers and argument members each found the same hole in the first form
+  (a table emptied by removals read as capacity 0, so a leaf held up to 4 096 slots: 144 MiB through
+  a bound of about 7 MiB); fixed by draining the table before reading its capacity, with a test;
+  no counterexample to the fixed form over 1.2 million records; Kani 17 of 17; both target sets
+  equal. (departs from the plan) The ordinary and lambda hot spots (F-4a-06, F-4a-05, F-5a-01) go
+  to 87d3. Stacked on 87e3 for one CI run. 87d2 in its worker, cores 4-6; its shims in the nets and
+  the MELL drawing wait for 87e6.
