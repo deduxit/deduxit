@@ -5,7 +5,7 @@
 //! table of sequents already decided; the loop check prunes a sequent
 //! equal to one of its ancestors on the branch. Both key a stable
 //! sequent (one with no rule left that applies without a choice) by its
-//! instance: its members with their terms. `framed.rs` writes the keys.
+//! instance: its members with their terms. `framed/keys.rs` writes the keys.
 //!
 //! Only failures are recorded. A proof's members name spans and
 //! metavariables (the variables a later unification binds) that an undo

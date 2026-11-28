@@ -3,7 +3,7 @@
 
 //! The rules that a first-order zone adds to the engine. A first-order
 //! zone holds the members of a sequent with quantifiers: instances of
-//! formulas whose variables unification binds (`framed.rs`).
+//! formulas whose variables unification binds (`framed/`).
 //!
 //! The rules are:
 //! - the identities (axioms), which join two opposite literals whose
@@ -11,7 +11,7 @@
 //! - the `∃` rule in focus;
 //! - the rules of two premises. The first premise's answer is the
 //!   bindings it made. Where the second premise fails under that answer,
-//!   the rule asks the first premise for another one. `framed.rs` has the
+//!   the rule asks the first premise for another one. `framed/mod.rs` has the
 //!   argument.
 
 use super::choices::Site;

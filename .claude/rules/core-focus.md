@@ -23,7 +23,9 @@ search); `arena.rs` the proof arena; `scratch.rs` the pools of buffers
 `chains`, `Plan`, `turns`, and the threaded `alternate` with its baton);
 `parallel.rs` the engine on a pool; `zone.rs` what the engine is generic
 over (`Zone`, `Linear`, `Unrestricted`, `Ground`, `Cursors`, below);
-`framed.rs` the first-order zone (`Framed`) and `first_order.rs` the
+`framed/` the first-order zone (`Framed`: its variables, unification
+and answers in `mod.rs`, the keys of its stable sequents in `keys.rs`,
+its `impl Zone` in `zone.rs`, the closing of a proof in `closing.rs`) and `first_order.rs` the
 rules it adds ("The first-order zone", below);
 `tests.rs` the tests; `bias.rs`, `classes.rs`, `context.rs`,
 `counts.rs`, `memo.rs` as named below.
@@ -1145,7 +1147,7 @@ relies on:
 
 ## The first-order zone
 
-`Framed` (`focus/framed.rs`) is the second `impl Zone`, chosen by the
+`Framed` (`focus/framed/`) is the second `impl Zone`, chosen by the
 quantifier bit in `Focused::decide` (`search_goal::<Framed>`, or
 `parallel::search_goal::<Framed>` on several threads, with the
 differences `core-parallel.md` lists under "A first-order goal on the
@@ -1205,7 +1207,7 @@ code it was. What a later session must keep:
   binding only specializes the tuple. The patterns' bytes are charged
   to the engine's scratch while the rule is open.
 - **The memo and the loop check key instances** (`keyed.rs`, the keys
-  in `framed.rs` beside `KeyScratch`): a first-order stable sequent goes
+  in `framed/keys.rs` beside `KeyScratch`): a first-order stable sequent goes
   through `prove_unkeyed`, which hands it to `prove_keyed` when the memo
   is on (`--memo-limit 0` switches both off, the 42d form). Only
   failures are recorded, never proofs (a proof's members name spans and
