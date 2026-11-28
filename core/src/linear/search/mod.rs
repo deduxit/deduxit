@@ -17,9 +17,6 @@
 
 /// The additive fast path.
 pub(crate) mod additive;
-/// The check of a refutation by the basis of a backward search, apart
-/// from the search.
-mod basis;
 pub mod batch;
 /// The atom bias: which literal of each atom a focused search takes as
 /// positive.
@@ -54,13 +51,9 @@ pub(crate) mod reference;
 /// freshness.
 #[cfg(all(test, feature = "parse"))]
 pub(crate) mod reference_fo;
-/// Why a sequent is unprovable, and the disproof that says so.
+/// Why a sequent is unprovable, the disproof that says so, and the
+/// checks of refutations, apart from the engines.
 mod refutation;
-/// The check of a refutation by a saturated set, apart from the search.
-mod saturated;
-/// The weighted count that certifies a one-sided count and a Horn
-/// program's state equation, apart from the search.
-pub(crate) mod weighted;
 /// A search's count of its work, and the values its threads share.
 mod work;
 
@@ -86,10 +79,13 @@ pub(crate) use interface::{Answer, Decide, Finished, Task};
 
 #[cfg(feature = "parallel")]
 pub use parallel::Pool;
+#[cfg(feature = "rocq")]
+pub(crate) use refutation::weighted;
 pub use refutation::{
     Basis, Classical, Disproof, Equation, Marking, OneSided, OneSidedSymbol, Refutation,
     RefutationFault, Saturated, Stable, StateEquation, Unbalanced, UnbalancedSymbol,
 };
+use refutation::{basis, saturated};
 
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};

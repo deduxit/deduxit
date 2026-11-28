@@ -11,8 +11,11 @@ paths:
   - "core/src/linear/search/additive.rs"
   - "core/src/linear/search/reference.rs"
   - "core/src/linear/search/reference_fo.rs"
-  - "core/src/linear/search/refutation.rs"
-  - "core/src/linear/search/weighted.rs"
+  - "core/src/linear/search/refutation/mod.rs"
+  - "core/src/linear/search/refutation/check.rs"
+  - "core/src/linear/search/refutation/phrase.rs"
+  - "core/src/linear/search/refutation/basis.rs"
+  - "core/src/linear/search/refutation/weighted.rs"
 ---
 
 # deduxit core: proof search, its front door, its memory bound, the additive path and the reference prover
@@ -41,6 +44,16 @@ essential) and `core-parallel.md` (the pool).
   `pub(super)`. A child module's inner doc resolves its links in
   `mod.rs`'s scope (its `mod` line has an outer doc too), so `mod.rs`
   imports for the docs (`#[cfg(doc)]`) what such a doc names.
+- **The refutations and their checks are a module of their own**
+  (`refutation/`, re-exported at `linear::search::…`): `mod.rs` the
+  types and `Disproof`, `phrase.rs` their wording, `check.rs`
+  `Disproof::check`, the faults and the counts', the assignment's and
+  the count equation's checks, `saturated.rs`, `basis.rs` and
+  `weighted.rs` the other checks. None shares code with an engine, and
+  the engines name only the types. `saturated` and `basis` are
+  `pub(super)` for the front door, which checks an engine's own set or
+  basis with them; `weighted` is `search::weighted` crate-wide for the
+  Rocq writer. A new engine calls none of them.
 
 `search/mod.rs` is what a front end calls: `prove(&sequent, mode,
 &options)` and `prove_within(…, &limits, stop)` return `Result<Outcome,
@@ -80,7 +93,7 @@ found in (`Proof::mode`, a claim); the check is against the proof's own
 their derivation. Where
 `Outcome` carries the `Verdict` (`Proved(Box<Proof>)`, `Unprovable(Box<Disproof>)`,
 the refutation with the sequent, the goal off the roots and the mode it
-means something in (`search/refutation.rs`: `Refutation` with the
+means something in (`search/refutation/mod.rs`: `Refutation` with the
 structs `Unbalanced`, `OneSided` (an atom whose literals below an
 exponential all have one sign, which copies add, outnumbered outside
 them the other way), `Equation`, `StateEquation`; its `Display` writes
@@ -214,7 +227,7 @@ copies they had are gone (F103, F104).
   method's `Refutation::Saturated` is the exception: the refutation of
   last resort, taken only where the counts and the classical refuter
   find none (they are smaller and rest on simpler invariants), and
-  checked first like a proof (`search/saturated.rs`, `core-inverse.md`;
+  checked first like a proof (`search/refutation/saturated.rs`, `core-inverse.md`;
   `Options::check` off skips it; a stop answers `Unknown(Stopped)`, a
   failed check `Error::Refutation`).
 - **A refutation says what the counts rule out** (`Refutation`,
@@ -287,7 +300,7 @@ copies they had are gone (F103, F104).
   members are not the sequent's roots. The JSON form, the check and
   the certificates do not change with it; the count equation's phrase
   stays one-sided (MLL's equation counts connectives one-sided).
-- **`Disproof::check`** (`refutation.rs`) verifies `Classical`,
+- **`Disproof::check`** (`refutation/check.rs`) verifies `Classical`,
   `Unbalanced`, `Equation`, `OneSided`, `StateEquation` and their kin
   (below) against the sequent, sharing no code with
   the search: it builds a `Forest` (default limits) and evaluates over
@@ -299,7 +312,7 @@ copies they had are gone (F103, F104).
   units in the goal and outside affine mode, `mix` equal to the mode's,
   and every count equal. Those are the conditions under which the search
   states them (`Prunes`, `intervals_run`), and the ones the Rocq
-  lemmas prove. `Saturated` is checked by `search/saturated.rs`, the
+  lemmas prove. `Saturated` is checked by `search/refutation/saturated.rs`, the
   rules re-read and applied to every choice of the set's sequents
   (`core-inverse.md`, faults `Unshaped`, `NotClosed`, `Filled`, and
   `NotApplicable` and `Mismatch` as for the others), which takes as long
@@ -316,7 +329,7 @@ copies they had are gone (F103, F104).
   was. The protocol and the command's `check` call `check_within`; the
   search's own check of a set runs under its stop and within
   `Limits::work` as well, by the same polls.
-  `Basis` is checked by `search/basis.rs`, which shares no code with
+  `Basis` is checked by `search/refutation/basis.rs`, which shares no code with
   the Horn engine: it reads the goal as a net again under the stated
   bodies' sign (a member under `?` a clause with a head, any other a
   marking, a clause used once or the one goal), requires the classes to
@@ -351,7 +364,7 @@ copies they had are gone (F103, F104).
   search's `copied` is the forest's, so a goal with no copy at all
   passes), and the interval must exclude zero on the side copies cannot
   reach (`least > 0` for copies of `a`, `most < 0` for `~a`); then the
-  weighted test (`search/weighted.rs`) with `±1` on the counted literals
+  weighted test (`search/refutation/weighted.rs`) with `±1` on the counted literals
   must accept. `StateEquation` is the weighted test alone
   (`weighted::state_equation`): the stated atom weights (sorted, in
   range, else `Mismatch`), the goal read as a Horn program with positive
@@ -370,7 +383,7 @@ copies they had are gone (F103, F104).
   `i128` and checked (a refusal, `NotApplicable`, tested on the bound's
   own sum, since no goal gets near: ±2⁹⁵ per member).
 - **The weighted test is the library's `overweight`, transcribed**
-  (`search/weighted.rs`, `Weights.v`'s `out`, `least`, `absorbs`,
+  (`search/refutation/weighted.rs`, `Weights.v`'s `out`, `least`, `absorbs`,
   `outputs`, `shaped`, `overweight` and `overweight_affine`, and
   `FirstOrderWeights.v`'s for quantifiers, which leave a weight as it
   is): `keep` (a droppable formula's bound `min(0, …)`) applies at every

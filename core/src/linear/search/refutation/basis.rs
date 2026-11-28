@@ -45,8 +45,8 @@
 //!
 //! [`Refutation::Basis`]: super::Refutation::Basis
 
-use super::refutation::{Basis, Failed, Marking, RefutationFault};
 use super::weighted::{HornMember, horn_member};
+use super::{Basis, Failed, Marking, RefutationFault};
 use crate::hash::HashMap;
 use crate::linear::occurrences::{Forest, OccId, Sign};
 

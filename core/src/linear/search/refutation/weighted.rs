@@ -31,11 +31,11 @@
 //! with `overweight_affine` for weakening, and `FirstOrderWeights.v` for a
 //! goal with a quantifier, whose rule changes no literal's weight. The
 //! library proves it sound for any weights, dead atoms and sign.
-//! [`overweight`](crate::linear::search::weighted::overweight) computes
+//! [`overweight`](crate::linear::search::refutation::weighted::overweight) computes
 //! the same lower bound per occurrence, so a goal it accepts is one the
 //! library's theorem refutes.
 
-use super::refutation::RefutationFault;
+use super::RefutationFault;
 use crate::linear::occurrences::{Forest, OccId, Sign};
 use crate::linear::sequents::Kind;
 

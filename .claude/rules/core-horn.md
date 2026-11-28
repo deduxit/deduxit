@@ -297,7 +297,7 @@ front door, the dispatch and the memory account it plugs into are in
   so the whole kept set is closed backward too. The front door takes it
   only where the counts and the classical refuter find nothing
   (`conclude`'s last resort, as for the inverse method's set) and checks
-  it first. `search/basis.rs` checks it with a reading of the goal of
+  it first. `search/refutation/basis.rs` checks it with a reading of the goal of
   its own (`core-search.md`); its liveness must be the engine's `live`
   (the least set of places from the initial marking), or a check of a
   sound basis fails on a clause the engine dropped. The search and its
@@ -335,7 +335,7 @@ front door, the dispatch and the memory account it plugs into are in
   `live` dropped (`Program::dropped`, a dead transition's clause with
   every clause under `?` that shares its arcs, `Program::alike`).
   `Disproof::check` does not read the program again: it runs the Rocq
-  library's weighted test (`search/weighted.rs`, core-search.md) with
+  library's weighted test (`search/refutation/weighted.rs`, core-search.md) with
   the atoms' weights, the atoms outside the closure dead and the bodies'
   sign, which every vector `certify` accepts passes (a clause used once
   contributes `−y·C ≥ −z`, one under `?` `from 0` where `y·C ≤ 0`, a dead

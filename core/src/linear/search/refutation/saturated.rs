@@ -69,7 +69,7 @@
 //!   set's sequents may leave them out, and a sequent derived is compared
 //!   with them left out.
 
-use super::refutation::{Failed, RefutationFault, Saturated, Stable};
+use super::{Failed, RefutationFault, Saturated, Stable};
 use crate::hash::HashMap;
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Forest, OccId, Reading, Side, Sign};

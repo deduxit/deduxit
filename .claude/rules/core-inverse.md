@@ -1,7 +1,7 @@
 ---
 paths:
   - "core/src/linear/search/inverse/**"
-  - "core/src/linear/search/saturated.rs"
+  - "core/src/linear/search/refutation/saturated.rs"
 ---
 
 # deduxit core: the inverse method
@@ -202,7 +202,7 @@ a scratch copy; the report lists them).
   need a measurement where it wins every row the default decides, which
   no static feature gave (`plan/reports/37-inverse.md`).
 - **A new filter or rule** in the engine needs its twin in the check
-  (`saturated.rs`), or the engine's sets fail it (`NotClosed`, an error
+  (`refutation/saturated.rs`), or the engine's sets fail it (`NotClosed`, an error
   of the search): a filter that drops sequents the check keeps leaves
   conclusions the set does not subsume.
 
@@ -219,7 +219,7 @@ a scratch copy; the report lists them).
   stop with `Phase::Check` (a stop gives `Unknown(Stopped)`, a failed
   check `Error::Refutation`, an error: the engine and the check
   disagree).
-- **The check** (`search/saturated.rs`, `check`) shares no code with
+- **The check** (`search/refutation/saturated.rs`, `check`) shares no code with
   `inverse/`: it re-reads the rules off the forest (`Calculus::rules`:
   `D1` foci, `D2` copies but negative literals, every `⊕` choice not
   ending in a `0`), writes each as postorder steps (`write`, no
