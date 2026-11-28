@@ -4,8 +4,8 @@
 //! Formulas copied from one arena into another: a goal of a proof in
 //! progress into an arena of its own, which a search takes, and the
 //! derivation the search found back into the proof's arena; a normal
-//! form's input and a step's law into the arena of its claims; a written
-//! tableau's expected sequent into the tableau's arena.
+//! form's input into the arena of its claims; a written tableau's
+//! expected sequent into the tableau's arena.
 //!
 //! Every pass is in index order (an operand and a subterm precede what is
 //! made of them), so nothing recurses over a formula.
@@ -77,15 +77,45 @@ impl Copied {
 /// [`Error::Symbol`] where a symbol is the target's in another role or of
 /// another arity, and [`Refusal::Index`](crate::Refusal::Index) when the
 /// target is full.
+#[cfg(feature = "interactive")]
 pub(super) fn copy(
     target: &mut Formulas,
     source: &Formulas,
     roots: Option<&[NodeId]>,
     parameters: &Parameters<'_>,
 ) -> Result<Copied, Error> {
+    copy_as(target, source, roots, parameters, false)
+}
+
+/// [`copy`], with the target first-order wherever the source is, even
+/// where what is copied holds no binder and no term: each atom then keeps
+/// its predicate, as a normal form's claims read the result's atoms.
+///
+/// # Errors
+///
+/// [`copy`]'s.
+pub(super) fn copy_first_order(
+    target: &mut Formulas,
+    source: &Formulas,
+    roots: Option<&[NodeId]>,
+    parameters: &Parameters<'_>,
+) -> Result<Copied, Error> {
+    copy_as(target, source, roots, parameters, source.is_first_order())
+}
+
+/// [`copy`], the target first-order where `first_order` is set or what is
+/// copied holds a binder or a term.
+fn copy_as(
+    target: &mut Formulas,
+    source: &Formulas,
+    roots: Option<&[NodeId]>,
+    parameters: &Parameters<'_>,
+    first_order: bool,
+) -> Result<Copied, Error> {
     let tables = source.first_order();
     let (nodes, terms) = reached(source, roots);
-    let first_order = terms.iter().any(|&t| t)
+    let first_order = first_order
+        || terms.iter().any(|&t| t)
         || nodes
             .iter()
             .enumerate()

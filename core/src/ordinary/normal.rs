@@ -1326,39 +1326,123 @@ fn law_claim(result: &Sequent, step: &Step) -> Result<Sequent, Error> {
 
 /// Returns `roots`, formulas of `from` (open ones among them), made again in
 /// `to` with every node and term they reach and nothing else: atoms and
-/// symbols by name, a bound variable by its index, a binder by its name. A
-/// step's formulas hold no eigenvariable or open witness (a result's arena
-/// holds neither), so one is [`Error::ClaimFails`].
+/// symbols by name, a bound variable by its index, a binder by its name.
+/// It is not `transfer::copy`: that builds in index order, and a claim's
+/// document numbers its formulas in the order they were made, which this
+/// walk (depth first from the roots) fixes.
 fn copy_formulas(
     from: &Formulas,
     roots: &[NodeId],
     to: &mut Formulas,
 ) -> Result<Vec<NodeId>, Error> {
-    let copied = transfer::copy(to, from, Some(roots), &Parameters::Constants)?;
-    if !copied.constants.is_empty() {
-        return Err(Error::ClaimFails {
-            claim: "a normal form".to_owned(),
-            reason: "a step holds an eigenvariable or an open witness".to_owned(),
-        });
+    let tables = from.first_order();
+    let mut symbols: HashMap<crate::first_order::Symbol, crate::first_order::Symbol> =
+        HashMap::new();
+    let mut terms: HashMap<FoTermId, FoTermId> = HashMap::new();
+    let mut nodes: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut symbol_in = |to: &mut Formulas,
+                         s: crate::first_order::Symbol,
+                         predicate: bool|
+     -> Result<crate::first_order::Symbol, Error> {
+        if let Some(&t) = symbols.get(&s) {
+            return Ok(t);
+        }
+        let (name, arity) = &tables.symbols[s.index()];
+        let t = to
+            .interner()
+            .symbol(name, *arity, predicate)
+            .map_err(|fault| Error::Symbol {
+                name: name.clone(),
+                fault,
+            })?;
+        symbols.insert(s, t);
+        Ok(t)
+    };
+    let mut stack: Vec<(NodeId, bool)> = roots.iter().map(|&r| (r, false)).collect();
+    while let Some((n, ready)) = stack.pop() {
+        if nodes.contains_key(&n) {
+            continue;
+        }
+        let node = from.node(n);
+        if !ready {
+            stack.push((n, true));
+            let (a, b) = node.operands();
+            stack.extend([a, b].into_iter().flatten().map(|k| (k, false)));
+            continue;
+        }
+        let image = match node {
+            Node::Atom(a) => match tables.atoms.get(a as usize) {
+                Some(&(p, args)) => {
+                    // The terms after the terms they name.
+                    let mut pending: Vec<(FoTermId, bool)> =
+                        tables.list(args).iter().map(|&t| (t, false)).collect();
+                    while let Some((t, done)) = pending.pop() {
+                        if terms.contains_key(&t) {
+                            continue;
+                        }
+                        let made = match tables.terms[t.index()] {
+                            FoTerm::Bound(i) => to.interner().term(FoTerm::Bound(i)),
+                            FoTerm::App(f, list) => {
+                                let items = tables.list(list);
+                                if !done {
+                                    pending.push((t, true));
+                                    pending.extend(items.iter().map(|&u| (u, false)));
+                                    continue;
+                                }
+                                let items: Vec<FoTermId> = items.iter().map(|u| terms[u]).collect();
+                                let f = symbol_in(to, f, false)?;
+                                let list = to.interner().list(&items);
+                                to.interner().term(FoTerm::App(f, list))
+                            }
+                            // A result's arena holds neither.
+                            FoTerm::Eigen(_) | FoTerm::Meta(_) => {
+                                return Err(Error::ClaimFails {
+                                    claim: "a normal form".to_owned(),
+                                    reason: "a step holds an eigenvariable or an open witness"
+                                        .to_owned(),
+                                });
+                            }
+                        };
+                        terms.insert(t, made);
+                    }
+                    let items: Vec<FoTermId> = tables.list(args).iter().map(|u| terms[u]).collect();
+                    let p = symbol_in(to, p, true)?;
+                    let list = to.interner().list(&items);
+                    to.predicate_atom(p, list)?
+                }
+                None => to.atom(from.atom_name(a))?,
+            },
+            Node::True | Node::False => to.add(node)?,
+            Node::Not(a) => to.add(Node::Not(nodes[&a]))?,
+            Node::And(a, b) => to.add(Node::And(nodes[&a], nodes[&b]))?,
+            Node::Or(a, b) => to.add(Node::Or(nodes[&a], nodes[&b]))?,
+            Node::Implies(a, b) => to.add(Node::Implies(nodes[&a], nodes[&b]))?,
+            Node::Iff(a, b) => to.add(Node::Iff(nodes[&a], nodes[&b]))?,
+            Node::Forall(a) => to.add_named(Node::Forall(nodes[&a]), tables.binder_name(n))?,
+            Node::Exists(a) => to.add_named(Node::Exists(nodes[&a]), tables.binder_name(n))?,
+        };
+        nodes.insert(n, image);
     }
-    Ok(roots.iter().map(|&r| copied.node(r)).collect())
+    Ok(roots.iter().map(|r| nodes[r]).collect())
 }
 
 /// Returns the formulas of `sequent` added to `formulas`, built again by
 /// their atoms' names, so that they are formulas of that arena whatever
 /// arena the sequent has. A sequent's arena holds no eigenvariable or open
-/// witness, so one is [`Error::ClaimFails`].
+/// witness, so one is [`Error::ClaimFails`], before anything is copied.
 fn transfer(
     sequent: &Sequent,
     formulas: &mut Formulas,
 ) -> Result<(Vec<NodeId>, Vec<NodeId>), Error> {
-    let copied = transfer::copy(formulas, sequent.formulas(), None, &Parameters::Constants)?;
-    if !copied.constants.is_empty() {
+    let from = sequent.formulas();
+    let parameter = |term: &FoTerm| matches!(term, FoTerm::Eigen(_) | FoTerm::Meta(_));
+    if from.first_order().terms.iter().any(parameter) {
         return Err(Error::ClaimFails {
             claim: "a normal form".to_owned(),
             reason: "the input holds an eigenvariable or an open witness".to_owned(),
         });
     }
+    let copied = transfer::copy_first_order(formulas, from, None, &Parameters::Constants)?;
     let map = |ids: &[NodeId]| ids.iter().map(|&x| copied.node(x)).collect();
     Ok((map(sequent.left()), map(sequent.right())))
 }

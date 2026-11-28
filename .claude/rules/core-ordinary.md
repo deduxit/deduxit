@@ -45,12 +45,17 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
   transformations, below; `normal.rs`: the normal forms, below; `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below; `transfer.rs`: formulas copied
-  between arenas (`copy`, the one copy of the crate: a first-order goal
-  out to the search and its derivation back, the normal forms' input and
-  a law's two formulas into their claims' arena, a written tableau's
-  expected sequent, the goal state's propositional graft), in index
-  order with `Parameters::Constants` or `Back`; a caller that refuses
-  parameters tests `Copied::constants` after. Its JSON forms and those of the
+  between arenas (`copy`: a first-order goal out to the search and its
+  derivation back, a written tableau's expected sequent, the goal
+  state's propositional graft; `copy_first_order`, the target
+  first-order wherever the source is: the normal forms' input into the
+  claims' arena), in index order with `Parameters::Constants` or `Back`.
+  A law's two formulas keep their own copy (`normal::copy_formulas`,
+  depth first from the roots): a claim's document numbers its formulas
+  in the order they were made, and index order renumbered every law
+  claim of `seq normalize`'s JSON (the argument panel's witness, `|-
+  ~~p /\ forall x. q(x)`, also made the claim propositional and so
+  decided by another method). Its JSON forms and those of the
   sequent, the derivation and the outcome are in
   `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
   goal state at wire level 8 (`wire::ORDINARY`, 9 with LJ's cut), the
@@ -2591,12 +2596,12 @@ decided not valid is `Error::ClaimFails` (kind defect).
     order (choice): it rests on `skolem_fresh`. First-order claims go to
     the classical default (the SAT solver refuses them), the protocol's
     too. `transfer` rebuilds the input by symbol names
-    (`transfer::copy` of the whole arena, refusing an eigenvariable or
-    open witness it made a constant), so a result read from JSON is
+    (`transfer::copy_first_order` of the whole arena, an eigenvariable
+    or open witness refused before), so a result read from JSON is
     judged as it is.
   - **The check keeps to its bounds**: a law's claim is built in an
     arena of its own holding its two formulas (`law_claim`,
-    `copy_formulas`, `transfer::copy` of the two roots); a copy of the result's arena per step, which grows
+    `copy_formulas`); a copy of the result's arena per step, which grows
     with every step, made the check of `n` hypotheses cubic in memory
     (1 500 reached 54 GB). The stop is asked before each claim, each
     decision gets the memory the kept checks leave (`left_over`,
