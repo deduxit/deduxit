@@ -3547,3 +3547,110 @@ change has none), fresh-reviewer on Opus at `high`. Nothing pushed.
   refused countermodel, the image's refutation is checked without being
   tied to the problem. A fix ties the image's sequent to the problem's
   translation, or answers unknown when the countermodel is refused.
+
+## Session fixup-39: a "not valid" answer stands on evidence tied to the problem
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-87c1-64a1a5` on `zwuwwqpn`
+(fixup-38), cores 7 to 9, in the conversation of 87c1 to fixup-38. Panel
+(argument and counterexamples on Opus at `high`; no integers member: the
+size refusal is the existing model check's, and the change does no
+arithmetic), fresh-reviewer on Opus at `high`. Nothing pushed.
+
+### What landed
+
+- `lxpuvqsq` "Hold a not-valid answer's evidence to the problem in grade
+  and the protocol":
+  - **`grade`**: an ordinary outcome that says "not valid" and has a
+    countermodel is graded by `check_countermodel` on that countermodel,
+    which `grade` already holds to the problem by its sides; it no
+    longer goes through `check_ordinary`, which checked the embedding
+    image's refutation unless the countermodel was plainly wrong, so a
+    correct or size-refused countermodel handed the verdict to an image
+    nothing tied to the problem. The witness (the outcome of `a |- b`
+    with a refused countermodel of `a ⊢ a`, graded "correct" for
+    `a |- a`) is unknown now; honest answers grade as before, only the
+    message is the countermodel's line.
+  - **The protocol's `decides`**, which `workspace check` makes again for
+    a stored value: `ordinary.decide`'s evidence (derivation,
+    countermodel, structure, Kripke structure) is held to the input
+    (part `sequent`, `of_input`): each side a multiset of formulas
+    compared as ids after `ordinary::transfer::ids_in` copies the
+    evidence's sides into a copy of the input's arena, the hypotheses
+    allowed any of the equality axioms the decision adds, `⊥` for an
+    empty right side outside classical logic; a derivation's own logic
+    must prove in the input's (`proves_in`). `linear.prove`'s proof or
+    refutation must be of the input's sequent (by text, not of a goal)
+    in its mode, `modal.decide`'s outcome of the input's sequent in its
+    system.
+  - Tests: `a_not_valid_answer_stands_on_its_countermodel` (cli; exit 0
+    before, 3 now), `a_decision_s_evidence_is_of_its_input` and
+    `every_decision_s_evidence_is_of_its_input` (protocol; `Held` before
+    where `Failed` is due). The changelog (Fixed), docs/src/grading.md,
+    docs/src/protocol.md (the promise's row), skills/deduxit/reference.md,
+    `cli.md` and `core-protocol.md`; the promise's description in the
+    catalogue says "of the input's sequent".
+- `rvlzsuom` raises `workspace-run`'s ratchet ceiling to 3 137 781
+  instructions and 4 390 allocations (from 2 987 650 and 4 211, +5.0 %
+  and +4.3 %): the journey's measured part is one `decides` check, which
+  now reads the input statement, builds the equality axioms and copies
+  the input's arena. The gate failed on it before the raise.
+
+`check` (the command) is left as it is: it has no problem to tie an
+outcome to; with a countermodel of one sequent refused and an image of
+another it confirms the image's refutation and its line names that
+image's sequent, which is true of what it names. Its JSON names no
+sequent (as for every `check` record); the argument member would close
+it (unknown when a countermodel is refused, or the countermodel's
+sequent translated and compared with the image's), a follow-up below.
+
+### Checks
+
+- `gate` passed on the final chain (the run before the raise failed on
+  `workspace-run` alone).
+- The panel, on the first version (`decides` comparing texts, without
+  the derivation's logic, and only for `ordinary.decide`):
+  - **Argument:** `grade` holds at every site (valid outcomes need
+    `proves_in` and `same_sides` before `check_derivation`; image,
+    table and clausal evidence is unknown; a countermodel without `=`
+    is held by multiset equality, which is sound since the model check
+    refuses first-order arenas). Two refutations in `decides`, both
+    fixed: an LK derivation claimed intuitionistic passed (a workspace
+    with it printed `check: held`, exit 0, for a sequent that is not
+    valid), and honest first-order decisions failed, since the printer
+    names a binder apart from the derivation's eigenvariables (`∀a_1`;
+    `workspace apply` printed `check: failed`, exit 2).
+  - **Counterexamples:** the same logic refutation (excluded middle
+    relabelled intuitionistic; an intuitionistic derivation passed as
+    minimal), in the base build too. `grade` against its own Python
+    reference (Kripke forcing with frame checks, truth tables): 4 300
+    countermodel outcomes, mutated and broken, no "correct" without a
+    real refutation, no right answer graded incorrect; 600 problem pairs
+    graded crosswise in both builds, no difference; 1 986 honest answers
+    of every method and kind, 5 958 grades per build, no difference but
+    the intended (a padded honest countermodel under 64 KiB is unknown
+    where the image graded it correct). 254 honest workspaces held in
+    both builds; 4 681 forged ones, one flag (the logic relabel).
+- The panel's witnesses against the final build: every forged workspace
+  is `check: failed`, exit 1.
+- The reviewer (on the second version): `grade` sound, both tests fail
+  without the fix, `ids_in` sound (one id only for formulas alike up to
+  bound names; a symbol in another role is no match), the ceiling raise
+  justified. One finding, fixed after the review: `linear.prove`'s and
+  `modal.decide`'s `decides` were not held to their input either (a proof
+  of `|- a, ~a` held for `|- a, ~b`, a K countermodel of `[]p |- [][]p`
+  for `p |- p`), and the promise text now claimed they were. Its four
+  cases are `every_decision_s_evidence_is_of_its_input`; no second
+  review ran on that last fix.
+
+### Follow-up
+
+- **`grade` compares an ordinary answer's sides by text** (`same_sides`):
+  an honest first-order derivation whose binder an eigenvariable's name
+  takes prints `∀a_1` and grades "incorrect" (prove's own JSON for
+  `forall a. p(a) |- forall a. p(a)`). Wrong in the safe direction, older
+  than this fixup. The protocol compares as ids now; the CLI cannot reach
+  `ordinary::transfer`, so a fix needs a public comparison of sequents
+  across arenas: an API change, for the author.
+- **`check` of an outcome whose countermodel and image disagree** (above):
+  answer unknown where a countermodel is present and refused, or tie the
+  two.
