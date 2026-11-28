@@ -375,10 +375,15 @@ fn unknown_command(command: &str) -> anyhow::Error {
 }
 
 /// Returns the answer to `load` of a file that holds another kind of
-/// session, `kinds` naming the kinds the other two sessions are.
-fn another_kind(path: &str, kinds: &str) -> anyhow::Error {
+/// session than the one running, naming the kind it holds.
+fn another_kind(path: &str, saved: &Saved) -> anyhow::Error {
+    let kind = match saved {
+        Saved::Linear(_) => "linear logic",
+        Saved::Ordinary(_) => "LK or LJ",
+        Saved::Rules(_) => "a calculus given as data",
+    };
     anyhow::anyhow!(
-        "{path} holds a session of {kinds}; `load` resumes one of this kind, and `deduxit \
+        "{path} holds a session of {kind}; `load` resumes one of this kind, and `deduxit \
          interact --state {path}` starts that one"
     )
 }
@@ -929,12 +934,7 @@ impl Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Linear(state) => *state,
-                    Saved::Ordinary(_) | Saved::Rules(_) => {
-                        return Err(another_kind(
-                            path,
-                            "LK or LJ or of a calculus given as data",
-                        ));
-                    }
+                    other => return Err(another_kind(path, &other)),
                 };
                 // The exit status answers for the session's sequent and
                 // mode, so a file of another question is refused, as

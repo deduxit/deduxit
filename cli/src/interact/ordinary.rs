@@ -328,12 +328,7 @@ impl Commands for Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Ordinary(state) => *state,
-                    Saved::Linear(_) | Saved::Rules(_) => {
-                        return Err(super::another_kind(
-                            path,
-                            "linear logic or of a calculus given as data",
-                        ));
-                    }
+                    other => return Err(super::another_kind(path, &other)),
                 };
                 // The exit status answers for the session's sequent and
                 // logic, so a file of another question is refused, as

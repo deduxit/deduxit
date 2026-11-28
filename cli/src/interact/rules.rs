@@ -443,8 +443,9 @@ impl Commands for Session {
                 let [path] = rest else {
                     bail!("load what? give one file, in quotes if its name has blanks");
                 };
-                let Saved::Rules(state) = load(Path::new(path), &self.limits)? else {
-                    return Err(super::another_kind(path, "linear logic or of LK or LJ"));
+                let state = match load(Path::new(path), &self.limits)? {
+                    Saved::Rules(state) => state,
+                    other => return Err(super::another_kind(path, &other)),
                 };
                 // The exit status answers for the session's own question.
                 if statement(&state) != statement(&self.state) {
