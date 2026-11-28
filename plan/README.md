@@ -8941,3 +8941,14 @@ move (D26).
   one session driver and one rules derivation writer. Found: the TPTP reader refuses four ILTP
   problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`), a fixup. Rebased onto `main` with no
   conflict; in CI before `main`. 87c9b in its worker on 87c9's head, cores 4-6.
+- 2026-11-28, about 03:00: **87c9b holds F-7b-05; three fixups queued.** The worker's after run
+  found that the library's default (`ordinary::decide_within`) runs the model search only after the
+  embedding ends unknown unstopped, so under the command's time limit the 474 rows the model search
+  refuted in the baseline (207 classical, 267 intuitionistic) turn unknown; no decided verdict
+  flips. Decided unattended: the command keeps its own order, and the change is parked. 87c9b's
+  worker kept its context (the app would not clear it), committing finding by finding. Queued for
+  free slots, each a fixup with its reviewer: **fixup-33** a first-order embedding's "unknown"
+  writes a classical Rocq certificate Rocq refuses (87d4's panel); **fixup-34** `decide_within`
+  gives the model search a turn under a clock (the panel), then the command takes the library's
+  default, measured against 87c9's baseline (after 87c5); **fixup-35** the TPTP reader refuses
+  four ILTP problems (`GEJ056+1`, `GEJ056+2`, `GEJ057+1`, `GEJ057+2`).
