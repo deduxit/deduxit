@@ -134,10 +134,17 @@ pub(crate) fn prove(
             }
             return Ok(Status::Unknown);
         }
-        Err(error @ Error::Refused(_)) => bail!(
-            "the evidence of the verdict was refused: {error}; raise the limit \
-             (--derivation-limit, --memory-limit, --work-limit)"
-        ),
+        Err(error @ Error::Refused(_)) => {
+            let flag = crate::settings::raise(
+                error.setting(),
+                &[
+                    "limits.derivation_bytes",
+                    "limits.memory_bytes",
+                    "limits.work",
+                ],
+            );
+            bail!("the evidence of the verdict was refused: {error}{flag}")
+        }
         Err(error) => return Err(error.into()),
     };
     let status = match outcome.verdict {

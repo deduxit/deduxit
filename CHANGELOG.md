@@ -53,8 +53,8 @@ second number (0.1.x to 0.2.0), anything else the third.
 ### Added
 
 - **`check` renders a derivation in a calculus given as data to PNG and
-  PDF**, as `prove --system` renders one, a tree or, with `--layout
-  fitch`, a Fitch proof; the verdict goes to standard error.
+  PDF**, as a tree or, with `--layout fitch`, a Fitch proof, as it draws
+  one in its other formats; the verdict goes to standard error.
 - **Natural deduction has a search.** `rules::Derivation::natural`
   rewrites a checked derivation of LK, LJ or LM into a normal proof of
   one of the natural deduction rule sets deduxit ships (NJ, NK, NM and
@@ -147,9 +147,13 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 - **A refusal names the flag that raises its bound one way on every
   command**, with what the flag takes: `; raise it with --work-limit N`
-  where `term`, `resolve`, `herbrand`, `interpolate` and `check --tableau`
-  said `--work-limit`, and `; raise it with --derivation-limit SIZE`
-  where a rules derivation's drawing said `; raise --derivation-limit`.
+  where `term`, `resolve`, `herbrand`, `seq normalize` and `check
+  --tableau` said `--work-limit`, and `; raise it with --derivation-limit
+  SIZE` where a rules derivation's drawing said `; raise
+  --derivation-limit`. `prove --system` names the one flag of the bound
+  that refused its evidence, where it listed three, and `interact`'s
+  `load` names the flag of the bound that refused a saved session (it
+  said `--occurrence-limit` for every bound).
 - **`--timeout`, `--memory-limit` and `--work-limit` stand together** in
   the Limits heading of every command's help, being one group of flags
   now; `grade --help` words them as the term commands do.

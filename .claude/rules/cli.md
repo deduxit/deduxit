@@ -876,9 +876,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   "--work-limit N", "--occurrence-limit N", "--term-limit N",
   "--derivation-limit SIZE", "--node-limit N"), `offered` being the keys
   the command has a flag for, so that no line names a flag its command
-  lacks (`LIMITS` is the common pair). `prove`'s advice by `Reason`, the
-  readers' fixed lines (`io.rs`) and resolution's own bounds are other
-  mappings and stay.
+  lacks (`LIMITS` is the common pair). Every refusal line calls it,
+  `prove --system`'s evidence and `interact`'s `load` among them.
+  `prove`'s advice by `Reason`, an ordinary method's refusal
+  (`ordinary::natively`, which offers `--method embedding` beside the
+  limits), the readers' fixed lines (`io.rs`) and resolution's own
+  bounds are other mappings and stay.
 - **Shared small writers**: `show::counted` writes a count with its noun
   (`1 step`, `3 steps`) for every command; `check::Checked::new(word)`
   or `Checked::of(status)` (`valid`, `unknown`, else `invalid`) with

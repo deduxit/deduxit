@@ -575,11 +575,17 @@ fn load(path: &Path, limits: &Limits) -> Result<Saved> {
             document.end().with_context(not)?;
             Ok(session)
         }
-        Err(e) if e.setting() == Some("limits.terms") => {
-            bail!("{e}; raise it with --term-limit")
-        }
         Err(e) if e.kind() == deduxit::ErrorKind::Limit => {
-            bail!("{e}; raise it with --occurrence-limit")
+            let flag = crate::settings::raise(
+                e.setting(),
+                &[
+                    "limits.terms",
+                    "limits.occurrences",
+                    "limits.memory_bytes",
+                    "limits.work",
+                ],
+            );
+            bail!("{e}{flag}")
         }
         Err(e) => Err(anyhow::Error::from(e).context(not())),
     }
