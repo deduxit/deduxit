@@ -43,7 +43,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (`export::rocq::write_countermodel`, core-export.md); `model.rs`: the check of a Kripke model
   (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
   `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
-  transformations, below; `normal.rs`: the normal forms, below; `interactive.rs` (behind `interactive`): the
+  transformations, below; `normal/`: the normal forms, below (`mod.rs` the
+  types, the claims and their check, `laws.rs` the stages, laws and
+  passes, `first_order.rs` the quantifier laws and Skolem's and
+  Herbrand's terms, `encode.rs` the clausal encodings, `form.rs` the test
+  of a form); `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below; `transfer.rs`: formulas copied
   between arenas (`copy`: a first-order goal out to the search and its
   derivation back, a written tableau's expected sequent, the goal
@@ -2464,7 +2468,7 @@ what fails it is `Error::ClaimFails` (kind defect, code `claim_fails`).
   (`premise_parts`), not by position. 2 000 generated sequents in the
   three logics gave 1 876 interpolants, 1 875 checked, no defect.
 
-## Normal forms (`normal.rs`)
+## Normal forms (`normal/`)
 
 Public as `ordinary::normal`; the command's `seq normalize`, the
 protocol's `ordinary.nnf`, `cnf`, `dnf`, `tseitin` and

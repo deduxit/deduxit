@@ -859,7 +859,7 @@ serde_json, which the CLI and the core's tests already have.
   a clock. Two counts still move between runs of one build, by tens of
   instructions (`ordinary-resolution-first-order` by up to 174,
   `modal-tableau` by 41; their blocks not at all): std's `HashMap` and
-  `HashSet` are seeded per process (`ordinary/normal.rs`,
+  `HashSet` are seeded per process (`ordinary/normal/mod.rs`, `ordinary/normal/encode.rs`,
   `ordinary/instance.rs`, `modal/model.rs`, theme D4 of the audit), which
   the crate's own hasher, with its fixed seed, would not be. A journey fails when its search stops deciding, so that a
   count never silently measures something else. The net engine's two
