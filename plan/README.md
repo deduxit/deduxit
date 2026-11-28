@@ -9036,3 +9036,10 @@ move (D26).
   set-up polls. Stacked on 87c5 for one CI run. 87e3 (`normal.rs`, `resolution/first_order.rs`,
   `herbrand.rs` along their seams; moves only) in its worker, cores 7-9, now that 87c5 left
   ordinary logic. fixup-33 waits for the next free slot.
+- 2026-11-28, about 08:10: **87e3 reviewed; fixup-33 started.** 87e3 (Opus, high; the reviewer on
+  Opus): `normal.rs` into its vocabulary, rewriting, first-order part, encodings and form test;
+  first-order resolution into its inference, check, search, read-back and text; Herbrand's instances
+  into their search, matching and derivation builder; every public path kept, the ordinary journeys
+  within 0.06 % of the base, the moved doc links repaired after the reviewer found the docs failing.
+  In CI before `main`. fixup-33 (an unknown's classical Rocq certificate; the panel) in its worker,
+  cores 7-9.
