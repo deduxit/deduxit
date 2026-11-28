@@ -16,6 +16,10 @@
 //! pass from the last term to the first dualises every term under an odd
 //! number of negations.
 
+// A new variant must get its own arm in every match, not fall into an
+// existing one.
+#![deny(clippy::wildcard_enum_match_arm)]
+
 use crate::Error;
 use crate::errors::ParseError;
 use crate::hash::HashMap;
@@ -1006,7 +1010,19 @@ impl<'a> Parser<'a> {
                     term = match term {
                         Term::Tensor(l, r) => Term::Tensor(r, l),
                         Term::Par(l, r) => Term::Par(r, l),
-                        other => other,
+                        // Only a product's operands follow the order.
+                        Term::Atom(_)
+                        | Term::DualAtom(_)
+                        | Term::One
+                        | Term::Bot
+                        | Term::Top
+                        | Term::Zero
+                        | Term::With(..)
+                        | Term::Plus(..)
+                        | Term::Bang(_)
+                        | Term::Quest(_)
+                        | Term::Forall(_)
+                        | Term::Exists(_) => term,
                     };
                 }
                 self.terms[n] = term;

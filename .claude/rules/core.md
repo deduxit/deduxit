@@ -335,7 +335,7 @@ offers on formulas nested 50 000 deep, on a thread with a stack of
 256 KiB.
 
 **No wildcard arm over the calculus's enums** in `sequents`,
-`occurrences`, `nets`, `export` and `ordinary`: each denies clippy's
+`parse`, `occurrences`, `nets`, `export` and `ordinary`: each denies clippy's
 `wildcard_enum_match_arm` at its top, so a variant a later step adds to
 `Term`, `Kind`, `Node`, `Rule` or `Named` is a compile error at every
 arm that must decide it, never a fall into an existing branch (F85: a
