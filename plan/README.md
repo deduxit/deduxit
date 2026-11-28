@@ -9091,7 +9091,7 @@ move (D26).
   internals), the proofs' canonicalisation beside its caller so `occurrences` imports no `proofs`;
   both target sets and the `checked` column equal; stacked on 87d2 (one conflict resolved, 87d2's
   hasher line). fixup-36 in its worker, cores 10-12.
-- 2026-11-28, about 10:00: **fixup-33 reviewed; fixup-37 started.** fixup-33 (Opus, high; the panel
+- 2026-11-28, about 09:42: **fixup-33 reviewed; fixup-37 started.** fixup-33 (Opus, high; the panel
   and the reviewer on Opus): an unknown first-order sequent gets no Rocq certificate (it wrote the
   image's classical assignment over `Prop` with first-order atoms, which Rocq refused), with a test;
   101 refused certificates of the base no longer written, no other difference over 9 940 inputs,
@@ -9103,7 +9103,7 @@ move (D26).
   Rebased onto `main` alone (87d2's stack waits for its fix); in CI before `main`. fixup-37 in its
   worker, cores 7-9, taking 87e5's held move of the ordinary Rocq writers first, now that
   fixup-33 has left `ordinary/rocq.rs`.
-- 2026-11-28, about 10:15: **fixup-34 reviewed.** fixup-34 (Opus, high; the panel and the reviewer
+- 2026-11-28, about 09:51: **fixup-34 reviewed.** fixup-34 (Opus, high; the panel and the reviewer
   on Opus): the library's first-order default (`ordinary::decide_within`) runs a first attempt of
   grounding, the connection prover and the embedding within counted budgets, then the model search
   within 2^25, then the long attempts; no clock, no thread, the order a function of the input. The
@@ -9120,7 +9120,7 @@ move (D26).
   names `--timeout 10s` (a debug build's first attempt takes 6.6 s, a release build's 0.3 s).
   Stacked on fixup-33 for one CI run. 87e2 (the last of wave E, moves only) in its worker, cores
   13-15.
-- 2026-11-28, about 10:40: **fixup-36 reviewed; 87d3b started.** fixup-36 (Opus, high; the reviewer
+- 2026-11-28, about 09:56: **fixup-36 reviewed; 87d3b started.** fixup-36 (Opus, high; the reviewer
   on Opus): the slowness was not after the work refusal but in the JSON reader, which writes every
   atom's key as its full text; the keys' bytes are now held to `limits.memory_bytes` whatever the
   term bound (the reviewer showed a 21 KB file of long names taking 3.9 GB within the defaults by
@@ -9129,13 +9129,13 @@ move (D26).
   option A, decided unattended at 09:50; keying atoms by structure is recorded as a later
   candidate. On the 87d2/87e5 stack, landing with it. 87d3b (the other suites' candidates) in its
   worker, cores 10-12.
-- 2026-11-28, about 11:10: **87d2, 87e5, fixup-36 and their logs on `main`.** 87d2's sandbox
+- 2026-11-28, about 10:40: **87d2, 87e5, fixup-36 and their logs on `main`.** 87d2's sandbox
   failure fixed here: `core/clippy.toml` was missing from the `core` part of `modules/workspace.nix`
   (`vylsrwmw`), and five files its hasher change edited from the shell were formatted (`mwomosrq`).
   The stack rebased onto fixup-33 and fixup-34 with two conflicts resolved here (fixup-34's test
   rename carried into 87e5's moved `ordinary/models/mod.rs`; the fixups report kept every section).
   CI run 46130530681 passed.
-- 2026-11-28, about 11:30: **fixup-37 reviewed; fixup-38 started.** fixup-37 (Opus, high; the panel
+- 2026-11-28, about 10:47: **fixup-37 reviewed; fixup-38 started.** fixup-37 (Opus, high; the panel
   and the reviewer on Opus): 87e5's held move of the ordinary Rocq writers into `ordinary/rocq/`,
   and the not-valid certificates over `Prop` proved by evaluation in place of `tauto`, statements
   word for word: the three slow certificates fixup-33's panel found check in 0.13 to 0.17 s (they
@@ -9145,7 +9145,7 @@ move (D26).
   part 1). Rebased onto `main`, the changelog's and the report's conflicts resolved by keeping both
   sides; in CI before `main`. fixup-38 (`check` of a first-order `not_valid` resting on the image's
   refutation; the panel) in its worker, cores 7-9.
-- 2026-11-28, about 12:25: **fixup-38 reviewed; fixup-39 started.** The author repeated "unattended"
+- 2026-11-28, about 11:18: **fixup-38 reviewed; fixup-39 started.** The author repeated "unattended"
   and allowed benchmarks while only this session uses the machine (the baseline night still waits
   for their word). fixup-38 (Opus, high; the panel and the reviewer on Opus): `check` answers a
   first-order `not_valid` resting on the image's refutation as unknown, exit 3, as `prove` does; a
@@ -9156,3 +9156,7 @@ move (D26).
   grades "correct" for `a |- a`, the image's refutation checked untied to the problem
   (**fixup-39**, started at once in the same worker, cores 7-9; the panel). fixup-38 rebased onto
   `main`; in CI before `main`.
+- 2026-11-28, about 11:20: **The 80 % stop refined, the baseline given.** The author: at 80 % of
+  the weekly limit start no new sessions and let the running ones finish (no pause), and the full
+  baseline may start whenever suitable, best once the sessions have stopped after the 80 % mark.
+  The usage guard now does that; the times of today's last six entries corrected to the clock.
