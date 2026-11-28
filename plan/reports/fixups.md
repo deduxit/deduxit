@@ -3468,3 +3468,82 @@ is checked once; that is a follow-up below.
   local definition, so that Rocq types each once. Today a 3 000-deep
   formula takes minutes, and the default 64 MiB limit admits far larger
   certificates.
+
+## Session fixup-38: check answers a first-order "not valid" through its image as prove does
+
+Opus 5.5 at `high`, in `../deduxit-wt-step-87c1-64a1a5` on `wqwmqpsr`
+(fixup-37), cores 7 to 9, in the conversation of 87c1 to fixup-37. Panel
+(argument and counterexamples on Opus at `high`; no integers member, the
+change has none), fresh-reviewer on Opus at `high`. Nothing pushed.
+
+### What landed
+
+- `rkyrtlvz` "Answer a first-order not valid through its image as
+  unknown in check": in `check_ordinary`, an outcome that says
+  `not_valid` over an embedding image whose refutation's sequent is
+  first-order is answered unknown, exit 3 (`unchecked_into`, the answer
+  `check` already gives to a claim it holds nothing to confirm, such as
+  LJT's "not valid"), with the line "unknown: the file says a
+  first-order sequent of L logic is not valid by its translation's
+  refutation, which leaves the sequent open, since the translation may
+  lose its proofs". `prove` writes that case unknown (reason
+  `incomplete`), so `check` now answers as `prove` does; before,
+  `check_disproof` confirmed it, exit 0, by a refutation true of the
+  image and not of the sequent.
+  - First-order is the new `first_order`: a quantifier
+    (`Fragment::has_quantifiers`) or an atom with arguments, not the
+    sequent's first-order tables, which a JSON image can leave out beside
+    a quantifier or fill with predicates of no arguments.
+  - A structure or Kripke structure beside such an image is not checked:
+    nothing ties its sequent to the image's, and `prove` never writes one
+    there. Grounding's and the model search's outcomes (no image) keep
+    their arms and are confirmed as before.
+  - The test `a_first_order_not_valid_by_its_image_is_unknown` (classical
+    and intuitionistic edited outcomes, an image stripped of its tables,
+    a structure beside the image) fails before: exit 0. The changelog
+    (Fixed), docs/src/check.md, docs/src/ordinary-logic.md,
+    skills/deduxit/reference.md and `cli.md` say so.
+
+### Checks
+
+- `gate` passed on the final tree (two earlier runs were stopped: the
+  panel's fixes changed the tree under them).
+- The panel, on the first version (which tested the sequent's
+  first-order tables and checked a structure beside the image):
+  - **Argument:** two refutations, both fixed. An image whose atoms are
+    written as plain names without `symbols` and `binders` reads with
+    quantifiers and empty tables, so the guard took it as propositional
+    and confirmed it (`forall x. p |- q`, exit 0). A structure beside the
+    image was checked against its own sequent: an image of the valid
+    `p(a) ⊢ p(a)` with grounding's structure of `p(a) |- q(a)` went from
+    exit 3 to exit 0. The changelog's "still confirms" was false.
+  - **Counterexamples:** the same two holes, with variants (wire levels,
+    intuitionistic Kripke structures, `grade` marking a "not valid"
+    answer to `a |- a` correct through a size-refused countermodel and
+    an untied structure). Unedited outcomes: 80 sequents in three logics
+    under six methods, 1 360 outcomes, `check` alike in both builds and
+    never exit 0 for a verdict `prove` did not give; its own evaluator
+    agreed with all 334 structures. Propositional outcomes: 1 560 in 12
+    configurations, text and JSON, byte for byte the same.
+- Every witness file of the panel and the reviewer, against the final
+  build: every first-order one exits 3; those that exit 0 (grounding,
+  the model search, propositional images) exit 0 in the base too.
+- The reviewer (on the second version): the fix sound, the test fails
+  without it, the texts true. One finding, fixed: a hand-made
+  propositional image with its atoms as nullary predicates was called
+  first-order (exit 3 with a false line); `first_order` now tests for
+  arguments. It also noted that a forged image refutation of a valid
+  first-order sequent is now unknown where it was invalid (exit 1), as
+  the brief allows; `grade` then answers such an answer unknown, not
+  incorrect.
+
+### Follow-up
+
+- **`grade` accepts a "not valid" answer to a valid problem** (in the
+  base build too; the counterexamples member's
+  `/tmp/claude-1000/panel-cx-f38/w/grade-aa-propimage.json`): the
+  embedding outcome of `a |- b` with a countermodel of `a ⊢ a` that the
+  model check refuses for size grades "correct" for `a |- a`. After a
+  refused countermodel, the image's refutation is checked without being
+  tied to the problem. A fix ties the image's sequent to the problem's
+  translation, or answers unknown when the countermodel is refused.
