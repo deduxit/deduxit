@@ -273,6 +273,119 @@ struct Nonempty {
     sources: Box<[(u32, u32)]>,
 }
 
+/// Charges the closure of `n` rows of `words` words and the linear tables
+/// to `account` and allocates the closure, every row empty; the memory
+/// limit where the account cannot hold them or the allocator cannot give
+/// them.
+fn closure(
+    n: usize,
+    words: usize,
+    mode: Mode,
+    account: &Account,
+) -> Result<(Charged<'_>, Box<[u64]>), Reason> {
+    // Count in `u64` first: a matrix of more than 4 GB does not fit a
+    // 32-bit `usize`. The forest has fewer than 2³² occurrences, so the
+    // product is below 2⁵⁹. Once the whole fits a `usize`, so does every
+    // row index `u · words + w` below it. Every step is checked, and a
+    // charge that does not fit is the memory limit.
+    let cells = n as u64 * words as u64;
+    let limit = Reason::MemoryLimit {
+        limit_bytes: account.limit(),
+    };
+    let linear = if mode.allows_empty_antecedents() {
+        LINEAR_BYTES
+    } else {
+        LINEAR_BYTES + NONEMPTY_BYTES
+    };
+    let held = usize::try_from(cells)
+        .ok()
+        .and_then(|cells| cells.checked_mul(size_of::<u64>()))
+        .and_then(|matrix| matrix.checked_add(n.checked_mul(linear)?))
+        .and_then(|bytes| bytes.checked_add(words * size_of::<u64>()))
+        .filter(|&bytes| bytes <= isize::MAX as usize && account.fits(bytes))
+        .ok_or(limit)?;
+    let mut charged = Charged::new(account);
+    charged.charge(held);
+    // `cells` fits a `usize`, since `held` does. Without a bound the
+    // charge always fits, so a matrix the allocator cannot give is the
+    // memory limit too, never an abort.
+    let mut reach = Vec::new();
+    reach.try_reserve_exact(cells as usize).map_err(|_| limit)?;
+    reach.resize(cells as usize, 0u64);
+    Ok((charged, reach.into_boxed_slice()))
+}
+
+/// Fills the closure's rows with what the fixed edges reach, polling
+/// `stop` every [`SETUP_ROWS`] rows; [`Reason::Stopped`] when it fires.
+fn fill(
+    forest: &Forest,
+    reading: &Reading<'_>,
+    words: usize,
+    reach: &mut [u64],
+    stop: &mut dyn FnMut(u64) -> bool,
+) -> Result<(), Reason> {
+    let mut rows = 0usize;
+    let mut poll = |stop: &mut dyn FnMut(u64) -> bool| {
+        rows += 1;
+        rows.is_multiple_of(SETUP_ROWS) && stop(0)
+    };
+
+    let position = |o: OccId| reading.position(o);
+    let set = |row: &mut [u64], v: usize| row[v / 64] |= 1 << (v % 64);
+    // The fixed edges go from an input connective to its input
+    // premises, which come after it, and from an output occurrence to
+    // its parent, which comes before it. So the rows are filled for the
+    // inputs from the last up, then for the outputs from the first
+    // down, each from rows already complete.
+    let inputs = forest.ids().rev().filter(|&o| position(o) == Side::Input);
+    let outputs = forest.ids().filter(|&o| position(o) == Side::Output);
+    for o in inputs.chain(outputs) {
+        if poll(stop) {
+            return Err(Reason::Stopped);
+        }
+        let (u, row) = (o.index(), o.index() * words);
+        set(&mut reach[row..row + words], u);
+        for s in fixed_successors(forest, reading, o) {
+            let from = s.index() * words;
+            for w in 0..words {
+                reach[row + w] |= reach[from + w];
+            }
+        }
+    }
+    Ok(())
+}
+
+impl Nonempty {
+    /// Returns the bodies and the sources of a sequent's reading.
+    fn of(forest: &Forest, reading: &Reading<'_>) -> Self {
+        let goal = reading.goal();
+        let bodies = forest
+            .ids()
+            .filter(|&o| o != goal)
+            .filter_map(|o| {
+                reading
+                    .implication(o)
+                    .filter(|_| is_implication(forest, reading, o))
+            })
+            .map(|(antecedent, consequent)| (consequent.get(), antecedent.get()))
+            .collect();
+        let hypotheses = reading.hypotheses().map(|h| (h.get(), NONE));
+        let antecedents = forest
+            .ids()
+            .filter(|&o| is_implication(forest, reading, o))
+            .map(|o| {
+                (
+                    reading.implication(o).expect("an implication").0.get(),
+                    o.get(),
+                )
+            });
+        Self {
+            bodies,
+            sources: hypotheses.chain(antecedents).collect(),
+        }
+    }
+}
+
 impl<'a> Essential<'a> {
     /// Returns the criterion over a forest of unit-free IMLL without a
     /// link, its closure that of the edges every structure has. The
@@ -291,64 +404,10 @@ impl<'a> Essential<'a> {
     ) -> Result<Self, Reason> {
         let n = forest.len();
         let words = n.div_ceil(64);
-        // Count in `u64` first: a matrix of more than 4 GB does not fit a
-        // 32-bit `usize`. The forest has fewer than 2³² occurrences, so the
-        // product is below 2⁵⁹. Once the whole fits a `usize`, so does every
-        // row index `u · words + w` below it. Every step is checked, and a
-        // charge that does not fit is the memory limit.
-        let cells = n as u64 * words as u64;
-        let limit = Reason::MemoryLimit {
-            limit_bytes: account.limit(),
-        };
-        let linear = if mode.allows_empty_antecedents() {
-            LINEAR_BYTES
-        } else {
-            LINEAR_BYTES + NONEMPTY_BYTES
-        };
-        let held = usize::try_from(cells)
-            .ok()
-            .and_then(|cells| cells.checked_mul(size_of::<u64>()))
-            .and_then(|matrix| matrix.checked_add(n.checked_mul(linear)?))
-            .and_then(|bytes| bytes.checked_add(words * size_of::<u64>()))
-            .filter(|&bytes| bytes <= isize::MAX as usize && account.fits(bytes))
-            .ok_or(limit)?;
-        let mut charged = Charged::new(account);
-        charged.charge(held);
-        // `cells` fits a `usize`, since `held` does. Without a bound the
-        // charge always fits, so a matrix the allocator cannot give is the
-        // memory limit too, never an abort.
-        let mut reach = Vec::new();
-        reach.try_reserve_exact(cells as usize).map_err(|_| limit)?;
-        reach.resize(cells as usize, 0u64);
-        let mut reach = reach.into_boxed_slice();
-        let mut rows = 0usize;
-        let mut poll = |stop: &mut dyn FnMut(u64) -> bool| {
-            rows += 1;
-            rows.is_multiple_of(SETUP_ROWS) && stop(0)
-        };
-
+        let (charged, mut reach) = closure(n, words, mode, account)?;
+        fill(forest, reading, words, &mut reach, stop)?;
         let position = |o: OccId| reading.position(o);
         let set = |row: &mut [u64], v: usize| row[v / 64] |= 1 << (v % 64);
-        // The fixed edges go from an input connective to its input
-        // premises, which come after it, and from an output occurrence to
-        // its parent, which comes before it. So the rows are filled for the
-        // inputs from the last up, then for the outputs from the first
-        // down, each from rows already complete.
-        let inputs = forest.ids().rev().filter(|&o| position(o) == Side::Input);
-        let outputs = forest.ids().filter(|&o| position(o) == Side::Output);
-        for o in inputs.chain(outputs) {
-            if poll(stop) {
-                return Err(Reason::Stopped);
-            }
-            let (u, row) = (o.index(), o.index() * words);
-            set(&mut reach[row..row + words], u);
-            for s in fixed_successors(forest, reading, o) {
-                let from = s.index() * words;
-                for w in 0..words {
-                    reach[row + w] |= reach[from + w];
-                }
-            }
-        }
 
         let goal = reading.goal();
         let mut branching = vec![0u64; words].into_boxed_slice();
@@ -371,32 +430,7 @@ impl<'a> Essential<'a> {
                 implications.push((o.get(), antecedent.get()));
             }
         }
-        let nonempty = (!mode.allows_empty_antecedents()).then(|| {
-            let bodies = forest
-                .ids()
-                .filter(|&o| o != goal)
-                .filter_map(|o| {
-                    reading
-                        .implication(o)
-                        .filter(|_| is_implication(forest, reading, o))
-                })
-                .map(|(antecedent, consequent)| (consequent.get(), antecedent.get()))
-                .collect();
-            let hypotheses = reading.hypotheses().map(|h| (h.get(), NONE));
-            let antecedents = forest
-                .ids()
-                .filter(|&o| is_implication(forest, reading, o))
-                .map(|o| {
-                    (
-                        reading.implication(o).expect("an implication").0.get(),
-                        o.get(),
-                    )
-                });
-            Nonempty {
-                bodies,
-                sources: hypotheses.chain(antecedents).collect(),
-            }
-        });
+        let nonempty = (!mode.allows_empty_antecedents()).then(|| Nonempty::of(forest, reading));
         Ok(Self {
             forest,
             partner: vec![NONE; n].into_boxed_slice(),
