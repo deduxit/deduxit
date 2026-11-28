@@ -1006,6 +1006,17 @@ impl Workspace {
         what: What,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Computed, Error> {
+        self.computed(node, what, &mut stop)
+    }
+
+    /// [`compute`](Self::compute) with the stop as a trait object, so
+    /// that it is compiled once, not once per caller's closure.
+    fn computed(
+        &self,
+        node: NodeId,
+        what: What,
+        stop: &mut dyn FnMut(Progress) -> bool,
+    ) -> Result<Computed, Error> {
         // A run the caller's stop ended is no function of its key, so it is
         // refused, never computed: a search answers such a stop with an
         // unknown outcome, which a record would keep as if a bound had
@@ -1302,6 +1313,18 @@ impl Workspace {
         what: What,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Vec<Ran>, Error> {
+        self.ran(targets, what, limits, &mut stop)
+    }
+
+    /// [`run`](Self::run) with the stop as a trait object, so that it is
+    /// compiled once, not once per caller's closure.
+    fn ran(
+        &mut self,
+        targets: &[NodeId],
+        what: What,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Vec<Ran>, Error> {
         self.collect(limits);
         let mut ran = Vec::new();

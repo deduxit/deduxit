@@ -178,9 +178,9 @@ impl Derivation {
         &self,
         calculus: &Calculus,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
+        mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        self.check_some(calculus, limits, stop, Which::All)
+        self.check_some(calculus, limits, &mut stop, Which::All)
     }
 
     /// Checks the derivation as [`check`](Self::check) does, but for its
@@ -194,9 +194,9 @@ impl Derivation {
         &self,
         calculus: &Calculus,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
+        mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        self.check_some(calculus, limits, stop, Which::Open)
+        self.check_some(calculus, limits, &mut stop, Which::Open)
     }
 
     /// Checks the one node at `node` against its rule, or as a
@@ -210,17 +210,18 @@ impl Derivation {
         calculus: &Calculus,
         node: usize,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
+        mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        self.check_some(calculus, limits, stop, Which::Node(node))
+        self.check_some(calculus, limits, &mut stop, Which::Node(node))
     }
 
-    /// Checks the nodes `which` names.
+    /// Checks the nodes `which` names. The stop is a trait object, so
+    /// that the check is compiled once, not once per caller's closure.
     fn check_some(
         &self,
         calculus: &Calculus,
         limits: &Limits,
-        mut stop: impl FnMut(Progress) -> bool,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
         which: Which,
     ) -> Result<(), Error> {
         let invalid = |reason: String| Error::InvalidDerivation {
