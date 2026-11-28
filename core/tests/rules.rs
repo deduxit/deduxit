@@ -510,6 +510,12 @@ fn a_rule_file_that_is_no_calculus_is_refused() {
     apart["rules"][0] = json!({"name": "ax",
         "premises": [{"left": ["Γ", "Γ′"]}], "conclusion": {"left": ["Γ", "Γ′"]}});
     assert!(reason(&apart).contains("contexts \"Γ\", \"Γ′\" cannot be told apart"));
+    // Only the contexts no zone defines are named: Γ stands alone in the
+    // premise.
+    apart["rules"][0] = json!({"name": "ax",
+        "premises": [{"left": ["Γ"], "right": ["A"]}],
+        "conclusion": {"left": ["Γ", "Γ′", "Δ"], "right": ["A"]}});
+    assert!(reason(&apart).contains("contexts \"Γ′\", \"Δ\" cannot be told apart"));
     // A connective with another number of arguments than it takes.
     let mut arity = lk.clone();
     arity["rules"][0]["conclusion"]["left"] = json!([["∧", "A"]]);

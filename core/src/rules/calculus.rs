@@ -1056,6 +1056,7 @@ impl Compiler<'_> {
                 .zip(&done)
                 .filter(|&(_, &done)| !done)
                 .flat_map(|(equation, _)| &equation.contexts)
+                .filter(|&&(variable, _)| !defined[variable as usize])
                 .map(|&(variable, _)| {
                     self.name_of(|name| matches!(name, Name::Context(v) if v == variable))
                 })
