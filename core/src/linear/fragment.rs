@@ -188,28 +188,7 @@ impl Fragment {
     /// change only the name of a purely multiplicative fragment, where
     /// they decide which engine applies.
     pub const fn name(self) -> &'static str {
-        let additive = self.has_additives() || self.has_additive_units();
-        let multiplicative = self.has_multiplicatives() || self.has_multiplicative_units();
-        let units = self.has_multiplicative_units();
-        match (
-            self.has_quantifiers(),
-            self.has_exponentials(),
-            additive,
-            multiplicative,
-        ) {
-            (false, true, true, _) => "LL",
-            (false, true, false, _) => "MELL",
-            (false, false, true, true) => "MALL",
-            (false, false, true, false) => "ALL",
-            (false, false, false, _) if units => "MLL with units",
-            (false, false, false, _) => "MLL",
-            (true, true, true, _) => "LL1",
-            (true, true, false, _) => "MELL1",
-            (true, false, true, true) => "MALL1",
-            (true, false, true, false) => "ALL1",
-            (true, false, false, _) if units => "MLL1 with units",
-            (true, false, false, _) => "MLL1",
-        }
+        Self::NAMES[self.named()]
     }
 
     /// Returns the fragment's name in `mode`: the classical
@@ -218,33 +197,49 @@ impl Fragment {
     /// `IMELL` or `ILL`, with the `1` of a first-order fragment (`IMLL1`,
     /// …).
     pub const fn name_in(self, mode: Mode) -> &'static str {
-        if !mode.is_intuitionistic() {
-            return self.name();
+        if mode.is_intuitionistic() {
+            INTUITIONISTIC_NAMES[self.named()]
+        } else {
+            self.name()
         }
+    }
+
+    /// Returns the index in [`NAMED`](Self::NAMED) of the smallest named
+    /// fragment that contains this one.
+    const fn named(self) -> usize {
         let additive = self.has_additives() || self.has_additive_units();
         let multiplicative = self.has_multiplicatives() || self.has_multiplicative_units();
         let units = self.has_multiplicative_units();
-        match (
-            self.has_quantifiers(),
-            self.has_exponentials(),
-            additive,
-            multiplicative,
-        ) {
-            (false, true, true, _) => "ILL",
-            (false, true, false, _) => "IMELL",
-            (false, false, true, true) => "IMALL",
-            (false, false, true, false) => "IALL",
-            (false, false, false, _) if units => "IMLL with units",
-            (false, false, false, _) => "IMLL",
-            (true, true, true, _) => "ILL1",
-            (true, true, false, _) => "IMELL1",
-            (true, false, true, true) => "IMALL1",
-            (true, false, true, false) => "IALL1",
-            (true, false, false, _) if units => "IMLL1 with units",
-            (true, false, false, _) => "IMLL1",
-        }
+        // A fragment with quantifiers is named six places on.
+        let first_order = if self.has_quantifiers() { 6 } else { 0 };
+        first_order
+            + match (self.has_exponentials(), additive, multiplicative) {
+                (true, true, _) => 5,
+                (true, false, _) => 4,
+                (false, true, true) => 3,
+                (false, true, false) => 2,
+                (false, false, _) if units => 1,
+                (false, false, _) => 0,
+            }
     }
 }
+
+/// The intuitionistic names of the [`NAMED`](Fragment::NAMED) fragments,
+/// in their order: each classical name with an `I` before it.
+const INTUITIONISTIC_NAMES: [&str; 12] = [
+    "IMLL",
+    "IMLL with units",
+    "IALL",
+    "IMALL",
+    "IMELL",
+    "ILL",
+    "IMLL1",
+    "IMLL1 with units",
+    "IALL1",
+    "IMALL1",
+    "IMELL1",
+    "ILL1",
+];
 
 impl FromStr for Fragment {
     type Err = Error;
@@ -738,6 +733,11 @@ mod tests {
                 fragment.name(),
                 "{fragment:?}"
             );
+        }
+        // Every named fragment, first-order ones too, keeps its own names.
+        for (&fragment, &name) in F::NAMED.iter().zip(F::NAMES) {
+            assert_eq!(fragment.name(), name);
+            assert_eq!(fragment.name_in(Mode::INTUITIONISTIC), format!("I{name}"));
         }
     }
 
